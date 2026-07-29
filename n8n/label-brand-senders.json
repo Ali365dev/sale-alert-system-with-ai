@@ -1,0 +1,133 @@
+{
+  "name": "Brand Emails -> Gmail Label (sales_offers)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "n-manual-trigger",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  b.name AS brand_name,\n  e.sender_email AS sender_email\nFROM brands b,\n     LATERAL jsonb_array_elements_text(b.emails::jsonb) AS e(sender_email)\nWHERE b.emails IS NOT NULL AND b.emails <> '[]';",
+        "options": {}
+      },
+      "id": "n-get-brand-emails",
+      "name": "Get Brand Sender Emails (Supabase)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -960,
+        0
+      ],
+      "notesInFlow": true,
+      "notes": "One row per sender email stored in brands.emails, flattened via jsonb_array_elements_text. Skips brands with no emails yet.",
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_PG_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "simple": false,
+        "filters": {
+          "q": "={{ 'from:' + $json.sender_email + ' -label:sales_offers' }}"
+        },
+        "options": {}
+      },
+      "id": "n-search-by-sender",
+      "name": "Search Gmail By Sender",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -720,
+        0
+      ],
+      "notesInFlow": true,
+      "notes": "Runs once per brand sender email. '-label:sales_offers' excludes messages that already carry the label so re-runs don't redo work.",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_OAUTH_CRED_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.id }}",
+        "labelIds": [
+          "Label_5876326678015177788"
+        ]
+      },
+      "id": "n-add-label",
+      "name": "Label as sales_offers",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_OAUTH_CRED_ID",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Get Brand Sender Emails (Supabase)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Brand Sender Emails (Supabase)": {
+      "main": [
+        [
+          {
+            "node": "Search Gmail By Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Gmail By Sender": {
+      "main": [
+        [
+          {
+            "node": "Label as sales_offers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodeGroups": [],
+  "tags": []
+}

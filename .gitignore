@@ -1,0 +1,45 @@
+# ── Secrets & credentials — never commit these ────────────────────────────────
+.env
+.env.local
+.env.*.local
+credentials.json
+token.json
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Database ────────────────────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ── Logs & caches ───────────────────────────────────────────────────────────
+logs/
+*.log
+cache/
+
+# ── Misc data / output files ───────────────────────────────────────────────
+unmatched_emails.csv
+
+# ── Frontend (Vite/React) — also covered by frontend/.gitignore ────────────
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# ── OS / editor ─────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

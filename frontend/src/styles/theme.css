@@ -1,0 +1,76 @@
+/* Dark theme is the default — dashboard analytics surface, ported from the design mockup. */
+:root {
+  --surface-app: #0c0f0e;
+  --surface-card: #161a18;
+  --surface-sunken: #1e2422;
+  --surface-inverse: #f7f9f8;
+  --border: #262d2a;
+  --border-strong: #39423e;
+  --text-strong: #f4f7f6;
+  --text-body: #c3ccc8;
+  --text-muted: #95a09b;
+  --text-faint: #6b756f;
+  --text-link: var(--azure-300);
+
+  --brand: #208aef;
+  --brand-hover: #479ef3;
+  --brand-active: #79b7f8;
+  --brand-subtle: rgba(32, 138, 239, 0.16);
+  --brand-subtle-2: rgba(32, 138, 239, 0.34);
+  --on-brand: #ffffff;
+
+  --success: #34c88a;
+  --success-subtle: rgba(52, 200, 138, 0.15);
+  --warning: #f5a524;
+  --warning-subtle: rgba(245, 165, 36, 0.16);
+  --danger: #f1666a;
+  --danger-subtle: rgba(241, 102, 106, 0.16);
+  --info: #5c90fb;
+  --info-subtle: rgba(92, 144, 251, 0.16);
+  --ai: #9b8cf7;
+  --ai-subtle: rgba(155, 140, 247, 0.17);
+
+  --amber-600: #f5c879;
+  --red-600: #f58f92;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.42);
+  --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.5);
+  --shadow-brand: 0 6px 16px rgba(32, 138, 239, 0.28);
+
+  --row-pad: 13px;
+}
+
+:root[data-theme="light"] {
+  --surface-app: #f7f9f8;
+  --surface-card: #ffffff;
+  --surface-sunken: #eef2f0;
+  --border: #e1e7e4;
+  --border-strong: #cbd3cf;
+  --text-strong: #161a18;
+  --text-body: #353d39;
+  --text-muted: #6b756f;
+  --text-faint: #9ba6a1;
+  --text-link: var(--azure-600);
+
+  --brand-subtle: #eaf4fe;
+  --brand-subtle-2: #d2e8fd;
+
+  --success: #0b8a57;
+  --success-subtle: #ecfdf5;
+  --warning-subtle: #fcefcf;
+  --danger: #e5484d;
+  --danger-subtle: #fde5e5;
+  --info: #3e7bfa;
+  --info-subtle: #dde9ff;
+  --ai: #7c6bf5;
+  --ai-subtle: #e7e3fe;
+
+  --amber-600: #d98a12;
+  --red-600: #ce3338;
+
+  --shadow-sm: 0 1px 3px rgba(9, 62, 48, 0.08), 0 1px 2px rgba(9, 62, 48, 0.04);
+  --shadow-md: 0 4px 12px rgba(9, 62, 48, 0.08);
+  --shadow-lg: 0 12px 28px rgba(9, 62, 48, 0.12);
+}

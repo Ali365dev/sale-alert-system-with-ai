@@ -1,0 +1,111 @@
+/* SpendRo — Color tokens
+   Brand hue: azure blue (#208AEF — trustworthy, modern fintech).
+   Emerald is retained as the money / income ("on track") accent.
+   Base scales + semantic aliases. Reference semantic aliases in components. */
+
+:root {
+  /* ---- Brand / Azure ---- */
+  --azure-50:  #EAF4FE;
+  --azure-100: #D2E8FD;
+  --azure-200: #ABD3FB;
+  --azure-300: #79B7F8;
+  --azure-400: #479EF3;
+  --azure-500: #208AEF; /* PRIMARY brand */
+  --azure-600: #1670CC;
+  --azure-700: #1359A2;
+  --azure-800: #134A83;
+  --azure-900: #123C69;
+  --azure-950: #0C2747;
+
+  /* ---- Money / Emerald (income, positive, "on track") ---- */
+  --emerald-50:  #ECFDF5;
+  --emerald-100: #D3F8E4;
+  --emerald-200: #A7F0CD;
+  --emerald-300: #6FE0AE;
+  --emerald-400: #34C88A;
+  --emerald-500: #12A96B;
+  --emerald-600: #0B8A57;
+  --emerald-700: #0B6E4F;
+  --emerald-800: #0A5740;
+  --emerald-900: #093E30;
+  --emerald-950: #042A20;
+
+  /* ---- Neutrals (cool slate, faint green undertone) ---- */
+  --neutral-0:   #FFFFFF;
+  --neutral-50:  #F7F9F8;
+  --neutral-100: #EEF2F0;
+  --neutral-200: #E1E7E4;
+  --neutral-300: #CBD3CF;
+  --neutral-400: #9BA6A1;
+  --neutral-500: #6B756F;
+  --neutral-600: #4C5651;
+  --neutral-700: #353D39;
+  --neutral-800: #232927;
+  --neutral-900: #161A18;
+  --neutral-950: #0C0F0E;
+
+  /* ---- Functional hues ---- */
+  --red-100:   #FDE5E5;
+  --red-500:   #E5484D;
+  --red-600:   #CE3338;
+  --amber-100: #FCEFCF;
+  --amber-500: #F5A524;
+  --amber-600: #D98A12;
+  --blue-100:  #DDE9FF;
+  --blue-500:  #3E7BFA;
+  --blue-600:  #285FD3;
+  /* AI accent — soft iris, used sparingly to mark AI-generated insight */
+  --iris-100:  #E7E3FE;
+  --iris-400:  #9B8CF7;
+  --iris-500:  #7C6BF5;
+  --iris-600:  #5E4BDC;
+
+  /* ===================== SEMANTIC ALIASES ===================== */
+
+  /* Brand */
+  --brand:            var(--azure-500);
+  --brand-hover:      var(--azure-600);
+  --brand-active:     var(--azure-700);
+  --brand-subtle:     var(--azure-50);
+  --brand-subtle-2:   var(--azure-100);
+  --on-brand:         var(--neutral-0);
+
+  /* Surfaces */
+  --surface-app:      var(--neutral-50);   /* app background */
+  --surface-card:     var(--neutral-0);    /* raised cards / sheets */
+  --surface-sunken:   var(--neutral-100);  /* inset wells, list zebra */
+  --surface-inverse:  var(--neutral-900);
+  --surface-scrim:    rgba(12, 15, 14, 0.45);
+
+  /* Text */
+  --text-strong:      var(--neutral-900);  /* headings, balances */
+  --text-body:        var(--neutral-700);  /* default body */
+  --text-muted:       var(--neutral-500);  /* secondary / captions */
+  --text-faint:       var(--neutral-400);  /* placeholder, disabled */
+  --text-on-inverse:  var(--neutral-50);
+  --text-link:        var(--azure-600);
+
+  /* Borders */
+  --border:           var(--neutral-200);
+  --border-strong:    var(--neutral-300);
+  --border-focus:     var(--azure-500);
+
+  /* Money & status semantics */
+  --income:           var(--emerald-600);  /* positive / money in */
+  --income-subtle:    var(--emerald-50);
+  --expense:          var(--red-500);       /* negative / money out */
+  --expense-subtle:   var(--red-100);
+  --success:          var(--emerald-600);
+  --success-subtle:   var(--emerald-50);
+  --warning:          var(--amber-500);
+  --warning-subtle:   var(--amber-100);
+  --danger:           var(--red-500);
+  --danger-subtle:    var(--red-100);
+  --info:             var(--blue-500);
+  --info-subtle:      var(--blue-100);
+  --ai:               var(--iris-500);
+  --ai-subtle:        var(--iris-100);
+
+  /* Focus ring */
+  --ring: 0 0 0 3px rgba(32, 138, 239, 0.30);
+}

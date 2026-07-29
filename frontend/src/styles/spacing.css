@@ -1,0 +1,25 @@
+/* SpendRo — Spacing scale (4px base grid) */
+
+:root {
+  --space-0:   0;
+  --space-1:   2px;
+  --space-2:   4px;
+  --space-3:   8px;
+  --space-4:   12px;
+  --space-5:   16px;
+  --space-6:   20px;
+  --space-7:   24px;
+  --space-8:   32px;
+  --space-9:   40px;
+  --space-10:  48px;
+  --space-11:  64px;
+  --space-12:  80px;
+
+  /* Common layout tokens */
+  --gutter:        16px;  /* screen edge padding (mobile) */
+  --card-pad:      16px;
+  --section-gap:   24px;
+  --control-h:     48px;  /* default tappable control height (>=44 hit target) */
+  --control-h-sm:  36px;
+  --tab-bar-h:     56px;
+}

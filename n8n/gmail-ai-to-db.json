@@ -1,0 +1,193 @@
+{
+  "name": "Gmail → Gemini → Supabase (Offers)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            { "mode": "everyMinute" }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "labelIds": ["sales_offers"]
+        },
+        "options": {
+          "downloadAttachments": false
+        }
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger (sales_offers)",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_OAUTH_CRED_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize the Gmail Trigger item into the same shape run.py / gmail_service.py build\nconst msg = $input.item.json;\n\nconst headers = {};\nfor (const h of (msg.payload?.headers || [])) {\n  headers[h.name] = h.value;\n}\n\nfunction decodeBody(payload) {\n  const data = payload?.body?.data;\n  if (payload?.mimeType === 'text/plain' && data) {\n    return Buffer.from(data, 'base64url').toString('utf-8');\n  }\n  if (payload?.mimeType === 'text/html' && data) {\n    const html = Buffer.from(data, 'base64url').toString('utf-8');\n    return html.replace(/<[^>]+>/g, ' ');\n  }\n  for (const part of (payload?.parts || [])) {\n    const text = decodeBody(part);\n    if (text && text.trim()) return text;\n  }\n  return '';\n}\n\nconst body = decodeBody(msg.payload).slice(0, 50000);\n\nreturn {\n  json: {\n    gmail_message_id: msg.id,\n    sender: headers['From'] || 'unknown',\n    subject: headers['Subject'] || '(no subject)',\n    body,\n    received_date: headers['Date'] ? new Date(headers['Date']).toISOString() : null\n  }\n};\n"
+      },
+      "id": "normalize-email",
+      "name": "Extract Email Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO emails (gmail_message_id, sender, subject, body, received_date, processed_at)\nVALUES ($1, $2, $3, $4, $5, now())\nON CONFLICT (gmail_message_id) DO NOTHING\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ [$json.gmail_message_id, $json.sender, $json.subject, $json.body, $json.received_date] }}"
+        }
+      },
+      "id": "insert-email",
+      "name": "Insert Email (Supabase)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [640, 300],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_PG_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-new-email",
+      "name": "IF New Email (skip dupes)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge the inserted email row (id) back with the original subject/body\n// so downstream nodes have everything they need for the AI call and offer insert.\nconst emailRow = $input.item.json; // { id }\nconst original = $('Extract Email Fields').item.json;\n\nreturn {\n  json: {\n    email_id: emailRow.id,\n    subject: original.subject,\n    body: original.body\n  }\n};\n"
+      },
+      "id": "merge-email-id",
+      "name": "Attach email_id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date().toISOString().slice(0, 10);\nconst subject = $json.subject || '';\nconst body = (($json.body || '') + '').slice(0, 6000) || '(empty body)';\n\nconst prompt = `You are a JSON-only extraction engine.  Analyse the email below and return a\nsingle valid JSON object — no markdown fences, no prose — matching this schema:\n\n{\n  \"brand\": \"<brand name or null>\",\n  \"company\": \"<company name or null>\",\n  \"category\": \"<top-level product/service category, e.g. Fashion, Electronics, Food & Dining>\",\n  \"subcategory\": \"<specific subcategory, e.g. Men's Clothing, Smartphones, Pizza>\",\n  \"offer_type\": \"<Discount | BOGO | Free Shipping | Flash Sale | Bundle | Loyalty | Other>\",\n  \"discount_percentage\": <number 0-100 or null>,\n  \"coupon_code\": \"<code or null>\",\n  \"expiry_date\": \"<YYYY-MM-DD or null>\",\n  \"offer_value\": \"<monetary or descriptive value or null>\",\n  \"website_url\": \"<direct URL to the offer or brand website, or null>\",\n  \"summary\": \"<one-sentence summary>\",\n  \"key_highlights\": [\"<highlight 1>\", \"<highlight 2>\", \"...\"]\n}\n\nRules:\n- category: use a broad top-level category (e.g. Fashion, Electronics, Travel, Food & Dining).\n- subcategory: use a specific sub-type within the category (e.g. Men's Clothing, Laptops, Hotels).\n- discount_percentage: extract the largest numeric discount found; null if none.\n- expiry_date: infer year if missing (today is ${today}).\n- website_url: extract any \"Shop Now\", \"View Offer\", or call-to-action link from the email; null if none.\n- Return ONLY the JSON object.\n\n--- EMAIL START ---\nSubject: ${subject}\n\n${body}\n--- EMAIL END ---`;\n\nreturn { json: { ...$json, prompt } };\n"
+      },
+      "id": "build-prompt",
+      "name": "Build Gemini Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={{ $credentials.geminiApi.apiKey }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [ { parts: [ { text: $json.prompt } ] } ], generationConfig: { temperature: 0.2 } }) }}",
+        "options": {}
+      },
+      "id": "call-gemini",
+      "name": "Gemini - Analyze Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1520, 220],
+      "credentials": {
+        "geminiApi": {
+          "id": "GEMINI_API_CRED_ID",
+          "name": "Gemini API key"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Swap for the built-in 'Google Gemini Chat Model' node if preferred; this HTTP call mirrors ai/_llm.py's Gemini request."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mirrors ai/analyzer.py: _extract_json + _safe_float + defaults\nconst prior = $('Attach email_id').item.json; // { email_id, subject, body }\nconst resp = $json;\n\nlet text = resp?.candidates?.[0]?.content?.parts?.[0]?.text || '';\ntext = text.trim().replace(/^```(json)?/, '').replace(/```$/, '').trim();\n\nlet data;\ntry {\n  data = JSON.parse(text);\n} catch (e) {\n  const match = text.match(/\\{[\\s\\S]*\\}/);\n  data = match ? JSON.parse(match[0]) : null;\n}\n\nif (!data) {\n  throw new Error('Gemini returned no parseable JSON for email_id=' + prior.email_id);\n}\n\nfunction safeFloat(v, low = 0, high = 100) {\n  const n = parseFloat(v);\n  if (Number.isNaN(n)) return null;\n  return Math.max(low, Math.min(high, n));\n}\n\nfunction parseExpiry(s) {\n  if (!s) return null;\n  const d = new Date(s);\n  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);\n}\n\nreturn {\n  json: {\n    email_id: prior.email_id,\n    brand: data.brand ?? null,\n    company: data.company ?? null,\n    category: data.category ?? null,\n    subcategory: data.subcategory ?? null,\n    offer_type: data.offer_type ?? null,\n    discount_percentage: safeFloat(data.discount_percentage),\n    coupon_code: data.coupon_code ?? null,\n    expiry_date: parseExpiry(data.expiry_date),\n    offer_value: data.offer_value ?? null,\n    website: data.website_url || null,\n    summary: data.summary ?? null,\n    key_highlights: JSON.stringify(Array.isArray(data.key_highlights) ? data.key_highlights : [])\n  }\n};\n"
+      },
+      "id": "parse-gemini",
+      "name": "Parse Gemini JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1740, 220]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO offers (\n  email_id, brand, company, category, subcategory, offer_type,\n  discount_percentage, coupon_code, expiry_date, offer_value,\n  website, summary, key_highlights, is_active, source, created_at\n) VALUES (\n  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, 'email', now()\n);",
+        "options": {
+          "queryReplacement": "={{ [$json.email_id, $json.brand, $json.company, $json.category, $json.subcategory, $json.offer_type, $json.discount_percentage, $json.coupon_code, $json.expiry_date, $json.offer_value, $json.website, $json.summary, $json.key_highlights] }}"
+        }
+      },
+      "id": "insert-offer",
+      "name": "Insert Offer (Supabase)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1960, 220],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_PG_CRED_ID",
+          "name": "Supabase Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "noop-dupe",
+      "name": "No-Op (Duplicate Email)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1080, 420]
+    }
+  ],
+  "connections": {
+    "Gmail Trigger (sales_offers)": {
+      "main": [[{ "node": "Extract Email Fields", "type": "main", "index": 0 }]]
+    },
+    "Extract Email Fields": {
+      "main": [[{ "node": "Insert Email (Supabase)", "type": "main", "index": 0 }]]
+    },
+    "Insert Email (Supabase)": {
+      "main": [[{ "node": "IF New Email (skip dupes)", "type": "main", "index": 0 }]]
+    },
+    "IF New Email (skip dupes)": {
+      "main": [
+        [{ "node": "Attach email_id", "type": "main", "index": 0 }],
+        [{ "node": "No-Op (Duplicate Email)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Attach email_id": {
+      "main": [[{ "node": "Build Gemini Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Gemini Prompt": {
+      "main": [[{ "node": "Gemini - Analyze Email", "type": "main", "index": 0 }]]
+    },
+    "Gemini - Analyze Email": {
+      "main": [[{ "node": "Parse Gemini JSON", "type": "main", "index": 0 }]]
+    },
+    "Parse Gemini JSON": {
+      "main": [[{ "node": "Insert Offer (Supabase)", "type": "main", "index": 0 }]]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+/* SpendRo — Corner radii. Balanced softness: rounded but not bubbly. */
+
+:root {
+  --radius-xs:   6px;   /* chips, tags */
+  --radius-sm:   10px;  /* inputs, buttons */
+  --radius-md:   14px;  /* default control / small card */
+  --radius-lg:   18px;  /* cards, sheets */
+  --radius-xl:   24px;  /* hero cards, bottom sheets */
+  --radius-2xl:  32px;
+  --radius-pill: 999px; /* segmented controls, avatars, status pills */
+}
