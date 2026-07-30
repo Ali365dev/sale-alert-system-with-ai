@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import {
-  useCancelFetchEmails,
-  useFetchEmails,
-  useFetchEmailsStatus,
-  useProcessPending,
-  useProcessPendingStatus,
-} from "../api/actions";
+import { useProcessPending, useProcessPendingStatus } from "../api/actions";
+import { isJobActive, useActiveJob, useJob, useStartEmailSync } from "../api/jobs";
 import {
   useDeleteEmail,
   useEmail,
@@ -18,6 +13,7 @@ import {
 } from "../api/emails";
 import { useVerifyAllOffers, useVerifyAllStatus } from "../api/offers";
 import { Icon } from "../components/icons";
+import { ProcessingPanel } from "../components/jobs/ProcessingPanel";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
@@ -143,106 +139,79 @@ function EmailDetailModal({ id, onClose }: { id: number; onClose: () => void }) 
   );
 }
 
-function FetchEmailsAction() {
+function EmailSyncAction() {
   const queryClient = useQueryClient();
-  const fetchEmails = useFetchEmails();
-  const cancelFetch = useCancelFetchEmails();
-  const status = useFetchEmailsStatus();
-  const running = status.data?.running ?? false;
-  const wasRunning = useRef(false);
+  const activeJob = useActiveJob();
+  const startSync = useStartEmailSync();
+  const [visibleJobId, setVisibleJobId] = useState<number | null>(null);
 
+  // Resume-after-refresh: as soon as we learn there's a job (running or just
+  // finished), show its panel — no action required from the user.
   useEffect(() => {
-    if (wasRunning.current && !running) {
+    if (activeJob.data && visibleJobId === null) {
+      setVisibleJobId(activeJob.data.id);
+    }
+  }, [activeJob.data, visibleJobId]);
+
+  const watchedJob = useJob(visibleJobId);
+  const wasActive = useRef(false);
+  useEffect(() => {
+    const nowActive = isJobActive(watchedJob.data?.status);
+    if (wasActive.current && !nowActive) {
       queryClient.invalidateQueries({ queryKey: ["emails"] });
     }
-    wasRunning.current = running;
-  }, [running, queryClient]);
+    wasActive.current = nowActive;
+  }, [watchedJob.data?.status, queryClient]);
+
+  const jobIsActive = isJobActive(activeJob.data?.status);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <Button loading={fetchEmails.isPending || running} onClick={() => fetchEmails.mutate()}>
-          Fetch emails from Gmail
+        <Button
+          loading={startSync.isPending}
+          disabled={jobIsActive}
+          onClick={() => startSync.mutate(undefined, { onSuccess: (data) => setVisibleJobId(data.jobId) })}
+        >
+          {jobIsActive ? "Analysis running…" : "Fetch & analyse emails"}
         </Button>
-        {running && (
-          <Button variant="danger" size="sm" loading={cancelFetch.isPending} onClick={() => cancelFetch.mutate()}>
-            Cancel
-          </Button>
-        )}
-        {status.data && (
+        {jobIsActive && (
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-            {running
-              ? status.data.phase === "listing"
-                ? "Listing messages…"
-                : `Fetching ${status.data.done}/${status.data.total}…`
-              : status.data.phase === "done"
-                ? `Done — ${status.data.fetched} new email(s) saved.`
-                : status.data.phase === "cancelled"
-                  ? `Cancelled — ${status.data.fetched} email(s) saved before stopping.`
-                  : status.data.phase === "error"
-                    ? `Error: ${status.data.error}`
-                    : null}
+            Email analysis is already running — see progress below.
           </span>
         )}
       </div>
-      {status.data && status.data.logs.length > 0 && (running || status.data.phase !== "idle") && (
-        <div
-          style={{
-            maxHeight: 140,
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column-reverse",
-            gap: 2,
-            background: "var(--surface-sunken)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            padding: "8px 10px",
-            fontFamily: "var(--font-mono)",
-            fontSize: 11.5,
-          }}
-        >
-          {[...status.data.logs].reverse().map((log, i) => (
-            <div key={i} style={{ display: "flex", gap: 8, color: "var(--text-muted)" }}>
-              <span style={{ color: "var(--text-faint)", flex: "0 0 auto" }}>
-                {new Date(log.time).toLocaleTimeString()}
-              </span>
-              <span>{log.message}</span>
-            </div>
-          ))}
-        </div>
+      {visibleJobId !== null && (
+        <ProcessingPanel jobId={visibleJobId} onDismiss={() => setVisibleJobId(null)} />
       )}
     </div>
   );
 }
 
 function PipelineActions() {
-  const processPending = useProcessPending();
-  const processPendingStatus = useProcessPendingStatus(processPending.isPending || processPending.isSuccess);
-  const processRunning = processPendingStatus.data?.running ?? false;
-
   const verifyAllOffers = useVerifyAllOffers();
   const verifyAllOffersStatus = useVerifyAllStatus(verifyAllOffers.isPending || (verifyAllOffers.isSuccess && !!verifyAllOffers.data));
   const verifyOffersRunning = verifyAllOffersStatus.data?.running ?? false;
 
+  const processPending = useProcessPending();
+  const processPendingStatus = useProcessPendingStatus(processPending.isPending || (processPending.isSuccess && !!processPending.data));
+  const processPendingRunning = processPendingStatus.data?.running ?? false;
+
   return (
     <Card>
       <CardHeader title="Pipeline actions" />
-      <FetchEmailsAction />
+      <EmailSyncAction />
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Button variant="secondary" loading={processPending.isPending || processRunning} onClick={() => processPending.mutate()}>
+        <Button variant="secondary" loading={processPending.isPending || processPendingRunning} onClick={() => processPending.mutate()}>
           Process pending emails → offers
         </Button>
         <Button variant="secondary" loading={verifyAllOffers.isPending || verifyOffersRunning} onClick={() => verifyAllOffers.mutate()}>
           Verify all unverified offers
         </Button>
       </div>
-      {(processRunning || (processPendingStatus.data && processPendingStatus.data.processed + processPendingStatus.data.failed > 0)) && (
+      {!processPendingRunning && processPendingStatus.data && (processPendingStatus.data.processed > 0 || processPendingStatus.data.failed > 0) && (
         <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-          {processRunning
-            ? "Processing pending emails…"
-            : processPendingStatus.data?.error
-              ? `Error: ${processPendingStatus.data.error}`
-              : `Done — ${processPendingStatus.data?.processed} offer(s) created, ${processPendingStatus.data?.failed} failed.`}
+          Done — {processPendingStatus.data.processed} email(s) processed, {processPendingStatus.data.failed} failed.
         </div>
       )}
       {(verifyOffersRunning || (verifyAllOffersStatus.data && verifyAllOffersStatus.data.done > 0)) && (
@@ -258,7 +227,10 @@ function PipelineActions() {
 
 export function EmailManager() {
   const [statusFilter, setStatusFilter] = useState("");
-  const { data, isLoading, isError } = useEmails(statusFilter || undefined);
+  const activeJob = useActiveJob();
+  const { data, isLoading, isError } = useEmails(statusFilter || undefined, {
+    liveWhileJobActive: isJobActive(activeJob.data?.status),
+  });
   const deleteEmail = useDeleteEmail();
   const verifyAll = useVerifyAllEmails();
   const verifyAllStatus = useVerifyAllEmailsStatus(verifyAll.isPending || (verifyAll.isSuccess && !!data));
@@ -276,6 +248,7 @@ export function EmailManager() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
         <StatCard icon={<Icon.offer size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total emails" value={summary.total} />
         <StatCard icon={<Icon.clock size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="Unverified" value={summary.unverified} />
+        <StatCard icon={<Icon.mail size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="Unprocessed" value={summary.unprocessed} />
         <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Legitimate" value={summary.legitimate} valueColor="var(--success)" />
         <StatCard icon={<Icon.alert size={17} />} iconColor="var(--amber-600)" iconBg="var(--warning-subtle)" label="Suspicious" value={summary.suspicious} valueColor="var(--warning)" />
         <StatCard icon={<Icon.x size={17} />} iconColor="var(--danger)" iconBg="var(--danger-subtle)" label="Spam" value={summary.spam} valueColor="var(--danger)" />

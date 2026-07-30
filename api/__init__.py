@@ -35,6 +35,9 @@ def create_app() -> Flask:
     from api.actions import bp as actions_bp
     app.register_blueprint(actions_bp)
 
+    from api.jobs import bp as jobs_bp
+    app.register_blueprint(jobs_bp)
+
     @app.get("/api/health")
     def health():
         return {"status": "ok"}

@@ -26,13 +26,14 @@ export interface EmailsResponse {
   summary: {
     total: number;
     unverified: number;
+    unprocessed: number;
     legitimate: number;
     suspicious: number;
     spam: number;
   };
 }
 
-export function useEmails(status?: string) {
+export function useEmails(status?: string, opts?: { liveWhileJobActive?: boolean }) {
   return useQuery({
     queryKey: ["emails", status],
     queryFn: async () => {
@@ -41,6 +42,7 @@ export function useEmails(status?: string) {
       });
       return data;
     },
+    refetchInterval: opts?.liveWhileJobActive ? 2000 : false,
   });
 }
 

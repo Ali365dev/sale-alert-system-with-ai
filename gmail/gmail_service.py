@@ -115,6 +115,60 @@ def _get_label_id(session: AuthorizedSession, label_name: str) -> Optional[str]:
     return None
 
 
+def list_new_message_ids() -> tuple[AuthorizedSession, list[str]]:
+    """Return an authorized session plus the message IDs under GMAIL_LABEL that
+    aren't already stored. Used by the concurrent email-sync job so listing
+    happens once up front and fetching can then be fanned out across workers."""
+    session = _get_session()
+    label_id = _get_label_id(session, GMAIL_LABEL)
+    if not label_id:
+        return session, []
+
+    all_message_ids: list[str] = []
+    page_token: Optional[str] = None
+    while True:
+        params: dict = {"labelIds": label_id, "maxResults": 500}
+        if page_token:
+            params["pageToken"] = page_token
+        resp = session.get(f"{GMAIL_API_BASE}/messages", params=params, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+        all_message_ids.extend(m["id"] for m in data.get("messages", []))
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+
+    with get_session() as db_session:
+        existing_ids = {row[0] for row in db_session.query(Email.gmail_message_id).all()}
+
+    new_ids = [mid for mid in all_message_ids if mid not in existing_ids]
+    logger.info("%d new message(s) to process (of %d total under label).", len(new_ids), len(all_message_ids))
+    return session, new_ids
+
+
+def fetch_single_message(session: AuthorizedSession, msg_id: str) -> dict:
+    """Download and parse one Gmail message. Raises on network/HTTP failure
+    (caller is expected to retry transient errors)."""
+    resp = session.get(
+        f"{GMAIL_API_BASE}/messages/{msg_id}",
+        params={"format": "full"},
+        timeout=REQUEST_TIMEOUT,
+    )
+    resp.raise_for_status()
+    msg = resp.json()
+
+    headers = {h["name"]: h["value"] for h in msg.get("payload", {}).get("headers", [])}
+    body, image_urls = _decode_body(msg.get("payload", {}))
+    return {
+        "gmail_message_id": msg_id,
+        "sender": headers.get("From", "unknown"),
+        "subject": headers.get("Subject", "(no subject)"),
+        "body": body[:50_000],
+        "image_urls": image_urls,
+        "received_date": _parse_date(headers.get("Date")),
+    }
+
+
 def fetch_and_store_emails(
     on_progress: Optional[Callable[[str, dict], None]] = None,
     cancel_event: Optional[threading.Event] = None,

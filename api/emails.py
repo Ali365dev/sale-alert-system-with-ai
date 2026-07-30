@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import func
+from sqlalchemy import exists, func
 
 from database.db import get_session
 from database.models import Email, Offer
@@ -66,12 +66,19 @@ def list_emails():
         suspicious = session.query(func.count(Email.id)).filter(Email.email_verification_status == "suspicious").scalar() or 0
         spam = session.query(func.count(Email.id)).filter(Email.email_verification_status == "spam").scalar() or 0
         unverified = max(total - legitimate - suspicious - spam, 0)
+        unprocessed = (
+            session.query(func.count(Email.id))
+            .filter(~exists().where(Offer.email_id == Email.id))
+            .scalar()
+            or 0
+        )
 
     return jsonify({
         "emails": rows,
         "summary": {
             "total": total,
             "unverified": unverified,
+            "unprocessed": unprocessed,
             "legitimate": legitimate,
             "suspicious": suspicious,
             "spam": spam,

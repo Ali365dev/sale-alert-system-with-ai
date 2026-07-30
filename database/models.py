@@ -84,3 +84,52 @@ class Offer(Base):
 
     def __repr__(self) -> str:
         return f"<Offer id={self.id} brand={self.brand!r} discount={self.discount_percentage}%>"
+
+
+class Job(Base):
+    """Persisted background job — survives page refreshes and server restarts."""
+    __tablename__ = "jobs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_type = Column(String(50), nullable=False, index=True)  # "email_sync"
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    # "pending" | "running" | "completed" | "cancelled" | "failed"
+
+    total_emails = Column(Integer, nullable=False, default=0)
+    processed_emails = Column(Integer, nullable=False, default=0)
+    successful = Column(Integer, nullable=False, default=0)
+    failed = Column(Integer, nullable=False, default=0)
+    skipped = Column(Integer, nullable=False, default=0)
+
+    current_email_subject = Column(Text, nullable=True)
+    progress_percentage = Column(Float, nullable=False, default=0.0)
+    estimated_remaining_seconds = Column(Float, nullable=True)
+
+    worker_count = Column(Integer, nullable=False, default=5)
+    cancel_requested = Column(Boolean, nullable=False, default=False)
+    error = Column(Text, nullable=True)
+
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    logs = relationship("JobLog", back_populates="job", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<Job id={self.id} type={self.job_type!r} status={self.status!r}>"
+
+
+class JobLog(Base):
+    """A single activity-log line for a job, persisted so the log survives refreshes."""
+    __tablename__ = "job_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    job = relationship("Job", back_populates="logs")
+
+    def __repr__(self) -> str:
+        return f"<JobLog id={self.id} job_id={self.job_id} message={self.message[:40]!r}>"
