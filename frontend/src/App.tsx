@@ -8,6 +8,8 @@ import { EmailManager } from "./pages/EmailManager";
 import { Insights } from "./pages/Insights";
 import { OffersManager } from "./pages/OffersManager";
 import { Overview } from "./pages/Overview";
+import { PipelineCenter } from "./pages/PipelineCenter";
+import { Settings } from "./pages/Settings";
 import { Search } from "./pages/Search";
 
 function App() {
@@ -68,6 +70,22 @@ function App() {
           element={
             <AppShell title="AI insights">
               <Insights />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/pipeline"
+          element={
+            <AppShell title="Pipeline Center">
+              <PipelineCenter />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <AppShell title="Settings">
+              <Settings />
             </AppShell>
           }
         />

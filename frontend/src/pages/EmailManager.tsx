@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router";
 
-import { useProcessPending, useProcessPendingStatus } from "../api/actions";
-import { isJobActive, useActiveJob, useJob, useStartEmailSync } from "../api/jobs";
+import { isJobActive, useActiveJob, useJob, useStartJob } from "../api/jobs";
 import {
   useDeleteEmail,
   useEmail,
@@ -11,9 +11,8 @@ import {
   useVerifyAllEmailsStatus,
   useVerifyEmail,
 } from "../api/emails";
-import { useVerifyAllOffers, useVerifyAllStatus } from "../api/offers";
+import { getJobTypeConfig } from "../config/jobTypes";
 import { Icon } from "../components/icons";
-import { ProcessingPanel } from "../components/jobs/ProcessingPanel";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
@@ -139,95 +138,77 @@ function EmailDetailModal({ id, onClose }: { id: number; onClose: () => void }) 
   );
 }
 
-function EmailSyncAction() {
+/** Lightweight "start + one-line status" trigger — full live progress, logs,
+ * and history now live on the Pipeline Center (/pipeline), which every
+ * trigger here links to instead of duplicating the monitoring UI inline. */
+function PipelineTrigger({ jobType, label, invalidateEmailsOnFinish }: { jobType: string; label: string; invalidateEmailsOnFinish?: boolean }) {
   const queryClient = useQueryClient();
-  const activeJob = useActiveJob();
-  const startSync = useStartEmailSync();
+  const startJob = useStartJob(jobType);
+  const active = useActiveJob(jobType);
   const [visibleJobId, setVisibleJobId] = useState<number | null>(null);
 
-  // Resume-after-refresh: as soon as we learn there's a job (running or just
-  // finished), show its panel — no action required from the user.
   useEffect(() => {
-    if (activeJob.data && visibleJobId === null) {
-      setVisibleJobId(activeJob.data.id);
-    }
-  }, [activeJob.data, visibleJobId]);
+    if (active.data && visibleJobId === null) setVisibleJobId(active.data.id);
+  }, [active.data, visibleJobId]);
 
-  const watchedJob = useJob(visibleJobId);
+  const watched = useJob(visibleJobId);
+  const running = isJobActive(watched.data?.status);
+
   const wasActive = useRef(false);
   useEffect(() => {
-    const nowActive = isJobActive(watchedJob.data?.status);
-    if (wasActive.current && !nowActive) {
+    if (wasActive.current && !running && invalidateEmailsOnFinish) {
       queryClient.invalidateQueries({ queryKey: ["emails"] });
     }
-    wasActive.current = nowActive;
-  }, [watchedJob.data?.status, queryClient]);
-
-  const jobIsActive = isJobActive(activeJob.data?.status);
+    wasActive.current = running;
+  }, [running, queryClient, invalidateEmailsOnFinish]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <Button
-          loading={startSync.isPending}
-          disabled={jobIsActive}
-          onClick={() => startSync.mutate(undefined, { onSuccess: (data) => setVisibleJobId(data.jobId) })}
-        >
-          {jobIsActive ? "Analysis running…" : "Fetch & analyse emails"}
-        </Button>
-        {jobIsActive && (
-          <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-            Email analysis is already running — see progress below.
-          </span>
-        )}
-      </div>
-      {visibleJobId !== null && (
-        <ProcessingPanel jobId={visibleJobId} onDismiss={() => setVisibleJobId(null)} />
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <Button
+        loading={startJob.isPending}
+        disabled={running}
+        onClick={() => startJob.mutate(undefined, { onSuccess: (data) => setVisibleJobId(data.jobId) })}
+      >
+        {label}
+      </Button>
+      {watched.data && (
+        <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+          {watched.data.status === "cancelling"
+            ? "Finishing current item before stopping… "
+            : running
+              ? `Running ${watched.data.processed_items}/${watched.data.total_items}… `
+              : watched.data.status === "completed"
+                ? `Done — ${watched.data.successful} succeeded, ${watched.data.failed} failed. `
+                : watched.data.status === "failed"
+                  ? `Failed. `
+                  : watched.data.status === "cancelled"
+                    ? "Cancelled. "
+                    : ""}
+          <Link to="/pipeline" style={{ color: "var(--brand)" }}>
+            View in Pipeline Center →
+          </Link>
+        </span>
       )}
     </div>
   );
 }
 
 function PipelineActions() {
-  const verifyAllOffers = useVerifyAllOffers();
-  const verifyAllOffersStatus = useVerifyAllStatus(verifyAllOffers.isPending || (verifyAllOffers.isSuccess && !!verifyAllOffers.data));
-  const verifyOffersRunning = verifyAllOffersStatus.data?.running ?? false;
-
-  const processPending = useProcessPending();
-  const processPendingStatus = useProcessPendingStatus(processPending.isPending || (processPending.isSuccess && !!processPending.data));
-  const processPendingRunning = processPendingStatus.data?.running ?? false;
-
   return (
     <Card>
-      <CardHeader title="Pipeline actions" />
-      <EmailSyncAction />
+      <CardHeader title="Pipeline actions" aside={<Link to="/pipeline" style={{ fontSize: 12.5, color: "var(--brand)" }}>Open Pipeline Center →</Link>} />
+      <PipelineTrigger jobType="email_sync" label={getJobTypeConfig("email_sync").title} invalidateEmailsOnFinish />
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Button variant="secondary" loading={processPending.isPending || processPendingRunning} onClick={() => processPending.mutate()}>
-          Process pending emails → offers
-        </Button>
-        <Button variant="secondary" loading={verifyAllOffers.isPending || verifyOffersRunning} onClick={() => verifyAllOffers.mutate()}>
-          Verify all unverified offers
-        </Button>
+        <PipelineTrigger jobType="process_pending" label={getJobTypeConfig("process_pending").title} invalidateEmailsOnFinish />
+        <PipelineTrigger jobType="verify_offers" label={getJobTypeConfig("verify_offers").title} />
       </div>
-      {!processPendingRunning && processPendingStatus.data && (processPendingStatus.data.processed > 0 || processPendingStatus.data.failed > 0) && (
-        <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-          Done — {processPendingStatus.data.processed} email(s) processed, {processPendingStatus.data.failed} failed.
-        </div>
-      )}
-      {(verifyOffersRunning || (verifyAllOffersStatus.data && verifyAllOffersStatus.data.done > 0)) && (
-        <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-          {verifyOffersRunning
-            ? `Verifying offers ${verifyAllOffersStatus.data?.done}/${verifyAllOffersStatus.data?.total}…`
-            : `Done — ${verifyAllOffersStatus.data?.done} offer(s) checked, ${verifyAllOffersStatus.data?.failed} failed.`}
-        </div>
-      )}
     </Card>
   );
 }
 
 export function EmailManager() {
   const [statusFilter, setStatusFilter] = useState("");
-  const activeJob = useActiveJob();
+  const activeJob = useActiveJob("email_sync");
   const { data, isLoading, isError } = useEmails(statusFilter || undefined, {
     liveWhileJobActive: isJobActive(activeJob.data?.status),
   });

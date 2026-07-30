@@ -17,10 +17,17 @@ from typing import Callable, Optional
 
 from google.auth.transport.requests import AuthorizedSession
 
-from config import GMAIL_LABEL, logger
+from config import GMAIL_LABEL as _GMAIL_LABEL_DEFAULT, logger
 from database.db import get_session
 from database.models import Email
 from gmail.gmail_client import get_credentials
+from services.settings_service import get_setting
+
+
+def _gmail_label() -> str:
+    """Read fresh from Settings on every call so a label change (Settings ->
+    Email Processing) takes effect on the very next sync, no restart needed."""
+    return get_setting("gmail_label", default=_GMAIL_LABEL_DEFAULT)
 
 
 GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -105,6 +112,15 @@ def _parse_date(date_str: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def get_mailbox_profile(session: AuthorizedSession) -> dict:
+    """emailAddress/messagesTotal/threadsTotal for the connected account —
+    covered by the gmail.modify scope already in use, no extra OAuth scope
+    (and therefore no extra re-auth) needed for the Settings Google Account tab."""
+    resp = session.get(f"{GMAIL_API_BASE}/profile", timeout=REQUEST_TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def _get_label_id(session: AuthorizedSession, label_name: str) -> Optional[str]:
     resp = session.get(f"{GMAIL_API_BASE}/labels", timeout=REQUEST_TIMEOUT)
     resp.raise_for_status()
@@ -120,7 +136,7 @@ def list_new_message_ids() -> tuple[AuthorizedSession, list[str]]:
     aren't already stored. Used by the concurrent email-sync job so listing
     happens once up front and fetching can then be fanned out across workers."""
     session = _get_session()
-    label_id = _get_label_id(session, GMAIL_LABEL)
+    label_id = _get_label_id(session, _gmail_label())
     if not label_id:
         return session, []
 
@@ -188,7 +204,8 @@ def fetch_and_store_emails(
 
     emit("listing")
     session = _get_session()
-    label_id = _get_label_id(session, GMAIL_LABEL)
+    label_name = _gmail_label()
+    label_id = _get_label_id(session, label_name)
     if not label_id:
         return []
 
@@ -211,7 +228,7 @@ def fetch_and_store_emails(
         if not page_token:
             break
 
-    logger.info("Found %d message(s) under label '%s'.", len(all_message_ids), GMAIL_LABEL)
+    logger.info("Found %d message(s) under label '%s'.", len(all_message_ids), label_name)
 
     # Load existing IDs from DB
     with get_session() as db_session:

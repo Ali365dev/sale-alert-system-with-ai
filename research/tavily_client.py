@@ -23,10 +23,12 @@ class TavilyClient:
     """
 
     def __init__(self) -> None:
-        if not TAVILY_API_KEY:
+        from services.settings_service import get_active_api_key
+
+        self._api_key = get_active_api_key("tavily") or TAVILY_API_KEY
+        if not self._api_key:
             raise RuntimeError(
-                "TAVILY_API_KEY is not set. "
-                "Add it to your .env file."
+                "Tavily is not configured — add a key in Settings or set TAVILY_API_KEY."
             )
 
     def search(self, brand_name: str) -> dict:
@@ -40,7 +42,7 @@ class TavilyClient:
         logger.debug("Tavily query: %s", query)
 
         payload = {
-            "api_key": TAVILY_API_KEY,
+            "api_key": self._api_key,
             "query": query,
             "search_depth": TAVILY_SEARCH_DEPTH,
             "max_results": TAVILY_MAX_RESULTS,

@@ -10,7 +10,13 @@ load_dotenv()
 GMAIL_CREDENTIALS_FILE = os.getenv("GMAIL_CREDENTIALS_FILE", "credentials.json")
 GMAIL_TOKEN_FILE = os.getenv("GMAIL_TOKEN_FILE", "token.json")
 GMAIL_LABEL = os.getenv("GMAIL_LABEL", "sales_offers")
-GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+# Brand-sender auto-labeling (services/jobs/label_brand_emails.py) applies this
+# label to inbox messages whose sender matches a known brand email — same
+# label the ingestion pipeline reads from (GMAIL_LABEL).
+GMAIL_BRAND_LABEL = os.getenv("GMAIL_BRAND_LABEL", "sales_offers")
+# .modify (not .readonly) is required to create/apply labels — if this scope
+# was just widened, delete GMAIL_TOKEN_FILE once to force re-consent.
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 # ── Gemini ───────────────────────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -28,6 +34,16 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set. Add it to your .env file (Supabase connection string).")
+
+# ── Settings module ──────────────────────────────────────────────────────────
+# Symmetric key used to encrypt API keys stored via the Settings page
+# (services/settings_service.py). Generate one with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# The app still boots without this set — only API-key save/read in Settings
+# will raise a clear error until it's provided.
+SETTINGS_ENCRYPTION_KEY = os.getenv("SETTINGS_ENCRYPTION_KEY", "")
+# Secret used to sign the admin session cookie for /api/settings/*.
+SETTINGS_SESSION_SECRET = os.getenv("SETTINGS_SESSION_SECRET", SETTINGS_ENCRYPTION_KEY)
 
 # ── Brand offer fetcher ───────────────────────────────────────────────────────
 BRAND_CACHE_HOURS    = int(os.getenv("BRAND_CACHE_HOURS", "24"))

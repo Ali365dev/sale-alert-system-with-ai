@@ -17,6 +17,10 @@ from typing import Optional
 
 from config import logger
 from ai._llm import call_llm
+from services.settings_service import get_prompt
+
+OFFER_PROMPT_KEY = "offer_verification"
+EMAIL_PROMPT_KEY = "email_verification"
 
 _VERIFY_PROMPT = """\
 You are an offer verification engine. Analyse the promotional offer details below and
@@ -94,7 +98,8 @@ def verify_offer(offer_data: dict, retries: int = 3) -> Optional[dict]:
         except (json.JSONDecodeError, TypeError):
             highlights = [highlights]
 
-    prompt = _VERIFY_PROMPT.format(
+    template = get_prompt(OFFER_PROMPT_KEY, default=_VERIFY_PROMPT)
+    prompt = template.format(
         brand=offer_data.get("brand") or "Unknown",
         company=offer_data.get("company") or "Unknown",
         category=offer_data.get("category") or "Unknown",
@@ -185,7 +190,8 @@ def verify_email_content(sender: str, subject: str, body: str) -> Optional[dict]
         dict with status ("legitimate"|"suspicious"|"spam"), confidence (0-100),
         reason — or None on failure.
     """
-    prompt = _EMAIL_VERIFY_PROMPT.format(
+    template = get_prompt(EMAIL_PROMPT_KEY, default=_EMAIL_VERIFY_PROMPT)
+    prompt = template.format(
         sender=sender or "Unknown",
         subject=subject or "(no subject)",
         body=(body or "")[:6000],

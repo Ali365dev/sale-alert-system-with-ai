@@ -1,7 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "./client";
-import { toast } from "../store/toastStore";
 
 export interface CountItem {
   name: string;
@@ -49,21 +48,5 @@ export function useOverview() {
   return useQuery({
     queryKey: ["overview"],
     queryFn: fetchOverview,
-  });
-}
-
-async function triggerRunFetch(): Promise<{ status: string }> {
-  const { data } = await apiClient.post<{ status: string }>("/run-fetch");
-  return data;
-}
-
-export function useRunFetch() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: triggerRunFetch,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["overview"] });
-      toast.info("Fetch & analyse started — this may take a moment.");
-    },
   });
 }

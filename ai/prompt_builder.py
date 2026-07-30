@@ -2,6 +2,9 @@
 Builds the LLM prompt from brand metadata and search result snippets.
 No raw HTML — only titles, snippets, and URLs are included.
 """
+from services.settings_service import get_prompt
+
+PROMPT_KEY = "brand_research_duckduckgo"
 
 _PROMPT = """\
 You are an e-commerce promotion research assistant.
@@ -94,7 +97,8 @@ def build(brand: dict, search_results: list[dict], today: str) -> str:
         Complete prompt string ready to send to the LLM.
     """
     categories = ", ".join(brand.get("categories") or []) or "General"
-    return _PROMPT.format(
+    template = get_prompt(PROMPT_KEY, default=_PROMPT)
+    return template.format(
         brand_name=brand["name"],
         website=brand.get("website", "N/A"),
         categories=categories,

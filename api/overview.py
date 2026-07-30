@@ -1,5 +1,4 @@
 """Overview endpoints — headline KPIs, top brand/category breakdowns, latest offers."""
-import threading
 from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify
@@ -9,8 +8,6 @@ from database.db import get_session
 from database.models import Email, Offer
 
 bp = Blueprint("overview", __name__, url_prefix="/api")
-
-_fetch_state = {"running": False, "last_run": None}
 
 
 def _top_counts(session, column, limit=8):
@@ -93,26 +90,7 @@ def overview():
         "latest_offers": latest_offers,
     })
 
-
-def _run_fetch_job():
-    from scheduler.jobs import process_emails
-    try:
-        process_emails()
-    finally:
-        _fetch_state["running"] = False
-        _fetch_state["last_run"] = datetime.utcnow().isoformat()
-
-
-@bp.post("/run-fetch")
-def run_fetch():
-    if _fetch_state["running"]:
-        return jsonify({"status": "already_running"}), 409
-
-    _fetch_state["running"] = True
-    threading.Thread(target=_run_fetch_job, daemon=True).start()
-    return jsonify({"status": "started"}), 202
-
-
-@bp.get("/run-fetch/status")
-def run_fetch_status():
-    return jsonify(_fetch_state)
+# "Run fetch & analyse now" (sidebar) now starts the same "email_sync"
+# background job as the Email Manager's own trigger — see api/jobs.py's
+# generic POST /api/jobs/<job_type>/start. This also fixes the previous bug
+# where the sidebar button and Email Manager button could run concurrently.

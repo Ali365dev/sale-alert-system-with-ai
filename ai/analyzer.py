@@ -25,6 +25,9 @@ from typing import Any, Optional
 
 from config import logger
 from ai._llm import call_llm
+from services.settings_service import get_prompt
+
+PROMPT_KEY = "email_analysis"
 
 _PROMPT_TEMPLATE = """\
 You are a JSON-only extraction engine.  Analyse the email below and return a
@@ -93,7 +96,8 @@ def analyze_email(subject: str, body: str) -> Optional[dict]:
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     truncated_body = body[:6000] if body else "(empty body)"
-    prompt = _PROMPT_TEMPLATE.format(
+    template = get_prompt(PROMPT_KEY, default=_PROMPT_TEMPLATE)
+    prompt = template.format(
         today=today, subject=subject, body=truncated_body
     )
 

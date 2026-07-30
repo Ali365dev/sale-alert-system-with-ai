@@ -6,6 +6,13 @@ On rate-limit:      advances to next provider, saves state, retries the request.
 On other errors:    returns None — does NOT switch providers.
 Thread-safe:        a single lock guards provider selection and the retry loop.
 
+Gemini specifically supports multiple stored API keys (services/settings_service.py
+-> database.models.ApiKey), rotating between them — on quota/rate-limit/auth/
+timeout failures — before this outer provider-level failover to Groq ever
+kicks in. Groq/Ollama read their (single) key fresh from Settings on every
+call too, falling back to the .env value if nothing's been set in Settings
+yet, so existing .env-only setups keep working unchanged.
+
 Adding a new provider:
     1. Subclass Provider and implement call().
     2. Append an instance to ProviderManager.PROVIDERS.
@@ -29,7 +36,7 @@ from config import (
 _STATE_FILE = Path(__file__).parent.parent / "cache" / "provider_state.json"
 _TRANSIENT_RETRIES = BRAND_RETRY_COUNT  # retries within a provider for non-rate-limit errors
 
-# ── Rate-limit detection ───────────────────────────────────────────────────────
+# ── Rate-limit detection (provider-level failover; unchanged from before) ──────
 
 _RATE_LIMIT_EXC_NAMES = frozenset({
     "RateLimitError",
@@ -56,6 +63,38 @@ def _is_rate_limit(exc: Exception) -> bool:
     return any(phrase in text for phrase in _RATE_LIMIT_PHRASES)
 
 
+# ── Gemini-key-level failure detection (broader — also rotates on auth/timeout) ─
+
+_AUTH_EXC_NAMES = frozenset({
+    "PermissionDenied", "Unauthenticated", "AuthenticationError", "PermissionDeniedError",
+})
+_AUTH_PHRASES = ("api key not valid", "invalid api key", "permission denied", "unauthenticated", "401", "403")
+
+_TIMEOUT_EXC_NAMES = frozenset({"Timeout", "DeadlineExceeded", "ReadTimeout", "ConnectTimeout"})
+_TIMEOUT_PHRASES = ("timeout", "timed out", "deadline exceeded")
+
+
+def _is_auth_failure(exc: Exception) -> bool:
+    if type(exc).__name__ in _AUTH_EXC_NAMES:
+        return True
+    text = str(exc).lower()
+    return any(phrase in text for phrase in _AUTH_PHRASES)
+
+
+def _is_timeout(exc: Exception) -> bool:
+    if type(exc).__name__ in _TIMEOUT_EXC_NAMES:
+        return True
+    text = str(exc).lower()
+    return any(phrase in text for phrase in _TIMEOUT_PHRASES)
+
+
+def _is_gemini_key_rotatable(exc: Exception) -> bool:
+    """Whether a Gemini key failure should move on to the next stored key
+    rather than propagating (quota/rate-limit/auth/timeout — everything the
+    Settings spec calls out for automatic rotation)."""
+    return _is_rate_limit(exc) or _is_auth_failure(exc) or _is_timeout(exc)
+
+
 # ── Provider base class ────────────────────────────────────────────────────────
 
 class Provider(ABC):
@@ -75,44 +114,87 @@ class Provider(ABC):
 class GeminiProvider(Provider):
     name = "gemini"
 
-    def __init__(self) -> None:
-        from google import genai
-        self._model = GEMINI_MODEL
-        self._client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+    def _candidate_keys(self) -> list[dict]:
+        from services import settings_service
+
+        keys = settings_service.get_active_api_keys("gemini")
+        if not keys and GEMINI_API_KEY:
+            # No keys added in Settings yet — fall back to .env so existing
+            # deployments keep working unchanged until someone migrates.
+            keys = [{"id": None, "name": "env (.env fallback)", "decrypted_key": GEMINI_API_KEY}]
+        return keys
 
     def call(self, prompt: str) -> str:
-        if not self._client:
-            raise RuntimeError("Gemini not configured — GEMINI_API_KEY missing")
-        from google.genai import types
-        response = self._client.models.generate_content(
-            model=self._model,
-            contents=prompt,
-            config=types.GenerateContentConfig(response_mime_type="application/json"),
-        )
-        return response.text
+        from services import settings_service
+
+        keys = self._candidate_keys()
+        if not keys:
+            raise RuntimeError("Gemini not configured — add a key in Settings or set GEMINI_API_KEY")
+
+        model = settings_service.get_setting("gemini_model", default=GEMINI_MODEL)
+
+        last_exc: Exception = RuntimeError("no Gemini keys attempted")
+        for key_info in keys:
+            try:
+                from google import genai
+                from google.genai import types
+                client = genai.Client(api_key=key_info["decrypted_key"])
+                response = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json"),
+                )
+                if key_info["id"] is not None:
+                    settings_service.record_key_usage(key_info["id"])
+                return response.text
+            except Exception as exc:
+                last_exc = exc
+                if key_info["id"] is not None:
+                    settings_service.record_key_failure(
+                        key_info["id"], str(exc), mark_invalid=_is_auth_failure(exc),
+                    )
+                if _is_gemini_key_rotatable(exc):
+                    logger.warning(
+                        "Gemini key %r failed (%s) — trying next key", key_info["name"], type(exc).__name__,
+                    )
+                    continue
+                raise  # non-rotatable error (e.g. malformed request) — don't burn through every key for it
+        raise last_exc
 
 
 class GroqProvider(Provider):
     name = "groq"
 
-    def __init__(self) -> None:
-        from groq import Groq
-        self._model = GROQ_MODEL
-        self._client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+    def _key_info_and_model(self) -> tuple[Optional[dict], str]:
+        from services import settings_service
+
+        keys = settings_service.get_active_api_keys("groq")
+        key_info = keys[0] if keys else ({"id": None, "decrypted_key": GROQ_API_KEY} if GROQ_API_KEY else None)
+        model = settings_service.get_setting("groq_model", default=GROQ_MODEL)
+        return key_info, model
 
     def call(self, prompt: str) -> str:
-        if not self._client:
-            raise RuntimeError("Groq not configured — GROQ_API_KEY missing")
+        key_info, model = self._key_info_and_model()
+        if not key_info or not key_info.get("decrypted_key"):
+            raise RuntimeError("Groq not configured — add a key in Settings or set GROQ_API_KEY")
+        from services import settings_service
+        from groq import Groq
+        client = Groq(api_key=key_info["decrypted_key"])
+
         last_exc: Exception = RuntimeError("no attempts made")
         for attempt in range(1, _TRANSIENT_RETRIES + 1):
             try:
-                completion = self._client.chat.completions.create(
-                    model=self._model,
+                completion = client.chat.completions.create(
+                    model=model,
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.2,
                 )
+                if key_info["id"] is not None:
+                    settings_service.record_key_usage(key_info["id"])
                 return completion.choices[0].message.content
             except Exception as exc:
+                if key_info["id"] is not None:
+                    settings_service.record_key_failure(key_info["id"], str(exc), mark_invalid=_is_auth_failure(exc))
                 if _is_rate_limit(exc):
                     raise  # propagate immediately — manager handles failover
                 # Groq raises AuthenticationError, BadRequestError etc. for 4xx —
@@ -131,15 +213,16 @@ class GroqProvider(Provider):
 class OllamaProvider(Provider):
     name = "ollama"
 
-    def __init__(self) -> None:
-        import requests as _req
-        self._requests = _req
-        self._url = f"{OLLAMA_BASE_URL.rstrip('/')}/api/generate"
-        self._model = OLLAMA_MODEL
-
     def call(self, prompt: str) -> str:
+        from services import settings_service
+
+        base_url = settings_service.get_setting("ollama_base_url", default=OLLAMA_BASE_URL)
+        model = settings_service.get_setting("ollama_model", default=OLLAMA_MODEL)
+
+        import requests as _req
+        url = f"{base_url.rstrip('/')}/api/generate"
         payload = {
-            "model": self._model,
+            "model": model,
             "prompt": prompt,
             "stream": False,
             "options": {"temperature": 0.2},
@@ -147,10 +230,10 @@ class OllamaProvider(Provider):
         last_exc: Exception = RuntimeError("no attempts made")
         for attempt in range(1, _TRANSIENT_RETRIES + 1):
             try:
-                resp = self._requests.post(self._url, json=payload, timeout=120)
+                resp = _req.post(url, json=payload, timeout=120)
                 resp.raise_for_status()
                 return resp.json().get("response", "")
-            except self._requests.exceptions.HTTPError as exc:
+            except _req.exceptions.HTTPError as exc:
                 if _is_rate_limit(exc):
                     raise
                 # 4xx client errors (404 model not found, 400 bad request, etc.)

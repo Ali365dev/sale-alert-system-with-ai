@@ -19,6 +19,17 @@ def _migrate() -> None:
         ("offers", "source",                     "VARCHAR(20)"),
         ("brands", "emails",                     "TEXT"),
         ("emails", "image_urls",                 "TEXT"),
+        ("jobs", "total_items",                  "INTEGER DEFAULT 0"),
+        ("jobs", "processed_items",               "INTEGER DEFAULT 0"),
+        ("jobs", "current_item_label",            "TEXT"),
+        ("jobs", "stage",                         "TEXT"),
+        ("jobs", "payload",                       "TEXT"),
+        ("jobs", "result",                        "TEXT"),
+        ("jobs", "checkpoint",                    "TEXT"),
+        ("jobs", "is_interrupted",                "BOOLEAN DEFAULT FALSE"),
+        ("jobs", "queue_position",                "INTEGER"),
+        ("job_logs", "severity",                  "VARCHAR(10) DEFAULT 'info'"),
+        ("job_logs", "category",                  "VARCHAR(30)"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -77,11 +88,71 @@ def _seed_brands() -> None:
         session.close()
 
 
+def _seed_settings() -> None:
+    """Seed the 6 default Prompt rows (from their hardcoded fallback
+    constants) and default scalar Settings, only if each is missing —
+    mirrors _seed_brands(). Safe to call on every boot."""
+    from services import settings_service
+
+    with SessionLocal() as session:
+        from database.models import Prompt
+        if session.query(Prompt).count() == 0:
+            from ai.analyzer import _PROMPT_TEMPLATE as email_analysis_default, PROMPT_KEY as email_analysis_key
+            from ai.verifier import (
+                _VERIFY_PROMPT as offer_verification_default, OFFER_PROMPT_KEY as offer_verification_key,
+                _EMAIL_VERIFY_PROMPT as email_verification_default, EMAIL_PROMPT_KEY as email_verification_key,
+            )
+            from ai.prompt_builder import _PROMPT as brand_research_ddg_default, PROMPT_KEY as brand_research_ddg_key
+            from research.prompts import _PROMPT as brand_research_tavily_default, PROMPT_KEY as brand_research_tavily_key
+            from api.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
+
+            defaults = [
+                (email_analysis_key, "Email Analysis", "Extracts structured offer data from a fetched email.", "email", email_analysis_default),
+                (email_verification_key, "Email Classification", "Classifies a fetched email as legitimate, suspicious, or spam.", "email", email_verification_default),
+                (offer_verification_key, "Offer Verification", "Verifies whether an extracted offer is genuine.", "offer", offer_verification_default),
+                (brand_research_ddg_key, "Brand Research (Web Search)", "Extracts active promotions from DuckDuckGo search results for a brand.", "research", brand_research_ddg_default),
+                (brand_research_tavily_key, "Brand Research (Tavily)", "Extracts active promotions from Tavily search results for a brand.", "research", brand_research_tavily_default),
+                (dashboard_digest_key, "Dashboard Insights", "Generates the AI daily digest shown on the Insights page.", "insights", dashboard_digest_default),
+            ]
+            for key, name, description, category, default_content in defaults:
+                settings_service.seed_prompt_if_missing(key, name, description, category, default_content)
+            logger.info("Seeded %d default prompt(s).", len(defaults))
+
+        from database.models import Setting
+        if session.query(Setting).count() == 0:
+            import config as _cfg
+            defaults_kv = [
+                ("gemini_model", _cfg.GEMINI_MODEL, "providers"),
+                ("groq_model", _cfg.GROQ_MODEL, "providers"),
+                ("gmail_label", _cfg.GMAIL_LABEL, "gmail"),
+                ("gmail_brand_label", _cfg.GMAIL_BRAND_LABEL, "gmail"),
+                ("timezone", "UTC", "system"),
+                ("date_format", "YYYY-MM-DD", "system"),
+                ("theme", "system", "system"),
+                ("log_level", _cfg.LOG_LEVEL, "system"),
+                ("max_emails_per_sync", 500, "email_processing"),
+                ("retry_attempts", 3, "email_processing"),
+                ("request_timeout_seconds", 60, "email_processing"),
+                ("auto_analyze_emails", True, "email_processing"),
+                ("auto_apply_gmail_label", True, "email_processing"),
+                ("skip_already_labeled", True, "email_processing"),
+                ("skip_duplicate_emails", True, "email_processing"),
+            ]
+            for key, value, category in defaults_kv:
+                settings_service.set_setting(key, value, category=category)
+            logger.info("Seeded %d default setting(s).", len(defaults_kv))
+
+
 def init_db() -> None:
     """Create all tables if they don't exist, then apply column migrations."""
     Base.metadata.create_all(bind=engine)
     _migrate()
+
+    from services import job_service
+    job_service.reconcile_interrupted_jobs()
+
     _seed_brands()
+    _seed_settings()
     logger.info("Database initialized — all tables ready.")
 
 

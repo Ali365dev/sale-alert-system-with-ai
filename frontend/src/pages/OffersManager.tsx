@@ -1,15 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
 
 import type { Offer, OfferFilters } from "../api/offers";
-import {
-  useCreateOffer,
-  useDeleteOffer,
-  useOffers,
-  useUpdateOffer,
-  useVerifyAllOffers,
-  useVerifyAllStatus,
-  useVerifyOffer,
-} from "../api/offers";
+import { useCreateOffer, useDeleteOffer, useOffers, useUpdateOffer, useVerifyOffer } from "../api/offers";
+import { isJobActive, useActiveJob, useJob, useStartJob } from "../api/jobs";
 import { OfferForm } from "../components/offers/OfferForm";
 import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
@@ -47,12 +41,18 @@ function OffersTable() {
   const summary = data?.summary;
   const deleteOffer = useDeleteOffer();
   const updateOffer = useUpdateOffer();
-  const verifyAll = useVerifyAllOffers();
-  const verifyAllStatus = useVerifyAllStatus(verifyAll.isPending || (verifyAll.isSuccess && !!offers));
+  const verifyAll = useStartJob("verify_offers");
+  const activeVerifyAll = useActiveJob("verify_offers");
+  const [visibleJobId, setVisibleJobId] = useState<number | null>(null);
   const [editing, setEditing] = useState<Offer | null>(null);
   const [viewing, setViewing] = useState<Offer | null>(null);
 
-  const bulkRunning = verifyAllStatus.data?.running ?? false;
+  useEffect(() => {
+    if (activeVerifyAll.data && visibleJobId === null) setVisibleJobId(activeVerifyAll.data.id);
+  }, [activeVerifyAll.data, visibleJobId]);
+
+  const watchedJob = useJob(visibleJobId);
+  const bulkRunning = isJobActive(watchedJob.data?.status);
 
   return (
     <>
@@ -96,13 +96,21 @@ function OffersTable() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Button loading={verifyAll.isPending || bulkRunning} onClick={() => verifyAll.mutate()}>
+          <Button
+            loading={verifyAll.isPending || bulkRunning}
+            onClick={() => verifyAll.mutate(undefined, { onSuccess: (data) => setVisibleJobId(data.jobId) })}
+          >
             Verify all unverified offers
           </Button>
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-            {bulkRunning
-              ? `Verifying ${verifyAllStatus.data?.done}/${verifyAllStatus.data?.total}…`
-              : `${summary?.unverified ?? 0} unverified offer(s) · ${summary?.total ?? 0} total`}
+            {watchedJob.data?.status === "cancelling"
+              ? "Finishing current item before stopping… "
+              : bulkRunning
+                ? `Verifying ${watchedJob.data?.processed_items}/${watchedJob.data?.total_items}… `
+                : `${summary?.unverified ?? 0} unverified offer(s) · ${summary?.total ?? 0} total `}
+            <Link to="/pipeline" style={{ color: "var(--brand)" }}>
+              View in Pipeline Center →
+            </Link>
           </span>
         </div>
       </Card>

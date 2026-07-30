@@ -1,11 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
 
-import {
-  useFetchSalesWeb,
-  useFetchSalesWebStatus,
-  useResearchBrands,
-  useResearchBrandsStatus,
-} from "../api/actions";
+import { isJobActive, useActiveJob, useJob, useStartJob } from "../api/jobs";
 import type { HighlightItem, InsightOffer, RecommendedAction } from "../api/insights";
 import { useInsights } from "../api/insights";
 import { Badge } from "../components/ui/Badge";
@@ -163,41 +159,62 @@ function HighlightRow({ item }: { item: HighlightItem }) {
   );
 }
 
-function PipelineActions() {
-  const fetchSalesWeb = useFetchSalesWeb();
-  const fetchSalesWebStatus = useFetchSalesWebStatus(fetchSalesWeb.isPending || fetchSalesWeb.isSuccess);
-  const salesRunning = fetchSalesWebStatus.data?.running ?? false;
+function PipelineJobButton({ jobType, label, variant }: { jobType: string; label: string; variant?: "primary" | "secondary" }) {
+  const startJob = useStartJob(jobType);
+  const active = useActiveJob(jobType);
+  const [visibleJobId, setVisibleJobId] = useState<number | null>(null);
 
-  const researchBrands = useResearchBrands();
-  const researchStatus = useResearchBrandsStatus(researchBrands.isPending || researchBrands.isSuccess);
-  const researchRunning = researchStatus.data?.running ?? false;
+  useEffect(() => {
+    if (active.data && visibleJobId === null) setVisibleJobId(active.data.id);
+  }, [active.data, visibleJobId]);
+
+  const watched = useJob(visibleJobId);
+  const running = isJobActive(watched.data?.status);
 
   return (
+    <>
+      <Button
+        variant={variant ?? "primary"}
+        loading={startJob.isPending || running}
+        onClick={() => startJob.mutate(undefined, { onSuccess: (data) => setVisibleJobId(data.jobId) })}
+      >
+        {label}
+      </Button>
+      {watched.data && (
+        <div style={{ fontSize: 12.5, color: "var(--text-muted)", width: "100%" }}>
+          {watched.data.status === "cancelling"
+            ? "Finishing current item before stopping… "
+            : running
+              ? `Processing ${watched.data.processed_items}/${watched.data.total_items}… `
+              : watched.data.status === "completed"
+                ? `Done — ${watched.data.successful} succeeded, ${watched.data.failed} failed. ` +
+                  (watched.data.result?.failed_brands?.length ? `· skipped: ${watched.data.result.failed_brands.join(", ")} ` : "")
+                : watched.data.status === "failed"
+                  ? `Failed. `
+                  : watched.data.status === "cancelled"
+                    ? "Cancelled. "
+                    : ""}
+          <Link to="/pipeline" style={{ color: "var(--brand)" }}>
+            View in Pipeline Center →
+          </Link>
+        </div>
+      )}
+    </>
+  );
+}
+
+function PipelineActions() {
+  return (
     <Card>
-      <CardHeader title="Pipeline actions" icon={<Icon.sparkle size={16} style={{ color: "var(--ai)" }} />} />
+      <CardHeader
+        title="Pipeline actions"
+        icon={<Icon.sparkle size={16} style={{ color: "var(--ai)" }} />}
+        aside={<Link to="/pipeline" style={{ fontSize: 12.5, color: "var(--brand)" }}>Open Pipeline Center →</Link>}
+      />
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Button loading={fetchSalesWeb.isPending || salesRunning} onClick={() => fetchSalesWeb.mutate()}>
-          Fetch sales from web (AI)
-        </Button>
-        <Button variant="secondary" loading={researchBrands.isPending || researchRunning} onClick={() => researchBrands.mutate()}>
-          Research brands (Tavily + Llama)
-        </Button>
+        <PipelineJobButton jobType="fetch_sales_web" label="Fetch sales from web (AI)" />
+        <PipelineJobButton jobType="research_brands" label="Research brands (Tavily + Llama)" variant="secondary" />
       </div>
-      {(salesRunning || (fetchSalesWebStatus.data && fetchSalesWebStatus.data.done > 0)) && (
-        <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-          {salesRunning
-            ? `Searching brand ${fetchSalesWebStatus.data?.done}/${fetchSalesWebStatus.data?.total}…`
-            : `Done — ${fetchSalesWebStatus.data?.saved} offer(s) saved (${fetchSalesWebStatus.data?.total_active} active), ${fetchSalesWebStatus.data?.failed} failed.`}
-        </div>
-      )}
-      {(researchRunning || (researchStatus.data && researchStatus.data.done > 0)) && (
-        <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-          {researchRunning
-            ? `Researching brand ${researchStatus.data?.done}/${researchStatus.data?.total}…`
-            : `Done — ${researchStatus.data?.inserted} inserted, ${researchStatus.data?.updated} updated` +
-              (researchStatus.data?.failed_brands.length ? ` · skipped: ${researchStatus.data.failed_brands.join(", ")}` : "")}
-        </div>
-      )}
     </Card>
   );
 }

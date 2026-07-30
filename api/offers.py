@@ -1,6 +1,5 @@
 """Offers manager endpoints — list/filter, CRUD, and AI verification."""
 import json
-import threading
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
@@ -11,7 +10,6 @@ from database.models import Offer
 
 bp = Blueprint("offers", __name__, url_prefix="/api/offers")
 
-_verify_all_state = {"running": False, "done": 0, "total": 0, "failed": 0}
 
 
 def _offer_to_dict(o: Offer) -> dict:
@@ -202,50 +200,6 @@ def verify_offer_endpoint(offer_id: int):
     return jsonify(result)
 
 
-def _run_verify_all():
-    from ai.verifier import verify_offer
 
-    with get_session() as session:
-        unverified_ids = [
-            o.id for o in session.query(Offer.id).filter(Offer.verification_status.is_(None)).all()
-        ]
-
-    _verify_all_state.update({"running": True, "done": 0, "total": len(unverified_ids), "failed": 0})
-    for offer_id in unverified_ids:
-        try:
-            with get_session() as session:
-                o = session.query(Offer).filter(Offer.id == offer_id).first()
-                if o is None:
-                    continue
-                offer_data = _offer_to_dict(o)
-
-            result = verify_offer(offer_data)
-            if result:
-                with get_session() as session:
-                    o = session.query(Offer).filter(Offer.id == offer_id).first()
-                    if o:
-                        o.verification_status = result["status"]
-                        o.verification_reason = result["reason"]
-                        o.verification_confidence = float(result["confidence"])
-                        o.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
-            else:
-                _verify_all_state["failed"] += 1
-        except Exception:
-            _verify_all_state["failed"] += 1
-        finally:
-            _verify_all_state["done"] += 1
-
-    _verify_all_state["running"] = False
-
-
-@bp.post("/verify-all")
-def verify_all_offers():
-    if _verify_all_state["running"]:
-        return jsonify({"status": "already_running"}), 409
-    threading.Thread(target=_run_verify_all, daemon=True).start()
-    return jsonify({"status": "started"}), 202
-
-
-@bp.get("/verify-all/status")
-def verify_all_status():
-    return jsonify(_verify_all_state)
+# Bulk "verify all unverified offers" is now the "verify_offers" background job —
+# see services/jobs/verify_offers.py, started via POST /api/jobs/verify_offers/start.

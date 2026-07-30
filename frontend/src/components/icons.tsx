@@ -114,4 +114,129 @@ export const Icon = {
       <path d="m21 15-5-5L5 21" />
     </Svg>
   ),
+  spinner: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 3a9 9 0 1 0 9 9" />
+    </Svg>
+  ),
+  play: (p: IconProps) => (
+    <Svg fill="currentColor" stroke="none" {...p}>
+      <path d="M7 4.5v15l13-7.5z" />
+    </Svg>
+  ),
+  stop: (p: IconProps) => (
+    <Svg fill="currentColor" stroke="none" {...p}>
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+    </Svg>
+  ),
+  retry: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M3 12a9 9 0 1 1 3 6.7" />
+      <path d="M3 21v-6h6" />
+    </Svg>
+  ),
+  eye: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </Svg>
+  ),
+  eyeOff: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.2A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17.4 17.4 0 0 1-3.4 4.4M6.6 6.6C3.7 8.5 2 12 2 12s3.5 7 10 7a10.4 10.4 0 0 0 4.4-1" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </Svg>
+  ),
+  trash: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" />
+      <path d="M10 11v6M14 11v6" />
+    </Svg>
+  ),
+  copy: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </Svg>
+  ),
+  share: (p: IconProps) => (
+    <Svg {...p}>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="M8.6 10.6 15.4 6.4M8.6 13.4l6.8 4.2" />
+    </Svg>
+  ),
+  heart: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 20.5s-7.5-4.6-9.8-9A5.3 5.3 0 0 1 12 6.2 5.3 5.3 0 0 1 21.8 11.5c-2.3 4.4-9.8 9-9.8 9Z" />
+    </Svg>
+  ),
+  tag: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12.6 2.6 21 11l-9.5 9.5a2 2 0 0 1-2.8 0L2.6 14.4a2 2 0 0 1 0-2.8L11 3.1a2 2 0 0 1 1.6-.5Z" />
+      <circle cx="15.5" cy="7.5" r="1.3" fill="currentColor" stroke="none" />
+    </Svg>
+  ),
+  percent: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M19 5 5 19" />
+      <circle cx="6.5" cy="6.5" r="2.3" />
+      <circle cx="17.5" cy="17.5" r="2.3" />
+    </Svg>
+  ),
+  calendar: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 10h18" />
+    </Svg>
+  ),
+  arrowRight: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </Svg>
+  ),
+  filter: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M4 5h16M7 12h10M10 19h4" />
+    </Svg>
+  ),
+  shield: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 3 5 6v6c0 4.6 3 7.5 7 9 4-1.5 7-4.4 7-9V6z" />
+      <path d="m9.5 12 1.8 1.8L15 10" />
+    </Svg>
+  ),
+  flame: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 22c4 0 7-2.7 7-6.7 0-3-1.8-4.8-3-6.8-.3 1.6-1.2 2.6-2 2.6.6-3.5-1-6-4-8-.3 2.4-1 3.8-2.5 5.4C6 10 5 12 5 14.7 5 19 8.5 22 12 22Z" />
+    </Svg>
+  ),
+  store: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M3 9 4.5 3.5h15L21 9" />
+      <path d="M4 9v11h16V9M4 9a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0" />
+    </Svg>
+  ),
+  gift: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="3" y="9" width="18" height="12" rx="1" />
+      <path d="M3 9h18v4H3zM12 9v12M12 9C9 9 8 7.5 8 6a2.5 2.5 0 0 1 4-2c1.5 1.5 2 5 2 5s2.5-.5 4-2a2.5 2.5 0 1 0-4-2c-1 1-2 3-2 3" />
+    </Svg>
+  ),
+  grid: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="3" y="3" width="8" height="8" rx="1.5" />
+      <rect x="13" y="3" width="8" height="8" rx="1.5" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" />
+      <rect x="13" y="13" width="8" height="8" rx="1.5" />
+    </Svg>
+  ),
+  inbox: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M3 12h4.5l1.5 3h6l1.5-3H21" />
+      <path d="M5 5h14l2 7v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z" />
+    </Svg>
+  ),
 };

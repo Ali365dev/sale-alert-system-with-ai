@@ -7,8 +7,17 @@ from flask import Blueprint, jsonify
 from ai._llm import call_llm
 from database.db import get_session
 from database.models import Offer
+from services.settings_service import get_prompt
 
 bp = Blueprint("insights", __name__, url_prefix="/api")
+
+PROMPT_KEY = "dashboard_digest"
+_DIGEST_PROMPT = (
+    "You are a helpful shopping assistant. Based on these sales offers, write a "
+    "friendly, enthusiastic 3-4 sentence daily digest for today "
+    "({today}). Highlight the best deals and "
+    "any urgent expiry dates. Keep it concise.\n\n{offers_text}"
+)
 
 
 def _offer_dict(o: Offer) -> dict:
@@ -37,12 +46,8 @@ def _digest_text(top_offers: list[dict]) -> str | None:
         f"{o['discount_percentage'] or '?'}% off | {o['summary'] or ''}"
         for o in top_offers[:10]
     )
-    prompt = (
-        "You are a helpful shopping assistant. Based on these sales offers, write a "
-        "friendly, enthusiastic 3-4 sentence daily digest for today "
-        f"({datetime.utcnow().strftime('%B %d, %Y')}). Highlight the best deals and "
-        f"any urgent expiry dates. Keep it concise.\n\n{offers_text}"
-    )
+    template = get_prompt(PROMPT_KEY, default=_DIGEST_PROMPT)
+    prompt = template.format(today=datetime.utcnow().strftime("%B %d, %Y"), offers_text=offers_text)
     return call_llm(prompt)
 
 

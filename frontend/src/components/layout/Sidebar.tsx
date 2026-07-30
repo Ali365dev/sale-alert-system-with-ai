@@ -10,6 +10,8 @@ const NAV_ITEMS = [
   { to: "/brands", label: "Brands manager", icon: Icon.home },
   { to: "/emails", label: "Email manager", icon: Icon.mail },
   { to: "/insights", label: "AI insights", icon: Icon.sparkle, badge: 18 },
+  { to: "/pipeline", label: "Pipeline Center", icon: Icon.activity },
+  { to: "/settings", label: "Settings", icon: Icon.target },
 ];
 
 function navStyle(active: boolean): React.CSSProperties {

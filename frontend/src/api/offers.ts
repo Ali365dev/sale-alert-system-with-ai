@@ -130,35 +130,5 @@ export function useVerifyOffer() {
   });
 }
 
-export function useVerifyAllOffers() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post<{ status: string }>("/offers/verify-all");
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["offers"] });
-      toast.info("Bulk verification started — this may take a moment.");
-    },
-  });
-}
-
-export interface VerifyAllStatus {
-  running: boolean;
-  done: number;
-  total: number;
-  failed: number;
-}
-
-export function useVerifyAllStatus(enabled: boolean) {
-  return useQuery({
-    queryKey: ["offers", "verify-all-status"],
-    queryFn: async () => {
-      const { data } = await apiClient.get<VerifyAllStatus>("/offers/verify-all/status");
-      return data;
-    },
-    enabled,
-    refetchInterval: enabled ? 1500 : false,
-  });
-}
+// Bulk "verify all unverified offers" is now the "verify_offers" background
+// job — see api/jobs.ts's useStartJob("verify_offers")/useActiveJob("verify_offers").

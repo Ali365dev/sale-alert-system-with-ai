@@ -7,9 +7,20 @@ from database.db import init_db
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # Settings login uses an httpOnly session cookie, which requires a
+    # concrete origin (not "*") plus supports_credentials — wildcard origins
+    # and credentialed requests are mutually exclusive per browser CORS rules.
+    # Every other endpoint in this app is still unauthenticated either way.
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": r"http://(localhost|127\.0\.0\.1):\d+"}},
+        supports_credentials=True,
+    )
 
     init_db()
+
+    from services.job_registry import register_all
+    register_all()
 
     from api.overview import bp as overview_bp
     app.register_blueprint(overview_bp)
@@ -32,11 +43,11 @@ def create_app() -> Flask:
     from api.emails import bp as emails_bp
     app.register_blueprint(emails_bp)
 
-    from api.actions import bp as actions_bp
-    app.register_blueprint(actions_bp)
-
     from api.jobs import bp as jobs_bp
     app.register_blueprint(jobs_bp)
+
+    from api.settings import bp as settings_bp
+    app.register_blueprint(settings_bp)
 
     @app.get("/api/health")
     def health():

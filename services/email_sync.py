@@ -94,10 +94,12 @@ def _process_pending(email_id: int, subject: str, body: str) -> tuple[str, str]:
     return "success", subject
 
 
-def _run_one(job_id: int, gmail_session, item: dict) -> None:
+def _run_one(job_id: int, gmail_session, item: dict, critical: dict, critical_event: threading.Event) -> None:
     if job_service.is_cancel_requested(job_id):
         job_service.update_progress(job_id, skipped_delta=1)
         return
+    if critical_event.is_set():
+        return  # a sibling worker already hit a critical error — stop doing new work
 
     try:
         if item["kind"] == "new":
@@ -105,56 +107,72 @@ def _run_one(job_id: int, gmail_session, item: dict) -> None:
         else:
             outcome, subject = _process_pending(item["email_id"], item["subject"], item["body"])
     except Exception as exc:
-        outcome, subject = "failed", item.get("subject") or item.get("gmail_id", "?")
-        logger.error("email_sync: error processing %s: %s", subject, exc)
-        job_service.append_log(job_id, f"Failed to analyse \"{subject[:60]}\" — {exc}")
-        job_service.update_progress(job_id, processed_delta=1, failed_delta=1, current_email_subject=subject)
+        # Any exception escaping fetch/analyse here (Gmail auth/API failure, retry-limit
+        # exceeded, DB errors) is treated as critical — per-email AI failures are already
+        # handled as a graceful "failed" outcome above, not an exception.
+        subject = item.get("subject") or item.get("gmail_id", "?")
+        logger.error("email_sync: critical error processing %s: %s", subject, exc)
+        job_service.append_log(job_id, f"✗ Fatal error on \"{subject[:60]}\" — {exc}", severity="error", category="gmail")
+        job_service.update_progress(job_id, processed_delta=1, failed_delta=1, current_email_subject=subject, current_item_label=subject)
+        critical["exc"] = exc
+        critical_event.set()
         return
 
     with _progress_lock:
         if outcome == "success":
-            job_service.append_log(job_id, f"✓ \"{subject[:60]}\" analysed and saved")
-            job_service.update_progress(job_id, processed_delta=1, successful_delta=1, current_email_subject=subject)
+            job_service.append_log(job_id, f"✓ \"{subject[:60]}\" analysed and saved", severity="success", category="ai")
+            job_service.update_progress(job_id, processed_delta=1, successful_delta=1, current_email_subject=subject, current_item_label=subject)
         elif outcome == "skipped":
-            job_service.update_progress(job_id, processed_delta=1, skipped_delta=1, current_email_subject=subject)
+            job_service.update_progress(job_id, processed_delta=1, skipped_delta=1, current_email_subject=subject, current_item_label=subject)
         else:
-            job_service.append_log(job_id, f"✗ Failed to analyse \"{subject[:60]}\"")
-            job_service.update_progress(job_id, processed_delta=1, failed_delta=1, current_email_subject=subject)
+            job_service.append_log(job_id, f"✗ Failed to analyse \"{subject[:60]}\"", severity="warning", category="ai")
+            job_service.update_progress(job_id, processed_delta=1, failed_delta=1, current_email_subject=subject, current_item_label=subject)
 
 
 def run_email_sync_job(job_id: int, worker_count: int) -> None:
+    critical: dict = {"exc": None}
+    critical_event = threading.Event()
     try:
-        job_service.append_log(job_id, "Connecting to Gmail…")
+        job_service.set_stage(job_id, "connecting")
+        job_service.append_log(job_id, "Connecting to Gmail…", category="gmail")
         gmail_session, items = _collect_work_items()
-        job_service.append_log(job_id, f"Found {len(items)} email(s) to process.")
-        job_service.mark_running(job_id, total_emails=len(items))
+        job_service.append_log(job_id, f"Found {len(items)} email(s) to process.", category="gmail")
+        job_service.mark_running(job_id, total_emails=len(items), total_items=len(items))
+        job_service.set_stage(job_id, "processing")
 
         if not items:
+            job_service.set_stage(job_id, "completed")
             job_service.finish_job(job_id, "completed")
-            job_service.append_log(job_id, "Nothing new — already up to date.")
+            job_service.append_log(job_id, "Nothing new — already up to date.", severity="success")
             return
 
         with ThreadPoolExecutor(max_workers=max(1, worker_count)) as pool:
-            futures = [pool.submit(_run_one, job_id, gmail_session, item) for item in items]
+            futures = [pool.submit(_run_one, job_id, gmail_session, item, critical, critical_event) for item in items]
             for future in as_completed(futures):
-                future.result()  # surface unexpected exceptions in logs below via except
+                future.result()  # surface unexpected exceptions (bugs in _run_one itself)
 
-                if job_service.is_cancel_requested(job_id):
+                if job_service.is_cancel_requested(job_id) or critical_event.is_set():
                     for f in futures:
-                        f.cancel()  # only affects not-yet-started futures
+                        f.cancel()  # only affects not-yet-started futures; in-flight ones drain
 
-        cancelled = job_service.is_cancel_requested(job_id)
-        if cancelled:
-            job_service.append_log(job_id, "Cancelled by user.")
+        job_service.set_stage(job_id, "finalizing")
+
+        if critical_event.is_set():
+            job_service.append_log(job_id, "Stopped — critical error.", severity="error", category="system")
+            job_service.finish_job(job_id, "failed", error=str(critical["exc"]))
+        elif job_service.is_cancel_requested(job_id):
+            job_service.append_log(job_id, "Cancelled by user.", severity="warning")
             job_service.finish_job(job_id, "cancelled")
         else:
             job = job_service.get_job(job_id)
             job_service.append_log(
                 job_id,
                 f"Done — {job['successful']} succeeded, {job['failed']} failed, {job['skipped']} skipped.",
+                severity="success",
             )
+            job_service.set_stage(job_id, "completed")
             job_service.finish_job(job_id, "completed")
     except Exception as exc:
         logger.error("email_sync job %s crashed: %s", job_id, exc)
-        job_service.append_log(job_id, f"Error: {exc}")
+        job_service.append_log(job_id, f"Error: {exc}", severity="error", category="system")
         job_service.finish_job(job_id, "failed", error=str(exc))
