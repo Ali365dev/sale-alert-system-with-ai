@@ -77,20 +77,33 @@ def _process_new(gmail_session, gmail_id: str) -> tuple[str, str]:
 
     result = analyze_email(subject, raw["body"])
     if result is None:
+        _mark_processing_result(email_id, "failed", "AI returned no result")
         return "failed", subject
 
     with get_session() as db:
         db.add(build_offer(email_id, result))
+    _mark_processing_result(email_id, "processed", None)
     return "success", subject
 
 
 def _process_pending(email_id: int, subject: str, body: str) -> tuple[str, str]:
     result = analyze_email(subject, body)
     if result is None:
+        _mark_processing_result(email_id, "failed", "AI returned no result")
         return "failed", subject
     with get_session() as db:
         db.add(build_offer(email_id, result))
+    _mark_processing_result(email_id, "processed", None)
     return "success", subject
+
+
+def _mark_processing_result(email_id: int, status: str, error: str | None) -> None:
+    with get_session() as db:
+        e = db.query(Email).filter(Email.id == email_id).first()
+        if e is not None:
+            e.processing_status = status
+            e.processing_error = error
+            e.processing_attempted_at = datetime.utcnow()
 
 
 def _run_one(job_id: int, gmail_session, item: dict, critical: dict, critical_event: threading.Event) -> None:

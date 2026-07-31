@@ -162,6 +162,20 @@ export function useUpdateApiKey() {
   });
 }
 
+export function useReorderApiKeys() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (order: number[]) => {
+      const { data } = await apiClient.put<{ keys: ApiKey[] }>("/settings/api-keys/reorder", { order });
+      return data.keys;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "api-keys"] });
+      toast.success("Priority updated.");
+    },
+  });
+}
+
 export function useDeleteApiKey() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -195,12 +209,33 @@ export function useTestApiKey() {
 
 // ── Providers ────────────────────────────────────────────────────────────────
 
+export type ProviderName = "gemini" | "groq" | "ollama";
+
+export interface ProviderHealth {
+  enabled: boolean;
+  healthy: boolean;
+  cooldown_seconds_remaining: number | null;
+}
+
 export interface ProvidersConfig {
   gemini_model: string;
   groq_model: string;
   gemini_keys: ApiKey[];
   groq_keys: ApiKey[];
   tavily_keys: ApiKey[];
+  /** LLM failover order — Gemini/Groq/Ollama only (Tavily is a separate
+   * search API, not part of this chain). First entry is tried first. */
+  provider_order: ProviderName[];
+  /** Independent of provider_order — a disabled provider is skipped
+   * entirely regardless of its position in the order. */
+  provider_enabled: Record<ProviderName, boolean>;
+  provider_names: ProviderName[];
+  /** The provider actually in use by the backend right now — usually
+   * provider_order[0] among enabled ones, but can trail behind mid-session
+   * if a rate-limit failover moved it on since the order last changed. */
+  active_provider: ProviderName;
+  provider_health: Record<ProviderName, ProviderHealth>;
+  provider_requests_today: Record<ProviderName, number>;
 }
 
 export function useProviders() {
@@ -210,13 +245,21 @@ export function useProviders() {
       const { data } = await apiClient.get<ProvidersConfig>("/settings/providers");
       return data;
     },
+    // Health/cooldown state can change on its own (a background AI call can
+    // exhaust a provider) — poll gently so the priority card doesn't go stale.
+    refetchInterval: 15000,
   });
 }
 
 export function useUpdateProviders() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { gemini_model?: string; groq_model?: string }) => {
+    mutationFn: async (body: {
+      gemini_model?: string;
+      groq_model?: string;
+      provider_order?: ProviderName[];
+      provider_enabled?: Partial<Record<ProviderName, boolean>>;
+    }) => {
       const { data } = await apiClient.put("/settings/providers", body);
       return data;
     },

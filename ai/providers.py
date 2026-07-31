@@ -1,22 +1,40 @@
 """
-AI provider abstraction with persistent session-level failover.
+AI provider abstraction: provider-level priority + per-provider API key
+rotation, fully independent of each other.
 
-Startup behaviour:  always resets to Gemini (index 0).
-On rate-limit:      advances to next provider, saves state, retries the request.
-On other errors:    returns None — does NOT switch providers.
-Thread-safe:        a single lock guards provider selection and the retry loop.
+Provider priority — configurable in Settings (provider_order / provider_enabled),
+default gemini -> groq -> ollama:
+    Determines which provider is tried first, and (on total exhaustion) which
+    is tried next. Re-prioritizing/enabling/disabling in Settings takes effect
+    on the very next call, no restart needed.
 
-Gemini specifically supports multiple stored API keys (services/settings_service.py
--> database.models.ApiKey), rotating between them — on quota/rate-limit/auth/
-timeout failures — before this outer provider-level failover to Groq ever
-kicks in. Groq/Ollama read their (single) key fresh from Settings on every
-call too, falling back to the .env value if nothing's been set in Settings
-yet, so existing .env-only setups keep working unchanged.
+Per-provider API key rotation — configurable in Settings (each ApiKey's
+`priority`, position 0 = "current active key"):
+    Every provider backed by stored keys (Gemini, Groq, ...) tries its active
+    key first, then every other enabled/non-invalid key for that SAME
+    provider, in priority order, before ever giving up on that provider.
+    Changing a provider's active key never touches provider order, and
+    reordering providers never touches any provider's active key — see
+    services/settings_service.py's `reorder_api_keys` for the key-side half
+    of this and api/settings.py's /providers endpoints for the provider-side
+    half.
+
+Failover trigger (both levels): quota / rate-limit / auth / timeout errors.
+Any other error is treated as non-retryable — it's surfaced immediately and
+does NOT burn through remaining keys or advance to the next provider (a
+malformed prompt fails the same way on every provider/key).
+
+Provider health/cooldown: once every key for a provider has been tried and
+failed, that provider is put on cooldown (skipped by future calls) for
+_COOLDOWN_SECONDS, then eligible again. Purely in-memory/per-process — a
+restart clears it.
 
 Adding a new provider:
-    1. Subclass Provider and implement call().
-    2. Append an instance to ProviderManager.PROVIDERS.
-    No other changes needed.
+    1. Subclass Provider, set `name` and `uses_stored_keys`.
+    2. If uses_stored_keys: implement `_model()` and `_call_one(prompt, raw_key, model)`.
+       If not (e.g. a local model): implement `call(prompt)` directly.
+    3. Register an instance in _REGISTRY and its name in DEFAULT_PROVIDER_ORDER.
+    No other changes needed — Settings UI and failover pick it up automatically.
 """
 import json
 import threading
@@ -34,9 +52,10 @@ from config import (
 )
 
 _STATE_FILE = Path(__file__).parent.parent / "cache" / "provider_state.json"
-_TRANSIENT_RETRIES = BRAND_RETRY_COUNT  # retries within a provider for non-rate-limit errors
+_TRANSIENT_RETRIES = BRAND_RETRY_COUNT  # retries within a single key for non-rotatable transient errors
+_COOLDOWN_SECONDS = 300  # how long a fully-exhausted provider is skipped before being retried again
 
-# ── Rate-limit detection (provider-level failover; unchanged from before) ──────
+# ── Rotatable-failure detection (shared by key rotation AND provider failover) ──
 
 _RATE_LIMIT_EXC_NAMES = frozenset({
     "RateLimitError",
@@ -71,8 +90,6 @@ def _is_rate_limit(exc: Exception) -> bool:
     return is_rate_limit_message(str(exc))
 
 
-# ── Gemini-key-level failure detection (broader — also rotates on auth/timeout) ─
-
 _AUTH_EXC_NAMES = frozenset({
     "PermissionDenied", "Unauthenticated", "AuthenticationError", "PermissionDeniedError",
 })
@@ -96,99 +113,116 @@ def _is_timeout(exc: Exception) -> bool:
     return any(phrase in text for phrase in _TIMEOUT_PHRASES)
 
 
-def _is_gemini_key_rotatable(exc: Exception) -> bool:
-    """Whether a Gemini key failure should move on to the next stored key
-    rather than propagating (quota/rate-limit/auth/timeout — everything the
-    Settings spec calls out for automatic rotation)."""
+def _is_key_rotatable(exc: Exception) -> bool:
+    """Whether a single-key failure should move on to the next key for the
+    same provider rather than propagating immediately — quota/rate-limit/
+    auth/timeout, everything the Settings spec calls out for automatic
+    key rotation."""
     return _is_rate_limit(exc) or _is_auth_failure(exc) or _is_timeout(exc)
+
+
+class _AllKeysExhausted(Exception):
+    """Raised once every stored key for a provider has been tried and
+    failed (or none are configured). ProviderManager catches this
+    specifically to always advance to the next provider — regardless of
+    which exact rotatable reason the *last* key happened to fail with."""
 
 
 # ── Provider base class ────────────────────────────────────────────────────────
 
 class Provider(ABC):
     name: str
+    uses_stored_keys: bool = False  # True: backed by database.models.ApiKey rows (rotated automatically)
 
     @abstractmethod
     def call(self, prompt: str) -> str:
         """
         Send prompt and return the response text.
-        Raises on failure — rate-limit errors are propagated immediately;
-        transient errors may be retried internally before raising.
+        Rotatable errors (quota/rate-limit/auth/timeout) are propagated as
+        _AllKeysExhausted once every key/attempt is spent; other errors
+        propagate as-is and must NOT trigger key rotation or provider failover.
         """
+
+
+# ── Shared key-rotation loop — used by every uses_stored_keys provider ──────────
+
+def _call_with_key_rotation(provider: "Provider", prompt: str, env_fallback_key: str | None) -> str:
+    """Try `provider`'s current active key (Settings > that provider's key
+    list, priority 0), then every other enabled/non-invalid key for the same
+    provider in priority order. Only after all are exhausted does this raise
+    _AllKeysExhausted, signalling ProviderManager to move to the next
+    provider in priority order."""
+    from services import settings_service
+
+    keys = settings_service.get_active_api_keys(provider.name)
+    if not keys and env_fallback_key:
+        # No keys added in Settings yet — fall back to .env so existing
+        # deployments keep working unchanged until someone migrates.
+        keys = [{"id": None, "name": "env (.env fallback)", "decrypted_key": env_fallback_key}]
+    if not keys:
+        raise _AllKeysExhausted(f"{provider.name} not configured — no active key and no .env fallback")
+
+    model = provider._model()  # type: ignore[attr-defined]
+    last_exc: Exception = RuntimeError(f"no {provider.name} keys attempted")
+    for key_info in keys:
+        try:
+            result = provider._call_one(prompt, key_info["decrypted_key"], model)  # type: ignore[attr-defined]
+            if key_info["id"] is not None:
+                settings_service.record_key_usage(key_info["id"])
+            return result
+        except Exception as exc:
+            last_exc = exc
+            if key_info["id"] is not None:
+                settings_service.record_key_failure(key_info["id"], str(exc), mark_invalid=_is_auth_failure(exc))
+            if _is_key_rotatable(exc):
+                logger.warning(
+                    "%s key %r failed (%s) — trying next key", provider.name, key_info["name"], type(exc).__name__,
+                )
+                continue
+            raise  # non-rotatable (e.g. malformed request) — don't burn through every key for it
+    raise _AllKeysExhausted(f"All {provider.name} keys exhausted — last error: {last_exc}") from last_exc
 
 
 # ── Concrete providers ─────────────────────────────────────────────────────────
 
 class GeminiProvider(Provider):
     name = "gemini"
+    uses_stored_keys = True
 
-    def _candidate_keys(self) -> list[dict]:
+    def _model(self) -> str:
         from services import settings_service
 
-        keys = settings_service.get_active_api_keys("gemini")
-        if not keys and GEMINI_API_KEY:
-            # No keys added in Settings yet — fall back to .env so existing
-            # deployments keep working unchanged until someone migrates.
-            keys = [{"id": None, "name": "env (.env fallback)", "decrypted_key": GEMINI_API_KEY}]
-        return keys
+        return settings_service.get_setting("gemini_model", default=GEMINI_MODEL)
+
+    def _call_one(self, prompt: str, raw_key: str, model: str) -> str:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=raw_key)
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        return response.text
 
     def call(self, prompt: str) -> str:
-        from services import settings_service
-
-        keys = self._candidate_keys()
-        if not keys:
-            raise RuntimeError("Gemini not configured — add a key in Settings or set GEMINI_API_KEY")
-
-        model = settings_service.get_setting("gemini_model", default=GEMINI_MODEL)
-
-        last_exc: Exception = RuntimeError("no Gemini keys attempted")
-        for key_info in keys:
-            try:
-                from google import genai
-                from google.genai import types
-                client = genai.Client(api_key=key_info["decrypted_key"])
-                response = client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(response_mime_type="application/json"),
-                )
-                if key_info["id"] is not None:
-                    settings_service.record_key_usage(key_info["id"])
-                return response.text
-            except Exception as exc:
-                last_exc = exc
-                if key_info["id"] is not None:
-                    settings_service.record_key_failure(
-                        key_info["id"], str(exc), mark_invalid=_is_auth_failure(exc),
-                    )
-                if _is_gemini_key_rotatable(exc):
-                    logger.warning(
-                        "Gemini key %r failed (%s) — trying next key", key_info["name"], type(exc).__name__,
-                    )
-                    continue
-                raise  # non-rotatable error (e.g. malformed request) — don't burn through every key for it
-        raise last_exc
+        return _call_with_key_rotation(self, prompt, GEMINI_API_KEY)
 
 
 class GroqProvider(Provider):
     name = "groq"
+    uses_stored_keys = True
 
-    def _key_info_and_model(self) -> tuple[Optional[dict], str]:
+    def _model(self) -> str:
         from services import settings_service
 
-        keys = settings_service.get_active_api_keys("groq")
-        key_info = keys[0] if keys else ({"id": None, "decrypted_key": GROQ_API_KEY} if GROQ_API_KEY else None)
-        model = settings_service.get_setting("groq_model", default=GROQ_MODEL)
-        return key_info, model
+        return settings_service.get_setting("groq_model", default=GROQ_MODEL)
 
-    def call(self, prompt: str) -> str:
-        key_info, model = self._key_info_and_model()
-        if not key_info or not key_info.get("decrypted_key"):
-            raise RuntimeError("Groq not configured — add a key in Settings or set GROQ_API_KEY")
-        from services import settings_service
+    def _call_one(self, prompt: str, raw_key: str, model: str) -> str:
         from groq import Groq
-        client = Groq(api_key=key_info["decrypted_key"])
 
+        client = Groq(api_key=raw_key)
         last_exc: Exception = RuntimeError("no attempts made")
         for attempt in range(1, _TRANSIENT_RETRIES + 1):
             try:
@@ -197,19 +231,15 @@ class GroqProvider(Provider):
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.2,
                 )
-                if key_info["id"] is not None:
-                    settings_service.record_key_usage(key_info["id"])
                 return completion.choices[0].message.content
             except Exception as exc:
-                if key_info["id"] is not None:
-                    settings_service.record_key_failure(key_info["id"], str(exc), mark_invalid=_is_auth_failure(exc))
-                if _is_rate_limit(exc):
-                    raise  # propagate immediately — manager handles failover
                 # Groq raises AuthenticationError, BadRequestError etc. for 4xx —
-                # these are not transient, retrying will not help.
+                # these (and rate-limits) are not transient, retrying won't help;
+                # let the caller decide whether to rotate to the next key.
                 exc_name = type(exc).__name__
                 if any(n in exc_name for n in ("AuthenticationError", "BadRequestError", "NotFoundError", "PermissionDeniedError")):
-                    logger.error("Groq non-retryable error: %s", exc)
+                    raise
+                if _is_rate_limit(exc):
                     raise
                 last_exc = exc
                 logger.warning("Groq transient error (attempt %d/%d): %s", attempt, _TRANSIENT_RETRIES, exc)
@@ -217,9 +247,13 @@ class GroqProvider(Provider):
                     time.sleep(2 ** attempt)
         raise last_exc
 
+    def call(self, prompt: str) -> str:
+        return _call_with_key_rotation(self, prompt, GROQ_API_KEY)
+
 
 class OllamaProvider(Provider):
     name = "ollama"
+    uses_stored_keys = False  # local model — no stored key to rotate
 
     def call(self, prompt: str) -> str:
         from services import settings_service
@@ -263,28 +297,123 @@ class OllamaProvider(Provider):
         raise last_exc
 
 
+# ── Provider registry & priority order ──────────────────────────────────────
+
+# Every known LLM provider, keyed by name — add new providers here, nowhere
+# else. This is the fixed set of *available* providers; the *order* and
+# *enabled* state are configurable via Settings, separately below.
+_REGISTRY: dict[str, Provider] = {
+    "gemini": GeminiProvider(),
+    "groq": GroqProvider(),
+    "ollama": OllamaProvider(),
+}
+
+# Fallback order used until the user picks one in Settings, and the
+# authoritative list of valid provider names for validation.
+DEFAULT_PROVIDER_ORDER: list[str] = ["gemini", "groq", "ollama"]
+PROVIDER_NAMES: list[str] = list(DEFAULT_PROVIDER_ORDER)
+
+
+def normalize_provider_order(order) -> list[str]:
+    """De-dupe, drop unknown names, and append any missing known provider at
+    the end so the fallback chain never silently loses a provider just
+    because an older/partial value is stored in Settings."""
+    seen: list[str] = []
+    if isinstance(order, list):
+        for name in order:
+            if name in _REGISTRY and name not in seen:
+                seen.append(name)
+    for name in DEFAULT_PROVIDER_ORDER:
+        if name not in seen:
+            seen.append(name)
+    return seen
+
+
+def normalize_provider_enabled(enabled) -> dict[str, bool]:
+    """Every known provider defaults to enabled unless explicitly turned off."""
+    result = {name: True for name in PROVIDER_NAMES}
+    if isinstance(enabled, dict):
+        for name, value in enabled.items():
+            if name in result:
+                result[name] = bool(value)
+    return result
+
+
 # ── Provider manager ───────────────────────────────────────────────────────────
 
 class ProviderManager:
     """
     Singleton that owns provider selection and failover logic.
 
-    Instantiate once at module level — __init__ resets to Gemini,
-    satisfying the "always start from Gemini on app startup" requirement.
+    Priority order and enabled/disabled state are re-read on every call, so
+    changing either in Settings takes effect immediately — but a rate-limit-
+    driven failover mid-session stays "sticky" on the provider it moved to
+    (not reset every call) as long as neither has actually changed.
     """
-
-    # Ordered list of providers — add new providers here, nowhere else.
-    PROVIDERS: list[Provider] = [
-        GeminiProvider(),
-        GroqProvider(),
-        OllamaProvider(),
-    ]
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._index = 0          # always start at Gemini
+        self._cooldown_until: dict[str, float] = {}
+        self._last_order = self._read_order()
+        self._last_enabled = self._read_enabled()
+        self._active_name = self._first_eligible(self._last_order, self._last_enabled)
         self._save_state()
-        logger.info("ProviderManager: initialised — active provider: %s", self.current.name)
+        logger.info("ProviderManager: initialised — active provider: %s", self.active_name)
+
+    # ── Settings-driven priority order & enabled state ──────────────────────────
+
+    def _read_order(self) -> list[str]:
+        from services import settings_service
+
+        return normalize_provider_order(settings_service.get_setting("provider_order"))
+
+    def _read_enabled(self) -> dict[str, bool]:
+        from services import settings_service
+
+        return normalize_provider_enabled(settings_service.get_setting("provider_enabled"))
+
+    def _in_cooldown(self, name: str) -> bool:
+        return time.monotonic() < self._cooldown_until.get(name, 0.0)
+
+    def _first_eligible(self, order: list[str], enabled: dict[str, bool]) -> str:
+        for name in order:
+            if enabled.get(name, True) and not self._in_cooldown(name):
+                return name
+        # everything disabled/cooling down — still resolve to *something*
+        # (the top of the order) so `current`/`active_name` never crash.
+        return order[0]
+
+    def _sync_order(self) -> tuple[list[str], dict[str, bool]]:
+        """Re-read configured order/enabled state; if either changed since
+        last time (the user re-prioritized, enabled, or disabled a provider
+        in Settings), snap the active provider to the new top eligible
+        choice immediately."""
+        order = self._read_order()
+        enabled = self._read_enabled()
+        if order != self._last_order or enabled != self._last_enabled:
+            self._last_order = order
+            self._last_enabled = enabled
+            self._active_name = self._first_eligible(order, enabled)
+            self._save_state()
+            logger.info("ProviderManager: priority/enabled changed via Settings — active provider now %s", self._active_name)
+        return order, enabled
+
+    # ── Health (read by the Settings API) ────────────────────────────────────
+
+    def health(self) -> dict[str, dict]:
+        with self._lock:
+            order, enabled = self._sync_order()
+            now = time.monotonic()
+            result = {}
+            for name in order:
+                cooldown_until = self._cooldown_until.get(name)
+                cooling_down = cooldown_until is not None and now < cooldown_until
+                result[name] = {
+                    "enabled": enabled.get(name, True),
+                    "healthy": enabled.get(name, True) and not cooling_down,
+                    "cooldown_seconds_remaining": round(cooldown_until - now, 1) if cooling_down else None,
+                }
+            return result
 
     # ── State persistence ──────────────────────────────────────────────────────
 
@@ -292,7 +421,7 @@ class ProviderManager:
         try:
             _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
             _STATE_FILE.write_text(
-                json.dumps({"current_provider": self.current.name}, indent=2),
+                json.dumps({"current_provider": self._active_name, "order": self._last_order}, indent=2),
                 encoding="utf-8",
             )
         except Exception as exc:
@@ -302,36 +431,60 @@ class ProviderManager:
 
     @property
     def current(self) -> Provider:
-        return self.PROVIDERS[self._index]
+        return _REGISTRY[self._active_name]
 
     @property
     def active_name(self) -> str:
-        return self.current.name
+        return self._active_name
+
+    def sync_active(self) -> str:
+        """Force a fresh read of the configured priority/enabled state and
+        return the (possibly just-updated) active provider name. Safe to
+        call any time — e.g. from a Settings status endpoint — independent
+        of an in-flight call() on another thread."""
+        with self._lock:
+            self._sync_order()
+            return self._active_name
 
     def _advance(self) -> bool:
-        """
-        Move to next provider and persist state.
-        Returns True if a new provider is available, False if already at last.
-        """
-        if self._index >= len(self.PROVIDERS) - 1:
-            return False
-        self._index += 1
-        self._save_state()
-        logger.warning(
-            "ProviderManager: switched to %s (provider %d/%d)",
-            self.current.name, self._index + 1, len(self.PROVIDERS),
-        )
-        return True
+        """Put the current provider on cooldown (every one of its keys just
+        failed) and move to the next ELIGIBLE provider — enabled and not
+        already cooling down — in priority order. Returns True if one was
+        found, False if every remaining provider is disabled/cooling down."""
+        order, enabled = self._sync_order()
+        self._cooldown_until[self._active_name] = time.monotonic() + _COOLDOWN_SECONDS
+        try:
+            start_idx = order.index(self._active_name)
+        except ValueError:
+            start_idx = -1
+        for idx in range(start_idx + 1, len(order)):
+            name = order[idx]
+            if enabled.get(name, True) and not self._in_cooldown(name):
+                self._active_name = name
+                self._save_state()
+                logger.warning("ProviderManager: switched to %s (provider %d/%d)", name, idx + 1, len(order))
+                return True
+        return False
 
     # ── Main entry point ───────────────────────────────────────────────────────
 
     def call(self, prompt: str) -> Optional[str]:
         """
-        Send prompt to the active provider.
-        On rate-limit: switch to next provider and retry automatically.
-        On other errors: return None without switching.
+        Send prompt to the active provider — trying every one of its keys
+        first (see _call_with_key_rotation). Only after a provider's keys
+        are all exhausted does this move to the next provider in priority
+        order. Non-retryable errors return None without switching anything.
         """
         with self._lock:
+            order, enabled = self._sync_order()
+
+            if not enabled.get(self._active_name, True) or self._in_cooldown(self._active_name):
+                self._active_name = self._first_eligible(order, enabled)
+
+            if not any(enabled.get(n, True) and not self._in_cooldown(n) for n in order):
+                logger.error("All AI providers are disabled or cooling down — giving up.")
+                return None
+
             while True:
                 provider = self.current
                 try:
@@ -339,23 +492,24 @@ class ProviderManager:
                     logger.info("LLM used: %s", provider.name)
                     return result
 
+                except _AllKeysExhausted as exc:
+                    logger.warning("%s", exc)
+                    if self._advance():
+                        logger.info("Retrying with %s …", self.current.name)
+                        continue
+                    logger.error("All AI providers exhausted — giving up.")
+                    return None
+
                 except Exception as exc:
                     if _is_rate_limit(exc):
-                        logger.warning(
-                            "Rate limit on %s — %s", provider.name, exc
-                        )
+                        # a uses_stored_keys=False provider (e.g. Ollama) rate-limited directly
+                        logger.warning("Rate limit on %s — %s", provider.name, exc)
                         if self._advance():
                             logger.info("Retrying with %s …", self.current.name)
-                            continue  # retry loop with new provider
-
-                        logger.error(
-                            "All %d AI providers exhausted — giving up.",
-                            len(self.PROVIDERS),
-                        )
+                            continue
+                        logger.error("All AI providers exhausted — giving up.")
                         return None
 
                     # Non-retryable: auth failure, malformed request, etc.
-                    logger.error(
-                        "Non-retryable error on %s: %s", provider.name, exc
-                    )
+                    logger.error("Non-retryable error on %s: %s", provider.name, exc)
                     return None

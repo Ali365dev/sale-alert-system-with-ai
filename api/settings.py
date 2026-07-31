@@ -173,6 +173,17 @@ def delete_api_key(key_id: int):
     return jsonify({"status": "deleted"})
 
 
+@bp.put("/api-keys/reorder")
+@settings_auth.require_admin
+def reorder_api_keys():
+    body = request.get_json(silent=True) or {}
+    order = body.get("order")
+    if not isinstance(order, list) or not order or not all(isinstance(i, int) for i in order):
+        return jsonify({"error": "order (list of key ids) is required"}), 400
+    result = settings_service.reorder_api_keys(order, actor=_actor())
+    return jsonify({"keys": result})
+
+
 def _test_provider_key(provider: str, raw_key: str, model: str | None) -> tuple[bool, str | None, float]:
     start = time.monotonic()
     try:
@@ -232,22 +243,59 @@ def test_api_key(key_id: int):
 @bp.get("/providers")
 @settings_auth.require_admin
 def get_providers():
+    from ai._llm import get_active_provider, get_provider_health
+    from ai.providers import PROVIDER_NAMES, normalize_provider_enabled, normalize_provider_order
+
+    gemini_keys = settings_service.list_api_keys("gemini")
+    groq_keys = settings_service.list_api_keys("groq")
+    requests_today = {
+        "gemini": sum(k["daily_usage_count"] for k in gemini_keys),
+        "groq": sum(k["daily_usage_count"] for k in groq_keys),
+        "ollama": 0,  # local, no stored key — usage isn't tracked per-key
+    }
+
     return jsonify({
         "gemini_model": settings_service.get_setting("gemini_model"),
         "groq_model": settings_service.get_setting("groq_model"),
-        "gemini_keys": settings_service.list_api_keys("gemini"),
-        "groq_keys": settings_service.list_api_keys("groq"),
+        "gemini_keys": gemini_keys,
+        "groq_keys": groq_keys,
         "tavily_keys": settings_service.list_api_keys("tavily"),
+        # Provider-level priority — Gemini/Groq/Ollama only. Tavily is a
+        # separate search API, not part of this LLM failover chain, so it's
+        # excluded here (it still has its own key list above).
+        "provider_order": normalize_provider_order(settings_service.get_setting("provider_order")),
+        "provider_enabled": normalize_provider_enabled(settings_service.get_setting("provider_enabled")),
+        "provider_names": PROVIDER_NAMES,
+        "active_provider": get_active_provider(),
+        "provider_health": get_provider_health(),
+        "provider_requests_today": requests_today,
     })
 
 
 @bp.put("/providers")
 @settings_auth.require_admin
 def update_providers():
+    from ai.providers import normalize_provider_enabled, normalize_provider_order
+
     body = request.get_json(silent=True) or {}
     for field in ("gemini_model", "groq_model"):
         if field in body:
             settings_service.set_setting(field, body[field], category="providers", actor=_actor())
+    if "provider_order" in body:
+        order = body["provider_order"]
+        if not isinstance(order, list) or not order or not all(isinstance(x, str) for x in order):
+            return jsonify({"error": "provider_order must be a non-empty list of provider names"}), 400
+        settings_service.set_setting("provider_order", normalize_provider_order(order), category="providers", actor=_actor())
+    if "provider_enabled" in body:
+        enabled = body["provider_enabled"]
+        if not isinstance(enabled, dict):
+            return jsonify({"error": "provider_enabled must be an object of {provider: bool}"}), 400
+        # Merge onto the current value — a partial update (e.g. just
+        # {"ollama": false}) must not silently re-enable providers the
+        # normalize default would otherwise fill in as True.
+        merged = normalize_provider_enabled(settings_service.get_setting("provider_enabled"))
+        merged.update({k: bool(v) for k, v in enabled.items() if k in merged})
+        settings_service.set_setting("provider_enabled", merged, category="providers", actor=_actor())
     return jsonify({"status": "ok"})
 
 

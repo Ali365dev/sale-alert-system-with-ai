@@ -187,6 +187,22 @@ def delete_api_key(key_id: int, actor: str | None = None) -> bool:
     return True
 
 
+def reorder_api_keys(order: list[int], actor: str | None = None) -> list[dict]:
+    """Set priority = position within `order` (0 = tried first) for each key
+    id listed — e.g. drag-reordering or picking a key as "used first" in
+    Settings. Ids not found are silently skipped; ids not in `order` keep
+    their existing priority untouched."""
+    with get_session() as session:
+        rows = {r.id: r for r in session.query(ApiKey).filter(ApiKey.id.in_(order)).all()}
+        for position, key_id in enumerate(order):
+            row = rows.get(key_id)
+            if row:
+                row.priority = position
+        result = [_api_key_to_dict(rows[key_id]) for key_id in order if key_id in rows]
+    write_audit(actor, "api_key.reorder", "api_key", ",".join(str(i) for i in order), None, json.dumps(order))
+    return result
+
+
 def record_key_usage(key_id: int) -> None:
     """A successful call — clears any stale error (e.g. a since-recovered
     quota/rate-limit) so `quota_exceeded` reflects current, not historical, state."""

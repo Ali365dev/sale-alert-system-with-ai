@@ -25,10 +25,16 @@ class Email(Base):
     received_date = Column(DateTime, nullable=True)
     processed_at = Column(DateTime, default=_utcnow, nullable=False)
 
-    # AI email-level verification
+    # AI email-level verification (content classification — legitimate/spam/etc.)
     email_verification_status = Column(String(20), nullable=True)   # "legitimate" | "suspicious" | "spam"
     email_verification_note = Column(Text, nullable=True)
     email_verified_at = Column(DateTime, nullable=True)
+
+    # AI offer-extraction processing status — independent of the verification
+    # fields above. Exactly three states, no others.
+    processing_status = Column(String(20), nullable=False, default="unprocessed", index=True)  # "unprocessed" | "processed" | "failed"
+    processing_error = Column(Text, nullable=True)
+    processing_attempted_at = Column(DateTime, nullable=True)
 
     offers = relationship("Offer", back_populates="email", cascade="all, delete-orphan")
 

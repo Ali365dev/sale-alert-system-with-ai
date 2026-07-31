@@ -2,7 +2,11 @@
 
 Sequential, per-item job with progress callbacks — runs the loop one email
 at a time using ai.analyzer.build_offer to turn each AI result into a row.
+Also covers "retry" — an email with no offer is either unprocessed or
+previously failed, and both are picked up here the same way.
 """
+from datetime import datetime
+
 from sqlalchemy import exists
 
 from database.db import get_session
@@ -37,11 +41,22 @@ class ProcessPendingJob(BackgroundJob):
         result = analyze_email(subject, body)
         if result is None:
             job_service.append_log(job_id, f"⚠ AI returned no result for \"{item.label[:60]}\"", severity="warning", category="ai")
+            with get_session() as session:
+                e = session.query(Email).filter(Email.id == item.id).first()
+                if e is not None:
+                    e.processing_status = "failed"
+                    e.processing_error = "AI returned no result"
+                    e.processing_attempted_at = datetime.utcnow()
             return "failed"
 
         job_service.set_stage(job_id, "saving_data")
         with get_session() as session:
             session.add(build_offer(item.id, result))
+            e = session.query(Email).filter(Email.id == item.id).first()
+            if e is not None:
+                e.processing_status = "processed"
+                e.processing_error = None
+                e.processing_attempted_at = datetime.utcnow()
 
         job_service.append_log(job_id, f"✓ \"{item.label[:60]}\" analysed and saved", severity="success", category="offer")
         job_service.set_stage(job_id, "processing")

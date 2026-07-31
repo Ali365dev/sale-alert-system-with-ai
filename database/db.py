@@ -30,6 +30,9 @@ def _migrate() -> None:
         ("jobs", "queue_position",                "INTEGER"),
         ("job_logs", "severity",                  "VARCHAR(10) DEFAULT 'info'"),
         ("job_logs", "category",                  "VARCHAR(30)"),
+        ("emails", "processing_status",           "VARCHAR(20) DEFAULT 'unprocessed'"),
+        ("emails", "processing_error",            "TEXT"),
+        ("emails", "processing_attempted_at",     "TIMESTAMP"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -37,8 +40,25 @@ def _migrate() -> None:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
                 conn.commit()
                 logger.info("Migration: added %s.%s", table, col)
+                if (table, col) == ("emails", "processing_status"):
+                    # Backfill from existing data, once, right after the column
+                    # is first created: an email that already has offers clearly
+                    # processed successfully in the past, even though we never
+                    # stored that fact explicitly before this column existed.
+                    conn.execute(text(
+                        "UPDATE emails SET processing_status = 'processed' "
+                        "WHERE id IN (SELECT DISTINCT email_id FROM offers WHERE email_id IS NOT NULL)"
+                    ))
+                    conn.commit()
+                    logger.info("Migration: backfilled emails.processing_status from existing offers")
             except Exception:
                 conn.rollback()  # column already exists — safe to skip
+
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_emails_processing_status ON emails (processing_status)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
         # Make offers.email_id nullable so AI-generated offers don't need an email
         try:

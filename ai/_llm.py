@@ -1,18 +1,21 @@
 """
 LLM entry point — delegates to ProviderManager.
 
-The manager is created once per process (module-level singleton).
-Creating it resets the active provider to Gemini, so every app
-restart automatically starts fresh from the highest-priority provider.
+The manager is created once per process (module-level singleton). Creating
+it starts at the top of the configured priority order (Settings > API
+Configuration, default Gemini first).
 
-Failover order:  Gemini → Groq → Local Llama
-Failover trigger: rate-limit / quota errors only.
+Failover order:   configurable — see ai/providers.py's provider_order Setting.
+Failover trigger: quota / rate-limit / auth / timeout errors, after every
+                  key for the current provider has been tried (see
+                  ai/providers.py's _call_with_key_rotation).
 """
 from typing import Optional
 
 from ai.providers import ProviderManager
 
-# One instance per process — __init__ resets active provider to Gemini.
+# One instance per process — __init__ starts at the configured priority order's
+# first eligible provider.
 _manager = ProviderManager()
 
 
@@ -26,3 +29,18 @@ def call_llm(prompt: str, retries: int = 3) -> Optional[str]:
     provider handles its own transient-error retries internally.
     """
     return _manager.call(prompt)
+
+
+def get_active_provider() -> str:
+    """The provider name (e.g. "gemini") currently in use by this process —
+    read for display in Settings, never mutated directly (change it via the
+    provider_order/provider_enabled Settings instead, which ProviderManager
+    picks up live). Forces a fresh settings check, so a just-saved
+    re-priority shows immediately even if no AI call has happened since."""
+    return _manager.sync_active()
+
+
+def get_provider_health() -> dict[str, dict]:
+    """Per-provider {"enabled", "healthy", "cooldown_seconds_remaining"} —
+    read for display in Settings."""
+    return _manager.health()
