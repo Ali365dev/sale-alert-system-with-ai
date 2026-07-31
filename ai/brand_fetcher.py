@@ -21,7 +21,6 @@ from typing import Optional
 import json
 
 from config import (
-    BRAND_DELAY_SECONDS,
     BRAND_RETRY_COUNT,
     logger,
 )

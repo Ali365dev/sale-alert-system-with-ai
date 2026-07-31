@@ -50,7 +50,14 @@ function KeyRow({ apiKey }: { apiKey: ApiKey }) {
         <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)", fontSize: 11.5 }}>{apiKey.key_preview}</span>
       </div>
       <span style={{ color: "var(--text-muted)" }}>Priority {apiKey.priority}</span>
-      <Badge tone={STATUS_TONE[apiKey.status] ?? "neutral"}>{apiKey.status}</Badge>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        <Badge tone={STATUS_TONE[apiKey.status] ?? "neutral"}>{apiKey.status}</Badge>
+        {apiKey.quota_exceeded && (
+          <span title={apiKey.last_error ?? undefined}>
+            <Badge tone="warning">quota exceeded</Badge>
+          </span>
+        )}
+      </div>
       <span style={{ font: "600 12px/1 var(--font-mono)" }}>{apiKey.daily_usage_count}</span>
       <span style={{ color: "var(--text-muted)", fontSize: 11.5 }}>{formatDate(apiKey.last_used_at)}</span>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -75,8 +82,12 @@ function KeyRow({ apiKey }: { apiKey: ApiKey }) {
         </Button>
       </div>
       {test.data && (
-        <div style={{ gridColumn: "1 / -1", fontSize: 11.5, color: test.data.ok ? "var(--success)" : "var(--danger)" }}>
-          {test.data.ok ? `✓ Connected (${test.data.latency_seconds}s)` : `✗ ${test.data.error}`}
+        <div style={{ gridColumn: "1 / -1", fontSize: 11.5, color: test.data.ok ? "var(--success)" : test.data.rate_limited ? "var(--amber-600)" : "var(--danger)" }}>
+          {test.data.ok
+            ? `✓ Connected (${test.data.latency_seconds}s)`
+            : test.data.rate_limited
+              ? `⚠ Rate limit / quota exceeded — ${test.data.error}`
+              : `✗ ${test.data.error}`}
         </div>
       )}
     </div>
@@ -100,15 +111,24 @@ function ProviderSection({
 
   const currentModel = model ?? (modelKey ? providers?.[modelKey] : undefined);
   const activeCount = keys?.filter((k) => k.is_enabled && k.status !== "invalid").length ?? 0;
+  const quotaExceededCount = keys?.filter((k) => k.is_enabled && k.quota_exceeded).length ?? 0;
+  const allQuotaExceeded = activeCount > 0 && quotaExceededCount >= activeCount;
 
   return (
     <Card>
       <CardHeader
         title={title}
         aside={
-          <Badge tone={activeCount > 0 ? "success" : "neutral"}>
-            {activeCount > 0 ? `${activeCount} active key${activeCount === 1 ? "" : "s"}` : "Not configured"}
-          </Badge>
+          <div style={{ display: "flex", gap: 6 }}>
+            <Badge tone={activeCount > 0 ? "success" : "neutral"}>
+              {activeCount > 0 ? `${activeCount} active key${activeCount === 1 ? "" : "s"}` : "Not configured"}
+            </Badge>
+            {quotaExceededCount > 0 && (
+              <Badge tone="warning">
+                {allQuotaExceeded ? "All keys over quota" : `${quotaExceededCount} over quota`}
+              </Badge>
+            )}
+          </div>
         }
       />
       {modelKey && (

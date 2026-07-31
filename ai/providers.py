@@ -56,11 +56,19 @@ _RATE_LIMIT_PHRASES = (
 )
 
 
+def is_rate_limit_message(text: str | None) -> bool:
+    """Phrase-only check, for plain error strings (e.g. ApiKey.last_error)
+    where no exception object/type is available."""
+    if not text:
+        return False
+    text = text.lower()
+    return any(phrase in text for phrase in _RATE_LIMIT_PHRASES)
+
+
 def _is_rate_limit(exc: Exception) -> bool:
     if type(exc).__name__ in _RATE_LIMIT_EXC_NAMES:
         return True
-    text = str(exc).lower()
-    return any(phrase in text for phrase in _RATE_LIMIT_PHRASES)
+    return is_rate_limit_message(str(exc))
 
 
 # ── Gemini-key-level failure detection (broader — also rotates on auth/timeout) ─

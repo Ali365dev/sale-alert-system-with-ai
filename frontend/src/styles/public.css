@@ -1,0 +1,66 @@
+/* Public offers site — responsive tweaks, skeleton shimmer, carousel behavior. */
+
+@keyframes public-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.public-skeleton {
+  background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--border) 37%, var(--surface-sunken) 63%);
+  background-size: 800px 100%;
+  animation: public-shimmer 1.4s ease-in-out infinite;
+}
+
+.public-scroll-row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+.public-scroll-row > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+
+.public-offer-card {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.public-offer-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.public-fade-in {
+  animation: public-fade-in 0.35s ease both;
+}
+@keyframes public-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 860px) {
+  .public-nav-links {
+    display: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .public-header-search {
+    flex-basis: 160px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .public-footer-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 800px) {
+  .offer-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

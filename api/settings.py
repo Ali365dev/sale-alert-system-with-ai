@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, make_response, request
 
+from ai.providers import is_rate_limit_message
 from services import settings_auth, settings_service
 
 bp = Blueprint("settings", __name__, url_prefix="/api/settings")
@@ -218,7 +219,12 @@ def test_api_key(key_id: int):
     model = settings_service.get_setting(f"{row['provider']}_model")
     ok, error, latency = _test_provider_key(row["provider"], raw_key, model)
     settings_service.record_key_test(key_id, ok, error)
-    return jsonify({"ok": ok, "error": error, "latency_seconds": latency})
+    return jsonify({
+        "ok": ok,
+        "error": error,
+        "latency_seconds": latency,
+        "rate_limited": is_rate_limit_message(error),
+    })
 
 
 # ── Providers (model names, priority order) ─────────────────────────────────

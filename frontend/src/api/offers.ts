@@ -66,6 +66,20 @@ export function useOffers(filters: OfferFilters) {
   return useQuery({ queryKey: ["offers", filters], queryFn: () => fetchOffers(filters) });
 }
 
+async function fetchOffer(id: number): Promise<Offer> {
+  const { data } = await apiClient.get<Offer>(`/offers/${id}`);
+  return data;
+}
+
+export function useOffer(id: number | null) {
+  return useQuery({
+    queryKey: ["offer", id],
+    queryFn: () => fetchOffer(id as number),
+    enabled: id !== null,
+    retry: false,
+  });
+}
+
 export type OfferInput = Partial<Omit<Offer, "id" | "created_at" | "verified_at">>;
 
 export function useCreateOffer() {

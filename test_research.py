@@ -8,7 +8,6 @@ Run:
     python test_research.py --brand "Bata" --no-save    # skip Supabase write
 """
 import sys
-import json
 import argparse
 from pathlib import Path
 
@@ -18,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv()
 
-from research.config import TAVILY_API_KEY, OLLAMA_MODEL, logger
+from research.config import TAVILY_API_KEY, OLLAMA_MODEL
 from research.tavily_client import TavilyClient
 from research.llama_processor import LlamaProcessor
 from research.supabase_service import SupabaseService

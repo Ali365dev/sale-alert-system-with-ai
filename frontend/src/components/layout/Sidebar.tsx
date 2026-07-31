@@ -3,7 +3,7 @@ import { NavLink } from "react-router";
 import { Icon } from "../icons";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Overview", icon: Icon.house },
+  { to: "/dashboard", label: "Overview", icon: Icon.house },
   { to: "/analytics", label: "Analytics", icon: Icon.trendUp },
   { to: "/search", label: "Search", icon: Icon.search },
   { to: "/offers", label: "Offers manager", icon: Icon.offer },

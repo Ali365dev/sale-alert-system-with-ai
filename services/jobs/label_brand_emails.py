@@ -7,7 +7,7 @@ this job never re-labels or re-processes anything already handled.
 """
 import json
 
-from config import GMAIL_BRAND_LABEL as _GMAIL_BRAND_LABEL_DEFAULT, logger
+from config import GMAIL_BRAND_LABEL as _GMAIL_BRAND_LABEL_DEFAULT
 from database.db import get_session
 from database.models import Brand
 from gmail.gmail_labels import apply_label, get_message_sender_and_labels, get_or_create_label_id, list_candidate_message_ids

@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify
 from sqlalchemy import func
 
 from database.db import get_session
-from database.models import Email, Offer
+from database.models import Offer
 
 bp = Blueprint("overview", __name__, url_prefix="/api")
 

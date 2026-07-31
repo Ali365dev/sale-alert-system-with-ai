@@ -25,6 +25,7 @@ from typing import Any, Optional
 
 from config import logger
 from ai._llm import call_llm
+from database.models import Offer
 from services.settings_service import get_prompt
 
 PROMPT_KEY = "email_analysis"
@@ -123,3 +124,35 @@ def analyze_email(subject: str, body: str) -> Optional[dict]:
         elapsed, data.get("brand"), data.get("category"), data.get("subcategory"),
     )
     return data
+
+
+def _parse_expiry(date_str) -> Optional[datetime]:
+    if not date_str:
+        return None
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%B %d, %Y"):
+        try:
+            return datetime.strptime(date_str, fmt)
+        except (ValueError, TypeError):
+            continue
+    return None
+
+
+def build_offer(email_id: int, result: dict) -> Offer:
+    """Turn an analyze_email() result dict into an unsaved Offer row."""
+    return Offer(
+        email_id=email_id,
+        brand=result.get("brand"),
+        company=result.get("company"),
+        category=result.get("category"),
+        subcategory=result.get("subcategory"),
+        offer_type=result.get("offer_type"),
+        discount_percentage=result.get("discount_percentage"),
+        coupon_code=result.get("coupon_code"),
+        expiry_date=_parse_expiry(result.get("expiry_date")),
+        offer_value=result.get("offer_value"),
+        website=result.get("website_url") or None,
+        summary=result.get("summary"),
+        key_highlights=json.dumps(result.get("key_highlights", [])),
+        is_active=True,
+        source="email",
+    )

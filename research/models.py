@@ -2,7 +2,7 @@
 Data models for the research module.
 Pure Python dataclasses — no external dependencies.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 VALID_OFFER_TYPES = frozenset({

@@ -12,7 +12,7 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(__file__))
 
 from database.db import get_session
-from database.models import Brand, Email, Offer
+from database.models import Brand, Offer
 from sync_brand_emails import (
     domain_of,
     domain_root,

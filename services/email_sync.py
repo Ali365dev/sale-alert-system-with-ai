@@ -13,11 +13,10 @@ from datetime import datetime
 
 from sqlalchemy import exists
 
-from ai.analyzer import analyze_email
+from ai.analyzer import analyze_email, build_offer
 from config import logger
 from database.db import get_session
 from database.models import Email, Offer
-from scheduler.jobs import _build_offer
 from services import job_service
 from services.retry import retry_with_backoff
 
@@ -81,7 +80,7 @@ def _process_new(gmail_session, gmail_id: str) -> tuple[str, str]:
         return "failed", subject
 
     with get_session() as db:
-        db.add(_build_offer(email_id, result))
+        db.add(build_offer(email_id, result))
     return "success", subject
 
 
@@ -90,7 +89,7 @@ def _process_pending(email_id: int, subject: str, body: str) -> tuple[str, str]:
     if result is None:
         return "failed", subject
     with get_session() as db:
-        db.add(_build_offer(email_id, result))
+        db.add(build_offer(email_id, result))
     return "success", subject
 
 

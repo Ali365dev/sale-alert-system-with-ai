@@ -1,6 +1,6 @@
 # Gmail Sales Offers AI Dashboard
 
-A production-ready Python application that reads Gmail emails from a `sales_offers` label, analyses them with Gemini AI, stores results in SQLite, and displays insights in a modern Streamlit dashboard.
+A production-ready application that reads Gmail emails from a `sales_offers` label, analyses them with Gemini (Groq fallback) AI, stores results in a database, and exposes them through a Flask API consumed by a React dashboard.
 
 ---
 
@@ -9,10 +9,10 @@ A production-ready Python application that reads Gmail emails from a `sales_offe
 | Layer | Library |
 |---|---|
 | Gmail integration | Google API Python Client (OAuth2) |
-| AI analysis | Gemini 1.5 Flash (free tier) |
-| Database | SQLite + SQLAlchemy 2 |
-| Dashboard | Streamlit + Plotly |
-| Scheduler | APScheduler |
+| AI analysis | Gemini (primary), Groq (fallback) |
+| Database | SQLAlchemy 2 (SQLite locally, Postgres/Supabase in production) |
+| API | Flask + Flask-CORS |
+| Frontend | React + Vite + TypeScript, TanStack Query, Zustand |
 | Config | python-dotenv |
 
 ---
@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env — add GEMINI_API_KEY at minimum
+# Edit .env — add GEMINI_API_KEY and DATABASE_URL at minimum
 ```
 
 ### 3. Set up Gmail API
@@ -49,20 +49,31 @@ Create the Gmail label `sales_offers` in your Gmail account and filter promotion
 
 Visit [Google AI Studio](https://aistudio.google.com/app/apikey) → Create API key → paste into `.env`.
 
-### 5. Run the dashboard
+### 5. Run the API
 
 ```bash
-streamlit run app.py
+python api_server.py
 ```
 
-Open [http://localhost:8501](http://localhost:8501).  
-Click **▶️ Run Fetch & Analyse Now** in the sidebar to do an immediate pass.
+Serves the REST API on [http://localhost:8000](http://localhost:8000).
 
-### 6. Run the scheduler (optional — for daily background fetching)
+### 6. Run the frontend
 
 ```bash
-python scheduler/jobs.py
+cd frontend
+npm install
+npm run dev
 ```
+
+Open [http://localhost:5173](http://localhost:5173) — the public offers site is at `/`, the admin dashboard at `/dashboard` (click **Run fetch & analyse now** in the sidebar, or use **Pipeline Center** to run/monitor any background job).
+
+### 7. One-off manual pipeline run (optional)
+
+```bash
+python run.py
+```
+
+Fetches new emails, analyses them with AI, and saves offers — without going through the API/UI. Useful for cron or a quick manual catch-up.
 
 ---
 
@@ -70,24 +81,25 @@ python scheduler/jobs.py
 
 ```
 gmail-ai-dashboard/
-├── app.py               # Streamlit entry point
-├── config.py            # All env-var settings + logging
-├── dashboard/
-│   ├── overview.py      # Metrics & latest offers
-│   ├── analytics.py     # Charts & trend analysis
-│   ├── search.py        # Filterable offer search + CSV export
-│   └── insights.py      # Gemini daily digest & expiry alerts
+├── api_server.py        # Flask entry point
+├── api/                  # REST endpoints consumed by the React frontend
+├── config.py             # All env-var settings + logging
+├── frontend/              # React + Vite dashboard (public offers site + admin)
 ├── gmail/
-│   ├── gmail_client.py  # OAuth2 authentication
-│   └── gmail_service.py # Fetch & deduplicate emails
+│   ├── gmail_client.py   # OAuth2 authentication
+│   └── gmail_service.py  # Fetch & deduplicate emails
 ├── ai/
-│   └── analyzer.py      # Gemini prompt + JSON extraction
+│   ├── analyzer.py       # Gemini/Groq prompt + JSON extraction (per-email)
+│   └── brand_fetcher.py  # AI-driven brand promotion discovery
+├── services/
+│   ├── email_sync.py     # Background job: fetch + analyse + save
+│   └── jobs/              # Other background job types (verify, research, etc.)
 ├── database/
-│   ├── models.py        # SQLAlchemy ORM models
-│   └── db.py            # Engine, session, init_db()
-├── scheduler/
-│   └── jobs.py          # APScheduler daily job
-├── logs/                # Rotating log files
+│   ├── models.py         # SQLAlchemy ORM models
+│   └── db.py              # Engine, session, init_db()
+├── research/               # Tavily + Llama brand research pipeline
+├── run.py                 # Manual one-off pipeline runner
+├── logs/                  # Rotating log files
 ├── .env.example
 ├── requirements.txt
 ├── Dockerfile
@@ -115,10 +127,10 @@ pip install -r requirements.txt
 cp .env.example .env && nano .env
 # Place credentials.json and pre-generated token.json here
 
-# systemd service for the dashboard
-sudo tee /etc/systemd/system/gmail-dashboard.service > /dev/null <<EOF
+# systemd service for the API
+sudo tee /etc/systemd/system/gmail-api.service > /dev/null <<EOF
 [Unit]
-Description=Gmail Offers Dashboard
+Description=Gmail Offers API
 After=network.target
 
 [Service]
@@ -126,7 +138,7 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/opt/gmail-dashboard
 EnvironmentFile=/opt/gmail-dashboard/.env
-ExecStart=/opt/gmail-dashboard/.venv/bin/streamlit run app.py --server.port=8501 --server.headless=true
+ExecStart=/opt/gmail-dashboard/.venv/bin/python api_server.py
 Restart=always
 RestartSec=10
 
@@ -134,30 +146,17 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-# systemd service for the scheduler
-sudo tee /etc/systemd/system/gmail-scheduler.service > /dev/null <<EOF
-[Unit]
-Description=Gmail Offers Scheduler
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/opt/gmail-dashboard
-EnvironmentFile=/opt/gmail-dashboard/.env
-ExecStart=/opt/gmail-dashboard/.venv/bin/python scheduler/jobs.py
-Restart=always
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
 sudo systemctl daemon-reload
-sudo systemctl enable --now gmail-dashboard gmail-scheduler
+sudo systemctl enable --now gmail-api
 
 # Monitor logs
-journalctl -fu gmail-dashboard
+journalctl -fu gmail-api
+```
+
+Build the frontend for production and serve `frontend/dist/` from your web server of choice, pointed at the API's origin (`VITE_API_BASE_URL`):
+
+```bash
+cd frontend && npm install && npm run build
 ```
 
 ### Docker
@@ -167,18 +166,20 @@ journalctl -fu gmail-dashboard
 python -c "from gmail.gmail_client import get_gmail_service; get_gmail_service()"
 # This creates token.json — copy it to the server
 
-# Build & run
+# Build & run the API
 docker compose up -d
 
 # Logs
 docker compose logs -f
 ```
 
-### Cron alternative (instead of APScheduler)
+The `docker-compose.yml` only runs the API — build and deploy the frontend separately (static hosting, CDN, or your own container).
+
+### Cron alternative (for periodic ingestion)
 
 ```bash
 # Add to crontab -e
-0 8 * * * cd /opt/gmail-dashboard && .venv/bin/python -c "from scheduler.jobs import process_emails; process_emails()" >> logs/cron.log 2>&1
+0 8 * * * cd /opt/gmail-dashboard && .venv/bin/python run.py >> logs/cron.log 2>&1
 ```
 
 ---
@@ -192,9 +193,7 @@ docker compose logs -f
 | `GMAIL_LABEL` | `sales_offers` | Gmail label to read |
 | `GEMINI_API_KEY` | — | **Required** |
 | `GEMINI_MODEL` | `gemini-1.5-flash` | Model name |
-| `DATABASE_URL` | `sqlite:///gmail_offers.db` | SQLAlchemy URL |
-| `SCHEDULER_HOUR` | `8` | Daily job hour (UTC) |
-| `SCHEDULER_MINUTE` | `0` | Daily job minute |
+| `DATABASE_URL` | — | **Required** — SQLAlchemy connection string (Postgres/Supabase in production) |
 | `LOG_LEVEL` | `INFO` | Python log level |
 | `LOG_FILE` | `logs/app.log` | Rotating log path |
 
@@ -210,16 +209,21 @@ tail -f logs/app.log
 grep ERROR logs/app.log
 
 # Docker
-docker compose logs -f scheduler
+docker compose logs -f api
 ```
 
 ---
 
-## Dashboard Pages
+## Frontend Pages
 
-| Page | What you see |
+| Route | What you see |
 |---|---|
-| **Overview** | Headline metrics, top brands, latest 20 offers |
-| **Analytics** | Bar / pie / histogram / line charts, sentiment breakdown |
-| **Search** | Full-text filter by brand/subject/category/date, CSV export |
-| **AI Insights** | Gemini daily digest, expiring deals, recommended actions |
+| `/` | Public offers site — browse, search, and filter deals |
+| `/deals/:id`, `/deals/brand/:name` | Offer and brand detail pages |
+| `/dashboard` | Admin overview — headline metrics, top brands, latest offers |
+| `/analytics` | Charts and trend analysis |
+| `/search` | Full-text filter by brand/subject/category/date |
+| `/insights` | AI daily digest, expiring deals, recommended actions |
+| `/offers`, `/brands`, `/emails` | Manager views for offers, brands, and raw emails |
+| `/pipeline` | Background job monitor (email sync, verification, research, etc.) |
+| `/settings` | API keys, prompts, Google account, email processing config |

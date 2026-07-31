@@ -343,7 +343,6 @@ def get_dashboard_summary() -> dict:
 
 
 def _job_to_dict(job: Job) -> dict:
-    total = job.total_items or job.total_emails
     processed = job.processed_items or job.processed_emails
     processing_speed = None
     if job.started_at and processed:

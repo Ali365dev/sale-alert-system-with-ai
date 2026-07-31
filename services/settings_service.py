@@ -9,6 +9,7 @@ restart" trivially true rather than something to invalidate correctly.
 import json
 from datetime import datetime, timezone
 
+from ai.providers import is_rate_limit_message
 from database.db import get_session
 from database.models import ApiKey, Prompt, Setting, SettingsAuditLog
 
@@ -106,6 +107,7 @@ def _api_key_to_dict(row: ApiKey) -> dict:
         "last_tested_at": row.last_tested_at.isoformat() if row.last_tested_at else None,
         "last_test_ok": row.last_test_ok,
         "last_error": row.last_error,
+        "quota_exceeded": is_rate_limit_message(row.last_error),
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
 
@@ -186,11 +188,14 @@ def delete_api_key(key_id: int, actor: str | None = None) -> bool:
 
 
 def record_key_usage(key_id: int) -> None:
+    """A successful call — clears any stale error (e.g. a since-recovered
+    quota/rate-limit) so `quota_exceeded` reflects current, not historical, state."""
     with get_session() as session:
         row = session.query(ApiKey).filter(ApiKey.id == key_id).first()
         if row:
             row.last_used_at = _utcnow()
             row.daily_usage_count += 1
+            row.last_error = None
 
 
 def record_key_failure(key_id: int, reason: str, mark_invalid: bool = False) -> None:

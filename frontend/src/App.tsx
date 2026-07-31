@@ -9,6 +9,9 @@ import { Insights } from "./pages/Insights";
 import { OffersManager } from "./pages/OffersManager";
 import { Overview } from "./pages/Overview";
 import { PipelineCenter } from "./pages/PipelineCenter";
+import { BrandDetailPage } from "./pages/public/BrandDetailPage";
+import { OfferDetailPage } from "./pages/public/OfferDetailPage";
+import { PublicOffers } from "./pages/public/PublicOffers";
 import { Settings } from "./pages/Settings";
 import { Search } from "./pages/Search";
 
@@ -17,8 +20,11 @@ function App() {
     <>
       <ToastContainer />
       <Routes>
+        <Route path="/" element={<PublicOffers />} />
+        <Route path="/deals/brand/:name" element={<BrandDetailPage />} />
+        <Route path="/deals/:id" element={<OfferDetailPage />} />
         <Route
-          path="/"
+          path="/dashboard"
           element={
             <AppShell title="Overview">
               <Overview />

@@ -119,6 +119,7 @@ export interface ApiKey {
   last_tested_at: string | null;
   last_test_ok: boolean | null;
   last_error: string | null;
+  quota_exceeded: boolean;
   created_at: string;
 }
 
@@ -176,12 +177,18 @@ export function useDeleteApiKey() {
 }
 
 export function useTestApiKey() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      const { data } = await apiClient.post<{ ok: boolean; error: string | null; latency_seconds: number }>(
+      const { data } = await apiClient.post<{ ok: boolean; error: string | null; latency_seconds: number; rate_limited: boolean }>(
         `/settings/api-keys/${id}/test`,
       );
       return data;
+    },
+    onSuccess: () => {
+      // the test also updates last_error/quota_exceeded server-side — refresh the list
+      queryClient.invalidateQueries({ queryKey: ["settings", "api-keys"] });
+      queryClient.invalidateQueries({ queryKey: ["settings", "providers"] });
     },
   });
 }

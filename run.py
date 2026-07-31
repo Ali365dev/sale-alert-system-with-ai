@@ -1,5 +1,5 @@
 """
-One-click launcher — sequential, one-email-at-a-time pipeline.
+One-click pipeline runner — sequential, one-email-at-a-time.
 
 For each new Gmail email:
     1. Fetch email from Gmail
@@ -8,11 +8,10 @@ For each new Gmail email:
     4. Save offer to Supabase
     5. Move to next email
 
-Then launches the Streamlit dashboard.
+Run:  python run.py
 """
 import sys
 import json
-import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -103,7 +102,7 @@ def run_pipeline() -> None:
     new_ids = [mid for mid in all_ids if mid not in existing]
     print(f"      {len(all_ids)} total, {len(new_ids)} new to process.", flush=True)
     if not new_ids:
-        print("      Nothing new — launching dashboard.")
+        print("      Nothing new.")
         return
 
     # 3. Process each email: fetch → save email → AI → save offer
@@ -177,24 +176,10 @@ def run_pipeline() -> None:
 
 def main() -> None:
     print("=" * 55)
-    print("  Gmail AI Dashboard — Launcher")
+    print("  Gmail AI Dashboard — Pipeline Runner")
     print("=" * 55 + "\n")
 
     run_pipeline()
-
-    print("\nStarting Streamlit dashboard …")
-    print("Open http://localhost:8501 in your browser.")
-    print("Press Ctrl+C to stop.\n")
-
-    streamlit_bin = ROOT / ".venv" / "bin" / "streamlit"
-    if not streamlit_bin.exists():
-        streamlit_bin = "streamlit"
-
-    subprocess.run(
-        [str(streamlit_bin), "run", str(ROOT / "app.py")],
-        cwd=str(ROOT),
-        check=False,
-    )
 
 
 if __name__ == "__main__":

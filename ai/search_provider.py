@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from config import BRAND_SEARCH_RESULTS, BRAND_SEARCH_TIMEOUT, logger
+from config import BRAND_SEARCH_RESULTS, logger
 
 # Type alias
 SearchResult = dict  # {title: str, snippet: str, url: str}
