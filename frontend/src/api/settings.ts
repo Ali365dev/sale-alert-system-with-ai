@@ -157,6 +157,7 @@ export function useUpdateApiKey() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "api-keys"] });
+      queryClient.invalidateQueries({ queryKey: ["settings", "providers"] });
       toast.success("API key updated.");
     },
   });
@@ -171,6 +172,7 @@ export function useReorderApiKeys() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "api-keys"] });
+      queryClient.invalidateQueries({ queryKey: ["settings", "providers"] });
       toast.success("Priority updated.");
     },
   });
@@ -185,6 +187,7 @@ export function useDeleteApiKey() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings", "api-keys"] });
+      queryClient.invalidateQueries({ queryKey: ["settings", "providers"] });
       toast.success("API key deleted.");
     },
   });

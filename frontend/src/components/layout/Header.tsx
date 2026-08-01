@@ -1,7 +1,9 @@
+import { useSettingsLogout } from "../../api/settings";
 import { useUiStore } from "../../store/uiStore";
 
 export function Header({ title, eyebrow = "Workspace" }: { title: string; eyebrow?: string }) {
   const { theme, toggleTheme } = useUiStore();
+  const logout = useSettingsLogout();
 
   return (
     <header
@@ -90,6 +92,27 @@ export function Header({ title, eyebrow = "Workspace" }: { title: string; eyebro
         />
         <span style={{ font: "600 12px/1 var(--font-sans)", color: "var(--success)" }}>Gmail connected</span>
       </div>
+
+      <button
+        type="button"
+        onClick={() => logout.mutate()}
+        disabled={logout.isPending}
+        title="Log out"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          height: 40,
+          padding: "0 13px",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--surface-card)",
+          color: "var(--text-body)",
+          font: "600 12.5px/1 var(--font-sans)",
+          cursor: "pointer",
+        }}
+      >
+        Log out
+      </button>
     </header>
   );
 }

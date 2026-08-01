@@ -1,14 +1,10 @@
 import { useState } from "react";
 
-import { useSettingsLogout, useSettingsSession } from "../api/settings";
 import { ApiConfigTab } from "../components/settings/ApiConfigTab";
 import { EmailProcessingTab } from "../components/settings/EmailProcessingTab";
 import { GoogleAccountTab } from "../components/settings/GoogleAccountTab";
 import { PromptLibraryTab } from "../components/settings/PromptLibraryTab";
-import { SettingsLogin } from "../components/settings/SettingsLogin";
 import { SystemTab } from "../components/settings/SystemTab";
-import { Button } from "../components/ui/Button";
-import { LoadingState } from "../components/ui/Spinner";
 import { Tabs } from "../components/ui/Tabs";
 
 const TABS = [
@@ -20,25 +16,15 @@ const TABS = [
 ];
 
 export function Settings() {
-  const { data: session, isLoading } = useSettingsSession();
-  const logout = useSettingsLogout();
   const [tab, setTab] = useState("google");
-
-  if (isLoading) return <LoadingState />;
-  if (!session?.authenticated) return <SettingsLogin />;
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div>
-          <h1 style={{ margin: 0, font: "var(--fw-bold) 20px/1.2 var(--font-sans)", color: "var(--text-strong)" }}>Settings</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
-            Manage integrations, AI providers, prompts, and system preferences.
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={() => logout.mutate()}>
-          Log out
-        </Button>
+      <div>
+        <h1 style={{ margin: 0, font: "var(--fw-bold) 20px/1.2 var(--font-sans)", color: "var(--text-strong)" }}>Settings</h1>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
+          Manage integrations, AI providers, prompts, and system preferences.
+        </p>
       </div>
 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />

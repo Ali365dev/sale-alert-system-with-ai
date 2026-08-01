@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 import {
-  useApiKeys,
   useDeleteApiKey,
   useProviders,
   useReorderApiKeys,
@@ -180,8 +179,12 @@ function ProviderSection({
   title: string;
   modelKey?: "gemini_model" | "groq_model";
 }) {
-  const { data: keys, isLoading } = useApiKeys(provider);
-  const { data: providers } = useProviders();
+  // Reuses the already-fetched /settings/providers response instead of a
+  // separate /settings/api-keys?provider=… call — that endpoint returns the
+  // exact same gemini_keys/groq_keys/tavily_keys, so a dedicated fetch here
+  // was pure duplicate round-trips to the (remote) database.
+  const { data: providers, isLoading } = useProviders();
+  const keys = provider === "gemini" ? providers?.gemini_keys : provider === "groq" ? providers?.groq_keys : providers?.tavily_keys;
   const updateProviders = useUpdateProviders();
   const reorder = useReorderApiKeys();
   const [addingKey, setAddingKey] = useState(false);

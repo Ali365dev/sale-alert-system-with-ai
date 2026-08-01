@@ -17,11 +17,11 @@ export function SettingsLogin() {
   return (
     <div style={{ display: "flex", justifyContent: "center", paddingTop: 60 }}>
       <Card style={{ maxWidth: 380, width: "100%" }}>
-        <CardHeader title="Settings" icon={<Icon.target size={17} style={{ color: "var(--brand)" }} />} />
+        <CardHeader title="Admin login" icon={<Icon.target size={17} style={{ color: "var(--brand)" }} />} />
         <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
           {firstTime
-            ? "No admin password is set yet. Choose one now — it becomes the password for this Settings page going forward."
-            : "Enter the admin password to manage API keys, prompts, and configuration."}
+            ? "No admin password is set yet. Choose one now — it becomes the password for this dashboard going forward."
+            : "Enter the admin password to access the dashboard."}
         </p>
         <form
           onSubmit={(e) => {
