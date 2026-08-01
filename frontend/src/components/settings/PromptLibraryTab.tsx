@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+import { useBrands, type Brand } from "../../api/brands";
+import { useEmail, useEmails } from "../../api/emails";
+import { useOffers, type Offer } from "../../api/offers";
 import {
   useDuplicatePrompt,
   usePrompts,
@@ -11,18 +14,119 @@ import {
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card, CardHeader } from "../ui/Card";
-import { Label, TextArea, TextInput } from "../ui/Field";
+import { Label, Select, TextArea, TextInput } from "../ui/Field";
 import { LoadingState } from "../ui/Spinner";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString();
 }
 
+function offerToTestBody(offer: Offer): string {
+  return [
+    `Brand: ${offer.brand ?? "—"}`,
+    `Category: ${offer.category ?? "—"}${offer.subcategory ? ` / ${offer.subcategory}` : ""}`,
+    `Type: ${offer.offer_type ?? "—"}`,
+    offer.discount_percentage != null ? `Discount: ${offer.discount_percentage}%` : null,
+    offer.coupon_code ? `Coupon code: ${offer.coupon_code}` : null,
+    offer.expiry_date ? `Expiry: ${offer.expiry_date}` : null,
+    offer.offer_value ? `Offer value: ${offer.offer_value}` : null,
+    offer.website ? `Website: ${offer.website}` : null,
+    offer.summary ? `Summary: ${offer.summary}` : null,
+  ]
+    .filter((line): line is string => !!line)
+    .join("\n");
+}
+
+/** Loads real emails for the test-prompt picker; fills subject + body when one is selected. */
+function EmailSamplePicker({ onSelect }: { onSelect: (subject: string, body: string) => void }) {
+  const [emailId, setEmailId] = useState<number | "">("");
+  const { data, isLoading } = useEmails({ page_size: 50, sort: "received_date", sort_dir: "desc" });
+  const detail = useEmail(emailId === "" ? null : emailId);
+
+  useEffect(() => {
+    if (detail.data) onSelect(detail.data.subject, detail.data.body ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail.data]);
+
+  return (
+    <Select
+      value={emailId}
+      disabled={isLoading}
+      onChange={(e) => setEmailId(e.target.value ? Number(e.target.value) : "")}
+    >
+      <option value="">{isLoading ? "Loading emails…" : "— Select a real email —"}</option>
+      {data?.emails.map((e) => (
+        <option key={e.id} value={e.id}>
+          #{e.id} · {e.subject}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
+/** Loads real offers for the test-prompt picker; fills the body field with a readable dump of the offer. */
+function OfferSamplePicker({ onSelect }: { onSelect: (body: string) => void }) {
+  const [offerId, setOfferId] = useState<number | "">("");
+  const { data, isLoading } = useOffers({});
+  const offer = data?.offers.find((o) => o.id === offerId);
+
+  useEffect(() => {
+    if (offer) onSelect(offerToTestBody(offer));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offer]);
+
+  return (
+    <Select
+      value={offerId}
+      disabled={isLoading}
+      onChange={(e) => setOfferId(e.target.value ? Number(e.target.value) : "")}
+    >
+      <option value="">{isLoading ? "Loading offers…" : "— Select a real offer —"}</option>
+      {data?.offers.map((o) => (
+        <option key={o.id} value={o.id}>
+          #{o.id} · {o.brand ?? "Unknown brand"} — {o.offer_type ?? "offer"}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
+/** Loads real brands for the test-prompt picker; fills brand name/website/categories when one is selected. */
+function BrandSamplePicker({ onSelect }: { onSelect: (brand: Brand) => void }) {
+  const [brandId, setBrandId] = useState<number | "">("");
+  const { data, isLoading } = useBrands();
+  const brand = data?.brands.find((b) => b.id === brandId);
+
+  useEffect(() => {
+    if (brand) onSelect(brand);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brand]);
+
+  return (
+    <Select
+      value={brandId}
+      disabled={isLoading}
+      onChange={(e) => setBrandId(e.target.value ? Number(e.target.value) : "")}
+    >
+      <option value="">{isLoading ? "Loading brands…" : "— Select a real brand —"}</option>
+      {data?.brands.map((b) => (
+        <option key={b.id} value={b.id}>
+          #{b.id} · {b.name}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
 function PromptEditor({ prompt, onClose }: { prompt: Prompt; onClose: () => void }) {
   const [content, setContent] = useState(prompt.content);
   const [testSubject, setTestSubject] = useState("50% Off Everything — Summer Sale!");
   const [testBody, setTestBody] = useState("Shop now and save big on all items. Use code SUMMER50 at checkout. Offer ends July 31.");
+  const [testBrandName, setTestBrandName] = useState("TestBrand");
+  const [testWebsite, setTestWebsite] = useState("https://example.com");
+  const [testCategories, setTestCategories] = useState("General");
   const [showTest, setShowTest] = useState(false);
+  const isBrandResearch = prompt.category === "research";
 
   const update = useUpdatePrompt();
   const restore = useRestorePromptDefault();
@@ -76,21 +180,68 @@ function PromptEditor({ prompt, onClose }: { prompt: Prompt; onClose: () => void
       {showTest && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "var(--surface-sunken)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            Test with a sample email
+            {isBrandResearch ? "Test with a sample brand" : "Test with a sample email"}
           </div>
-          <div>
-            <Label>Subject</Label>
-            <TextInput value={testSubject} onChange={(e) => setTestSubject(e.target.value)} />
-          </div>
-          <div>
-            <Label>Body</Label>
-            <TextArea value={testBody} onChange={(e) => setTestBody(e.target.value)} style={{ minHeight: 90 }} />
-          </div>
+
+          {isBrandResearch ? (
+            <>
+              <div>
+                <Label>Load a real brand</Label>
+                <BrandSamplePicker
+                  onSelect={(brand) => {
+                    setTestBrandName(brand.name);
+                    setTestWebsite(brand.website ?? "");
+                    setTestCategories(brand.categories.join(", ") || "General");
+                  }}
+                />
+              </div>
+              <div>
+                <Label>Brand name</Label>
+                <TextInput value={testBrandName} onChange={(e) => setTestBrandName(e.target.value)} />
+              </div>
+              <div>
+                <Label>Website</Label>
+                <TextInput value={testWebsite} onChange={(e) => setTestWebsite(e.target.value)} />
+              </div>
+              <div>
+                <Label>Categories</Label>
+                <TextInput value={testCategories} onChange={(e) => setTestCategories(e.target.value)} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
+                <div>
+                  <Label>Load a real email</Label>
+                  <EmailSamplePicker onSelect={(subject, body) => { setTestSubject(subject); setTestBody(body); }} />
+                </div>
+                <div>
+                  <Label>Load a real offer</Label>
+                  <OfferSamplePicker onSelect={(body) => setTestBody(body)} />
+                </div>
+              </div>
+              <div>
+                <Label>Subject</Label>
+                <TextInput value={testSubject} onChange={(e) => setTestSubject(e.target.value)} />
+              </div>
+              <div>
+                <Label>Body</Label>
+                <TextArea value={testBody} onChange={(e) => setTestBody(e.target.value)} style={{ minHeight: 90 }} />
+              </div>
+            </>
+          )}
+
           <div>
             <Button
               size="sm"
               loading={test.isPending}
-              onClick={() => test.mutate({ key: prompt.key, subject: testSubject, body: testBody })}
+              onClick={() =>
+                test.mutate(
+                  isBrandResearch
+                    ? { key: prompt.key, subject: "", body: "", brand_name: testBrandName, website: testWebsite, categories: testCategories }
+                    : { key: prompt.key, subject: testSubject, body: testBody },
+                )
+              }
             >
               Run
             </Button>

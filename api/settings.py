@@ -376,6 +376,9 @@ def test_prompt(key: str):
     body = request.get_json(silent=True) or {}
     sample_subject = body.get("subject", "")
     sample_body = body.get("body", "")
+    sample_brand_name = body.get("brand_name") or "TestBrand"
+    sample_website = body.get("website") or "https://example.com"
+    sample_categories = body.get("categories") or "General"
 
     prompts = {p["key"]: p["content"] for p in settings_service.list_prompts()}
     template = prompts.get(key)
@@ -386,10 +389,10 @@ def test_prompt(key: str):
     try:
         prompt = template.format(
             today=today, subject=sample_subject, body=sample_body, sender="test@example.com",
-            brand_name="TestBrand", website="https://example.com", categories="General",
+            brand_name=sample_brand_name, website=sample_website, categories=sample_categories,
             search_block="(test — no real search results)", results_text="(test — no real search results)",
-            brand_name_upper="TESTBRAND", today_year=today[:4],
-            brand="TestBrand", company="TestBrand", category="General", subcategory="General",
+            brand_name_upper=sample_brand_name.upper(), today_year=today[:4],
+            brand=sample_brand_name, company=sample_brand_name, category="General", subcategory="General",
             offer_type="Discount", discount_percentage="20", coupon_code="TEST20",
             expiry_date="2026-12-31", offer_value="20% off", summary="Test offer", key_highlights="None",
             offers_text=sample_body or "(no offers provided)",

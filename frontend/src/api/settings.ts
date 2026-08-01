@@ -378,12 +378,21 @@ export function useDuplicatePrompt() {
   });
 }
 
+export interface TestPromptInput {
+  key: string;
+  subject: string;
+  body: string;
+  brand_name?: string;
+  website?: string;
+  categories?: string;
+}
+
 export function useTestPrompt() {
   return useMutation({
-    mutationFn: async ({ key, subject, body }: { key: string; subject: string; body: string }) => {
+    mutationFn: async ({ key, ...rest }: TestPromptInput) => {
       const { data } = await apiClient.post<{ raw_response: string | null; parsed: unknown }>(
         `/settings/prompts/${key}/test`,
-        { subject, body },
+        rest,
       );
       return data;
     },

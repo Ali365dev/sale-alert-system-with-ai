@@ -9,7 +9,7 @@ import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { Label, Select } from "../components/ui/Field";
+import { Label, Select, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
@@ -36,9 +36,17 @@ function VerifyButton({ offer }: { offer: Offer }) {
 
 function OffersTable() {
   const [filters, setFilters] = useState<OfferFilters>({});
+  const [search, setSearch] = useState("");
   const { data, isLoading } = useOffers(filters);
-  const offers = data?.offers;
   const summary = data?.summary;
+  const q = search.trim().toLowerCase();
+  const offers = q
+    ? data?.offers.filter((o) =>
+        [o.brand, o.company, o.category, o.subcategory, o.offer_type, o.coupon_code, o.summary, o.website]
+          .filter((v): v is string => !!v)
+          .some((v) => v.toLowerCase().includes(q)),
+      )
+    : data?.offers;
   const deleteOffer = useDeleteOffer();
   const updateOffer = useUpdateOffer();
   const verifyAll = useStartJob("verify_offers");
@@ -68,6 +76,50 @@ function OffersTable() {
       )}
 
       <Card>
+        <div style={{ position: "relative" }}>
+          <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
+          <TextInput
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search brand, category, type, coupon code, or summary…"
+            aria-label="Search offers"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
+            style={{ height: 44, padding: "0 36px", borderRadius: "var(--radius-md)" }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 22,
+                border: "none",
+                borderRadius: "var(--radius-pill)",
+                background: "transparent",
+                color: "var(--text-faint)",
+                cursor: "pointer",
+              }}
+            >
+              <Icon.x size={13} />
+            </button>
+          )}
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
           <div>
             <Label>Verification status</Label>
@@ -107,7 +159,9 @@ function OffersTable() {
               ? "Finishing current item before stopping… "
               : bulkRunning
                 ? `Verifying ${watchedJob.data?.processed_items}/${watchedJob.data?.total_items}… `
-                : `${summary?.unverified ?? 0} unverified offer(s) · ${summary?.total ?? 0} total `}
+                : q
+                  ? `${offers?.length ?? 0} of ${data?.offers.length ?? 0} offer(s) match “${search.trim()}” `
+                  : `${summary?.unverified ?? 0} unverified offer(s) · ${summary?.total ?? 0} total `}
             <Link to="/pipeline" style={{ color: "var(--brand)" }}>
               View in Pipeline Center →
             </Link>
@@ -147,6 +201,11 @@ function OffersTable() {
                 <span>Actions</span>
               </div>
 
+              {offers?.length === 0 && (
+                <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 12.5, color: "var(--text-muted)" }}>
+                  {q ? `No offers match “${search.trim()}”.` : "No offers found."}
+                </div>
+              )}
               {offers?.map((offer) => (
                 <div
                   key={offer.id}

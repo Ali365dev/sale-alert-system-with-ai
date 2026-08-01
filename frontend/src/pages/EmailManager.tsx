@@ -294,8 +294,8 @@ function PipelineActions() {
   return (
     <Card>
       <CardHeader title="Pipeline actions" aside={<Link to="/pipeline" style={{ fontSize: 12.5, color: "var(--brand)" }}>Open Pipeline Center →</Link>} />
-      <PipelineTrigger jobType="email_sync" label={getJobTypeConfig("email_sync").title} invalidateEmailsOnFinish />
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <PipelineTrigger jobType="email_sync" label={getJobTypeConfig("email_sync").title} invalidateEmailsOnFinish />
         <PipelineTrigger jobType="process_pending" label={getJobTypeConfig("process_pending").title} invalidateEmailsOnFinish />
         <PipelineTrigger jobType="verify_offers" label={getJobTypeConfig("verify_offers").title} />
       </div>
@@ -459,22 +459,59 @@ export function EmailManager() {
         <div style={{ position: "relative" }}>
           <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
           <input
+            type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search subject, sender, brand, Gmail message ID, or body…"
             aria-label="Search emails"
+            id="dashboard-search-box"
+            name="dashboard-search-box"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
             style={{
-              width: "100%",
-              height: 40,
-              padding: "0 12px 0 36px",
+              width: 300,
+              height: 44,
+              padding: "0 36px 0 36px",
               border: "1px solid var(--border)",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--surface-app)",
+              borderRadius: "var(--radius-md)",
+              background: "var(--surface-card)",
               color: "var(--text-strong)",
-              fontSize: 13,
+              fontSize: 13.5,
               boxSizing: "border-box",
             }}
+            // className="search-input-clean"
           />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              aria-label="Clear search"
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 22,
+                border: "none",
+                borderRadius: "var(--radius-pill)",
+                background: "transparent",
+                color: "var(--text-faint)",
+                cursor: "pointer",
+              }}
+            >
+              <Icon.x size={13} />
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

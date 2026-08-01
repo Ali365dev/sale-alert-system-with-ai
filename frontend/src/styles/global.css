@@ -53,3 +53,14 @@ button {
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
   border-radius: 4px;
 }
+
+.search-input-clean::-webkit-search-cancel-button,
+.search-input-clean::-webkit-search-decoration,
+.search-input-clean::-webkit-search-results-button,
+.search-input-clean::-webkit-search-results-decoration,
+.search-input-clean::-webkit-contacts-auto-fill-button,
+.search-input-clean::-webkit-credentials-auto-fill-button {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}

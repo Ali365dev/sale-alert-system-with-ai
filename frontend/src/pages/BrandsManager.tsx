@@ -14,7 +14,7 @@ import { BrandForm } from "../components/brands/BrandForm";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
-import { Label, Select } from "../components/ui/Field";
+import { Label, Select, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
@@ -128,6 +128,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
   const deleteBrand = useDeleteBrand();
   const updateBrand = useUpdateBrand();
   const [editing, setEditing] = useState<Brand | null>(null);
+  const [query, setQuery] = useState("");
 
   if (brands.length === 0) {
     return (
@@ -137,6 +138,16 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
     );
   }
 
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? brands.filter(
+        (b) =>
+          b.name.toLowerCase().includes(q) ||
+          (b.website ?? "").toLowerCase().includes(q) ||
+          b.emails.some((e) => e.toLowerCase().includes(q)),
+      )
+    : brands;
+
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
@@ -145,6 +156,58 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
         <StatCard icon={<Icon.search size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Ever searched" value={summary.ever_searched} />
         <StatCard icon={<Icon.sparkle size={17} />} iconColor="var(--ai)" iconBg="var(--ai-subtle)" label="Known sender emails" value={summary.known_sender_emails} />
       </div>
+
+      <Card>
+        <CardHeader title="Search brands" />
+        <div style={{ position: "relative" }}>
+          <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
+          <TextInput
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by brand name, website, or sender email…"
+            aria-label="Search brands"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-1p-ignore
+            data-lpignore="true"
+            data-bwignore
+            data-form-type="other"
+            style={{ height: 44, padding: "0 36px", borderRadius: "var(--radius-md)" }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 22,
+                border: "none",
+                borderRadius: "var(--radius-pill)",
+                background: "transparent",
+                color: "var(--text-faint)",
+                cursor: "pointer",
+              }}
+            >
+              <Icon.x size={13} />
+            </button>
+          )}
+        </div>
+        {q && (
+          <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+            {filtered.length} of {brands.length} brand(s) match “{query.trim()}”
+          </span>
+        )}
+      </Card>
 
       <Card padded={false} style={{ overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
@@ -172,7 +235,12 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
               <span>Last searched</span>
               <span>Actions</span>
             </div>
-            {brands.map((b) => (
+            {filtered.length === 0 ? (
+              <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 12.5, color: "var(--text-muted)" }}>
+                No brands match “{query.trim()}”.
+              </div>
+            ) : (
+              filtered.map((b) => (
               <div
                 key={b.id}
                 style={{
@@ -219,7 +287,8 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                   </Button>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </Card>
@@ -255,7 +324,7 @@ function AddBrand() {
 }
 
 export function BrandsManager() {
-  const [tab, setTab] = useState("search");
+  const [tab, setTab] = useState("all");
   const { data, isLoading, isError } = useBrands();
 
   if (isLoading) return <div style={{ color: "var(--text-muted)" }}>Loading brands…</div>;
@@ -265,17 +334,17 @@ export function BrandsManager() {
     <>
       <Tabs
         tabs={[
+          { id: "all", label: "All brands" },
           { id: "search", label: "Single search" },
           { id: "bulk", label: "Bulk search" },
-          { id: "all", label: "All brands" },
           { id: "add", label: "Add brand" },
         ]}
         active={tab}
         onChange={setTab}
       />
+      {tab === "all" && <AllBrands brands={data.brands} summary={data.summary} />}
       {tab === "search" && <SingleSearch brands={data.brands} />}
       {tab === "bulk" && <BulkSearch brands={data.brands} />}
-      {tab === "all" && <AllBrands brands={data.brands} summary={data.summary} />}
       {tab === "add" && <AddBrand />}
     </>
   );
