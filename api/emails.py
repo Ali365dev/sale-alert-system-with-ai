@@ -63,7 +63,14 @@ def _email_detail(e: Email, offers_count: int, brand: str | None = None) -> dict
         image_urls = json.loads(e.image_urls) if e.image_urls else []
     except (json.JSONDecodeError, TypeError):
         image_urls = []
-    return {**_email_summary(e, offers_count, brand), "body": e.body, "image_urls": image_urls}
+    return {
+        **_email_summary(e, offers_count, brand),
+        "body": e.body,
+        "image_urls": image_urls,
+        "ocr_text_raw": e.ocr_text_raw,
+        "ocr_text_clean": e.ocr_text_clean,
+        "ocr_processed_at": e.ocr_processed_at.isoformat() if e.ocr_processed_at else None,
+    }
 
 
 @bp.get("")
@@ -187,17 +194,29 @@ def process_email_endpoint(email_id: int):
     """Analyse a single email now — used for both the first attempt on an
     unprocessed email and for "Reprocess" on a failed or already-processed
     one. Synchronous (one email, not a bulk job) so the UI gets an immediate
-    result; bulk processing still goes through the process_pending job."""
+    result; bulk processing still goes through the process_pending job —
+    this mirrors that job's OCR + sender-aware analysis + offer replacement
+    so the two paths behave identically."""
     from ai.analyzer import analyze_email, build_offer
+    from ai.ocr import extract_and_merge
 
     with get_session() as session:
         e = session.query(Email).filter(Email.id == email_id).first()
         if e is None:
             return jsonify({"error": "not found"}), 404
-        subject, body = e.subject, e.body or ""
+        subject, body, sender = e.subject, e.body or "", e.sender or ""
+        image_urls = json.loads(e.image_urls) if e.image_urls else []
 
-    result = analyze_email(subject, body)
+    ocr_result = extract_and_merge(subject, body, image_urls)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
+    with get_session() as session:
+        e = session.query(Email).filter(Email.id == email_id).first()
+        if e is not None:
+            e.ocr_text_raw = ocr_result["ocr_raw"] or None
+            e.ocr_text_clean = ocr_result["ocr_clean"] or None
+            e.ocr_processed_at = now
+
+    result = analyze_email(subject, ocr_result["merged"], sender)
 
     if result is None:
         with get_session() as session:
@@ -209,6 +228,9 @@ def process_email_endpoint(email_id: int):
         return jsonify({"processing_status": "failed", "processing_error": "AI returned no result"})
 
     with get_session() as session:
+        # Reprocessing replaces this email's offer(s) rather than piling up
+        # duplicates alongside a stale/wrong one from a previous attempt.
+        session.query(Offer).filter(Offer.email_id == email_id).delete()
         session.add(build_offer(email_id, result))
         e = session.query(Email).filter(Email.id == email_id).first()
         if e is not None:

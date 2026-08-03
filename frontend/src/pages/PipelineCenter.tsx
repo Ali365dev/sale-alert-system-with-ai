@@ -328,7 +328,6 @@ export function PipelineCenter() {
   return (
     <>
       <div>
-        <h1 style={{ margin: 0, font: "var(--fw-bold) 20px/1.2 var(--font-sans)", color: "var(--text-strong)" }}>Pipeline Center</h1>
         <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>Manage and monitor all background jobs.</p>
       </div>
 

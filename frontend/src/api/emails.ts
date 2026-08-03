@@ -27,6 +27,9 @@ export interface EmailSummary {
 export interface EmailDetail extends EmailSummary {
   body: string | null;
   image_urls: string[];
+  ocr_text_raw: string | null;
+  ocr_text_clean: string | null;
+  ocr_processed_at: string | null;
 }
 
 export interface EmailsSummary {

@@ -25,6 +25,15 @@ class Email(Base):
     received_date = Column(DateTime, nullable=True)
     processed_at = Column(DateTime, default=_utcnow, nullable=False)
 
+    # OCR text extracted from this email's images/GIFs (ai/ocr.py), kept separate
+    # from `body` — never overwrites it. `ocr_text_raw` is every OCR engine
+    # result concatenated as-is (debugging); `ocr_text_clean` is deduplicated
+    # and whitespace-normalized, and is what gets merged with `body` and sent
+    # to the offer-extraction AI (see services/jobs/process_pending.py).
+    ocr_text_raw = Column(Text, nullable=True)
+    ocr_text_clean = Column(Text, nullable=True)
+    ocr_processed_at = Column(DateTime, nullable=True)
+
     # AI email-level verification (content classification — legitimate/spam/etc.)
     email_verification_status = Column(String(20), nullable=True)   # "legitimate" | "suspicious" | "spam"
     email_verification_note = Column(Text, nullable=True)

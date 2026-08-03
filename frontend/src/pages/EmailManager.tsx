@@ -178,7 +178,25 @@ function EmailDetailModal({ id, onClose }: { id: number; onClose: () => void }) 
           <div>
             <strong style={{ color: "var(--text-strong)" }}>Processing:</strong>{" "}
             <Badge tone={PROCESSING_TONE[data.processing_status]}>{PROCESSING_LABEL[data.processing_status]}</Badge>
-            {data.processing_error && <div style={{ marginTop: 4, color: "var(--danger)" }}>{data.processing_error}</div>}
+            {data.processing_error && (
+              <div
+                style={{
+                  marginTop: 6,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  padding: "8px 10px",
+                  background: "var(--danger-subtle)",
+                  border: "1px solid var(--danger-subtle)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--danger)",
+                  fontSize: 12.5,
+                }}
+              >
+                <Icon.alert size={14} style={{ flex: "0 0 auto", marginTop: 1 }} />
+                <span>{data.processing_error}</span>
+              </div>
+            )}
             {data.processing_attempted_at && (
               <div style={{ marginTop: 2, color: "var(--text-faint)", fontSize: 11.5 }}>
                 Last attempt: {formatDateTime(data.processing_attempted_at)}
@@ -229,6 +247,30 @@ function EmailDetailModal({ id, onClose }: { id: number; onClose: () => void }) 
               {data.body || "(no body)"}
             </pre>
           </div>
+          {data.ocr_text_clean && (
+            <div>
+              <strong style={{ color: "var(--text-strong)" }}>
+                OCR text (from images/GIFs){data.ocr_processed_at && <span style={{ fontWeight: 400, color: "var(--text-faint)", fontSize: 11 }}> — extracted {formatDateTime(data.ocr_processed_at)}</span>}:
+              </strong>
+              <pre
+                style={{
+                  marginTop: 6,
+                  maxHeight: 220,
+                  overflowY: "auto",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  background: "var(--ai-subtle)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-sm)",
+                  padding: 12,
+                  fontSize: 12.5,
+                  fontFamily: "var(--font-mono)",
+                }}
+              >
+                {data.ocr_text_clean}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </Modal>
@@ -639,8 +681,13 @@ export function EmailManager() {
                     )}
                   </span>
                   <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(email.received_date)}</span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
                     <Badge tone={PROCESSING_TONE[email.processing_status]}>{PROCESSING_LABEL[email.processing_status]}</Badge>
+                    {email.processing_status === "failed" && email.processing_error && (
+                      <span title={email.processing_error} style={{ display: "inline-flex", color: "var(--danger)", cursor: "help" }}>
+                        <Icon.alert size={14} />
+                      </span>
+                    )}
                   </div>
                   <span style={{ font: "600 12px/1 var(--font-mono)" }}>{email.offers_count}</span>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

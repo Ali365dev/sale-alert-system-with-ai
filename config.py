@@ -54,6 +54,24 @@ BRAND_AI_TIMEOUT     = int(os.getenv("BRAND_AI_TIMEOUT", "30"))
 BRAND_RETRY_COUNT    = int(os.getenv("BRAND_RETRY_COUNT", "2"))
 BRAND_DELAY_SECONDS  = float(os.getenv("BRAND_DELAY_SECONDS", "1.0"))
 
+# ── OCR (image/GIF text extraction — ai/ocr.py) ───────────────────────────────
+# Runs locally via PaddleOCR — no paid OCR API. Disable entirely with
+# OCR_ENABLED=false; ai/ocr.py also degrades to a no-op (with a logged
+# warning) if paddleocr/paddlepaddle aren't installed, so a missing/failed
+# install never breaks the rest of the email-processing pipeline.
+OCR_ENABLED           = os.getenv("OCR_ENABLED", "true").lower() == "true"
+OCR_LANG              = os.getenv("OCR_LANG", "en")
+OCR_MIN_CONFIDENCE    = float(os.getenv("OCR_MIN_CONFIDENCE", "0.5"))
+# Images smaller than this (either dimension, in px) are treated as tracking
+# pixels / icons / logos and skipped without running OCR on them.
+OCR_MIN_IMAGE_SIZE    = int(os.getenv("OCR_MIN_IMAGE_SIZE", "40"))
+OCR_GIF_FRAME_STEP    = int(os.getenv("OCR_GIF_FRAME_STEP", "5"))
+OCR_MAX_GIF_FRAMES    = int(os.getenv("OCR_MAX_GIF_FRAMES", "8"))
+OCR_MAX_WORKERS       = int(os.getenv("OCR_MAX_WORKERS", "4"))
+OCR_DOWNLOAD_TIMEOUT  = int(os.getenv("OCR_DOWNLOAD_TIMEOUT", "10"))
+OCR_MAX_IMAGES_PER_EMAIL = int(os.getenv("OCR_MAX_IMAGES_PER_EMAIL", "15"))
+OCR_MAX_DOWNLOAD_BYTES  = int(os.getenv("OCR_MAX_DOWNLOAD_BYTES", str(15 * 1024 * 1024)))
+
 # ── App ───────────────────────────────────────────────────────────────────────
 APP_TITLE = "Gmail Sales Offers AI Dashboard"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

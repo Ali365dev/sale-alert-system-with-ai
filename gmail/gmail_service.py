@@ -9,6 +9,7 @@ Uses google.auth.transport.requests.AuthorizedSession (requests-based) to
 avoid httplib2 TCP-level timeouts on certain networks.
 """
 import base64
+import html as _html
 import json
 import re
 import threading
@@ -43,6 +44,12 @@ _IMG_SRC_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
 _URL_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 _INLINE_WS_RE = re.compile(r"[ \t]+")
 _BLANK_LINES_RE = re.compile(r"\n\s*\n+")
+# <style>/<script> content is plain text between the tags — a naive
+# tag-stripping regex leaves all the CSS rules / JS leaking into the body.
+# Must run before the generic tag strip, and before <img> extraction doesn't
+# care since it only looks for <img> tags specifically.
+_STYLE_SCRIPT_RE = re.compile(r"<(style|script)\b[^>]*>.*?</\1>", re.IGNORECASE | re.DOTALL)
+_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
 def _extract_image_urls(html: str) -> list[str]:
@@ -55,9 +62,11 @@ def _extract_image_urls(html: str) -> list[str]:
 
 
 def _clean_text(text: str) -> str:
-    """Strip any remaining URLs and collapse the whitespace they leave behind,
-    without flattening intentional paragraph breaks."""
+    """Strip any remaining URLs, decode HTML entities (&nbsp; &amp; etc.), and
+    collapse the whitespace they leave behind, without flattening intentional
+    paragraph breaks."""
     text = _URL_RE.sub("", text)
+    text = _html.unescape(text).replace("\xa0", " ")
     text = _INLINE_WS_RE.sub(" ", text)
     text = _BLANK_LINES_RE.sub("\n", text)
     return text.strip()
@@ -91,8 +100,11 @@ def _decode_body(payload: dict) -> tuple[str, list[str]]:
     """
     html = _find_part(payload, "text/html")
     if html is not None:
-        text = re.sub(r"<[^>]+>", " ", html)
-        return _clean_text(text), _extract_image_urls(html)
+        image_urls = _extract_image_urls(html)
+        stripped = _COMMENT_RE.sub(" ", html)
+        stripped = _STYLE_SCRIPT_RE.sub(" ", stripped)
+        text = re.sub(r"<[^>]+>", " ", stripped)
+        return _clean_text(text), image_urls
 
     plain = _find_part(payload, "text/plain")
     if plain is not None:

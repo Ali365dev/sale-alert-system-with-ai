@@ -39,11 +39,42 @@ def _collect_work_items() -> tuple[object, list[dict]]:
             .all()
         )
         items += [
-            {"kind": "pending", "email_id": e.id, "subject": e.subject, "body": e.body or ""}
+            {
+                "kind": "pending",
+                "email_id": e.id,
+                "subject": e.subject,
+                "body": e.body or "",
+                "sender": e.sender or "",
+                "image_urls": json.loads(e.image_urls) if e.image_urls else [],
+            }
             for e in pending
         ]
 
     return session, items
+
+
+def _analyze_and_save(email_id: int, subject: str, body: str, sender: str, image_urls: list[str]) -> str:
+    """Shared OCR + AI-analysis + offer-save tail, used by both the
+    just-fetched and already-stored-but-pending paths below."""
+    from ai.ocr import extract_and_merge
+
+    ocr_result = extract_and_merge(subject, body, image_urls)
+    with get_session() as db:
+        e = db.query(Email).filter(Email.id == email_id).first()
+        if e is not None:
+            e.ocr_text_raw = ocr_result["ocr_raw"] or None
+            e.ocr_text_clean = ocr_result["ocr_clean"] or None
+            e.ocr_processed_at = datetime.utcnow()
+
+    result = analyze_email(subject, ocr_result["merged"], sender)
+    if result is None:
+        _mark_processing_result(email_id, "failed", "AI returned no result")
+        return "failed"
+
+    with get_session() as db:
+        db.add(build_offer(email_id, result))
+    _mark_processing_result(email_id, "processed", None)
+    return "success"
 
 
 def _process_new(gmail_session, gmail_id: str) -> tuple[str, str]:
@@ -75,26 +106,13 @@ def _process_new(gmail_session, gmail_id: str) -> tuple[str, str]:
         db.flush()
         email_id = email_row.id
 
-    result = analyze_email(subject, raw["body"])
-    if result is None:
-        _mark_processing_result(email_id, "failed", "AI returned no result")
-        return "failed", subject
-
-    with get_session() as db:
-        db.add(build_offer(email_id, result))
-    _mark_processing_result(email_id, "processed", None)
-    return "success", subject
+    outcome = _analyze_and_save(email_id, subject, raw["body"], raw["sender"], raw["image_urls"])
+    return outcome, subject
 
 
-def _process_pending(email_id: int, subject: str, body: str) -> tuple[str, str]:
-    result = analyze_email(subject, body)
-    if result is None:
-        _mark_processing_result(email_id, "failed", "AI returned no result")
-        return "failed", subject
-    with get_session() as db:
-        db.add(build_offer(email_id, result))
-    _mark_processing_result(email_id, "processed", None)
-    return "success", subject
+def _process_pending(email_id: int, subject: str, body: str, sender: str, image_urls: list[str]) -> tuple[str, str]:
+    outcome = _analyze_and_save(email_id, subject, body, sender, image_urls)
+    return outcome, subject
 
 
 def _mark_processing_result(email_id: int, status: str, error: str | None) -> None:
@@ -117,7 +135,9 @@ def _run_one(job_id: int, gmail_session, item: dict, critical: dict, critical_ev
         if item["kind"] == "new":
             outcome, subject = _process_new(gmail_session, item["gmail_id"])
         else:
-            outcome, subject = _process_pending(item["email_id"], item["subject"], item["body"])
+            outcome, subject = _process_pending(
+                item["email_id"], item["subject"], item["body"], item["sender"], item["image_urls"]
+            )
     except Exception as exc:
         # Any exception escaping fetch/analyse here (Gmail auth/API failure, retry-limit
         # exceeded, DB errors) is treated as critical — per-email AI failures are already

@@ -34,6 +34,7 @@ const STAGE_LABELS: Record<string, string> = {
   collecting_work: "Collecting work",
   fetching: "Fetching",
   processing: "Processing",
+  ocr: "Reading images & GIFs (OCR)",
   ai_analysis: "AI analysis",
   reading_email: "Reading email",
   generating_offer: "Generating offer",

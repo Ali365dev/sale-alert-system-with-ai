@@ -33,6 +33,9 @@ def _migrate() -> None:
         ("emails", "processing_status",           "VARCHAR(20) DEFAULT 'unprocessed'"),
         ("emails", "processing_error",            "TEXT"),
         ("emails", "processing_attempted_at",     "TIMESTAMP"),
+        ("emails", "ocr_text_raw",                "TEXT"),
+        ("emails", "ocr_text_clean",              "TEXT"),
+        ("emails", "ocr_processed_at",             "TIMESTAMP"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:

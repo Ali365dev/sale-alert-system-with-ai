@@ -50,6 +50,7 @@ single valid JSON object — no markdown fences, no prose — matching this sche
 }}
 
 Rules:
+- brand/company: if not explicitly stated in the subject or body, infer it from the sender's display name or email domain below (e.g. sender "Fossil <fossil@email.fossil.com>" means brand="Fossil") — only fall back to null if the sender is a generic platform (e.g. noreply@mailchimp.com) with no brand identity of its own.
 - category: use a broad top-level category (e.g. Fashion, Electronics, Travel, Food & Dining).
 - subcategory: use a specific sub-type within the category (e.g. Men's Clothing, Laptops, Hotels).
 - discount_percentage: extract the largest numeric discount found; null if none.
@@ -58,6 +59,7 @@ Rules:
 - Return ONLY the JSON object.
 
 --- EMAIL START ---
+Sender: {sender}
 Subject: {subject}
 
 {body}
@@ -89,7 +91,7 @@ def _safe_float(value: Any, low: float = 0, high: float = 100) -> Optional[float
         return None
 
 
-def analyze_email(subject: str, body: str) -> Optional[dict]:
+def analyze_email(subject: str, body: str, sender: str = "") -> Optional[dict]:
     """
     Call AI to extract offer data from a single email.
     Tries Gemini once; on any failure immediately falls back to Groq.
@@ -99,7 +101,7 @@ def analyze_email(subject: str, body: str) -> Optional[dict]:
     truncated_body = body[:6000] if body else "(empty body)"
     template = get_prompt(PROMPT_KEY, default=_PROMPT_TEMPLATE)
     prompt = template.format(
-        today=today, subject=subject, body=truncated_body
+        today=today, subject=subject, body=truncated_body, sender=sender or "(unknown)"
     )
 
     t_start = datetime.now(timezone.utc)
