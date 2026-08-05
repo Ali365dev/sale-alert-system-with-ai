@@ -1,18 +1,48 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import {
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_700Bold,
+  Montserrat_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/montserrat';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { DataProvider } from '@/state/data';
+import { FavoritesProvider } from '@/state/favorites';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [fontsLoaded, fontError] = useFonts({
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_700Bold,
+    Montserrat_800ExtraBold,
+  });
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+      <DataProvider>
+        <FavoritesProvider>
+          <AnimatedSplashOverlay />
+          <Stack initialRouteName="onboarding" screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="deal/[id]" options={{ presentation: 'card' }} />
+            <Stack.Screen name="brand/index" options={{ presentation: 'card' }} />
+            <Stack.Screen name="brand/[id]" options={{ presentation: 'card' }} />
+            <Stack.Screen name="search" options={{ presentation: 'modal' }} />
+          </Stack>
+        </FavoritesProvider>
+      </DataProvider>
     </ThemeProvider>
   );
 }

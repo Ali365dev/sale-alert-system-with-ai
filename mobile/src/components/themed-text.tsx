@@ -4,7 +4,17 @@ import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?:
+    | 'default'
+    | 'title'
+    | 'headline'
+    | 'subtitle'
+    | 'small'
+    | 'smallBold'
+    | 'label'
+    | 'link'
+    | 'linkPrimary'
+    | 'code';
   themeColor?: ThemeColor;
 };
 
@@ -17,8 +27,10 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         { color: theme[themeColor ?? 'text'] },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
+        type === 'headline' && styles.headline,
         type === 'small' && styles.small,
         type === 'smallBold' && styles.smallBold,
+        type === 'label' && styles.label,
         type === 'subtitle' && styles.subtitle,
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
@@ -34,36 +46,51 @@ const styles = StyleSheet.create({
   small: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: 500,
+    fontFamily: 'Montserrat_400Regular',
   },
   smallBold: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: 700,
+    fontFamily: 'Montserrat_700Bold',
   },
   default: {
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: 500,
+    fontFamily: 'Montserrat_500Medium',
+  },
+  label: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontFamily: 'Montserrat_700Bold',
+    letterSpacing: 0.2,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontSize: 32,
+    fontFamily: 'Montserrat_800ExtraBold',
+    lineHeight: 38,
+    letterSpacing: -0.5,
+  },
+  headline: {
+    fontSize: 22,
+    fontFamily: 'Montserrat_800ExtraBold',
+    lineHeight: 28,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+    fontSize: 18,
+    lineHeight: 24,
+    fontFamily: 'Montserrat_700Bold',
   },
   link: {
     lineHeight: 30,
     fontSize: 14,
+    fontFamily: 'Montserrat_500Medium',
   },
   linkPrimary: {
     lineHeight: 30,
     fontSize: 14,
-    color: '#3c87f7',
+    fontFamily: 'Montserrat_700Bold',
+    color: '#171717',
   },
   code: {
     fontFamily: Fonts.mono,
