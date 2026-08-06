@@ -16,27 +16,22 @@ export function CouponCodeBlock({ code }: { code: string }) {
   };
 
   return (
-    <Pressable onPress={onCopy} style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.codeSide}>
-        <ThemedText type="small" themeColor="textSecondary">
-          Promo code
+        <ThemedText type="label" themeColor="textSecondary" style={styles.promoLabel}>
+          PROMO CODE
         </ThemedText>
-        <ThemedText type="title" style={styles.code}>
+        <ThemedText type="headline" style={styles.code}>
           {code}
         </ThemedText>
       </View>
-      <View style={styles.divider} />
-      <View style={styles.copySide}>
-        <Ionicons
-          name={copied ? 'checkmark-circle' : 'copy-outline'}
-          size={20}
-          color={copied ? '#16A34A' : '#171717'}
-        />
-        <ThemedText type="smallBold" style={copied ? styles.copiedLabel : undefined}>
+      <Pressable onPress={onCopy} style={styles.copyButton}>
+        <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
+        <ThemedText type="label" style={styles.copyLabel}>
           {copied ? 'Copied' : 'Copy'}
         </ThemedText>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
@@ -44,32 +39,33 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8F9FB',
     borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#D1D5DB',
     borderStyle: 'dashed',
     padding: Spacing.three,
   },
   codeSide: {
-    flex: 1,
     gap: 2,
   },
+  promoLabel: {
+    letterSpacing: 0.5,
+  },
   code: {
-    fontSize: 20,
     letterSpacing: 1,
   },
-  divider: {
-    width: 1,
-    alignSelf: 'stretch',
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: Spacing.three,
-  },
-  copySide: {
+  copyButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    backgroundColor: '#B7131A',
+    borderRadius: Radius.chip,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
   },
-  copiedLabel: {
-    color: '#16A34A',
+  copyLabel: {
+    color: '#FFFFFF',
   },
 });

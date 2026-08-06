@@ -7,30 +7,34 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+// Matched against the actual Stitch renders (projects/13779227750844170711),
+// not the original written brief — Stitch's own output uses a deep red as the
+// primary/action color throughout (buttons, active nav, wordmark, links),
+// with black reserved for headline/body text and a brighter red + yellow for badges.
 export const Colors = {
   light: {
     text: '#171717',
     background: '#FFFFFF',
-    backgroundElement: '#F5F5F5',
-    backgroundSelected: '#171717',
+    backgroundElement: '#F8F9FB',
+    backgroundSelected: '#B7131A',
     textSecondary: '#6B7280',
-    border: '#E5E7EB',
-    primary: '#171717',
-    sale: '#E7000B',
-    accent: '#FACC15',
+    border: '#F0DADA',
+    primary: '#B7131A',
+    sale: '#DB322F',
+    accent: '#F5CB1B',
     success: '#16A34A',
     onPrimary: '#FFFFFF',
   },
   dark: {
     text: '#171717',
     background: '#FFFFFF',
-    backgroundElement: '#F5F5F5',
-    backgroundSelected: '#171717',
+    backgroundElement: '#F8F9FB',
+    backgroundSelected: '#B7131A',
     textSecondary: '#6B7280',
-    border: '#E5E7EB',
-    primary: '#171717',
-    sale: '#E7000B',
-    accent: '#FACC15',
+    border: '#F0DADA',
+    primary: '#B7131A',
+    sale: '#DB322F',
+    accent: '#F5CB1B',
     success: '#16A34A',
     onPrimary: '#FFFFFF',
   },
@@ -75,7 +79,8 @@ export const Spacing = {
 
 export const Radius = {
   chip: 999,
-  card: 12,
+  card: 16,
+  button: 14,
   sheet: 24,
 } as const;
 

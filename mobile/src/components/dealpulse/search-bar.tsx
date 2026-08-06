@@ -9,6 +9,7 @@ interface Props {
   placeholder?: string;
   onSubmitEditing?: () => void;
   autoFocus?: boolean;
+  showMic?: boolean;
 }
 
 export function SearchBar({
@@ -17,6 +18,7 @@ export function SearchBar({
   placeholder = 'Search brands, deals, categories',
   onSubmitEditing,
   autoFocus,
+  showMic,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -31,6 +33,7 @@ export function SearchBar({
         autoFocus={autoFocus}
         returnKeyType="search"
       />
+      {showMic && <Ionicons name="mic-outline" size={18} color="#6B7280" />}
     </View>
   );
 }
@@ -40,8 +43,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: '#F5F5F5',
-    borderRadius: Radius.card,
+    backgroundColor: '#F8F9FB',
+    borderRadius: Radius.chip,
     paddingHorizontal: Spacing.three,
     height: 48,
   },

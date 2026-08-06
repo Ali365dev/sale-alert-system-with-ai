@@ -5,13 +5,15 @@ import { ThemedText } from '@/components/themed-text';
 interface Props {
   initials: string;
   size?: number;
+  tone?: 'outline' | 'filled';
 }
 
-export function BrandLogo({ initials, size = 56 }: Props) {
+export function BrandLogo({ initials, size = 56, tone = 'outline' }: Props) {
   return (
     <View
       style={[
         styles.circle,
+        tone === 'outline' ? styles.outline : styles.filled,
         { width: size, height: size, borderRadius: size / 2 },
       ]}>
       <ThemedText type="label" style={{ fontSize: size * 0.32 }}>
@@ -23,10 +25,15 @@ export function BrandLogo({ initials, size = 56 }: Props) {
 
 const styles = StyleSheet.create({
   circle: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  outline: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F0DADA',
+  },
+  filled: {
+    backgroundColor: '#EDEDED',
   },
 });

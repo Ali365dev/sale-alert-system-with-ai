@@ -3,8 +3,6 @@ import { createContext, useContext, useMemo, useState } from 'react';
 interface OnboardingContextValue {
   topics: string[];
   toggleTopic: (topic: string) => void;
-  categories: string[];
-  toggleCategory: (category: string) => void;
   brandIds: string[];
   toggleBrand: (id: string) => void;
 }
@@ -13,7 +11,6 @@ const OnboardingContext = createContext<OnboardingContextValue | null>(null);
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [topics, setTopics] = useState<string[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
   const [brandIds, setBrandIds] = useState<string[]>([]);
 
   const toggle = (list: string[], setList: (v: string[]) => void, value: string) => {
@@ -24,12 +21,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     () => ({
       topics,
       toggleTopic: (t: string) => toggle(topics, setTopics, t),
-      categories,
-      toggleCategory: (c: string) => toggle(categories, setCategories, c),
       brandIds,
       toggleBrand: (id: string) => toggle(brandIds, setBrandIds, id),
     }),
-    [topics, categories, brandIds]
+    [topics, brandIds]
   );
 
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;

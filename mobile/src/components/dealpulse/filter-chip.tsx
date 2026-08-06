@@ -24,16 +24,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     borderRadius: Radius.chip,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F0DADA',
   },
   chipSelected: {
-    backgroundColor: '#171717',
-    borderColor: '#171717',
+    backgroundColor: '#B7131A',
+    borderColor: '#B7131A',
   },
   label: {
-    color: '#171717',
+    color: '#57302D',
   },
   labelSelected: {
     color: '#FFFFFF',

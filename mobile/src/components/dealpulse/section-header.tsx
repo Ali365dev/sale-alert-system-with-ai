@@ -14,9 +14,7 @@ export function SectionHeader({ title, onViewAll }: Props) {
       <ThemedText type="headline">{title}</ThemedText>
       {onViewAll && (
         <Pressable hitSlop={8} onPress={onViewAll}>
-          <ThemedText type="link" themeColor="textSecondary">
-            View All
-          </ThemedText>
+          <ThemedText type="linkPrimary">View All</ThemedText>
         </Pressable>
       )}
     </View>

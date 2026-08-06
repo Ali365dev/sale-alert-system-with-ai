@@ -12,6 +12,7 @@ import { useColorScheme } from 'react-native';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { DataProvider } from '@/state/data';
 import { FavoritesProvider } from '@/state/favorites';
+import { PreferencesProvider } from '@/state/preferences';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -32,15 +33,17 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <DataProvider>
         <FavoritesProvider>
-          <AnimatedSplashOverlay />
-          <Stack initialRouteName="onboarding" screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="deal/[id]" options={{ presentation: 'card' }} />
-            <Stack.Screen name="brand/index" options={{ presentation: 'card' }} />
-            <Stack.Screen name="brand/[id]" options={{ presentation: 'card' }} />
-            <Stack.Screen name="search" options={{ presentation: 'modal' }} />
-          </Stack>
+          <PreferencesProvider>
+            <AnimatedSplashOverlay />
+            <Stack initialRouteName="onboarding" screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="onboarding" />
+              <Stack.Screen name="deal/[id]" options={{ presentation: 'card' }} />
+              <Stack.Screen name="brand/index" options={{ presentation: 'card' }} />
+              <Stack.Screen name="brand/[id]" options={{ presentation: 'card' }} />
+              <Stack.Screen name="search" options={{ presentation: 'modal' }} />
+            </Stack>
+          </PreferencesProvider>
         </FavoritesProvider>
       </DataProvider>
     </ThemeProvider>

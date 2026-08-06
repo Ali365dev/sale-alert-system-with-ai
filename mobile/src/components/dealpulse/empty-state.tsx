@@ -18,7 +18,7 @@ export function EmptyState({ icon, title, body, ctaLabel, onPressCta }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.iconCircle}>
-        <Ionicons name={icon} size={32} color="#171717" />
+        <Ionicons name={icon} size={32} color="#B7131A" />
       </View>
       <ThemedText type="headline" style={styles.title}>
         {title}

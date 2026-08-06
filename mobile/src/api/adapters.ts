@@ -83,7 +83,9 @@ export function mapApiOfferToDeal(offer: ApiOffer, brandId: string): Deal {
     brandId,
     title,
     description: offer.summary ?? 'No description available yet for this offer.',
-    terms: offer.key_highlights.length > 0 ? offer.key_highlights.join(' • ') : 'See brand site for full terms.',
+    highlights: offer.key_highlights,
+    terms:
+      'Offer valid while supplies last. The brand reserves the right to modify or cancel this promotion at any time without notice. Standard return policy applies. Discount applied at checkout.',
     discountLabel,
     image: imageForCategory(offer.category),
     category: offer.category ?? 'General',
@@ -95,5 +97,7 @@ export function mapApiOfferToDeal(offer: ApiOffer, brandId: string): Deal {
     isInStore: true,
     country: 'Global',
     website: offer.website,
+    isPercentageOff: offer.discount_percentage != null,
+    createdAt: offer.created_at,
   };
 }

@@ -1,13 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { VectorIcon } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
-
-function tabIcon(name: keyof typeof Ionicons.glyphMap) {
-  return <VectorIcon family={Ionicons} name={name} />;
-}
 
 export default function AppTabs() {
   const scheme = useColorScheme();
@@ -17,30 +11,33 @@ export default function AppTabs() {
     <NativeTabs
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      tintColor={colors.primary}
+      labelStyle={{ selected: { color: colors.primary } }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={tabIcon('home')} />
+        <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="categories">
         <NativeTabs.Trigger.Label>Categories</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={tabIcon('grid')} />
+        <NativeTabs.Trigger.Icon
+          sf={{ default: 'square.grid.2x2', selected: 'square.grid.2x2.fill' }}
+        />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="favorites">
         <NativeTabs.Trigger.Label>Favorites</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={tabIcon('heart')} />
+        <NativeTabs.Trigger.Icon sf={{ default: 'heart', selected: 'heart.fill' }} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="alerts">
         <NativeTabs.Trigger.Label>Alerts</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={tabIcon('notifications')} />
+        <NativeTabs.Trigger.Icon sf={{ default: 'bell', selected: 'bell.fill' }} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon src={tabIcon('person')} />
+        <NativeTabs.Trigger.Icon sf={{ default: 'person', selected: 'person.fill' }} />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

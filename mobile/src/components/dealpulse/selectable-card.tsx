@@ -12,29 +12,38 @@ interface Props {
   icon?: keyof typeof Ionicons.glyphMap;
   selected: boolean;
   onPress: () => void;
+  iconVariant?: 'plain' | 'circle';
+  fullWidth?: boolean;
 }
 
-export function SelectableCard({ label, icon, selected, onPress }: Props) {
+export function SelectableCard({
+  label,
+  icon,
+  selected,
+  onPress,
+  iconVariant = 'plain',
+  fullWidth,
+}: Props) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
 
   return (
-    <Animated.View style={[animatedStyle, styles.wrapper]}>
+    <Animated.View style={[animatedStyle, fullWidth ? styles.wrapperFull : styles.wrapper]}>
       <Pressable
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         style={[styles.card, selected && styles.cardSelected]}>
-        {icon && (
-          <Ionicons name={icon} size={22} color={selected ? '#FFFFFF' : '#171717'} />
-        )}
+        {icon &&
+          (iconVariant === 'circle' ? (
+            <View style={[styles.iconCircle, selected && styles.iconCircleSelected]}>
+              <Ionicons name={icon} size={22} color={selected ? '#FFFFFF' : '#57302D'} />
+            </View>
+          ) : (
+            <Ionicons name={icon} size={26} color={selected ? '#FFFFFF' : '#B7131A'} />
+          ))}
         <ThemedText type="smallBold" style={selected ? styles.labelSelected : undefined}>
           {label}
         </ThemedText>
-        {selected && (
-          <View style={styles.checkBadge}>
-            <Ionicons name="checkmark" size={12} color="#171717" />
-          </View>
-        )}
       </Pressable>
     </Animated.View>
   );
@@ -44,33 +53,35 @@ const styles = StyleSheet.create({
   wrapper: {
     flexBasis: '48%',
   },
+  wrapperFull: {
+    flexBasis: '100%',
+  },
   card: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
     borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F0DADA',
     paddingVertical: Spacing.four,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',
     gap: Spacing.two,
-    position: 'relative',
   },
   cardSelected: {
-    backgroundColor: '#171717',
-    borderColor: '#171717',
+    backgroundColor: '#B7131A',
+    borderColor: '#B7131A',
   },
   labelSelected: {
     color: '#FFFFFF',
   },
-  checkBadge: {
-    position: 'absolute',
-    top: Spacing.two,
-    right: Spacing.two,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#FACC15',
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconCircleSelected: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
 });

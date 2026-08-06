@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { SectionList, StyleSheet } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BrandCard } from '@/components/dealpulse/brand-card';
 import { DealCard } from '@/components/dealpulse/deal-card';
 import { EmptyState } from '@/components/dealpulse/empty-state';
 import { TopAppBar } from '@/components/dealpulse/top-app-bar';
@@ -11,28 +12,22 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useAppData } from '@/state/data';
 import { useFavorites } from '@/state/favorites';
-import { Deal } from '@/types/dealpulse';
 
 export default function FavoritesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { favoriteIds } = useFavorites();
-  const { deals, brandsById } = useAppData();
+  const { deals, brands, brandsById } = useAppData();
 
   const favoriteDeals = useMemo(
     () => deals.filter((d) => favoriteIds.includes(d.id)),
     [deals, favoriteIds]
   );
 
-  const sections = useMemo(() => {
-    const byBrand = new Map<string, Deal[]>();
-    for (const deal of favoriteDeals) {
-      const brandName = brandsById[deal.brandId]?.name ?? 'Other';
-      if (!byBrand.has(brandName)) byBrand.set(brandName, []);
-      byBrand.get(brandName)!.push(deal);
-    }
-    return Array.from(byBrand.entries()).map(([title, data]) => ({ title, data }));
-  }, [favoriteDeals, brandsById]);
+  const followedBrands = useMemo(() => {
+    const ids = new Set(favoriteDeals.map((d) => d.brandId));
+    return brands.filter((b) => ids.has(b.id));
+  }, [favoriteDeals, brands]);
 
   return (
     <ThemedView style={styles.container}>
@@ -46,32 +41,40 @@ export default function FavoritesScreen() {
           onPressCta={() => router.push('/(tabs)')}
         />
       ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
+        <ScrollView
           contentContainerStyle={[
             styles.content,
             { paddingBottom: insets.bottom + BottomTabInset },
           ]}
-          ListHeaderComponent={
-            <ThemedText type="title" style={styles.title}>
-              Favorites
-            </ThemedText>
-          }
-          renderSectionHeader={({ section }) => (
-            <ThemedText type="headline" style={styles.sectionTitle}>
-              {section.title}
-            </ThemedText>
+          showsVerticalScrollIndicator={false}>
+          <ThemedText type="headline">Saved Deals</ThemedText>
+          <View style={styles.dealsList}>
+            {favoriteDeals.map((deal) => (
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                brand={brandsById[deal.brandId]}
+                onPress={() => router.push(`/deal/${deal.id}`)}
+              />
+            ))}
+          </View>
+
+          {followedBrands.length > 0 && (
+            <View style={styles.section}>
+              <ThemedText type="headline">Followed Brands</ThemedText>
+              <FlatList
+                horizontal
+                data={followedBrands}
+                keyExtractor={(b) => b.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.brandRow}
+                renderItem={({ item }) => (
+                  <BrandCard brand={item} onPress={() => router.push(`/brand/${item.id}`)} />
+                )}
+              />
+            </View>
           )}
-          renderItem={({ item }) => (
-            <DealCard
-              deal={item}
-              brand={brandsById[item.brandId]}
-              onPress={() => router.push(`/deal/${item.id}`)}
-              style={styles.card}
-            />
-          )}
-        />
+        </ScrollView>
       )}
     </ThemedView>
   );
@@ -84,16 +87,16 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
+    gap: Spacing.four,
+  },
+  dealsList: {
+    gap: Spacing.three,
+    marginTop: Spacing.two,
+  },
+  section: {
     gap: Spacing.three,
   },
-  title: {
-    marginBottom: Spacing.two,
-  },
-  sectionTitle: {
-    marginTop: Spacing.four,
-    marginBottom: Spacing.two,
-  },
-  card: {
-    marginBottom: Spacing.three,
+  brandRow: {
+    gap: Spacing.three,
   },
 });

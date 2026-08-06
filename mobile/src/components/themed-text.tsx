@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     fontSize: 14,
     fontFamily: 'Montserrat_700Bold',
-    color: '#171717',
+    color: '#B7131A',
   },
   code: {
     fontFamily: Fonts.mono,

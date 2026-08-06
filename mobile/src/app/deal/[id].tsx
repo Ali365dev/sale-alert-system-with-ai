@@ -2,27 +2,35 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { Linking, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BrandLogo } from '@/components/dealpulse/brand-logo';
 import { CouponCodeBlock } from '@/components/dealpulse/coupon-code-block';
-import { DealCard } from '@/components/dealpulse/deal-card';
+import { DealCardCompact } from '@/components/dealpulse/deal-card-compact';
 import { EmptyState } from '@/components/dealpulse/empty-state';
 import { PrimaryButton } from '@/components/dealpulse/primary-button';
-import { SaleBadge } from '@/components/dealpulse/sale-badge';
 import { SectionHeader } from '@/components/dealpulse/section-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { TopAppBar } from '@/components/dealpulse/top-app-bar';
 import { Spacing } from '@/constants/theme';
 import { useAppData } from '@/state/data';
-import { useFavorites } from '@/state/favorites';
+
+function expiryLabel(expiresAt: string): string {
+  if (!expiresAt) return 'No expiry';
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (days < 0) return 'Expired';
+  if (days === 0) return 'Ends today';
+  if (days === 1) return 'Ends in 1 day';
+  return `Ends in ${days} days`;
+}
 
 export default function DealDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { deals, brandsById } = useAppData();
-  const { isFavorite, toggleFavorite } = useFavorites();
 
   const deal = useMemo(() => deals.find((d) => d.id === id), [deals, id]);
   const brand = deal ? brandsById[deal.brandId] : undefined;
@@ -34,6 +42,7 @@ export default function DealDetailsScreen() {
   if (!deal) {
     return (
       <ThemedView style={styles.container}>
+        <TopAppBar showBack title="Deal Details" hideSearch hideProfile />
         <EmptyState
           icon="alert-circle-outline"
           title="Deal not found"
@@ -45,53 +54,53 @@ export default function DealDetailsScreen() {
     );
   }
 
-  const favorite = isFavorite(deal.id);
   const linkUrl = deal.website ?? brand?.website ?? null;
 
   return (
     <ThemedView style={styles.container}>
+      <TopAppBar
+        showBack
+        title="Deal Details"
+        hideSearch
+        hideProfile
+        rightIcon="share-outline"
+        onPressRight={() => Share.share({ message: `${deal.title} — ${deal.discountLabel}` })}
+      />
+
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.four }}
         showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Image source={{ uri: deal.image }} style={styles.heroImage} contentFit="cover" />
-          <View style={[styles.topBar, { paddingTop: insets.top + Spacing.two }]}>
-            <Pressable onPress={() => router.back()} style={styles.circleButton}>
-              <Ionicons name="chevron-back" size={22} color="#171717" />
-            </Pressable>
-            <View style={styles.topBarRight}>
-              <Pressable
-                onPress={() => Share.share({ message: `${deal.title} — ${deal.discountLabel}` })}
-                style={styles.circleButton}>
-                <Ionicons name="share-outline" size={20} color="#171717" />
-              </Pressable>
-              <Pressable onPress={() => toggleFavorite(deal.id)} style={styles.circleButton}>
-                <Ionicons
-                  name={favorite ? 'heart' : 'heart-outline'}
-                  size={20}
-                  color={favorite ? '#E7000B' : '#171717'}
-                />
-              </Pressable>
-            </View>
+          <View style={styles.heroBadge}>
+            <ThemedText type="label" style={styles.heroBadgeLabel}>
+              Up to {deal.discountLabel.replace('-', '')} OFF
+            </ThemedText>
           </View>
         </View>
 
         <View style={styles.content}>
-          <SaleBadge label={deal.isFlashSale ? 'HOT DEAL' : 'SALE'} />
+          <View style={styles.brandRow}>
+            <BrandLogo initials={brand?.initials ?? '?'} size={44} />
+            <View style={styles.brandText}>
+              <View style={styles.brandNameRow}>
+                <ThemedText type="subtitle">{brand?.name ?? 'Unknown brand'}</ThemedText>
+                {deal.isFeatured && <Ionicons name="checkmark-circle" size={16} color="#B7131A" />}
+              </View>
+              <ThemedText type="small" themeColor="textSecondary">
+                {expiryLabel(deal.expiresAt) === 'Expired' ? 'Expired Deal' : 'Active Deal'}
+              </ThemedText>
+            </View>
+          </View>
 
-          <ThemedText type="small" themeColor="textSecondary">
-            {brand?.name ?? 'Unknown brand'}
-          </ThemedText>
-          <ThemedText type="title">{deal.discountLabel}</ThemedText>
-          <ThemedText type="headline">{deal.title}</ThemedText>
-
-          <ThemedText type="default" themeColor="textSecondary" style={styles.description}>
-            {deal.description}
+          <ThemedText type="headline" style={styles.title}>
+            {deal.title}
           </ThemedText>
 
           <View style={styles.metaRow}>
+            <Ionicons name="time-outline" size={14} color="#6B7280" />
             <ThemedText type="small" themeColor="textSecondary">
-              {deal.expiresAt ? `Expires ${new Date(deal.expiresAt).toLocaleDateString()}` : 'No expiry'}
+              {expiryLabel(deal.expiresAt)}
             </ThemedText>
           </View>
 
@@ -101,34 +110,47 @@ export default function DealDetailsScreen() {
             </View>
           )}
 
+          {deal.highlights.length > 0 && (
+            <View style={styles.section}>
+              <ThemedText type="headline" style={styles.sectionHeading}>
+                Deal Highlights
+              </ThemedText>
+              <View style={styles.divider} />
+              <View style={styles.bulletList}>
+                {deal.highlights.map((h, i) => (
+                  <View key={i} style={styles.bulletRow}>
+                    <ThemedText type="default">{'•'}</ThemedText>
+                    <ThemedText type="default" themeColor="textSecondary" style={styles.bulletText}>
+                      {h}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           <View style={styles.section}>
-            <ThemedText type="smallBold">Terms</ThemedText>
+            <ThemedText type="label" themeColor="textSecondary">
+              TERMS & CONDITIONS
+            </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" style={styles.terms}>
               {deal.terms}
             </ThemedText>
           </View>
-
-          <PrimaryButton
-            label="View Deal"
-            style={styles.cta}
-            disabled={!linkUrl}
-            onPress={() => linkUrl && Linking.openURL(linkUrl)}
-          />
         </View>
 
         {relatedDeals.length > 0 && (
           <View style={styles.relatedSection}>
-            <SectionHeader title="Related Deals" />
+            <SectionHeader title="Similar Offers" onViewAll={() => router.push('/search')} />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.relatedList}>
               {relatedDeals.map((related) => (
-                <DealCard
+                <DealCardCompact
                   key={related.id}
                   deal={related}
                   brand={brand}
-                  variant="grid"
                   onPress={() => router.push(`/deal/${related.id}`)}
                 />
               ))}
@@ -136,6 +158,15 @@ export default function DealDetailsScreen() {
           </View>
         )}
       </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.three }]}>
+        <PrimaryButton
+          label="Visit Store"
+          icon="open-outline"
+          disabled={!linkUrl}
+          onPress={() => linkUrl && Linking.openURL(linkUrl)}
+        />
+      </View>
     </ThemedView>
   );
 }
@@ -152,48 +183,70 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  topBar: {
+  heroBadge: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
+    left: Spacing.three,
+    bottom: Spacing.three,
+    backgroundColor: '#F5CB1B',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: 999,
   },
-  topBarRight: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  circleButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroBadgeLabel: {
+    color: '#171717',
   },
   content: {
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
+    paddingTop: Spacing.four,
     gap: Spacing.two,
   },
-  description: {
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  brandText: {
+    gap: 2,
+  },
+  brandNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  title: {
     marginTop: Spacing.two,
-    lineHeight: 22,
   },
   metaRow: {
-    marginTop: Spacing.two,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.one,
   },
   section: {
-    marginTop: Spacing.four,
+    marginTop: Spacing.five,
     gap: Spacing.two,
+  },
+  sectionHeading: {
+    marginBottom: 0,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F0DADA',
+    marginBottom: Spacing.two,
+  },
+  bulletList: {
+    gap: Spacing.two,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  bulletText: {
+    flex: 1,
+    lineHeight: 20,
   },
   terms: {
     lineHeight: 20,
-  },
-  cta: {
-    marginTop: Spacing.five,
   },
   relatedSection: {
     marginTop: Spacing.five,
@@ -202,5 +255,12 @@ const styles = StyleSheet.create({
   relatedList: {
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
+  },
+  footer: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
+    borderTopWidth: 1,
+    borderTopColor: '#F0DADA',
+    backgroundColor: '#FFFFFF',
   },
 });

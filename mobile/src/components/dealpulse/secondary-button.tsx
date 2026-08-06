@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -10,10 +11,13 @@ interface Props {
   label: string;
   onPress?: () => void;
   style?: ViewStyle;
+  icon?: keyof typeof Ionicons.glyphMap;
+  variant?: 'muted' | 'outline';
 }
 
-export function SecondaryButton({ label, onPress, style }: Props) {
+export function SecondaryButton({ label, onPress, style, icon, variant = 'muted' }: Props) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
+  const outline = variant === 'outline';
 
   return (
     <Animated.View style={[animatedStyle, style]}>
@@ -21,8 +25,9 @@ export function SecondaryButton({ label, onPress, style }: Props) {
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        style={styles.button}>
-        <ThemedText type="label" style={styles.label}>
+        style={[styles.button, outline && styles.outline]}>
+        {icon && <Ionicons name={icon} size={16} color={outline ? '#B7131A' : '#171717'} />}
+        <ThemedText type="label" style={outline ? styles.labelOutline : styles.label}>
           {label}
         </ThemedText>
       </Pressable>
@@ -32,16 +37,27 @@ export function SecondaryButton({ label, onPress, style }: Props) {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#F5F5F5',
+    flexDirection: 'row',
+    gap: Spacing.two,
+    backgroundColor: '#F8F9FB',
     paddingVertical: Spacing.three,
-    borderRadius: Radius.card,
+    borderRadius: Radius.button,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F0DADA',
+  },
+  outline: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#B7131A',
+    borderRadius: Radius.chip,
   },
   label: {
     color: '#171717',
+    fontSize: 15,
+  },
+  labelOutline: {
+    color: '#B7131A',
     fontSize: 15,
   },
 });

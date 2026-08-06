@@ -1,11 +1,12 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandLogo } from '@/components/dealpulse/brand-logo';
 import { EmptyState } from '@/components/dealpulse/empty-state';
 import { PrimaryButton } from '@/components/dealpulse/primary-button';
-import { ProgressDots } from '@/components/dealpulse/progress-dots';
 import { SecondaryButton } from '@/components/dealpulse/secondary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -13,25 +14,35 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useAppData } from '@/state/data';
 import { useOnboarding } from '@/state/onboarding';
 
+const PAGE_SIZE = 5;
+
 export default function OnboardingBrandsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { brands, loading } = useAppData();
   const { brandIds, toggleBrand } = useOnboarding();
+  const [showAll, setShowAll] = useState(false);
+
+  const visibleBrands = showAll ? brands : brands.slice(0, PAGE_SIZE);
+  const hasMore = !showAll && brands.length > PAGE_SIZE;
 
   const finish = () => router.replace('/(tabs)');
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + Spacing.five }]}
-        showsVerticalScrollIndicator={false}>
-        <ProgressDots step={2} total={3} />
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.three }]}>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Ionicons name="chevron-back" size={24} color="#171717" />
+        </Pressable>
+        <View style={styles.progressTrack} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ThemedText type="title" style={styles.title}>
-          Follow your favorite brands
+          Follow brands you love
         </ThemedText>
-        <ThemedText type="default" themeColor="textSecondary">
-          Pulled straight from your tracked brands — pick the ones you care about most.
+        <ThemedText type="default" themeColor="textSecondary" style={styles.subtitle}>
+          Get instant alerts when they drop a new deal.
         </ThemedText>
 
         {!loading && brands.length === 0 ? (
@@ -42,27 +53,40 @@ export default function OnboardingBrandsScreen() {
           />
         ) : (
           <View style={styles.grid}>
-            {brands.map((b) => {
+            {visibleBrands.map((b) => {
               const selected = brandIds.includes(b.id);
               return (
-                <Pressable
-                  key={b.id}
-                  onPress={() => toggleBrand(b.id)}
-                  style={[styles.brandCard, selected && styles.brandCardSelected]}>
-                  <BrandLogo initials={b.initials} size={48} />
-                  <ThemedText type="small" numberOfLines={1} style={styles.brandName}>
+                <View key={b.id} style={styles.brandCard}>
+                  <BrandLogo initials={b.initials} size={64} />
+                  <ThemedText type="smallBold" numberOfLines={1}>
                     {b.name}
                   </ThemedText>
-                </Pressable>
+                  <SecondaryButton
+                    label={selected ? 'Following' : 'Follow'}
+                    icon={selected ? 'checkmark' : 'add'}
+                    variant="outline"
+                    style={styles.followButton}
+                    onPress={() => toggleBrand(b.id)}
+                  />
+                </View>
               );
             })}
+            {hasMore && (
+              <Pressable style={styles.viewMoreCard} onPress={() => setShowAll(true)}>
+                <ThemedText type="headline" themeColor="textSecondary">
+                  •••
+                </ThemedText>
+                <ThemedText type="smallBold" themeColor="textSecondary">
+                  View More
+                </ThemedText>
+              </Pressable>
+            )}
           </View>
         )}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.three }]}>
-        <SecondaryButton label="Back" style={styles.skip} onPress={() => router.back()} />
-        <PrimaryButton label="Get Started" style={styles.continueButton} onPress={finish} />
+        <PrimaryButton label="Get Started" icon="arrow-forward" pill onPress={finish} />
       </View>
     </ThemedView>
   );
@@ -72,12 +96,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingBottom: Spacing.two,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#B7131A',
+  },
   content: {
     paddingHorizontal: Spacing.four,
     gap: Spacing.two,
+    paddingTop: Spacing.four,
   },
   title: {
-    marginTop: Spacing.four,
+    color: '#B7131A',
+    textAlign: 'center',
+  },
+  subtitle: {
+    textAlign: 'center',
   },
   grid: {
     flexDirection: 'row',
@@ -86,33 +128,35 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   brandCard: {
-    width: 90,
+    width: '48%',
     alignItems: 'center',
     gap: Spacing.two,
-    padding: Spacing.two,
+    padding: Spacing.three,
     borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: '#F0DADA',
+    backgroundColor: '#FFFFFF',
   },
-  brandCardSelected: {
-    borderColor: '#171717',
-    backgroundColor: '#F5F5F5',
+  followButton: {
+    marginTop: Spacing.one,
+    alignSelf: 'stretch',
   },
-  brandName: {
-    textAlign: 'center',
+  viewMoreCard: {
+    width: '48%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#D1D5DB',
+    minHeight: 140,
   },
   footer: {
-    flexDirection: 'row',
-    gap: Spacing.three,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  skip: {
-    flex: 1,
-  },
-  continueButton: {
-    flex: 2,
+    borderTopColor: '#F0DADA',
   },
 });

@@ -17,6 +17,7 @@ export interface Deal {
   brandId: string;
   title: string;
   description: string;
+  highlights: string[];
   terms: string;
   discountLabel: string;
   image: string;
@@ -29,6 +30,8 @@ export interface Deal {
   isInStore: boolean;
   country: string;
   website: string | null;
+  isPercentageOff: boolean;
+  createdAt: string | null;
 }
 
 export interface CategoryInfo {

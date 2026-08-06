@@ -1,6 +1,14 @@
 import { Image } from 'expo-image';
 import { useRef, useState } from 'react';
-import { Dimensions, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
@@ -20,65 +28,76 @@ export function HeroCarousel({ deals, brandsById, onPressDeal }: Props) {
   const scrollRef = useRef<ScrollView>(null);
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / (SLIDE_WIDTH + Spacing.three));
+    const index = Math.round(e.nativeEvent.contentOffset.x / SLIDE_WIDTH);
     setActiveIndex(index);
   };
 
   return (
-    <View>
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled={false}
-        snapToInterval={SLIDE_WIDTH + Spacing.three}
-        decelerationRate="fast"
-        showsHorizontalScrollIndicator={false}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.scrollContent}>
-        {deals.map((deal) => {
-          const brand = brandsById[deal.brandId];
-          return (
-            <Pressable
-              key={deal.id}
-              onPress={() => onPressDeal(deal)}
-              style={[styles.slide, { width: SLIDE_WIDTH }]}>
-              <Image source={{ uri: deal.image }} style={styles.image} contentFit="cover" />
-              <View style={styles.scrim} />
-              <View style={styles.content}>
-                <ThemedText type="small" style={styles.brand}>
-                  {brand?.name ?? ''}
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      contentContainerStyle={styles.scrollContent}>
+      {deals.map((deal) => {
+        const brand = brandsById[deal.brandId];
+        return (
+          <Pressable
+            key={deal.id}
+            onPress={() => onPressDeal(deal)}
+            style={[styles.slide, { width: SLIDE_WIDTH }]}>
+            <Image source={{ uri: deal.image }} style={styles.image} contentFit="cover" />
+            <View style={styles.scrim} />
+
+            <View style={styles.badgeRow}>
+              <View style={styles.yellowBadge}>
+                <ThemedText type="label" style={styles.yellowBadgeLabel}>
+                  Up to {deal.discountLabel.replace('-', '')} OFF
                 </ThemedText>
-                <ThemedText type="title" style={styles.headline} numberOfLines={2}>
-                  {deal.title}
-                </ThemedText>
-                <View style={styles.cta}>
-                  <ThemedText type="label" style={styles.ctaLabel}>
-                    Shop Now
+              </View>
+              {deal.isFeatured && (
+                <View style={styles.verifiedBadge}>
+                  <ThemedText type="label" style={styles.verifiedLabel}>
+                    ✓ AI Verified
                   </ThemedText>
                 </View>
-              </View>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+              )}
+            </View>
 
-      <View style={styles.dots}>
-        {deals.map((deal, i) => (
-          <View key={deal.id} style={[styles.dot, i === activeIndex && styles.dotActive]} />
-        ))}
-      </View>
-    </View>
+            <View style={styles.content}>
+              <ThemedText type="title" style={styles.brand} numberOfLines={1}>
+                {brand?.name ?? ''}
+              </ThemedText>
+              <ThemedText type="small" style={styles.description} numberOfLines={2}>
+                {deal.description}
+              </ThemedText>
+              <View style={styles.cta}>
+                <ThemedText type="label" style={styles.ctaLabel}>
+                  Shop Now
+                </ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.dots}>
+              {deals.map((d, i) => (
+                <View key={d.id} style={[styles.dot, i === activeIndex && styles.dotActive]} />
+              ))}
+            </View>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.four,
-    gap: Spacing.three,
   },
   slide: {
-    aspectRatio: 4 / 5,
+    aspectRatio: 4 / 3,
     borderRadius: Radius.card,
     overflow: 'hidden',
     backgroundColor: '#171717',
@@ -88,24 +107,50 @@ const styles = StyleSheet.create({
   },
   scrim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(23,23,23,0.35)',
+    backgroundColor: 'rgba(23,23,23,0.4)',
   },
-  content: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    padding: Spacing.four,
+  badgeRow: {
+    position: 'absolute',
+    top: Spacing.three,
+    left: Spacing.three,
+    flexDirection: 'row',
     gap: Spacing.two,
   },
-  brand: {
-    color: '#FACC15',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  yellowBadge: {
+    backgroundColor: '#F5CB1B',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 4,
+    borderRadius: Radius.chip,
   },
-  headline: {
+  yellowBadgeLabel: {
+    color: '#171717',
+    fontSize: 11,
+  },
+  verifiedBadge: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 4,
+    borderRadius: Radius.chip,
+  },
+  verifiedLabel: {
+    color: '#171717',
+    fontSize: 11,
+  },
+  content: {
+    position: 'absolute',
+    left: Spacing.three,
+    right: Spacing.three,
+    bottom: Spacing.three,
+    gap: 4,
+  },
+  brand: {
     color: '#FFFFFF',
   },
+  description: {
+    color: '#F0F0F0',
+  },
   cta: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#B7131A',
     alignSelf: 'flex-start',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
@@ -113,22 +158,23 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   ctaLabel: {
-    color: '#171717',
+    color: '#FFFFFF',
   },
   dots: {
+    position: 'absolute',
+    bottom: Spacing.two,
+    right: Spacing.three,
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: Spacing.three,
+    gap: 4,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#E5E7EB',
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: 'rgba(255,255,255,0.5)',
   },
   dotActive: {
-    backgroundColor: '#171717',
-    width: 18,
+    backgroundColor: '#FFFFFF',
+    width: 14,
   },
 });

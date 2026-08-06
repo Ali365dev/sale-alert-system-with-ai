@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
@@ -11,9 +12,11 @@ interface Props {
   onPress?: () => void;
   disabled?: boolean;
   style?: ViewStyle;
+  icon?: keyof typeof Ionicons.glyphMap;
+  pill?: boolean;
 }
 
-export function PrimaryButton({ label, onPress, disabled, style }: Props) {
+export function PrimaryButton({ label, onPress, disabled, style, icon, pill }: Props) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
 
   return (
@@ -23,10 +26,11 @@ export function PrimaryButton({ label, onPress, disabled, style }: Props) {
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         disabled={disabled}
-        style={[styles.button, disabled && styles.disabled]}>
+        style={[styles.button, pill && styles.pill, disabled && styles.disabled]}>
         <ThemedText type="label" style={styles.label}>
           {label}
         </ThemedText>
+        {icon && <Ionicons name={icon} size={18} color="#FFFFFF" />}
       </Pressable>
     </Animated.View>
   );
@@ -34,11 +38,17 @@ export function PrimaryButton({ label, onPress, disabled, style }: Props) {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#171717',
+    flexDirection: 'row',
+    gap: Spacing.two,
+    backgroundColor: '#B7131A',
     paddingVertical: Spacing.three,
-    borderRadius: Radius.card,
+    borderRadius: Radius.button,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pill: {
+    borderRadius: Radius.chip,
+    paddingVertical: Spacing.four - 2,
   },
   disabled: {
     opacity: 0.4,

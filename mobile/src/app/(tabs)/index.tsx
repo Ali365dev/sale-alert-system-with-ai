@@ -1,37 +1,33 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandCard } from '@/components/dealpulse/brand-card';
+import { CategoryCard } from '@/components/dealpulse/category-card';
 import { DealCard } from '@/components/dealpulse/deal-card';
 import { EmptyState } from '@/components/dealpulse/empty-state';
 import { HeroCarousel } from '@/components/dealpulse/hero-carousel';
 import { SectionHeader } from '@/components/dealpulse/section-header';
 import { TopAppBar } from '@/components/dealpulse/top-app-bar';
+import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useAppData } from '@/state/data';
 import { Deal } from '@/types/dealpulse';
 
-function isExpiringSoon(expiresAt: string): boolean {
-  if (!expiresAt) return false;
-  const days = (new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-  return days <= 7 && days >= 0;
-}
-
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { deals, brandsById, brands, loading, error, refresh } = useAppData();
+  const { deals, categories, brandsById, brands, loading, error, refresh } = useAppData();
 
   const featuredDeals = useMemo(() => deals.filter((d) => d.isFeatured), [deals]);
-  const flashSales = useMemo(() => deals.filter((d) => d.isFlashSale), [deals]);
-  const expiringSoon = useMemo(() => deals.filter((d) => isExpiringSoon(d.expiresAt)), [deals]);
   const trendingBrands = useMemo(
     () => [...brands].sort((a, b) => b.dealCount - a.dealCount).slice(0, 8),
     [brands]
   );
+  const previewCategories = useMemo(() => categories.slice(0, 4), [categories]);
 
   const openDeal = (deal: Deal) => router.push(`/deal/${deal.id}`);
   const openBrand = (brandId: string) => router.push(`/brand/${brandId}`);
@@ -44,7 +40,7 @@ export default function HomeScreen() {
 
       {loading && deals.length === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#171717" />
+          <ActivityIndicator color="#B7131A" />
         </View>
       ) : error && deals.length === 0 ? (
         <EmptyState
@@ -69,7 +65,7 @@ export default function HomeScreen() {
             { paddingBottom: insets.bottom + BottomTabInset },
           ]}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor="#171717" />}>
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor="#B7131A" />}>
           {heroDeals.length > 0 && (
             <HeroCarousel deals={heroDeals} brandsById={brandsById} onPressDeal={openDeal} />
           )}
@@ -90,66 +86,45 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {flashSales.length > 0 && (
+          {previewCategories.length > 0 && (
             <View style={styles.section}>
-              <SectionHeader title="Flash Sales" />
-              <FlatList
-                horizontal
-                data={flashSales}
-                keyExtractor={(d) => d.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.rowList}
-                renderItem={({ item }) => (
-                  <DealCard
-                    deal={item}
-                    brand={brandsById[item.brandId]}
-                    variant="grid"
-                    onPress={() => openDeal(item)}
+              <ThemedText type="headline" style={styles.sectionTitlePlain}>
+                Browse Categories
+              </ThemedText>
+              <View style={styles.categoryGrid}>
+                {previewCategories.map((c) => (
+                  <CategoryCard
+                    key={c.name}
+                    category={c}
+                    variant="compact"
+                    onPress={() => router.push(`/search?category=${c.name}`)}
                   />
-                )}
-              />
+                ))}
+              </View>
             </View>
           )}
 
           <View style={styles.section}>
-            <SectionHeader title="Latest Offers" />
-            <FlatList
-              horizontal
-              data={deals}
-              keyExtractor={(d) => d.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.rowList}
-              renderItem={({ item }) => (
-                <DealCard
-                  deal={item}
-                  brand={brandsById[item.brandId]}
-                  variant="grid"
-                  onPress={() => openDeal(item)}
-                />
-              )}
-            />
-          </View>
-
-          {expiringSoon.length > 0 && (
-            <View style={styles.section}>
-              <SectionHeader title="Expiring Soon" />
-              <FlatList
-                horizontal
-                data={expiringSoon}
-                keyExtractor={(d) => d.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.rowList}
-                renderItem={({ item }) => (
-                  <DealCard
-                    deal={item}
-                    brand={brandsById[item.brandId]}
-                    variant="grid"
-                    onPress={() => openDeal(item)}
-                  />
-                )}
-              />
+            <View style={styles.latestHeader}>
+              <ThemedText type="headline">Latest Offers</ThemedText>
+              <Pressable style={styles.filterLink} onPress={() => router.push('/search')}>
+                <Ionicons name="filter-outline" size={16} color="#6B7280" />
+                <ThemedText type="small" themeColor="textSecondary">
+                  Filter
+                </ThemedText>
+              </Pressable>
             </View>
-          )}
+            <View style={styles.dealsList}>
+              {deals.map((deal) => (
+                <DealCard
+                  key={deal.id}
+                  deal={deal}
+                  brand={brandsById[deal.brandId]}
+                  onPress={() => openDeal(deal)}
+                />
+              ))}
+            </View>
+          </View>
         </ScrollView>
       )}
     </ThemedView>
@@ -172,7 +147,32 @@ const styles = StyleSheet.create({
   section: {
     gap: Spacing.three,
   },
+  sectionTitlePlain: {
+    paddingHorizontal: Spacing.four,
+    marginBottom: -Spacing.one,
+  },
   rowList: {
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.three,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+  },
+  latestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.four,
+  },
+  filterLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dealsList: {
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
   },
