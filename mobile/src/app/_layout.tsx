@@ -35,13 +35,15 @@ export default function RootLayout() {
         <FavoritesProvider>
           <PreferencesProvider>
             <AnimatedSplashOverlay />
-            <Stack initialRouteName="onboarding" screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="onboarding" />
+            <Stack
+              initialRouteName="onboarding"
+              screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+              <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
               <Stack.Screen name="deal/[id]" options={{ presentation: 'card' }} />
               <Stack.Screen name="brand/index" options={{ presentation: 'card' }} />
               <Stack.Screen name="brand/[id]" options={{ presentation: 'card' }} />
-              <Stack.Screen name="search" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="search" options={{ presentation: 'card' }} />
             </Stack>
           </PreferencesProvider>
         </FavoritesProvider>

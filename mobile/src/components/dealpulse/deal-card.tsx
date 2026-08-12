@@ -1,15 +1,14 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as Clipboard from 'expo-clipboard';
-import { useState } from 'react';
 import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Shadow, Spacing } from '@/constants/theme';
 import { useFavorites } from '@/state/favorites';
 import { Brand, Deal } from '@/types/dealpulse';
 
 import { BrandLogo } from './brand-logo';
+import { FavoriteButton } from './favorite-button';
 import { SaleBadge } from './sale-badge';
 import { usePressScale } from './use-press-scale';
 
@@ -38,42 +37,28 @@ function isNew(createdAt: string | null): boolean {
 export function DealCard({ deal, brand, onPress, style }: Props) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
   const { isFavorite, toggleFavorite } = useFavorites();
-  const [copied, setCopied] = useState(false);
   const favorite = isFavorite(deal.id);
-
-  const onCopy = async () => {
-    if (!deal.promoCode) return;
-    await Clipboard.setStringAsync(deal.promoCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  };
 
   return (
     <Animated.View style={[animatedStyle, styles.card, style]}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
         <View style={styles.header}>
-          <BrandLogo initials={brand?.initials ?? '?'} size={40} tone="filled" />
+          <BrandLogo initials={brand?.initials ?? '?'} size={45} tone="filled" />
           <View style={styles.headerText}>
             <ThemedText type="smallBold" numberOfLines={1}>
               {brand?.name ?? 'Unknown brand'}
             </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+            <ThemedText type="code" themeColor="textSecondary" numberOfLines={1}>
               {deal.category}
             </ThemedText>
           </View>
-          <Pressable hitSlop={8} onPress={() => toggleFavorite(deal.id)}>
-            <Ionicons
-              name={favorite ? 'heart' : 'heart-outline'}
-              size={20}
-              color={favorite ? '#B7131A' : '#171717'}
-            />
-          </Pressable>
+          <FavoriteButton active={favorite} onPress={() => toggleFavorite(deal.id)} />
         </View>
 
         <View style={styles.badgeRow}>
           <SaleBadge label={deal.discountLabel} tone={deal.isPercentageOff ? 'yellow' : 'red'} />
           {deal.isFeatured ? (
-            <SaleBadge label="Verified" tone="gray" icon="checkmark-circle" />
+            <SaleBadge label="Verified" tone="green" icon="checkmark-circle" />
           ) : (
             isNew(deal.createdAt) && <SaleBadge label="New" tone="gray" />
           )}
@@ -92,15 +77,6 @@ export function DealCard({ deal, brand, onPress, style }: Props) {
             {expiryLabel(deal.expiresAt)}
           </ThemedText>
         </View>
-
-        {deal.promoCode && (
-          <Pressable onPress={onCopy} style={styles.couponRow}>
-            <ThemedText type="smallBold">{deal.promoCode}</ThemedText>
-            <ThemedText type="smallBold" style={styles.copyLabel}>
-              {copied ? 'Copied' : 'Copy Code'}
-            </ThemedText>
-          </Pressable>
-        )}
 
         <View style={styles.ctaButton}>
           <ThemedText type="label" style={styles.ctaLabel}>
@@ -121,6 +97,7 @@ const styles = StyleSheet.create({
     borderColor: '#F0DADA',
     padding: Spacing.three,
     gap: Spacing.two,
+    ...Shadow.card,
   },
   header: {
     flexDirection: 'row',
@@ -131,11 +108,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   badgeRow: {
+    marginVertical: Spacing.two,
     flexDirection: 'row',
     gap: Spacing.two,
   },
   title: {
-    marginTop: Spacing.one,
+    marginVertical: Spacing.one,
   },
   description: {
     lineHeight: 18,
@@ -144,22 +122,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: Spacing.one,
-  },
-  couponRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8F9FB',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: Radius.button,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  copyLabel: {
-    color: '#B7131A',
+    marginVertical: Spacing.one,
   },
   ctaButton: {
     flexDirection: 'row',

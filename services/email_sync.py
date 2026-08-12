@@ -53,10 +53,27 @@ def _collect_work_items() -> tuple[object, list[dict]]:
     return session, items
 
 
-def _analyze_and_save(email_id: int, subject: str, body: str, sender: str, image_urls: list[str]) -> str:
-    """Shared OCR + AI-analysis + offer-save tail, used by both the
+def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sender: str, image_urls: list[str]) -> str:
+    """Shared gate + OCR + AI-analysis + offer-save tail, used by both the
     just-fetched and already-stored-but-pending paths below."""
     from ai.ocr import extract_and_merge
+    from services.jobs.discover_brand import extract_domain, find_known_brand_by_domain, route_to_candidate_queue
+
+    # Same deterministic sender-domain gate as the other pipelines
+    # (services/jobs/process_pending.py, services/email_processing.py): an
+    # email from a sender that isn't a known Brand's domain never reaches AI
+    # analysis / gets an Offer — it's routed to the Unknown Emails review
+    # queue instead, so an unresolved sender never ends up with an
+    # AI-guessed brand name sitting on an Offer with no matching Brand row.
+    sender_domain = extract_domain(sender)
+    if find_known_brand_by_domain(sender_domain) is None:
+        route_to_candidate_queue(email_id, sender, sender_domain)
+        job_service.append_log(
+            job_id, f"↷ \"{subject[:60]}\" routed to Unknown Emails (sender not matched to a known brand)",
+            severity="warning", category="ai",
+        )
+        _mark_processing_result(email_id, "failed", "No matching brand — routed to Unknown Emails")
+        return "skipped"
 
     ocr_result = extract_and_merge(subject, body, image_urls)
     with get_session() as db:
@@ -77,7 +94,7 @@ def _analyze_and_save(email_id: int, subject: str, body: str, sender: str, image
     return "success"
 
 
-def _process_new(gmail_session, gmail_id: str) -> tuple[str, str]:
+def _process_new(job_id: int, gmail_session, gmail_id: str) -> tuple[str, str]:
     """Fetch + store + analyse a not-yet-seen Gmail message. Returns (outcome, subject)."""
     from gmail.gmail_service import fetch_single_message
 
@@ -106,12 +123,12 @@ def _process_new(gmail_session, gmail_id: str) -> tuple[str, str]:
         db.flush()
         email_id = email_row.id
 
-    outcome = _analyze_and_save(email_id, subject, raw["body"], raw["sender"], raw["image_urls"])
+    outcome = _analyze_and_save(job_id, email_id, subject, raw["body"], raw["sender"], raw["image_urls"])
     return outcome, subject
 
 
-def _process_pending(email_id: int, subject: str, body: str, sender: str, image_urls: list[str]) -> tuple[str, str]:
-    outcome = _analyze_and_save(email_id, subject, body, sender, image_urls)
+def _process_pending(job_id: int, email_id: int, subject: str, body: str, sender: str, image_urls: list[str]) -> tuple[str, str]:
+    outcome = _analyze_and_save(job_id, email_id, subject, body, sender, image_urls)
     return outcome, subject
 
 
@@ -133,10 +150,10 @@ def _run_one(job_id: int, gmail_session, item: dict, critical: dict, critical_ev
 
     try:
         if item["kind"] == "new":
-            outcome, subject = _process_new(gmail_session, item["gmail_id"])
+            outcome, subject = _process_new(job_id, gmail_session, item["gmail_id"])
         else:
             outcome, subject = _process_pending(
-                item["email_id"], item["subject"], item["body"], item["sender"], item["image_urls"]
+                job_id, item["email_id"], item["subject"], item["body"], item["sender"], item["image_urls"]
             )
     except Exception as exc:
         # Any exception escaping fetch/analyse here (Gmail auth/API failure, retry-limit

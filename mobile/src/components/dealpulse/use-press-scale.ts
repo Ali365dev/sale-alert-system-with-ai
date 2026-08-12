@@ -14,5 +14,5 @@ export function usePressScale(pressedScale = 0.96) {
     scale.value = withSpring(1, { damping: 18, stiffness: 260 });
   };
 
-  return { animatedStyle, onPressIn, onPressOut };
+  return { animatedStyle, onPressIn, onPressOut, scale };
 }

@@ -11,6 +11,7 @@ def register_all() -> None:
     from services.jobs.fetch_sales_web import FetchSalesWebJob
     from services.jobs.research_brands import ResearchBrandsJob
     from services.jobs.label_brand_emails import LabelBrandEmailsJob
+    from services.jobs.discover_brand import DiscoverBrandJob
 
     job_runner.register(EmailSyncJob())
     job_runner.register(VerifyOffersJob())
@@ -18,3 +19,4 @@ def register_all() -> None:
     job_runner.register(FetchSalesWebJob())
     job_runner.register(ResearchBrandsJob())
     job_runner.register(LabelBrandEmailsJob())
+    job_runner.register(DiscoverBrandJob())

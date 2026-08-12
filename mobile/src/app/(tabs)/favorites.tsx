@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedListItem } from '@/components/dealpulse/animated-list-item';
 import { BrandCard } from '@/components/dealpulse/brand-card';
 import { DealCard } from '@/components/dealpulse/deal-card';
 import { EmptyState } from '@/components/dealpulse/empty-state';
@@ -49,13 +50,14 @@ export default function FavoritesScreen() {
           showsVerticalScrollIndicator={false}>
           <ThemedText type="headline">Saved Deals</ThemedText>
           <View style={styles.dealsList}>
-            {favoriteDeals.map((deal) => (
-              <DealCard
-                key={deal.id}
-                deal={deal}
-                brand={brandsById[deal.brandId]}
-                onPress={() => router.push(`/deal/${deal.id}`)}
-              />
+            {favoriteDeals.map((deal, index) => (
+              <AnimatedListItem key={deal.id} index={index}>
+                <DealCard
+                  deal={deal}
+                  brand={brandsById[deal.brandId]}
+                  onPress={() => router.push(`/deal/${deal.id}`)}
+                />
+              </AnimatedListItem>
             ))}
           </View>
 
@@ -68,8 +70,10 @@ export default function FavoritesScreen() {
                 keyExtractor={(b) => b.id}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.brandRow}
-                renderItem={({ item }) => (
-                  <BrandCard brand={item} onPress={() => router.push(`/brand/${item.id}`)} />
+                renderItem={({ item, index }) => (
+                  <AnimatedListItem index={index}>
+                    <BrandCard brand={item} onPress={() => router.push(`/brand/${item.id}`)} />
+                  </AnimatedListItem>
                 )}
               />
             </View>

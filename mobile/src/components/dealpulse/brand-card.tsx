@@ -11,10 +11,12 @@ import { usePressScale } from './use-press-scale';
 interface Props {
   brand: Brand;
   onPress?: () => void;
+  variant?: 'default' | 'avatar';
 }
 
-export function BrandCard({ brand, onPress }: Props) {
+export function BrandCard({ brand, onPress, variant = 'default' }: Props) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
+  const isAvatar = variant === 'avatar';
 
   return (
     <Animated.View style={animatedStyle}>
@@ -23,14 +25,16 @@ export function BrandCard({ brand, onPress }: Props) {
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         style={styles.card}>
-        <BrandLogo initials={brand.initials} size={64} />
+        <BrandLogo initials={brand.initials} size={64} tone={isAvatar ? 'filled' : 'outline'} />
         <View style={styles.textBlock}>
           <ThemedText type="smallBold" numberOfLines={1}>
             {brand.name}
           </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            {brand.dealCount} deals
-          </ThemedText>
+          {!isAvatar && (
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+              {brand.dealCount} deals
+            </ThemedText>
+          )}
         </View>
       </Pressable>
     </Animated.View>

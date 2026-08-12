@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedListItem } from '@/components/dealpulse/animated-list-item';
 import { BrandLogo } from '@/components/dealpulse/brand-logo';
 import { DealCard } from '@/components/dealpulse/deal-card';
 import { EmptyState } from '@/components/dealpulse/empty-state';
@@ -181,13 +182,10 @@ export default function SearchScreen() {
           />
         ) : (
           <View style={styles.results}>
-            {filtered.map((deal) => (
-              <DealCard
-                key={deal.id}
-                deal={deal}
-                brand={brandsById[deal.brandId]}
-                onPress={() => router.push(`/deal/${deal.id}`)}
-              />
+            {filtered.map((deal, index) => (
+              <AnimatedListItem key={deal.id} index={index}>
+                <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => router.push(`/deal/${deal.id}`)} />
+              </AnimatedListItem>
             ))}
           </View>
         )}

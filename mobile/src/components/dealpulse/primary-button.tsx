@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Shadow, Spacing } from '@/constants/theme';
 
 import { usePressScale } from './use-press-scale';
 
@@ -45,6 +45,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.button,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Shadow.button,
   },
   pill: {
     borderRadius: Radius.chip,

@@ -36,6 +36,7 @@ class ProcessPendingJob(BackgroundJob):
         from ai.analyzer import analyze_email, build_offer
         from ai.ocr import extract_and_merge
         from services import job_service
+        from services.jobs.discover_brand import extract_domain, find_known_brand_by_domain, route_to_candidate_queue
 
         with get_session() as session:
             e = session.query(Email).filter(Email.id == item.id).first()
@@ -43,6 +44,25 @@ class ProcessPendingJob(BackgroundJob):
                 return "skipped"
             subject, body, sender = e.subject, e.body or "", e.sender or ""
             image_urls = json.loads(e.image_urls) if e.image_urls else []
+
+        # Cheap, deterministic gate before spending any OCR/LLM budget: does
+        # this sender already belong to a known brand? If not, route straight
+        # to the Unknown Emails review queue instead of guessing — AI brand
+        # identification happens later, on-demand, from that page.
+        sender_domain = extract_domain(sender)
+        if find_known_brand_by_domain(sender_domain) is None:
+            route_to_candidate_queue(item.id, sender, sender_domain)
+            job_service.append_log(
+                job_id, f"↷ \"{item.label[:60]}\" routed to Unknown Emails (sender not matched to a known brand)",
+                severity="warning", category="ai",
+            )
+            with get_session() as session:
+                e = session.query(Email).filter(Email.id == item.id).first()
+                if e is not None:
+                    e.processing_status = "failed"
+                    e.processing_error = "No matching brand — routed to Unknown Emails"
+                    e.processing_attempted_at = datetime.utcnow()
+            return "skipped"
 
         job_service.set_stage(job_id, "ocr")
         ocr_result = extract_and_merge(subject, body, image_urls)

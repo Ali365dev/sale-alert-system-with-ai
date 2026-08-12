@@ -1,10 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Linking, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedImage, dealImageTag } from '@/components/dealpulse/animated-image';
+import { AnimatedListItem } from '@/components/dealpulse/animated-list-item';
 import { BrandLogo } from '@/components/dealpulse/brand-logo';
 import { CouponCodeBlock } from '@/components/dealpulse/coupon-code-block';
 import { DealCardCompact } from '@/components/dealpulse/deal-card-compact';
@@ -71,7 +72,12 @@ export default function DealDetailsScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.four }}
         showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Image source={{ uri: deal.image }} style={styles.heroImage} contentFit="cover" />
+          <AnimatedImage
+            source={{ uri: deal.image }}
+            style={styles.heroImage}
+            contentFit="cover"
+            sharedTransitionTag={dealImageTag(deal.id)}
+          />
           <View style={styles.heroBadge}>
             <ThemedText type="label" style={styles.heroBadgeLabel}>
               Up to {deal.discountLabel.replace('-', '')} OFF
@@ -146,13 +152,10 @@ export default function DealDetailsScreen() {
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.relatedList}>
-              {relatedDeals.map((related) => (
-                <DealCardCompact
-                  key={related.id}
-                  deal={related}
-                  brand={brand}
-                  onPress={() => router.push(`/deal/${related.id}`)}
-                />
+              {relatedDeals.map((related, index) => (
+                <AnimatedListItem key={related.id} index={index}>
+                  <DealCardCompact deal={related} brand={brand} onPress={() => router.push(`/deal/${related.id}`)} />
+                </AnimatedListItem>
               ))}
             </ScrollView>
           </View>

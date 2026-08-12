@@ -57,6 +57,13 @@ export const JOB_TYPES: JobTypeConfig[] = [
     itemNoun: "messages",
     description: "Scan the Gmail inbox and label messages sent by a known brand address.",
   },
+  {
+    jobType: "discover_brand_candidates",
+    title: "Analyze Unknown Emails",
+    icon: <Icon.inbox size={17} />,
+    itemNoun: "emails",
+    description: "Run AI brand identification on unmatched sender emails in the Unknown Emails queue.",
+  },
 ];
 
 export const JOB_TYPE_BY_ID: Record<string, JobTypeConfig> = Object.fromEntries(

@@ -5,7 +5,7 @@
 
 import '@/global.css';
 
-import { Platform } from 'react-native';
+import { Platform, ViewStyle } from 'react-native';
 
 // Matched against the actual Stitch renders (projects/13779227750844170711),
 // not the original written brief — Stitch's own output uses a deep red as the
@@ -83,6 +83,39 @@ export const Radius = {
   button: 14,
   sheet: 24,
 } as const;
+
+// iOS-style layered elevation: soft ambient shadow + Android elevation fallback.
+export const Shadow = Platform.select({
+  ios: {
+    card: {
+      shadowColor: '#1A1A1A',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.07,
+      shadowRadius: 10,
+    },
+    raised: {
+      shadowColor: '#1A1A1A',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+    },
+    button: {
+      shadowColor: '#B7131A',
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.22,
+      shadowRadius: 12,
+    },
+  },
+  default: {
+    card: { elevation: 3 },
+    raised: { elevation: 8 },
+    button: { elevation: 5 },
+  },
+}) as {
+  card: ViewStyle;
+  raised: ViewStyle;
+  button: ViewStyle;
+};
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

@@ -1,12 +1,15 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedListItem } from '@/components/dealpulse/animated-list-item';
 import { CategoryCard } from '@/components/dealpulse/category-card';
+import { CategoryCardSkeleton } from '@/components/dealpulse/category-card-skeleton';
 import { EmptyState } from '@/components/dealpulse/empty-state';
 import { FilterChip } from '@/components/dealpulse/filter-chip';
 import { SearchBar } from '@/components/dealpulse/search-bar';
+import { Skeleton } from '@/components/dealpulse/skeleton';
 import { TopAppBar } from '@/components/dealpulse/top-app-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -18,7 +21,7 @@ const FILTERS = ['All Categories', 'Trending', 'Closing Soon'] as const;
 export default function CategoriesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { categories, deals, loading, refresh } = useAppData();
+  const { categories, deals, loading, error, refresh } = useAppData();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All Categories');
 
@@ -38,6 +41,49 @@ export default function CategoriesScreen() {
     }
     return list;
   }, [categories, query, filter]);
+
+  if (loading && categories.length === 0) {
+    return (
+      <ThemedView style={styles.container}>
+        <TopAppBar />
+        <View style={styles.content}>
+          <Skeleton width="100%" height={44} radius={999} />
+          <View style={styles.skeletonRow}>
+            <View style={styles.gridItem}>
+              <CategoryCardSkeleton />
+            </View>
+            <View style={styles.gridItem}>
+              <CategoryCardSkeleton />
+            </View>
+          </View>
+          <View style={styles.skeletonRow}>
+            <View style={styles.gridItem}>
+              <CategoryCardSkeleton />
+            </View>
+            <View style={styles.gridItem}>
+              <CategoryCardSkeleton />
+            </View>
+          </View>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  if (error && !loading && categories.length === 0) {
+    return (
+      <ThemedView style={styles.container}>
+        <TopAppBar />
+        <EmptyState
+          variant="error"
+          icon="warning-outline"
+          title="Couldn't load categories"
+          body="Check your connection and try again."
+          ctaLabel="Try again"
+          onPressCta={refresh}
+        />
+      </ThemedView>
+    );
+  }
 
   if (!loading && categories.length === 0) {
     return (
@@ -69,18 +115,24 @@ export default function CategoriesScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <SearchBar value={query} onChangeText={setQuery} placeholder="Search categories..." />
-            <View style={styles.filterRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}>
               {FILTERS.map((f) => (
                 <FilterChip key={f} label={f} selected={filter === f} onPress={() => setFilter(f)} />
               ))}
-            </View>
+            </ScrollView>
           </View>
         }
-        renderItem={({ item }) => (
-          <CategoryCard
-            category={item}
-            onPress={() => router.push(`/search?category=${item.name}`)}
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedListItem index={index} style={styles.gridItem}>
+            <CategoryCard
+              category={item}
+              onPress={() => router.push(`/search?category=${item.name}`)}
+              style={styles.gridItemFill}
+            />
+          </AnimatedListItem>
         )}
         ListFooterComponent={
           <Pressable style={styles.banner} onPress={() => router.push('/search')}>
@@ -115,6 +167,16 @@ const styles = StyleSheet.create({
   },
   row: {
     gap: Spacing.three,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+  },
+  gridItem: {
+    flexBasis: '47%',
+  },
+  gridItemFill: {
+    flexBasis: '100%',
   },
   header: {
     gap: Spacing.three,

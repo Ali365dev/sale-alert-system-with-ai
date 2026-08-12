@@ -63,34 +63,85 @@ class Brand(Base):
     last_searched = Column(DateTime, nullable=True)
     created_at   = Column(DateTime, default=_utcnow, nullable=False)
 
+    logo_url     = Column(String(500), nullable=True)
+    description  = Column(Text, nullable=True)
+    country      = Column(String(100), nullable=True)
+    social_links = Column(Text, nullable=True)        # JSON object stored as text, e.g. {"instagram": "..."}
+
     def __repr__(self) -> str:
         return f"<Brand id={self.id} name={self.name!r}>"
+
+
+class BrandCandidate(Base):
+    """A lightweight review-queue row for an email the pipeline couldn't
+    confidently match to a known brand (analyze_email() returned brand=None).
+    References Email by FK — never duplicates subject/body/ocr_text/
+    attachments; the API joins back to Email for those. One row per Email
+    routed here (email_id is unique — re-analysis updates the same row)."""
+    __tablename__ = "brand_candidates"
+
+    id       = Column(Integer, primary_key=True, autoincrement=True)
+    email_id = Column(Integer, ForeignKey("emails.id"), nullable=False, unique=True, index=True)
+
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    # "pending" | "analyzed" | "resolved" | "ignored"
+
+    sender_domain = Column(String(255), nullable=True, index=True)
+
+    # AI suggestion fields (populated by ai/brand_identifier.py)
+    suggested_name     = Column(String(255), nullable=True)
+    suggested_website   = Column(String(500), nullable=True)
+    suggested_category   = Column(String(255), nullable=True)
+    suggested_logo_url   = Column(String(500), nullable=True)
+    suggested_country    = Column(String(100), nullable=True)
+    suggested_socials    = Column(Text, nullable=True)   # JSON: {"instagram": "...", ...}
+    confidence            = Column(Float, nullable=True)   # 0.0 - 1.0
+    reasoning              = Column(Text, nullable=True)
+    analyzed_at             = Column(DateTime, nullable=True)
+    analysis_error          = Column(Text, nullable=True)
+
+    # Deterministic duplicate-check result (see services/jobs/discover_brand.py)
+    possible_duplicate_brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True)
+    duplicate_match_score       = Column(Float, nullable=True)
+    duplicate_match_reason      = Column(String(50), nullable=True)  # "domain_match" | "name_fuzzy_match"
+
+    # Resolution outcome
+    resolved_brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True)
+    resolved_at        = Column(DateTime, nullable=True)
+    resolved_by         = Column(String(100), nullable=True)
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
+
+    email = relationship("Email")
+
+    def __repr__(self) -> str:
+        return f"<BrandCandidate id={self.id} email_id={self.email_id} status={self.status!r}>"
 
 
 class Offer(Base):
     __tablename__ = "offers"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    email_id = Column(Integer, ForeignKey("emails.id"), nullable=True)
+    email_id = Column(Integer, ForeignKey("emails.id"), nullable=True, index=True)
 
-    brand = Column(String(255), nullable=True)
+    brand = Column(String(255), nullable=True, index=True)
     company = Column(String(255), nullable=True)
-    category = Column(String(255), nullable=True)
-    subcategory = Column(String(255), nullable=True)
-    offer_type = Column(String(255), nullable=True)
+    category = Column(String(255), nullable=True, index=True)
+    subcategory = Column(String(255), nullable=True, index=True)
+    offer_type = Column(String(255), nullable=True, index=True)
     discount_percentage = Column(Float, nullable=True)
     coupon_code = Column(String(100), nullable=True)
-    expiry_date = Column(DateTime, nullable=True)
+    expiry_date = Column(DateTime, nullable=True, index=True)
     offer_value = Column(String(255), nullable=True)
     summary = Column(Text, nullable=True)
     key_highlights = Column(Text, nullable=True)   # JSON list stored as text
     website = Column(String(500), nullable=True)   # offer/brand URL
-    is_active = Column(Boolean, default=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
     source = Column(String(20), nullable=True)     # "email" | "ai"
-    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
 
     # AI verification fields
-    verification_status = Column(String(20), nullable=True)      # "verified" | "suspicious" | "invalid"
+    verification_status = Column(String(20), nullable=True, index=True)      # "verified" | "suspicious" | "invalid"
     verification_reason = Column(Text, nullable=True)
     verification_confidence = Column(Float, nullable=True)
     verified_at = Column(DateTime, nullable=True)

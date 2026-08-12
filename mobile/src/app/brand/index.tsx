@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '@/components/dealpulse/empty-state';
 import { FilterChip } from '@/components/dealpulse/filter-chip';
 import { SearchBar } from '@/components/dealpulse/search-bar';
+import { Skeleton } from '@/components/dealpulse/skeleton';
 import { TopAppBar } from '@/components/dealpulse/top-app-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -20,7 +21,7 @@ const FILTERS = ['All', 'Trending', 'Newly Added', 'Expiring Soon'] as const;
 export default function BrandDirectoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { brands, deals, loading, refresh } = useAppData();
+  const { brands, deals, loading, error, refresh } = useAppData();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All');
 
@@ -60,7 +61,32 @@ export default function BrandDirectoryScreen() {
     <ThemedView style={styles.container}>
       <TopAppBar showBack hideSearch />
 
-      {!loading && brands.length === 0 ? (
+      {loading && brands.length === 0 ? (
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Skeleton width={140} height={26} />
+            <Skeleton width="100%" height={44} radius={999} />
+          </View>
+          <View style={styles.skeletonRow}>
+            {[0, 1].map((i) => (
+              <View key={i} style={styles.tileSkeleton}>
+                <Skeleton width="100%" radius={Radius.card} style={styles.tileSkeletonImage} />
+                <Skeleton width="80%" height={14} style={styles.gapTop} />
+                <Skeleton width="50%" height={12} style={styles.gapSmall} />
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : error && !loading && brands.length === 0 ? (
+        <EmptyState
+          variant="error"
+          icon="warning-outline"
+          title="Couldn't load brands"
+          body="Check your connection and try again."
+          ctaLabel="Try again"
+          onPressCta={refresh}
+        />
+      ) : !loading && brands.length === 0 ? (
         <EmptyState
           icon="business-outline"
           title="No brands tracked yet"
@@ -149,6 +175,24 @@ const styles = StyleSheet.create({
   row: {
     justifyContent: 'space-between',
     gap: Spacing.three,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
+  tileSkeleton: {
+    width: '48%',
+  },
+  tileSkeletonImage: {
+    aspectRatio: 1,
+    height: undefined,
+  },
+  gapTop: {
+    marginTop: Spacing.two,
+  },
+  gapSmall: {
+    marginTop: 4,
   },
   card: {
     width: '48%',

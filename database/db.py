@@ -5,7 +5,15 @@ from config import DATABASE_URL, logger
 from database.models import Base
 
 
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,   # test the connection before use — avoids errors/latency from a stale
+                           # connection killed by the remote Postgres pooler's idle reaper
+    pool_recycle=1800,    # recycle connections after 30 min so they never go stale mid-lifetime
+    pool_size=5,
+    max_overflow=10,
+)
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
@@ -36,6 +44,10 @@ def _migrate() -> None:
         ("emails", "ocr_text_raw",                "TEXT"),
         ("emails", "ocr_text_clean",              "TEXT"),
         ("emails", "ocr_processed_at",             "TIMESTAMP"),
+        ("brands", "logo_url",                     "VARCHAR(500)"),
+        ("brands", "description",                  "TEXT"),
+        ("brands", "country",                       "VARCHAR(100)"),
+        ("brands", "social_links",                   "TEXT"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -79,6 +91,29 @@ def _migrate() -> None:
         except Exception:
             conn.rollback()  # already exists — safe to skip
 
+        # Indexes on offers columns hit by filter/order_by/join in api/offers.py,
+        # api/overview.py, api/search.py — these were previously unindexed,
+        # forcing full sequential scans on every list/search/overview request.
+        offer_indexes = [
+            ("ix_offers_brand", "offers (brand)"),
+            ("ix_offers_category", "offers (category)"),
+            ("ix_offers_subcategory", "offers (subcategory)"),
+            ("ix_offers_offer_type", "offers (offer_type)"),
+            ("ix_offers_expiry_date", "offers (expiry_date)"),
+            ("ix_offers_is_active", "offers (is_active)"),
+            ("ix_offers_created_at", "offers (created_at)"),
+            ("ix_offers_verification_status", "offers (verification_status)"),
+            ("ix_offers_email_id", "offers (email_id)"),
+            ("ix_offers_category_subcategory", "offers (category, subcategory)"),
+            ("ix_offers_is_active_verification_status", "offers (is_active, verification_status)"),
+        ]
+        for index_name, index_target in offer_indexes:
+            try:
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS {index_name} ON {index_target}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
 
 def _seed_brands() -> None:
     """Populate the brands table from brands.json if it is empty."""
@@ -119,27 +154,31 @@ def _seed_settings() -> None:
 
     with SessionLocal() as session:
         from database.models import Prompt
-        if session.query(Prompt).count() == 0:
-            from ai.analyzer import _PROMPT_TEMPLATE as email_analysis_default, PROMPT_KEY as email_analysis_key
-            from ai.verifier import (
-                _VERIFY_PROMPT as offer_verification_default, OFFER_PROMPT_KEY as offer_verification_key,
-                _EMAIL_VERIFY_PROMPT as email_verification_default, EMAIL_PROMPT_KEY as email_verification_key,
-            )
-            from ai.prompt_builder import _PROMPT as brand_research_ddg_default, PROMPT_KEY as brand_research_ddg_key
-            from research.prompts import _PROMPT as brand_research_tavily_default, PROMPT_KEY as brand_research_tavily_key
-            from api.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
+        # Always run this loop, not just when the table is empty:
+        # seed_prompt_if_missing() is already idempotent per-key, so this is
+        # what lets a newly-added prompt (like brand_identification) actually
+        # get seeded into a DB that was already initialized in the past.
+        from ai.analyzer import _PROMPT_TEMPLATE as email_analysis_default, PROMPT_KEY as email_analysis_key
+        from ai.verifier import (
+            _VERIFY_PROMPT as offer_verification_default, OFFER_PROMPT_KEY as offer_verification_key,
+            _EMAIL_VERIFY_PROMPT as email_verification_default, EMAIL_PROMPT_KEY as email_verification_key,
+        )
+        from ai.prompt_builder import _PROMPT as brand_research_ddg_default, PROMPT_KEY as brand_research_ddg_key
+        from research.prompts import _PROMPT as brand_research_tavily_default, PROMPT_KEY as brand_research_tavily_key
+        from api.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
+        from ai.brand_identifier import _PROMPT_TEMPLATE as brand_identification_default, PROMPT_KEY as brand_identification_key
 
-            defaults = [
-                (email_analysis_key, "Email Analysis", "Extracts structured offer data from a fetched email.", "email", email_analysis_default),
-                (email_verification_key, "Email Classification", "Classifies a fetched email as legitimate, suspicious, or spam.", "email", email_verification_default),
-                (offer_verification_key, "Offer Verification", "Verifies whether an extracted offer is genuine.", "offer", offer_verification_default),
-                (brand_research_ddg_key, "Brand Research (Web Search)", "Extracts active promotions from DuckDuckGo search results for a brand.", "research", brand_research_ddg_default),
-                (brand_research_tavily_key, "Brand Research (Tavily)", "Extracts active promotions from Tavily search results for a brand.", "research", brand_research_tavily_default),
-                (dashboard_digest_key, "Dashboard Insights", "Generates the AI daily digest shown on the Insights page.", "insights", dashboard_digest_default),
-            ]
-            for key, name, description, category, default_content in defaults:
-                settings_service.seed_prompt_if_missing(key, name, description, category, default_content)
-            logger.info("Seeded %d default prompt(s).", len(defaults))
+        defaults = [
+            (email_analysis_key, "Email Analysis", "Extracts structured offer data from a fetched email.", "email", email_analysis_default),
+            (email_verification_key, "Email Classification", "Classifies a fetched email as legitimate, suspicious, or spam.", "email", email_verification_default),
+            (offer_verification_key, "Offer Verification", "Verifies whether an extracted offer is genuine.", "offer", offer_verification_default),
+            (brand_research_ddg_key, "Brand Research (Web Search)", "Extracts active promotions from DuckDuckGo search results for a brand.", "research", brand_research_ddg_default),
+            (brand_research_tavily_key, "Brand Research (Tavily)", "Extracts active promotions from Tavily search results for a brand.", "research", brand_research_tavily_default),
+            (dashboard_digest_key, "Dashboard Insights", "Generates the AI daily digest shown on the Insights page.", "insights", dashboard_digest_default),
+            (brand_identification_key, "Brand Identification", "Identifies the brand behind an email that couldn't be auto-matched to a known brand's sender domain.", "email", brand_identification_default),
+        ]
+        for key, name, description, category, default_content in defaults:
+            settings_service.seed_prompt_if_missing(key, name, description, category, default_content)
 
         from database.models import Setting
         if session.query(Setting).count() == 0:

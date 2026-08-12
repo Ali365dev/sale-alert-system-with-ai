@@ -1,15 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedListItem } from '@/components/dealpulse/animated-list-item';
 import { EmptyState } from '@/components/dealpulse/empty-state';
 import { FilterChip } from '@/components/dealpulse/filter-chip';
 import { TopAppBar } from '@/components/dealpulse/top-app-bar';
+import { usePressScale } from '@/components/dealpulse/use-press-scale';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Radius, Spacing } from '@/constants/theme';
+import { BottomTabInset, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useAppData } from '@/state/data';
 import { AlertItem } from '@/types/dealpulse';
 
@@ -33,10 +36,67 @@ const ICON_COLOR: Record<AlertItem['kind'], string> = {
 
 const FILTERS = ['All Alerts', 'New Deals', 'Expiring Soon'] as const;
 
+function AlertRow({ item, onPress }: { item: AlertItem; onPress: () => void }) {
+  const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
+  const urgent = item.kind === 'flash-sale' && !item.read;
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        style={[styles.card, urgent && styles.cardUrgent]}
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}>
+        <View
+          style={[
+            styles.iconCircle,
+            { backgroundColor: item.read ? '#EDEDED' : CIRCLE_BG[item.kind] },
+          ]}>
+          <Ionicons
+            name={item.read ? 'notifications' : ICON_BY_KIND[item.kind]}
+            size={20}
+            color={item.read ? '#9CA3AF' : ICON_COLOR[item.kind]}
+          />
+        </View>
+        <View style={styles.textBlock}>
+          <View style={styles.titleRow}>
+            <ThemedText
+              type="smallBold"
+              themeColor={item.read ? 'textSecondary' : 'text'}
+              numberOfLines={1}
+              style={styles.title}>
+              {item.title}
+            </ThemedText>
+            {urgent ? (
+              <View style={styles.timeBadge}>
+                <ThemedText type="label" style={styles.timeBadgeLabel}>
+                  {item.time}
+                </ThemedText>
+              </View>
+            ) : (
+              <ThemedText type="small" themeColor="textSecondary">
+                {item.time}
+              </ThemedText>
+            )}
+          </View>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
+            {item.body}
+          </ThemedText>
+          {urgent && (
+            <ThemedText type="label" style={styles.viewDeal}>
+              VIEW DEAL
+            </ThemedText>
+          )}
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export default function AlertsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { alerts, refresh } = useAppData();
+  const { alerts, error, refresh } = useAppData();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All Alerts');
 
   const visible = useMemo(() => {
@@ -48,7 +108,16 @@ export default function AlertsScreen() {
   return (
     <ThemedView style={styles.container}>
       <TopAppBar />
-      {alerts.length === 0 ? (
+      {error && alerts.length === 0 ? (
+        <EmptyState
+          variant="error"
+          icon="warning-outline"
+          title="Couldn't load alerts"
+          body="Check your connection and try again."
+          ctaLabel="Try again"
+          onPressCta={refresh}
+        />
+      ) : alerts.length === 0 ? (
         <EmptyState
           icon="notifications-outline"
           title="No alerts yet"
@@ -67,63 +136,21 @@ export default function AlertsScreen() {
           ListHeaderComponent={
             <View style={styles.header}>
               <ThemedText type="title">Notifications</ThemedText>
-              <View style={styles.filterRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterRow}>
                 {FILTERS.map((f) => (
                   <FilterChip key={f} label={f} selected={filter === f} onPress={() => setFilter(f)} />
                 ))}
-              </View>
+              </ScrollView>
             </View>
           }
-          renderItem={({ item }) => {
-            const urgent = item.kind === 'flash-sale' && !item.read;
-            return (
-              <Pressable
-                style={[styles.card, urgent && styles.cardUrgent]}
-                onPress={() => item.brandId && router.push(`/brand/${item.brandId}`)}>
-                <View
-                  style={[
-                    styles.iconCircle,
-                    { backgroundColor: item.read ? '#EDEDED' : CIRCLE_BG[item.kind] },
-                  ]}>
-                  <Ionicons
-                    name={item.read ? 'notifications' : ICON_BY_KIND[item.kind]}
-                    size={18}
-                    color={item.read ? '#9CA3AF' : ICON_COLOR[item.kind]}
-                  />
-                </View>
-                <View style={styles.textBlock}>
-                  <View style={styles.titleRow}>
-                    <ThemedText
-                      type="smallBold"
-                      themeColor={item.read ? 'textSecondary' : 'text'}
-                      numberOfLines={1}
-                      style={styles.title}>
-                      {item.title}
-                    </ThemedText>
-                    {urgent ? (
-                      <View style={styles.timeBadge}>
-                        <ThemedText type="label" style={styles.timeBadgeLabel}>
-                          {item.time}
-                        </ThemedText>
-                      </View>
-                    ) : (
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {item.time}
-                      </ThemedText>
-                    )}
-                  </View>
-                  <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
-                    {item.body}
-                  </ThemedText>
-                  {urgent && (
-                    <ThemedText type="label" style={styles.viewDeal}>
-                      VIEW DEAL
-                    </ThemedText>
-                  )}
-                </View>
-              </Pressable>
-            );
-          }}
+          renderItem={({ item, index }) => (
+            <AnimatedListItem index={index}>
+              <AlertRow item={item} onPress={() => item.brandId && router.push(`/brand/${item.brandId}`)} />
+            </AnimatedListItem>
+          )}
         />
       )}
     </ThemedView>
@@ -145,7 +172,6 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.two,
   },
   card: {
@@ -157,15 +183,16 @@ const styles = StyleSheet.create({
     borderColor: '#F0DADA',
     padding: Spacing.three,
     marginBottom: Spacing.three,
+    ...Shadow.card,
   },
   cardUrgent: {
     borderLeftWidth: 3,
     borderLeftColor: '#B7131A',
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },

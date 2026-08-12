@@ -12,6 +12,10 @@ export interface Brand {
   is_active: boolean;
   last_searched: string | null;
   created_at: string | null;
+  logo_url: string | null;
+  description: string | null;
+  country: string | null;
+  social_links: Record<string, string | null>;
 }
 
 export interface BrandsResponse {
@@ -85,16 +89,33 @@ export interface BrandSearchResult {
 }
 
 export function useSearchBrand() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      const { data } = await apiClient.post<BrandSearchResult>(`/brands/${id}/search`);
+      const { data } = await apiClient.post<{ status: string }>(`/brands/${id}/search`);
       return data;
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["brands"] });
-      toast.success(`Found ${result.found} offer(s) — ${result.saved} saved.`);
+  });
+}
+
+export interface SingleSearchStatus {
+  running: boolean;
+  error: string | null;
+  result: BrandSearchResult | null;
+}
+
+// Poll while a single-brand search is running. The caller is responsible for
+// reacting to `data` transitioning to `running: false` (invalidate the brands
+// list, show a toast) — see BrandsManager.tsx — since useQuery (v5) has no
+// onSuccess/onSettled callback.
+export function useSearchBrandStatus(brandId: number | null) {
+  return useQuery({
+    queryKey: ["brands", "search-status", brandId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<SingleSearchStatus>(`/brands/${brandId}/search/status`);
+      return data;
     },
+    enabled: brandId !== null,
+    refetchInterval: (query) => (query.state.data?.running ? 1000 : false),
   });
 }
 

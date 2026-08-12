@@ -195,50 +195,16 @@ def process_email_endpoint(email_id: int):
     unprocessed email and for "Reprocess" on a failed or already-processed
     one. Synchronous (one email, not a bulk job) so the UI gets an immediate
     result; bulk processing still goes through the process_pending job —
-    this mirrors that job's OCR + sender-aware analysis + offer replacement
-    so the two paths behave identically."""
-    from ai.analyzer import analyze_email, build_offer
-    from ai.ocr import extract_and_merge
+    both this endpoint and api/unknown_emails.py's "Create Brand" flow share
+    the same sequence via services/email_processing.py::reprocess_email."""
+    from services.email_processing import reprocess_email
 
     with get_session() as session:
         e = session.query(Email).filter(Email.id == email_id).first()
         if e is None:
             return jsonify({"error": "not found"}), 404
-        subject, body, sender = e.subject, e.body or "", e.sender or ""
-        image_urls = json.loads(e.image_urls) if e.image_urls else []
 
-    ocr_result = extract_and_merge(subject, body, image_urls)
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    with get_session() as session:
-        e = session.query(Email).filter(Email.id == email_id).first()
-        if e is not None:
-            e.ocr_text_raw = ocr_result["ocr_raw"] or None
-            e.ocr_text_clean = ocr_result["ocr_clean"] or None
-            e.ocr_processed_at = now
-
-    result = analyze_email(subject, ocr_result["merged"], sender)
-
-    if result is None:
-        with get_session() as session:
-            e = session.query(Email).filter(Email.id == email_id).first()
-            if e is not None:
-                e.processing_status = "failed"
-                e.processing_error = "AI returned no result"
-                e.processing_attempted_at = now
-        return jsonify({"processing_status": "failed", "processing_error": "AI returned no result"})
-
-    with get_session() as session:
-        # Reprocessing replaces this email's offer(s) rather than piling up
-        # duplicates alongside a stale/wrong one from a previous attempt.
-        session.query(Offer).filter(Offer.email_id == email_id).delete()
-        session.add(build_offer(email_id, result))
-        e = session.query(Email).filter(Email.id == email_id).first()
-        if e is not None:
-            e.processing_status = "processed"
-            e.processing_error = None
-            e.processing_attempted_at = now
-
-    return jsonify({"processing_status": "processed", "processing_error": None})
+    return jsonify(reprocess_email(email_id))
 
 
 @bp.post("/<int:email_id>/verify")

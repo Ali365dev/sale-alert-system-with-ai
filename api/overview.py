@@ -1,4 +1,6 @@
 """Overview endpoints — headline KPIs, top brand/category breakdowns, latest offers."""
+import threading
+import time
 from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify
@@ -8,6 +10,17 @@ from database.db import get_session
 from database.models import Offer
 
 bp = Blueprint("overview", __name__, url_prefix="/api")
+
+# Short-TTL in-process cache for the overview payload. This endpoint runs ~9
+# separate DB round trips (several counts, three top-N group-bys, a latest-20
+# query) to build one response, and its data is aggregate/dashboard-level (not
+# per-user), so briefly serving a slightly-stale copy to a page that polls it
+# is a safe trade for cutting most of that DB load. Server runs as a single
+# process with multiple threads (see api_server.py), so a plain module-level
+# dict + lock is enough — no cross-process cache needed.
+_OVERVIEW_CACHE_TTL_SECONDS = 10
+_overview_cache_lock = threading.Lock()
+_overview_cache: dict = {"payload": None, "expires_at": 0.0}
 
 
 def _top_counts(session, column, limit=8):
@@ -24,6 +37,20 @@ def _top_counts(session, column, limit=8):
 
 @bp.get("/overview")
 def overview():
+    with _overview_cache_lock:
+        if _overview_cache["payload"] is not None and time.monotonic() < _overview_cache["expires_at"]:
+            return jsonify(_overview_cache["payload"])
+
+    payload = _build_overview_payload()
+
+    with _overview_cache_lock:
+        _overview_cache["payload"] = payload
+        _overview_cache["expires_at"] = time.monotonic() + _OVERVIEW_CACHE_TTL_SECONDS
+
+    return jsonify(payload)
+
+
+def _build_overview_payload() -> dict:
     with get_session() as session:
         total_offers = session.query(func.count(Offer.id)).scalar() or 0
         verified = session.query(func.count(Offer.id)).filter(
@@ -71,7 +98,7 @@ def overview():
             for o in latest
         ]
 
-    return jsonify({
+    return {
         "kpis": {
             "total_offers": total_offers,
             "verified": verified,
@@ -88,7 +115,7 @@ def overview():
             {"status": "unverified", "count": max(unverified, 0)},
         ],
         "latest_offers": latest_offers,
-    })
+    }
 
 # "Run fetch & analyse now" (sidebar) now starts the same "email_sync"
 # background job as the Email Manager's own trigger — see api/jobs.py's

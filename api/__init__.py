@@ -43,6 +43,9 @@ def create_app() -> Flask:
     from api.emails import bp as emails_bp
     app.register_blueprint(emails_bp)
 
+    from api.unknown_emails import bp as unknown_emails_bp
+    app.register_blueprint(unknown_emails_bp)
+
     from api.jobs import bp as jobs_bp
     app.register_blueprint(jobs_bp)
 

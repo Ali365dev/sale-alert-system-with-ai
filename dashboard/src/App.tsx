@@ -14,6 +14,7 @@ import { OfferDetailPage } from "./pages/public/OfferDetailPage";
 import { PublicOffers } from "./pages/public/PublicOffers";
 import { Settings } from "./pages/Settings";
 import { Search } from "./pages/Search";
+import { UnknownEmailsManager } from "./pages/UnknownEmailsManager";
 
 function App() {
   return (
@@ -68,6 +69,14 @@ function App() {
           element={
             <AppShell title="Email manager">
               <EmailManager />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/unknown-emails"
+          element={
+            <AppShell title="Unknown emails">
+              <UnknownEmailsManager />
             </AppShell>
           }
         />

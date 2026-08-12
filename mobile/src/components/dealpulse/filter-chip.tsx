@@ -29,13 +29,12 @@ const styles = StyleSheet.create({
     borderColor: '#F0DADA',
   },
   chipSelected: {
-    backgroundColor: '#B7131A',
     borderColor: '#B7131A',
   },
   label: {
-    color: '#57302D',
+    color: '#171717',
   },
   labelSelected: {
-    color: '#FFFFFF',
+    color: '#B7131A',
   },
 });

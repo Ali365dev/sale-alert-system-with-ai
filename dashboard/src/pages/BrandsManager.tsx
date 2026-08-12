@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
-import type { Brand, BrandSearchResult } from "../api/brands";
+import type { Brand } from "../api/brands";
 import {
   useBrands,
   useBulkSearchBrands,
@@ -8,6 +9,7 @@ import {
   useCreateBrand,
   useDeleteBrand,
   useSearchBrand,
+  useSearchBrandStatus,
   useUpdateBrand,
 } from "../api/brands";
 import { BrandForm } from "../components/brands/BrandForm";
@@ -19,6 +21,7 @@ import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
 import { Icon } from "../components/icons";
+import { toast } from "../store/toastStore";
 
 function formatDateTime(iso: string | null) {
   if (!iso) return "Never";
@@ -26,10 +29,27 @@ function formatDateTime(iso: string | null) {
 }
 
 function SingleSearch({ brands }: { brands: Brand[] }) {
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<number | undefined>(brands[0]?.id);
+  const [pollingId, setPollingId] = useState<number | null>(null);
   const search = useSearchBrand();
-  const [result, setResult] = useState<BrandSearchResult | null>(null);
+  const status = useSearchBrandStatus(pollingId);
   const selected = brands.find((b) => b.id === selectedId);
+  const settledRef = useRef(false);
+
+  useEffect(() => {
+    if (!status.data || status.data.running || settledRef.current) return;
+    settledRef.current = true;
+    queryClient.invalidateQueries({ queryKey: ["brands"] });
+    if (status.data.error) {
+      toast.error(`Brand search failed: ${status.data.error}`);
+    } else if (status.data.result) {
+      toast.success(`Found ${status.data.result.found} offer(s) — ${status.data.result.saved} saved.`);
+    }
+  }, [status.data, queryClient]);
+
+  const running = status.data?.running ?? search.isPending;
+  const result = status.data?.result ?? null;
 
   return (
     <Card>
@@ -53,11 +73,14 @@ function SingleSearch({ brands }: { brands: Brand[] }) {
               </Select>
             </div>
             <Button
-              loading={search.isPending}
+              loading={running}
               onClick={() => {
                 if (!selectedId) return;
-                setResult(null);
-                search.mutate(selectedId, { onSuccess: (data) => setResult(data) });
+                settledRef.current = false;
+                setPollingId(selectedId);
+                search.mutate(selectedId, {
+                  onError: () => setPollingId(null),
+                });
               }}
             >
               Search
@@ -68,6 +91,9 @@ function SingleSearch({ brands }: { brands: Brand[] }) {
               Last searched: {formatDateTime(selected.last_searched)}
               {selected.categories.length > 0 && <> · Categories: {selected.categories.join(", ")}</>}
             </div>
+          )}
+          {running && (
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Searching…</div>
           )}
           {result && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

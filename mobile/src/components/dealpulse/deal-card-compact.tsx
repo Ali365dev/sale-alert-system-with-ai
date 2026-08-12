@@ -1,13 +1,13 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { Radius, Spacing } from '@/constants/theme';
+import { Radius, Shadow, Spacing } from '@/constants/theme';
 import { useFavorites } from '@/state/favorites';
 import { Brand, Deal } from '@/types/dealpulse';
 
 import { BrandLogo } from './brand-logo';
+import { FavoriteButton } from './favorite-button';
 import { SaleBadge } from './sale-badge';
 import { usePressScale } from './use-press-scale';
 
@@ -27,18 +27,12 @@ export function DealCardCompact({ deal, brand, onPress }: Props) {
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
         <View style={styles.topRow}>
           <BrandLogo initials={brand?.initials ?? '?'} size={32} tone="filled" />
-          <Pressable hitSlop={8} onPress={() => toggleFavorite(deal.id)}>
-            <Ionicons
-              name={favorite ? 'heart' : 'heart-outline'}
-              size={18}
-              color={favorite ? '#B7131A' : '#171717'}
-            />
-          </Pressable>
+          <FavoriteButton active={favorite} onPress={() => toggleFavorite(deal.id)} size={18} />
         </View>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
           {brand?.name ?? 'Unknown brand'}
         </ThemedText>
-        <ThemedText type="smallBold" numberOfLines={2} style={styles.title}>
+        <ThemedText type="smallBold" numberOfLines={1} style={styles.title}>
           {deal.title}
         </ThemedText>
         <View style={styles.bottomRow}>
@@ -56,13 +50,14 @@ export function DealCardCompact({ deal, brand, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    width: 168,
+    width: 200,
     backgroundColor: '#FFFFFF',
     borderRadius: Radius.card,
     borderWidth: 1,
     borderColor: '#F0DADA',
     padding: Spacing.three,
     gap: 4,
+    ...Shadow.card,
   },
   topRow: {
     flexDirection: 'row',
@@ -71,6 +66,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   title: {
+    fontSize: 14,
     lineHeight: 18,
   },
   bottomRow: {

@@ -12,6 +12,13 @@ bp = Blueprint("brands", __name__, url_prefix="/api/brands")
 
 _bulk_search_state = {"running": False, "done": 0, "total": 0, "offers_found": 0, "offers_saved": 0}
 
+# Per-brand single-search state, keyed by brand_id — mirrors _bulk_search_state.
+# Single-brand search calls a web search + LLM extraction (ai/brand_fetcher.py)
+# that can take several seconds to tens of seconds; running it in a background
+# thread instead of inline in the request handler frees up the request worker
+# for other traffic while this runs. Client polls /search/status.
+_single_search_state: dict[int, dict] = {}
+
 
 def _brand_to_dict(b: Brand) -> dict:
     return {
@@ -23,6 +30,10 @@ def _brand_to_dict(b: Brand) -> dict:
         "is_active": b.is_active,
         "last_searched": b.last_searched.isoformat() if b.last_searched else None,
         "created_at": b.created_at.isoformat() if b.created_at else None,
+        "logo_url": b.logo_url,
+        "description": b.description,
+        "country": b.country,
+        "social_links": json.loads(b.social_links) if b.social_links else {},
     }
 
 
@@ -91,6 +102,10 @@ def create_brand():
             categories=json.dumps(body.get("categories", [])),
             emails=json.dumps(body.get("emails", [])) if body.get("emails") else None,
             is_active=bool(body.get("is_active", True)),
+            logo_url=(body.get("logo_url") or "").strip() or None,
+            description=(body.get("description") or "").strip() or None,
+            country=(body.get("country") or "").strip() or None,
+            social_links=json.dumps(body.get("social_links")) if body.get("social_links") else None,
         )
         session.add(brand)
         session.flush()
@@ -115,6 +130,14 @@ def update_brand(brand_id: int):
             b.emails = json.dumps(body["emails"]) if body["emails"] else None
         if "is_active" in body:
             b.is_active = bool(body["is_active"])
+        if "logo_url" in body:
+            b.logo_url = (body["logo_url"] or "").strip() or None
+        if "description" in body:
+            b.description = (body["description"] or "").strip() or None
+        if "country" in body:
+            b.country = (body["country"] or "").strip() or None
+        if "social_links" in body:
+            b.social_links = json.dumps(body["social_links"]) if body["social_links"] else None
 
         session.flush()
         return jsonify(_brand_to_dict(b))
@@ -130,9 +153,46 @@ def delete_brand(brand_id: int):
     return jsonify({"status": "deleted"})
 
 
+def _run_single_search(brand_id: int, brand_dict: dict) -> None:
+    from ai.brand_fetcher import fetch_offers_for_brand
+
+    try:
+        offers_data = fetch_offers_for_brand(brand_dict, cache=None) or []
+        saved, failed = _save_offers(offers_data)
+
+        with get_session() as session:
+            b = session.query(Brand).filter(Brand.id == brand_id).first()
+            if b:
+                b.last_searched = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        active = sum(1 for o in offers_data if o.get("_is_sale"))
+        _single_search_state[brand_id] = {
+            "running": False,
+            "error": None,
+            "result": {
+                "found": len(offers_data),
+                "active": active,
+                "saved": saved,
+                "failed": failed,
+                "preview": [
+                    {
+                        "offer_type": o.get("offer_type"),
+                        "discount_percentage": o.get("discount_percentage"),
+                        "coupon_code": o.get("coupon_code"),
+                        "summary": (o.get("summary") or "")[:120],
+                    }
+                    for o in offers_data
+                ],
+            },
+        }
+    except Exception as exc:
+        _single_search_state[brand_id] = {"running": False, "error": str(exc), "result": None}
+
+
 @bp.post("/<int:brand_id>/search")
 def search_brand(brand_id: int):
-    from ai.brand_fetcher import fetch_offers_for_brand
+    if _single_search_state.get(brand_id, {}).get("running"):
+        return jsonify({"status": "already_running"}), 409
 
     with get_session() as session:
         b = session.query(Brand).filter(Brand.id == brand_id).first()
@@ -144,29 +204,15 @@ def search_brand(brand_id: int):
             "categories": json.loads(b.categories) if b.categories else [],
         }
 
-    offers_data = fetch_offers_for_brand(brand_dict, cache=None) or []
-    saved, failed = _save_offers(offers_data)
+    _single_search_state[brand_id] = {"running": True, "error": None, "result": None}
+    threading.Thread(target=_run_single_search, args=(brand_id, brand_dict), daemon=True).start()
+    return jsonify({"status": "started"}), 202
 
-    with get_session() as session:
-        b = session.query(Brand).filter(Brand.id == brand_id).first()
-        b.last_searched = datetime.now(timezone.utc).replace(tzinfo=None)
 
-    active = sum(1 for o in offers_data if o.get("_is_sale"))
-    return jsonify({
-        "found": len(offers_data),
-        "active": active,
-        "saved": saved,
-        "failed": failed,
-        "preview": [
-            {
-                "offer_type": o.get("offer_type"),
-                "discount_percentage": o.get("discount_percentage"),
-                "coupon_code": o.get("coupon_code"),
-                "summary": (o.get("summary") or "")[:120],
-            }
-            for o in offers_data
-        ],
-    })
+@bp.get("/<int:brand_id>/search/status")
+def search_brand_status(brand_id: int):
+    state = _single_search_state.get(brand_id, {"running": False, "error": None, "result": None})
+    return jsonify(state)
 
 
 def _run_bulk_search(skip_cache: bool):
