@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -16,91 +16,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppData } from '@/state/data';
 
+const backgroundImage = require('../../assets/images/splash-background.png');
+
 const BG = '#0A0A0A';
 const RED = '#B7131A';
 const RED_BRIGHT = '#E7000B';
-const RED_DIM = 'rgba(231, 0, 11, 0.4)';
 
 /** Keeps the choreographed intro on screen even if data loads instantly. */
 const MIN_VISIBLE_MS = 1800;
-
-interface StreakSpec {
-  top: `${number}%`;
-  left: `${number}%`;
-  width: `${number}%`;
-  angle: number;
-  delay: number;
-}
-
-const STREAKS: StreakSpec[] = [
-  { top: '12%', left: '-8%', width: '46%', angle: -32, delay: 0 },
-  { top: '32%', left: '-12%', width: '30%', angle: -28, delay: 500 },
-  { top: '80%', left: '-10%', width: '40%', angle: 30, delay: 900 },
-  { top: '9%', left: '62%', width: '46%', angle: 32, delay: 200 },
-  { top: '34%', left: '82%', width: '28%', angle: 26, delay: 700 },
-  { top: '78%', left: '70%', width: '42%', angle: -30, delay: 1100 },
-];
-
-const DOTS: { top: `${number}%`; left: `${number}%`; delay: number }[] = [
-  { top: '23%', left: '19%', delay: 0 },
-  { top: '39%', left: '87%', delay: 500 },
-  { top: '61%', left: '91%', delay: 1000 },
-  { top: '69%', left: '15%', delay: 300 },
-  { top: '15%', left: '58%', delay: 800 },
-];
-
-function Streak({ top, left, width, angle, delay }: StreakSpec) {
-  const shimmer = useSharedValue(0);
-
-  useEffect(() => {
-    shimmer.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(withTiming(1, { duration: 2600 }), withTiming(0, { duration: 2600 })),
-        -1,
-        true
-      )
-    );
-  }, [delay, shimmer]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: 0.25 + shimmer.value * 0.35,
-  }));
-
-  return (
-    <View
-      pointerEvents="none"
-      style={[styles.streakSlot, { top, left, width, transform: [{ rotate: `${angle}deg` }] }]}>
-      <Animated.View style={[styles.streakInner, animatedStyle]}>
-        <LinearGradient
-          colors={['transparent', RED_DIM, 'transparent']}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-    </View>
-  );
-}
-
-function Dot({ top, left, delay }: { top: `${number}%`; left: `${number}%`; delay: number }) {
-  const twinkle = useSharedValue(0.2);
-
-  useEffect(() => {
-    twinkle.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(withTiming(0.85, { duration: 1400 }), withTiming(0.2, { duration: 1400 })),
-        -1,
-        true
-      )
-    );
-  }, [delay, twinkle]);
-
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: twinkle.value }));
-
-  return <Animated.View pointerEvents="none" style={[styles.dot, { top, left }, animatedStyle]} />;
-}
 
 function PulseRing({ delay }: { delay: number }) {
   const t = useSharedValue(0);
@@ -138,6 +61,19 @@ export function AnimatedSplashOverlay() {
   const progressSectionOpacity = useSharedValue(0);
   const progress = useSharedValue(0);
   const loadingLabelOpacity = useSharedValue(0.35);
+  const bgScale = useSharedValue(1);
+
+  useEffect(() => {
+    bgScale.value = withRepeat(
+      withSequence(
+        withTiming(1.04, { duration: 4200, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1,
+      false
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!started) return;
@@ -192,6 +128,9 @@ export function AnimatedSplashOverlay() {
   }, [started, loading]);
 
   const containerStyle = useAnimatedStyle(() => ({ opacity: overlayOpacity.value }));
+  const backgroundStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: bgScale.value }],
+  }));
   const iconStyle = useAnimatedStyle(() => ({
     opacity: iconOpacity.value,
     transform: [{ scale: iconScale.value }],
@@ -218,14 +157,9 @@ export function AnimatedSplashOverlay() {
         });
       }}
       style={[styles.container, containerStyle]}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {STREAKS.map((s, i) => (
-          <Streak key={i} {...s} />
-        ))}
-        {DOTS.map((d, i) => (
-          <Dot key={i} {...d} />
-        ))}
-      </View>
+      <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle]} pointerEvents="none">
+        <Image source={backgroundImage} style={StyleSheet.absoluteFill} contentFit="cover" />
+      </Animated.View>
 
       <View style={styles.center}>
         <View style={styles.iconWrap}>
@@ -303,20 +237,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     letterSpacing: 3,
     marginTop: 10,
-  },
-  streakSlot: {
-    position: 'absolute',
-    height: 3,
-  },
-  streakInner: {
-    flex: 1,
-  },
-  dot: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: RED_BRIGHT,
   },
   progressSection: {
     position: 'absolute',

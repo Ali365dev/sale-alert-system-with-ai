@@ -1,22 +1,53 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandLogo } from '@/components/dealpulse/brand-logo';
 import { EmptyState } from '@/components/dealpulse/empty-state';
+import { OnboardingProgress } from '@/components/dealpulse/onboarding-progress';
 import { PrimaryButton } from '@/components/dealpulse/primary-button';
-import { SecondaryButton } from '@/components/dealpulse/secondary-button';
 import { Skeleton } from '@/components/dealpulse/skeleton';
+import { usePressScale } from '@/components/dealpulse/use-press-scale';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppData } from '@/state/data';
 import { useOnboarding } from '@/state/onboarding';
 import { useOnboardingGate } from '@/state/onboarding-gate';
+import { Brand } from '@/types/dealpulse';
 
-const PAGE_SIZE = 5;
+function BrandCard({
+  brand,
+  selected,
+  onPress,
+}: {
+  brand: Brand;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
+
+  return (
+    <Animated.View style={[animatedStyle, styles.brandCardWrap]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        style={[styles.brandCard, selected && styles.brandCardSelected]}>
+        <BrandLogo initials={brand.initials} size={64} />
+        <ThemedText
+          type="smallBold"
+          numberOfLines={1}
+          style={selected ? styles.brandNameSelected : undefined}>
+          {brand.name}
+        </ThemedText>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export default function OnboardingBrandsScreen() {
   const router = useRouter();
@@ -24,10 +55,13 @@ export default function OnboardingBrandsScreen() {
   const { brands, loading } = useAppData();
   const { brandIds, toggleBrand } = useOnboarding();
   const { completeOnboarding } = useOnboardingGate();
-  const [showAll, setShowAll] = useState(false);
+  const [query, setQuery] = useState('');
 
-  const visibleBrands = showAll ? brands : brands.slice(0, PAGE_SIZE);
-  const hasMore = !showAll && brands.length > PAGE_SIZE;
+  const filteredBrands = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return brands;
+    return brands.filter((b) => b.name.toLowerCase().includes(q));
+  }, [brands, query]);
 
   const finish = () => {
     completeOnboarding();
@@ -40,24 +74,42 @@ export default function OnboardingBrandsScreen() {
         <Pressable onPress={() => router.back()} hitSlop={8}>
           <Ionicons name="chevron-back" size={24} color="#171717" />
         </Pressable>
-        <View style={styles.progressTrack} />
+        <ThemedText type="headline" style={styles.wordmark}>
+          DealPulse
+        </ThemedText>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <OnboardingProgress step={2} total={3} />
         <ThemedText type="title" style={styles.title}>
           Follow brands you love
         </ThemedText>
-        <ThemedText type="default" themeColor="textSecondary" style={styles.subtitle}>
+        <ThemedText type="default" themeColor="textSecondary">
           Get instant alerts when they drop a new deal.
         </ThemedText>
+
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color="#6B7280" />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search brands..."
+            placeholderTextColor="#6B7280"
+            style={styles.searchInput}
+            returnKeyType="search"
+            autoCorrect={false}
+          />
+        </View>
 
         {loading && brands.length === 0 ? (
           <View style={styles.grid}>
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <View key={i} style={styles.brandCard}>
-                <Skeleton width={64} height={64} radius={32} />
-                <Skeleton width={56} height={14} style={styles.gapTop} />
-                <Skeleton width="100%" height={36} radius={Radius.button} style={styles.followButton} />
+              <View key={i} style={styles.brandCardWrap}>
+                <View style={styles.brandCard}>
+                  <Skeleton width={64} height={64} radius={32} />
+                  <Skeleton width={56} height={14} style={styles.gapTop} />
+                </View>
               </View>
             ))}
           </View>
@@ -67,36 +119,20 @@ export default function OnboardingBrandsScreen() {
             title="No brands tracked yet"
             body="Add brands in your backend and they'll appear here."
           />
+        ) : filteredBrands.length === 0 ? (
+          <ThemedText type="default" themeColor="textSecondary" style={styles.noResults}>
+            No brands match &ldquo;{query}&rdquo;.
+          </ThemedText>
         ) : (
           <View style={styles.grid}>
-            {visibleBrands.map((b) => {
-              const selected = brandIds.includes(b.id);
-              return (
-                <View key={b.id} style={styles.brandCard}>
-                  <BrandLogo initials={b.initials} size={64} />
-                  <ThemedText type="smallBold" numberOfLines={1}>
-                    {b.name}
-                  </ThemedText>
-                  <SecondaryButton
-                    label={selected ? 'Following' : 'Follow'}
-                    icon={selected ? 'checkmark' : 'add'}
-                    variant="outline"
-                    style={styles.followButton}
-                    onPress={() => toggleBrand(b.id)}
-                  />
-                </View>
-              );
-            })}
-            {hasMore && (
-              <Pressable style={styles.viewMoreCard} onPress={() => setShowAll(true)}>
-                <ThemedText type="headline" themeColor="textSecondary">
-                  •••
-                </ThemedText>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  View More
-                </ThemedText>
-              </Pressable>
-            )}
+            {filteredBrands.map((b) => (
+              <BrandCard
+                key={b.id}
+                brand={b}
+                selected={brandIds.includes(b.id)}
+                onPress={() => toggleBrand(b.id)}
+              />
+            ))}
           </View>
         )}
       </ScrollView>
@@ -115,27 +151,40 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.two,
   },
-  progressTrack: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#B7131A',
+  headerSpacer: {
+    width: 24,
+  },
+  wordmark: {
+    color: '#B7131A',
   },
   content: {
     paddingHorizontal: Spacing.four,
     gap: Spacing.two,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.three,
   },
   title: {
-    color: '#B7131A',
-    textAlign: 'center',
+    marginTop: Spacing.three,
   },
-  subtitle: {
-    textAlign: 'center',
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    backgroundColor: '#F8F9FB',
+    borderRadius: Radius.chip,
+    paddingHorizontal: Spacing.three,
+    height: 48,
+    marginTop: Spacing.three,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'Montserrat_500Medium',
+    color: '#171717',
+    padding: 0,
   },
   grid: {
     flexDirection: 'row',
@@ -143,9 +192,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: Spacing.four,
   },
-  brandCard: {
+  brandCardWrap: {
     width: '48%',
     marginBottom: Spacing.three,
+  },
+  brandCard: {
     alignItems: 'center',
     gap: Spacing.two,
     padding: Spacing.three,
@@ -154,25 +205,19 @@ const styles = StyleSheet.create({
     borderColor: '#F0DADA',
     backgroundColor: '#FFFFFF',
   },
-  followButton: {
-    marginTop: Spacing.one,
-    alignSelf: 'stretch',
+  brandCardSelected: {
+    backgroundColor: '#B7131A',
+    borderColor: '#B7131A',
+  },
+  brandNameSelected: {
+    color: '#FFFFFF',
   },
   gapTop: {
     marginTop: Spacing.two,
   },
-  viewMoreCard: {
-    width: '48%',
-    marginBottom: Spacing.three,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#D1D5DB',
-    minHeight: 140,
+  noResults: {
+    textAlign: 'center',
+    marginTop: Spacing.six,
   },
   footer: {
     paddingHorizontal: Spacing.four,
