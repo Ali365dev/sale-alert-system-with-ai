@@ -13,11 +13,21 @@ interface Props {
   disabled?: boolean;
   style?: ViewStyle;
   icon?: keyof typeof Ionicons.glyphMap;
+  iconPosition?: 'left' | 'right';
   pill?: boolean;
 }
 
-export function PrimaryButton({ label, onPress, disabled, style, icon, pill }: Props) {
+export function PrimaryButton({
+  label,
+  onPress,
+  disabled,
+  style,
+  icon,
+  iconPosition = 'right',
+  pill,
+}: Props) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
+  const iconEl = icon && <Ionicons name={icon} size={18} color="#FFFFFF" />;
 
   return (
     <Animated.View style={[animatedStyle, style]}>
@@ -27,10 +37,11 @@ export function PrimaryButton({ label, onPress, disabled, style, icon, pill }: P
         onPressOut={onPressOut}
         disabled={disabled}
         style={[styles.button, pill && styles.pill, disabled && styles.disabled]}>
+        {iconPosition === 'left' && iconEl}
         <ThemedText type="label" style={styles.label}>
           {label}
         </ThemedText>
-        {icon && <Ionicons name={icon} size={18} color="#FFFFFF" />}
+        {iconPosition === 'right' && iconEl}
       </Pressable>
     </Animated.View>
   );
@@ -49,7 +60,7 @@ const styles = StyleSheet.create({
   },
   pill: {
     borderRadius: Radius.chip,
-    paddingVertical: Spacing.four - 2,
+    paddingVertical: Spacing.three - 2,
   },
   disabled: {
     opacity: 0.4,

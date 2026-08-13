@@ -245,6 +245,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.four,
   },
   rowList: {
+    flexDirection: 'row',
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
   },

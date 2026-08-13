@@ -1,156 +1,147 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AlertStatTile } from '@/components/dealpulse/alert-stat-tile';
 import { AnimatedListItem } from '@/components/dealpulse/animated-list-item';
 import { EmptyState } from '@/components/dealpulse/empty-state';
-import { FilterChip } from '@/components/dealpulse/filter-chip';
+import { PrimaryButton } from '@/components/dealpulse/primary-button';
 import { TopAppBar } from '@/components/dealpulse/top-app-bar';
-import { usePressScale } from '@/components/dealpulse/use-press-scale';
+import { TrackedAlertCard } from '@/components/dealpulse/tracked-alert-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, Radius, Shadow, Spacing } from '@/constants/theme';
-import { useAppData } from '@/state/data';
-import { AlertItem } from '@/types/dealpulse';
+import { BottomTabInset, Colors, Radius, Spacing } from '@/constants/theme';
+import { shortConditionLabel, useAlerts } from '@/state/alerts';
+import { TrackedAlert } from '@/types/dealpulse';
 
-const ICON_BY_KIND: Record<AlertItem['kind'], keyof typeof Ionicons.glyphMap> = {
-  'price-drop': 'heart',
-  'new-brand': 'pricetag',
-  'flash-sale': 'stopwatch',
-};
-
-const CIRCLE_BG: Record<AlertItem['kind'], string> = {
-  'price-drop': '#DCEAFB',
-  'new-brand': '#8A7A00',
-  'flash-sale': '#FBDCDC',
-};
-
-const ICON_COLOR: Record<AlertItem['kind'], string> = {
-  'price-drop': '#171717',
-  'new-brand': '#FFFFFF',
-  'flash-sale': '#B7131A',
-};
-
-const FILTERS = ['All Alerts', 'New Deals', 'Expiring Soon'] as const;
-
-function AlertRow({ item, onPress }: { item: AlertItem; onPress: () => void }) {
-  const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
-  const urgent = item.kind === 'flash-sale' && !item.read;
-
-  return (
-    <Animated.View style={animatedStyle}>
-      <Pressable
-        style={[styles.card, urgent && styles.cardUrgent]}
-        onPress={onPress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}>
-        <View
-          style={[
-            styles.iconCircle,
-            { backgroundColor: item.read ? '#EDEDED' : CIRCLE_BG[item.kind] },
-          ]}>
-          <Ionicons
-            name={item.read ? 'notifications' : ICON_BY_KIND[item.kind]}
-            size={20}
-            color={item.read ? '#9CA3AF' : ICON_COLOR[item.kind]}
-          />
-        </View>
-        <View style={styles.textBlock}>
-          <View style={styles.titleRow}>
-            <ThemedText
-              type="smallBold"
-              themeColor={item.read ? 'textSecondary' : 'text'}
-              numberOfLines={1}
-              style={styles.title}>
-              {item.title}
-            </ThemedText>
-            {urgent ? (
-              <View style={styles.timeBadge}>
-                <ThemedText type="label" style={styles.timeBadgeLabel}>
-                  {item.time}
-                </ThemedText>
-              </View>
-            ) : (
-              <ThemedText type="small" themeColor="textSecondary">
-                {item.time}
-              </ThemedText>
-            )}
-          </View>
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
-            {item.body}
-          </ThemedText>
-          {urgent && (
-            <ThemedText type="label" style={styles.viewDeal}>
-              VIEW DEAL
-            </ThemedText>
-          )}
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-export default function AlertsScreen() {
+export default function AlertsDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { alerts, error, refresh } = useAppData();
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All Alerts');
+  const { alerts, removeAlert, toggleTriggered } = useAlerts();
 
-  const visible = useMemo(() => {
-    if (filter === 'New Deals') return alerts.filter((a) => !a.read);
-    if (filter === 'Expiring Soon') return alerts.filter((a) => a.kind === 'flash-sale');
-    return alerts;
-  }, [alerts, filter]);
+  const stats = useMemo(() => {
+    const products = new Set(alerts.filter((a) => a.type === 'product').map((a) => a.id)).size;
+    const brands = new Set(alerts.map((a) => a.brandName)).size;
+    const triggered = alerts.filter((a) => a.status === 'triggered').length;
+    return { active: alerts.length, products, brands, triggered };
+  }, [alerts]);
+
+  const recentlyTriggered = useMemo(
+    () => alerts.find((a) => a.status === 'triggered') ?? null,
+    [alerts]
+  );
+
+  const topSection = (
+    <View style={styles.header}>
+      <ThemedText type="title" style={styles.title}>
+        Sale Alerts
+      </ThemedText>
+      <ThemedText type="default" themeColor="textSecondary" style={styles.subtitle}>
+        Get notified when your favorite products or brands go on sale.
+      </ThemedText>
+       {alerts.length !== 0 ? (
+      <PrimaryButton
+        label="Create Alert"
+        icon="add"
+        iconPosition="left"
+        pill
+        onPress={() => router.push('/create-alert')}
+        style={styles.createButton}
+      />) : null}
+    </View>
+  );
+
+  const statsSection = (
+    <View>
+      <View style={styles.statGrid}>
+        <AlertStatTile icon="notifications" value={stats.active} label="Active Alerts" tone="primary" />
+        <AlertStatTile icon="file-tray-stacked-outline" value={stats.products} label="Products" />
+        <AlertStatTile icon="storefront-outline" value={stats.brands} label="Brands" />
+        <AlertStatTile icon="flash" value={stats.triggered} label="Triggered" tone="accent" />
+      </View>
+
+      {recentlyTriggered && (
+        <View style={styles.triggeredBanner}>
+          <View style={styles.triggeredHeader}>
+            <View style={styles.triggeredBadge}>
+              <Ionicons name="flash" size={14} color="#F5CB1B" />
+            </View>
+            <ThemedText type="label" style={styles.triggeredLabel}>
+              RECENTLY TRIGGERED
+            </ThemedText>
+          </View>
+          <View style={styles.triggeredBottomRow}>
+            <ThemedText type="default" style={styles.triggeredMessage}>
+              {recentlyTriggered.productName ?? recentlyTriggered.brandName} is now{' '}
+              <ThemedText type="smallBold">
+                {shortConditionLabel(recentlyTriggered.condition, recentlyTriggered.conditionValue)}
+              </ThemedText>
+            </ThemedText>
+            <Pressable
+              style={styles.viewDealButton}
+              onPress={() =>
+                recentlyTriggered.brandId && router.push(`/brand/${recentlyTriggered.brandId}`)
+              }>
+              <ThemedText type="label" style={styles.viewDealLabel}>
+                View Deal
+              </ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      <ThemedText type="subtitle" style={styles.manageTitle}>
+        Manage Alerts
+      </ThemedText>
+    </View>
+  );
 
   return (
     <ThemedView style={styles.container}>
-      <TopAppBar />
-      {error && alerts.length === 0 ? (
-        <EmptyState
-          variant="error"
-          icon="warning-outline"
-          title="Couldn't load alerts"
-          body="Check your connection and try again."
-          ctaLabel="Try again"
-          onPressCta={refresh}
-        />
-      ) : alerts.length === 0 ? (
-        <EmptyState
-          icon="notifications-outline"
-          title="No alerts yet"
-          body="Once your backend tracks new offers, flash sales and new-brand alerts will show up here."
-          ctaLabel="Refresh"
-          onPressCta={refresh}
-        />
+      <TopAppBar rightIcon="notifications-outline" onPressRight={() => router.push('/notifications')} />
+
+      {alerts.length === 0 ? (
+        <ScrollView
+          contentContainerStyle={[
+            styles.emptyWrap,
+            { paddingBottom: insets.bottom + BottomTabInset },
+          ]}
+          showsVerticalScrollIndicator={false}>
+          {topSection}
+          <EmptyState
+            icon="pricetag-outline"
+            title="No alerts yet"
+            body="Track a product or brand to get notified the moment it goes on sale."
+            ctaLabel="Create Alert"
+            onPressCta={() => router.push('/create-alert')}
+          />
+        </ScrollView>
       ) : (
         <FlatList
-          data={visible}
+          data={alerts}
           keyExtractor={(a) => a.id}
           contentContainerStyle={[
             styles.content,
             { paddingBottom: insets.bottom + BottomTabInset },
           ]}
           ListHeaderComponent={
-            <View style={styles.header}>
-              <ThemedText type="title">Notifications</ThemedText>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterRow}>
-                {FILTERS.map((f) => (
-                  <FilterChip key={f} label={f} selected={filter === f} onPress={() => setFilter(f)} />
-                ))}
-              </ScrollView>
-            </View>
+            <>
+              {topSection}
+              {statsSection}
+            </>
           }
-          renderItem={({ item, index }) => (
+          renderItem={({ item, index }: { item: TrackedAlert; index: number }) => (
             <AnimatedListItem index={index}>
-              <AlertRow item={item} onPress={() => item.brandId && router.push(`/brand/${item.brandId}`)} />
+              <TrackedAlertCard
+                alert={item}
+                onDelete={() => removeAlert(item.id)}
+                onToggleTriggered={() => toggleTriggered(item.id)}
+              />
             </AnimatedListItem>
           )}
+          ItemSeparatorComponent={() => <View style={{ height: Spacing.two }} />}
         />
       )}
     </ThemedView>
@@ -160,67 +151,79 @@ export default function AlertsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.light.backgroundElement,
+  },
+  emptyWrap: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.three,
   },
   content: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-    gap: Spacing.three,
   },
   header: {
-    gap: Spacing.three,
     marginBottom: Spacing.two,
   },
-  filterRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
+  title: {
+    marginBottom: 2,
   },
-  card: {
+  subtitle: {
+    marginBottom: Spacing.three,
+  },
+  createButton: {
+    // alignSelf: 'flex-start',
+    width:"50%",
+    marginBottom: Spacing.four,
+  },
+  statGrid: {
     flexDirection: 'row',
-    gap: Spacing.three,
-    backgroundColor: '#FFFFFF',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  triggeredBanner: {
+    backgroundColor: '#F5CB1B',
     borderRadius: Radius.card,
-    borderWidth: 1,
-    borderColor: '#F0DADA',
     padding: Spacing.three,
     marginBottom: Spacing.three,
-    ...Shadow.card,
+    gap: Spacing.two,
   },
-  cardUrgent: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#B7131A',
+  triggeredHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  triggeredBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#171717',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textBlock: {
-    flex: 1,
-    gap: 4,
+  triggeredLabel: {
+    color: '#171717',
+    letterSpacing: 0.5,
   },
-  titleRow: {
+  triggeredBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.two,
   },
-  title: {
+  triggeredMessage: {
     flex: 1,
+    color: '#171717',
   },
-  timeBadge: {
-    backgroundColor: '#DB322F',
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 2,
+  viewDealButton: {
+    backgroundColor: '#171717',
     borderRadius: Radius.chip,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
   },
-  timeBadgeLabel: {
+  viewDealLabel: {
     color: '#FFFFFF',
-    fontSize: 11,
   },
-  viewDeal: {
-    color: '#B7131A',
-    marginTop: 2,
+  manageTitle: {
+    marginBottom: Spacing.one,
   },
 });

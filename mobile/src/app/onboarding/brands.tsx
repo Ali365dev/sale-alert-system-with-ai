@@ -8,11 +8,13 @@ import { BrandLogo } from '@/components/dealpulse/brand-logo';
 import { EmptyState } from '@/components/dealpulse/empty-state';
 import { PrimaryButton } from '@/components/dealpulse/primary-button';
 import { SecondaryButton } from '@/components/dealpulse/secondary-button';
+import { Skeleton } from '@/components/dealpulse/skeleton';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppData } from '@/state/data';
 import { useOnboarding } from '@/state/onboarding';
+import { useOnboardingGate } from '@/state/onboarding-gate';
 
 const PAGE_SIZE = 5;
 
@@ -21,12 +23,16 @@ export default function OnboardingBrandsScreen() {
   const insets = useSafeAreaInsets();
   const { brands, loading } = useAppData();
   const { brandIds, toggleBrand } = useOnboarding();
+  const { completeOnboarding } = useOnboardingGate();
   const [showAll, setShowAll] = useState(false);
 
   const visibleBrands = showAll ? brands : brands.slice(0, PAGE_SIZE);
   const hasMore = !showAll && brands.length > PAGE_SIZE;
 
-  const finish = () => router.replace('/(tabs)');
+  const finish = () => {
+    completeOnboarding();
+    router.replace('/(tabs)');
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -45,7 +51,17 @@ export default function OnboardingBrandsScreen() {
           Get instant alerts when they drop a new deal.
         </ThemedText>
 
-        {!loading && brands.length === 0 ? (
+        {loading && brands.length === 0 ? (
+          <View style={styles.grid}>
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <View key={i} style={styles.brandCard}>
+                <Skeleton width={64} height={64} radius={32} />
+                <Skeleton width={56} height={14} style={styles.gapTop} />
+                <Skeleton width="100%" height={36} radius={Radius.button} style={styles.followButton} />
+              </View>
+            ))}
+          </View>
+        ) : !loading && brands.length === 0 ? (
           <EmptyState
             icon="business-outline"
             title="No brands tracked yet"
@@ -124,11 +140,12 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.three,
+    justifyContent: 'space-between',
     marginTop: Spacing.four,
   },
   brandCard: {
     width: '48%',
+    marginBottom: Spacing.three,
     alignItems: 'center',
     gap: Spacing.two,
     padding: Spacing.three,
@@ -141,8 +158,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.one,
     alignSelf: 'stretch',
   },
+  gapTop: {
+    marginTop: Spacing.two,
+  },
   viewMoreCard: {
     width: '48%',
+    marginBottom: Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.two,

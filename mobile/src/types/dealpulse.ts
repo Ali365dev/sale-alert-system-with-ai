@@ -49,3 +49,28 @@ export interface AlertItem {
   brandId: string | null;
   read: boolean;
 }
+
+export type AlertCondition = 'any_sale' | '10_off' | '20_off' | '30_off' | 'custom' | 'price_below';
+
+export interface AlertChannels {
+  push: boolean;
+  email: boolean;
+  inApp: boolean;
+}
+
+export interface TrackedAlert {
+  id: string;
+  type: 'product' | 'brand';
+  brandId: string | null;
+  brandName: string;
+  productName: string | null;
+  productUrl: string | null;
+  image: string | null;
+  currentPrice: number | null;
+  originalPrice: number | null;
+  condition: AlertCondition;
+  conditionValue: number | null;
+  channels: AlertChannels;
+  status: 'active' | 'triggered';
+  createdAt: string;
+}

@@ -51,10 +51,12 @@ export function SelectableCard({
 
 const styles = StyleSheet.create({
   wrapper: {
-    flexBasis: '48%',
+    width: '48%',
+    marginBottom: Spacing.three,
   },
   wrapperFull: {
-    flexBasis: '100%',
+    width: '100%',
+    marginBottom: Spacing.three,
   },
   card: {
     backgroundColor: '#FFFFFF',

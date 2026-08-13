@@ -17,15 +17,27 @@ const FALLBACK_CATEGORIES = ['Fashion', 'Electronics', 'Beauty', 'Food', 'Travel
 const ICONS: { match: RegExp; icon: keyof typeof Ionicons.glyphMap }[] = [
   { match: /fashion|apparel|clothing|retail/i, icon: 'shirt-outline' },
   { match: /electronic|software|tech/i, icon: 'laptop-outline' },
-  { match: /beauty|cosmetic/i, icon: 'happy-outline' },
-  { match: /food|restaurant|grocery/i, icon: 'restaurant-outline' },
+  { match: /beauty|cosmetic|personal care|skincare/i, icon: 'happy-outline' },
+  { match: /food|restaurant|grocery|dining/i, icon: 'restaurant-outline' },
   { match: /travel/i, icon: 'airplane-outline' },
-  { match: /sport|fitness/i, icon: 'football-outline' },
-  { match: /home|furniture/i, icon: 'home-outline' },
-  { match: /gaming|game/i, icon: 'game-controller-outline' },
+  { match: /sport|fitness|outdoor/i, icon: 'football-outline' },
+  { match: /home|furniture|garden/i, icon: 'home-outline' },
+  { match: /gaming|game|entertainment|movie|music/i, icon: 'game-controller-outline' },
+  { match: /news|media/i, icon: 'newspaper-outline' },
+  { match: /footwear|shoe/i, icon: 'footsteps-outline' },
+  { match: /web|digital|service/i, icon: 'globe-outline' },
+  { match: /pet|animal/i, icon: 'paw-outline' },
+  { match: /book|education|learning/i, icon: 'book-outline' },
+  { match: /health|wellness|medical/i, icon: 'medkit-outline' },
+  { match: /automotive|car|vehicle/i, icon: 'car-outline' },
+  { match: /jewelry|jewellery|accessor|watch/i, icon: 'diamond-outline' },
+  { match: /baby|kid|toy/i, icon: 'gift-outline' },
+  { match: /office|stationery/i, icon: 'briefcase-outline' },
 ];
-function iconFor(name: string): keyof typeof Ionicons.glyphMap | undefined {
-  return ICONS.find((c) => c.match.test(name))?.icon;
+const DEFAULT_ICON: keyof typeof Ionicons.glyphMap = 'pricetag-outline';
+
+function iconFor(name: string): keyof typeof Ionicons.glyphMap {
+  return ICONS.find((c) => c.match.test(name))?.icon ?? DEFAULT_ICON;
 }
 
 export default function OnboardingCategoriesScreen() {
@@ -112,7 +124,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.three,
+    justifyContent: 'space-between',
     marginTop: Spacing.four,
   },
   footer: {
