@@ -65,6 +65,7 @@ function RootNavigator() {
         <Stack.Screen name="search" options={{ presentation: 'card' }} />
         <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
         <Stack.Screen name="create-alert" options={{ presentation: 'card' }} />
+        <Stack.Screen name="privacy" options={{ presentation: 'card' }} />
       </Stack.Protected>
     </Stack>
   );

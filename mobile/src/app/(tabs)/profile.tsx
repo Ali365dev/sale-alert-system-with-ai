@@ -18,6 +18,7 @@ interface SettingsRow {
   label: string;
   subtitle: string;
   kind: 'toggle' | 'link';
+  onPress?: () => void;
 }
 
 export default function ProfileScreen() {
@@ -48,6 +49,13 @@ export default function ProfileScreen() {
     },
     { icon: 'moon-outline', label: 'Dark Mode', subtitle: 'Switch app appearance', kind: 'toggle' },
     { icon: 'help-circle-outline', label: 'Help & Support', subtitle: 'FAQ, Contact us', kind: 'link' },
+    {
+      icon: 'shield-checkmark-outline',
+      label: 'Privacy Policy',
+      subtitle: 'How we handle your data',
+      kind: 'link',
+      onPress: () => router.push('/privacy'),
+    },
   ];
 
   return (
@@ -115,26 +123,30 @@ export default function ProfileScreen() {
           <View style={styles.settingsHeader}>
             <ThemedText type="subtitle">Account Settings</ThemedText>
           </View>
-          {rows.map((row, i) => (
-            <View
-              key={row.label}
-              style={[styles.settingRow, i === rows.length - 1 && styles.settingRowLast]}>
-              <View style={styles.settingIconCircle}>
-                <Ionicons name={row.icon} size={18} color="#171717" />
-              </View>
-              <View style={styles.settingText}>
-                <ThemedText type="default">{row.label}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {row.subtitle}
-                </ThemedText>
-              </View>
-              {row.kind === 'toggle' ? (
-                <Switch value={darkMode} onValueChange={setDarkMode} trackColor={{ false: '#E5E7EB', true: '#B7131A' }} />
-              ) : (
-                <Ionicons name="chevron-forward" size={18} color="#6B7280" />
-              )}
-            </View>
-          ))}
+          {rows.map((row, i) => {
+            const Row = row.onPress ? Pressable : View;
+            return (
+              <Row
+                key={row.label}
+                onPress={row.onPress}
+                style={[styles.settingRow, i === rows.length - 1 && styles.settingRowLast]}>
+                <View style={styles.settingIconCircle}>
+                  <Ionicons name={row.icon} size={18} color="#171717" />
+                </View>
+                <View style={styles.settingText}>
+                  <ThemedText type="default">{row.label}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {row.subtitle}
+                  </ThemedText>
+                </View>
+                {row.kind === 'toggle' ? (
+                  <Switch value={darkMode} onValueChange={setDarkMode} trackColor={{ false: '#E5E7EB', true: '#B7131A' }} />
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color="#6B7280" />
+                )}
+              </Row>
+            );
+          })}
         </View>
 
         <Pressable style={styles.logoutButton}>
