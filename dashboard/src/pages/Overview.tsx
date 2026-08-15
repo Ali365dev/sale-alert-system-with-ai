@@ -110,7 +110,7 @@ export function Overview() {
 
         <Card>
           <CardHeader icon={<Icon.pie size={16} style={{ color: "var(--brand)" }} />} title="Top categories" />
-          {top_categories.length ? <BarList items={top_categories} color="var(--azure-400)" /> : <Empty />}
+          {top_categories.length ? <BarList items={top_categories} color="var(--primary-400)" /> : <Empty />}
         </Card>
 
         <Card>

@@ -10,13 +10,13 @@
   --text-body: #c3ccc8;
   --text-muted: #95a09b;
   --text-faint: #6b756f;
-  --text-link: var(--azure-300);
+  --text-link: var(--primary-300);
 
-  --brand: #208aef;
-  --brand-hover: #479ef3;
-  --brand-active: #79b7f8;
-  --brand-subtle: rgba(32, 138, 239, 0.16);
-  --brand-subtle-2: rgba(32, 138, 239, 0.34);
+  --brand: #e7000b;
+  --brand-hover: #f23139;
+  --brand-active: #f76169;
+  --brand-subtle: rgba(231, 0, 11, 0.16);
+  --brand-subtle-2: rgba(231, 0, 11, 0.34);
   --on-brand: #ffffff;
 
   --success: #34c88a;
@@ -37,7 +37,7 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.42);
   --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.5);
-  --shadow-brand: 0 6px 16px rgba(32, 138, 239, 0.28);
+  --shadow-brand: 0 6px 16px rgba(231, 0, 11, 0.28);
 
   --row-pad: 13px;
 }
@@ -52,10 +52,10 @@
   --text-body: #353d39;
   --text-muted: #6b756f;
   --text-faint: #9ba6a1;
-  --text-link: var(--azure-600);
+  --text-link: var(--primary-600);
 
-  --brand-subtle: #eaf4fe;
-  --brand-subtle-2: #d2e8fd;
+  --brand-subtle: #fdedee;
+  --brand-subtle-2: #fad6d8;
 
   --success: #0b8a57;
   --success-subtle: #ecfdf5;

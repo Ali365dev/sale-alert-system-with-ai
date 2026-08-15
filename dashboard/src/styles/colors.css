@@ -1,21 +1,21 @@
 /* SpendRo — Color tokens
-   Brand hue: azure blue (#208AEF — trustworthy, modern fintech).
+   Brand hue: DealPulse red (#B7131A — matches the mobile app's brand mark).
    Emerald is retained as the money / income ("on track") accent.
    Base scales + semantic aliases. Reference semantic aliases in components. */
 
 :root {
-  /* ---- Brand / Azure ---- */
-  --azure-50:  #EAF4FE;
-  --azure-100: #D2E8FD;
-  --azure-200: #ABD3FB;
-  --azure-300: #79B7F8;
-  --azure-400: #479EF3;
-  --azure-500: #208AEF; /* PRIMARY brand */
-  --azure-600: #1670CC;
-  --azure-700: #1359A2;
-  --azure-800: #134A83;
-  --azure-900: #123C69;
-  --azure-950: #0C2747;
+  /* ---- Brand / Primary (DealPulse red) ---- */
+  --primary-50:  #FDEDEE;
+  --primary-100: #FAD6D8;
+  --primary-200: #F3AEB2;
+  --primary-300: #E8848A;
+  --primary-400: #DB484F;
+  --primary-500: #B7131A; /* PRIMARY brand */
+  --primary-600: #9A0F15;
+  --primary-700: #7D0C11;
+  --primary-800: #630A0D;
+  --primary-900: #4A0709;
+  --primary-950: #300406;
 
   /* ---- Money / Emerald (income, positive, "on track") ---- */
   --emerald-50:  #ECFDF5;
@@ -63,11 +63,11 @@
   /* ===================== SEMANTIC ALIASES ===================== */
 
   /* Brand */
-  --brand:            var(--azure-500);
-  --brand-hover:      var(--azure-600);
-  --brand-active:     var(--azure-700);
-  --brand-subtle:     var(--azure-50);
-  --brand-subtle-2:   var(--azure-100);
+  --brand:            var(--primary-500);
+  --brand-hover:      var(--primary-600);
+  --brand-active:     var(--primary-700);
+  --brand-subtle:     var(--primary-50);
+  --brand-subtle-2:   var(--primary-100);
   --on-brand:         var(--neutral-0);
 
   /* Surfaces */
@@ -83,12 +83,12 @@
   --text-muted:       var(--neutral-500);  /* secondary / captions */
   --text-faint:       var(--neutral-400);  /* placeholder, disabled */
   --text-on-inverse:  var(--neutral-50);
-  --text-link:        var(--azure-600);
+  --text-link:        var(--primary-600);
 
   /* Borders */
   --border:           var(--neutral-200);
   --border-strong:    var(--neutral-300);
-  --border-focus:     var(--azure-500);
+  --border-focus:     var(--primary-500);
 
   /* Money & status semantics */
   --income:           var(--emerald-600);  /* positive / money in */
@@ -107,5 +107,5 @@
   --ai-subtle:        var(--iris-100);
 
   /* Focus ring */
-  --ring: 0 0 0 3px rgba(32, 138, 239, 0.30);
+  --ring: 0 0 0 3px rgba(183, 19, 26, 0.30);
 }

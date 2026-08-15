@@ -40,7 +40,7 @@ export function Analytics() {
 
         <Card>
           <CardHeader icon={<Icon.pie size={16} style={{ color: "var(--brand)" }} />} title="Offers by category" />
-          {offers_by_category.length ? <BarList items={offers_by_category} color="var(--azure-400)" /> : <Empty />}
+          {offers_by_category.length ? <BarList items={offers_by_category} color="var(--primary-400)" /> : <Empty />}
         </Card>
 
         <Card>
