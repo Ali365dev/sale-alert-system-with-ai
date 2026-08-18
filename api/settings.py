@@ -23,9 +23,15 @@ def _cookie_kwargs() -> dict:
     so the cookie must be sendable cross-site), otherwise SameSite=Lax with
     no Secure flag (local http dev — browsers silently drop Secure cookies
     set over a plain http response, so None+Secure would break login there).
-    X-Forwarded-Proto is what Render's proxy sets; request.scheme covers
-    local dev where there's no proxy in front of Flask."""
-    is_https = request.headers.get("X-Forwarded-Proto", request.scheme) == "https"
+    X-Forwarded-Proto is what the proxy chain sets; request.scheme covers
+    local dev where there's no proxy in front of Flask. Render sits behind
+    Cloudflare on *.onrender.com, so this can arrive as a comma-separated
+    list (e.g. "https, http") — take the first hop (the original client-
+    facing proxy, standard X-Forwarded-Proto convention) rather than
+    exact-matching the whole header, which would silently misdetect and
+    fall back to the broken Lax/non-secure cookie."""
+    proto = request.headers.get("X-Forwarded-Proto", request.scheme)
+    is_https = proto.split(",")[0].strip().lower() == "https"
     return {"samesite": "None", "secure": True} if is_https else {"samesite": "Lax", "secure": False}
 
 
