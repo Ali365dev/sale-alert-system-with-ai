@@ -18,21 +18,20 @@ def _actor() -> str:
 
 
 def _cookie_kwargs() -> dict:
-    """SameSite=None;Secure when the request arrived over HTTPS (deployed —
-    dashboard and API are on different sites, e.g. localhost vs. onrender.com,
+    """SameSite=None;Secure when the request isn't local dev (deployed —
+    dashboard and API are on different sites, e.g. vercel.app vs. onrender.com,
     so the cookie must be sendable cross-site), otherwise SameSite=Lax with
     no Secure flag (local http dev — browsers silently drop Secure cookies
     set over a plain http response, so None+Secure would break login there).
-    X-Forwarded-Proto is what the proxy chain sets; request.scheme covers
-    local dev where there's no proxy in front of Flask. Render sits behind
-    Cloudflare on *.onrender.com, so this can arrive as a comma-separated
-    list (e.g. "https, http") — take the first hop (the original client-
-    facing proxy, standard X-Forwarded-Proto convention) rather than
-    exact-matching the whole header, which would silently misdetect and
-    fall back to the broken Lax/non-secure cookie."""
-    proto = request.headers.get("X-Forwarded-Proto", request.scheme)
-    is_https = proto.split(",")[0].strip().lower() == "https"
-    return {"samesite": "None", "secure": True} if is_https else {"samesite": "Lax", "secure": False}
+    Deliberately keyed off request.host rather than X-Forwarded-Proto: behind
+    Render + Cloudflare's proxy chain that header isn't reliably forwarded as
+    "https", which was silently downgrading every deployed login to the
+    broken Lax/non-secure cookie (never sent back on cross-site requests).
+    Render never serves plain HTTP in production, so "not localhost" is a
+    safe proxy for "https" here."""
+    host = request.host.split(":")[0]
+    is_local = host in ("localhost", "127.0.0.1")
+    return {"samesite": "Lax", "secure": False} if is_local else {"samesite": "None", "secure": True}
 
 
 # ── Auth ─────────────────────────────────────────────────────────────────────
