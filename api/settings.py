@@ -17,6 +17,18 @@ def _actor() -> str:
     return "admin"
 
 
+def _cookie_kwargs() -> dict:
+    """SameSite=None;Secure when the request arrived over HTTPS (deployed —
+    dashboard and API are on different sites, e.g. localhost vs. onrender.com,
+    so the cookie must be sendable cross-site), otherwise SameSite=Lax with
+    no Secure flag (local http dev — browsers silently drop Secure cookies
+    set over a plain http response, so None+Secure would break login there).
+    X-Forwarded-Proto is what Render's proxy sets; request.scheme covers
+    local dev where there's no proxy in front of Flask."""
+    is_https = request.headers.get("X-Forwarded-Proto", request.scheme) == "https"
+    return {"samesite": "None", "secure": True} if is_https else {"samesite": "Lax", "secure": False}
+
+
 # ── Auth ─────────────────────────────────────────────────────────────────────
 
 @bp.post("/login")
@@ -34,7 +46,7 @@ def login():
     resp = make_response(jsonify({"status": "ok"}))
     resp.set_cookie(
         settings_auth.SESSION_COOKIE, settings_auth.create_session_token(),
-        max_age=settings_auth.SESSION_MAX_AGE, httponly=True, samesite="Lax",
+        max_age=settings_auth.SESSION_MAX_AGE, httponly=True, **_cookie_kwargs(),
     )
     return resp
 
@@ -42,7 +54,7 @@ def login():
 @bp.post("/logout")
 def logout():
     resp = make_response(jsonify({"status": "ok"}))
-    resp.delete_cookie(settings_auth.SESSION_COOKIE)
+    resp.delete_cookie(settings_auth.SESSION_COOKIE, **_cookie_kwargs())
     return resp
 
 
