@@ -4,7 +4,10 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
 import App from "./App.tsx";
+import { initClarity } from "./lib/clarity.ts";
 import "./styles/index.css";
+
+initClarity();
 
 const queryClient = new QueryClient();
 
