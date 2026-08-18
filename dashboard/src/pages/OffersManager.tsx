@@ -42,7 +42,7 @@ function OffersTable() {
   const q = search.trim().toLowerCase();
   const offers = q
     ? data?.offers.filter((o) =>
-        [o.brand, o.company, o.category, o.subcategory, o.offer_type, o.coupon_code, o.summary, o.website]
+        [o.title, o.brand, o.company, o.category, o.subcategory, o.offer_type, o.coupon_code, o.summary, o.website]
           .filter((v): v is string => !!v)
           .some((v) => v.toLowerCase().includes(q)),
       )
@@ -81,7 +81,7 @@ function OffersTable() {
           <TextInput
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search brand, category, type, coupon code, or summary…"
+            placeholder="Search title, brand, category, type, coupon code, or summary…"
             aria-label="Search offers"
             autoComplete="off"
             autoCorrect="off"
@@ -178,7 +178,7 @@ function OffersTable() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "60px 120px 110px 100px 90px 100px 90px 120px 220px",
+                  gridTemplateColumns: "60px minmax(180px, 1fr) 120px 110px 100px 90px 100px 90px 120px 220px",
                   gap: 12,
                   padding: "11px 20px",
                   background: "var(--surface-sunken)",
@@ -191,6 +191,7 @@ function OffersTable() {
                 }}
               >
                 <span>ID</span>
+                <span>Title</span>
                 <span>Brand</span>
                 <span>Category</span>
                 <span>Type</span>
@@ -211,7 +212,7 @@ function OffersTable() {
                   key={offer.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "60px 120px 110px 100px 90px 100px 90px 120px 220px",
+                    gridTemplateColumns: "60px minmax(180px, 1fr) 120px 110px 100px 90px 100px 90px 120px 220px",
                     alignItems: "center",
                     gap: 12,
                     padding: "var(--row-pad) 20px",
@@ -220,6 +221,17 @@ function OffersTable() {
                   }}
                 >
                   <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{offer.id}</span>
+                  <span
+                    title={offer.title ?? undefined}
+                    style={{
+                      color: offer.title ? "var(--text-body)" : "var(--text-faint)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {offer.title ?? "—"}
+                  </span>
                   <span style={{ fontWeight: 600, color: "var(--text-strong)" }}>{offer.brand ?? "—"}</span>
                   <span>{offer.category ?? "—"}</span>
                   <span style={{ color: "var(--text-muted)" }}>{offer.offer_type ?? "—"}</span>
@@ -272,6 +284,7 @@ function OffersTable() {
       {viewing && (
         <Modal title={`Offer #${viewing.id} — ${viewing.brand ?? "Unknown brand"}`} onClose={() => setViewing(null)}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: "var(--text-body)" }}>
+            <div><strong style={{ color: "var(--text-strong)" }}>Title:</strong> {viewing.title ?? "— (no source email)"}</div>
             <div><strong style={{ color: "var(--text-strong)" }}>Category:</strong> {viewing.category ?? "—"} / {viewing.subcategory ?? "—"}</div>
             <div><strong style={{ color: "var(--text-strong)" }}>Discount:</strong> {viewing.discount_percentage != null ? `${viewing.discount_percentage}%` : "—"}</div>
             <div><strong style={{ color: "var(--text-strong)" }}>Coupon code:</strong> {viewing.coupon_code ?? "—"}</div>

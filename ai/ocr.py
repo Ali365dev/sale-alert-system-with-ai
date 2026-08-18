@@ -244,7 +244,12 @@ def run_ocr_for_urls(image_urls: list[str]) -> dict:
         return {"image_texts": [], "gif_texts": []}
 
     # Dedupe by URL, cap how many images one email can trigger OCR for.
-    deduped = list(dict.fromkeys(image_urls))[:OCR_MAX_IMAGES_PER_EMAIL]
+    # Read fresh from Settings each call (see services/settings_service.py's
+    # module docstring) so a change in the dashboard applies immediately,
+    # falling back to the env-configured default if never set.
+    from services.settings_service import get_setting
+    max_images = get_setting("ocr_max_images_per_email", default=OCR_MAX_IMAGES_PER_EMAIL)
+    deduped = list(dict.fromkeys(image_urls))[:max_images]
 
     cache = ocr_cache.load()
     image_texts: list[str] = []

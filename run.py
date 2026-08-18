@@ -11,7 +11,6 @@ For each new Gmail email:
 Run:  python run.py
 """
 import sys
-import json
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -20,9 +19,9 @@ sys.path.insert(0, str(ROOT))
 
 from config import logger, GMAIL_LABEL
 from database.db import init_db, get_session
-from database.models import Email, Offer
+from database.models import Email
 from gmail.gmail_service import _get_session as gmail_session, _get_label_id, _decode_body, _parse_date
-from ai.analyzer import analyze_email
+from ai.analyzer import analyze_email, build_offer
 
 try:
     from gmail.gmail_service import REQUEST_TIMEOUT
@@ -30,17 +29,6 @@ except ImportError:
     REQUEST_TIMEOUT = 30
 
 GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
-
-
-def _parse_expiry(date_str) -> datetime | None:
-    if not date_str:
-        return None
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%B %d, %Y"):
-        try:
-            return datetime.strptime(date_str, fmt)
-        except (ValueError, TypeError):
-            continue
-    return None
 
 
 def _fetch_email(session, msg_id: str) -> dict | None:
@@ -138,7 +126,8 @@ def run_pipeline() -> None:
             continue
 
         # Step C: send to AI
-        result = analyze_email(raw["subject"], raw["body"])
+        received_at = raw["received_date"]
+        result = analyze_email(raw["subject"], raw["body"], raw["sender"], received_at=received_at)
         if result is None:
             logger.warning("AI returned no result for email %s", mid)
             failed += 1
@@ -147,23 +136,7 @@ def run_pipeline() -> None:
         # Step D: save offer to Supabase
         try:
             with get_session() as db:
-                db.add(Offer(
-                    email_id=email_id,
-                    brand=result.get("brand"),
-                    company=result.get("company"),
-                    category=result.get("category"),
-                    subcategory=result.get("subcategory"),
-                    offer_type=result.get("offer_type"),
-                    discount_percentage=result.get("discount_percentage"),
-                    coupon_code=result.get("coupon_code"),
-                    expiry_date=_parse_expiry(result.get("expiry_date")),
-                    offer_value=result.get("offer_value"),
-                    website=result.get("website_url") or None,
-                    summary=result.get("summary"),
-                    key_highlights=json.dumps(result.get("key_highlights", [])),
-                    is_active=True,
-                    source="email",
-                ))
+                db.add(build_offer(email_id, result, received_at=received_at, subject=raw["subject"]))
             saved += 1
             print(f"      ✓ brand={result.get('brand')!r} category={result.get('category')!r}", flush=True)
         except Exception as exc:

@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask
 from flask_cors import CORS
 
@@ -11,9 +13,16 @@ def create_app() -> Flask:
     # concrete origin (not "*") plus supports_credentials — wildcard origins
     # and credentialed requests are mutually exclusive per browser CORS rules.
     # Every other endpoint in this app is still unauthenticated either way.
+    #
+    # ADDITIONAL_CORS_ORIGINS lets a deployed frontend (dashboard on Vercel/
+    # Netlify/Render static site, etc.) reach this API — comma-separated exact
+    # origins, e.g. "https://dashboard.example.com,https://app.example.com".
+    # Local dev over localhost/127.0.0.1 always works regardless of this var.
+    extra_origins = [o.strip() for o in os.getenv("ADDITIONAL_CORS_ORIGINS", "").split(",") if o.strip()]
+    allowed_origins = [r"http://(localhost|127\.0\.0\.1):\d+", *extra_origins]
     CORS(
         app,
-        resources={r"/api/*": {"origins": r"http://(localhost|127\.0\.0\.1):\d+"}},
+        resources={r"/api/*": {"origins": allowed_origins}},
         supports_credentials=True,
     )
 
@@ -21,6 +30,12 @@ def create_app() -> Flask:
 
     from services.job_registry import register_all
     register_all()
+
+    # Daily offer-retention cleanup (services/cleanup.py). Safe with this
+    # app's single-process deployment (waitress, no reloader — see
+    # api_server.py) — one process, one scheduler, one run per day.
+    from services.scheduler import start_scheduler
+    start_scheduler()
 
     from api.overview import bp as overview_bp
     app.register_blueprint(overview_bp)

@@ -82,6 +82,22 @@ export function EmailProcessingTab() {
           <FieldGroup>
             <Label>Max emails per sync</Label>
             <TextInput type="number" min={1} max={500} value={String(form.max_emails_per_sync ?? "")} onChange={(e) => set("max_emails_per_sync", Number(e.target.value))} />
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              Caps "Fetch &amp; Analyse Emails" per run. Any unfinished backlog is worked off first, then the most recent new emails fill the rest — never the oldest.
+            </span>
+          </FieldGroup>
+          <FieldGroup>
+            <Label>Fetch only latest N emails</Label>
+            <TextInput
+              type="number"
+              min={1}
+              placeholder="No limit"
+              value={form.latest_emails_limit == null ? "" : String(form.latest_emails_limit)}
+              onChange={(e) => set("latest_emails_limit", e.target.value === "" ? null : Number(e.target.value))}
+            />
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              Only look at the N most recent emails under the Gmail label — anything older is never fetched, so already-expired old offers stop getting pulled in. Leave blank for no limit.
+            </span>
           </FieldGroup>
           <FieldGroup>
             <Label>Retry attempts</Label>
@@ -90,6 +106,19 @@ export function EmailProcessingTab() {
           <FieldGroup>
             <Label>Request timeout (seconds)</Label>
             <TextInput type="number" min={5} max={300} value={String(form.request_timeout_seconds ?? "")} onChange={(e) => set("request_timeout_seconds", Number(e.target.value))} />
+          </FieldGroup>
+          <FieldGroup>
+            <Label>Max OCR images per email</Label>
+            <TextInput
+              type="number"
+              min={1}
+              max={50}
+              value={String(form.ocr_max_images_per_email ?? "")}
+              onChange={(e) => set("ocr_max_images_per_email", Number(e.target.value))}
+            />
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              How many images/GIFs per email get sent through OCR. Higher catches more promo text baked into images, but slower.
+            </span>
           </FieldGroup>
           <FieldGroup>
             <Label>Fetch interval (minutes)</Label>

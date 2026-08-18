@@ -74,8 +74,12 @@ export function mapApiOfferToDeal(offer: ApiOffer, brandId: string): Deal {
       ? offer.offer_type.toUpperCase()
       : 'DEAL';
 
+  // The email subject is the brand's own original promotional title — always
+  // preferred over an AI-derived one. Only offers with no source email
+  // (source="ai", web-scraped) fall back to a derived title.
   const title =
-    offer.summary?.split(/(?<=[.!?])\s/)[0]?.slice(0, 80) ??
+    offer.title ||
+    offer.summary?.split(/(?<=[.!?])\s/)[0]?.slice(0, 80) ||
     `${offer.brand ?? 'New'} offer — ${discountLabel}`;
 
   return {

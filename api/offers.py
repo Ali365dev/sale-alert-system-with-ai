@@ -7,6 +7,7 @@ from sqlalchemy import func
 
 from database.db import get_session
 from database.models import Offer
+from database.offer_retention import compute_offer_status
 
 bp = Blueprint("offers", __name__, url_prefix="/api/offers")
 
@@ -16,6 +17,7 @@ def _offer_to_dict(o: Offer) -> dict:
     return {
         "id": o.id,
         "email_id": o.email_id,
+        "title": o.title,
         "brand": o.brand,
         "company": o.company,
         "category": o.category,
@@ -24,6 +26,12 @@ def _offer_to_dict(o: Offer) -> dict:
         "discount_percentage": o.discount_percentage,
         "coupon_code": o.coupon_code,
         "expiry_date": o.expiry_date.isoformat() if o.expiry_date else None,
+        "expiry_date_basis": o.expiry_date_basis,
+        "expiry_date_confidence": o.expiry_date_confidence,
+        # Computed fresh on every read, never stored — see database/offer_retention.py.
+        # Purely informational: does NOT drive deletion (delete_after does that).
+        "status": compute_offer_status(o.expiry_date),
+        "delete_after": o.delete_after.isoformat() if o.delete_after else None,
         "offer_value": o.offer_value,
         "website": o.website,
         "summary": o.summary,

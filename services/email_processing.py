@@ -21,6 +21,7 @@ def reprocess_email(email_id: int) -> dict:
         if e is None:
             return {"processing_status": "failed", "processing_error": "email not found"}
         subject, body, sender = e.subject, e.body or "", e.sender or ""
+        received_at = e.received_date or e.processed_at
         image_urls = json.loads(e.image_urls) if e.image_urls else []
 
     # Same deterministic sender-domain gate as the bulk pipeline
@@ -48,7 +49,7 @@ def reprocess_email(email_id: int) -> dict:
             e.ocr_text_clean = ocr_result["ocr_clean"] or None
             e.ocr_processed_at = now
 
-    result = analyze_email(subject, ocr_result["merged"], sender)
+    result = analyze_email(subject, ocr_result["merged"], sender, received_at=received_at)
     if result is None:
         with get_session() as session:
             e = session.query(Email).filter(Email.id == email_id).first()
@@ -62,7 +63,7 @@ def reprocess_email(email_id: int) -> dict:
         # Reprocessing replaces this email's offer(s) rather than piling up
         # duplicates alongside a stale/wrong one from a previous attempt.
         session.query(Offer).filter(Offer.email_id == email_id).delete()
-        session.add(build_offer(email_id, result))
+        session.add(build_offer(email_id, result, received_at=received_at, subject=subject))
         e = session.query(Email).filter(Email.id == email_id).first()
         if e is not None:
             e.processing_status = "processed"

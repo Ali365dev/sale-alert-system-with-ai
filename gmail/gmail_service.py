@@ -143,10 +143,19 @@ def _get_label_id(session: AuthorizedSession, label_name: str) -> Optional[str]:
     return None
 
 
-def list_new_message_ids() -> tuple[AuthorizedSession, list[str]]:
+def list_new_message_ids(limit: Optional[int] = None) -> tuple[AuthorizedSession, list[str]]:
     """Return an authorized session plus the message IDs under GMAIL_LABEL that
     aren't already stored. Used by the concurrent email-sync job so listing
-    happens once up front and fetching can then be fanned out across workers."""
+    happens once up front and fetching can then be fanned out across workers.
+
+    limit, if given, stops listing once that many of the label's most recent
+    messages have been seen — Gmail returns each page newest-first, so
+    anything older than the latest `limit` is never even looked at, let alone
+    fetched or processed. This is Settings -> Email Processing -> "Fetch only
+    latest N emails" — distinct from max_emails_per_sync, which caps
+    per-run *processing* of whatever's already been listed, not what gets
+    listed from Gmail in the first place.
+    """
     session = _get_session()
     label_id = _get_label_id(session, _gmail_label())
     if not label_id:
@@ -162,6 +171,9 @@ def list_new_message_ids() -> tuple[AuthorizedSession, list[str]]:
         resp.raise_for_status()
         data = resp.json()
         all_message_ids.extend(m["id"] for m in data.get("messages", []))
+        if limit and len(all_message_ids) >= limit:
+            all_message_ids = all_message_ids[:limit]
+            break
         page_token = data.get("nextPageToken")
         if not page_token:
             break
@@ -170,7 +182,10 @@ def list_new_message_ids() -> tuple[AuthorizedSession, list[str]]:
         existing_ids = {row[0] for row in db_session.query(Email.gmail_message_id).all()}
 
     new_ids = [mid for mid in all_message_ids if mid not in existing_ids]
-    logger.info("%d new message(s) to process (of %d total under label).", len(new_ids), len(all_message_ids))
+    logger.info(
+        "%d new message(s) to process (of %d total under label%s).",
+        len(new_ids), len(all_message_ids), f", capped to latest {limit}" if limit else "",
+    )
     return session, new_ids
 
 

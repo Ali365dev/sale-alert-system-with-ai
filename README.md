@@ -153,10 +153,10 @@ sudo systemctl enable --now gmail-api
 journalctl -fu gmail-api
 ```
 
-Build the frontend for production and serve `frontend/dist/` from your web server of choice, pointed at the API's origin (`VITE_API_BASE_URL`):
+Build the dashboard for production and serve `dashboard/dist/` from your web server of choice, pointed at the API's origin (`VITE_API_BASE_URL`, e.g. `https://your-api.example.com/api`):
 
 ```bash
-cd frontend && npm install && npm run build
+cd dashboard && npm install && npm run build
 ```
 
 ### Docker
@@ -174,6 +174,24 @@ docker compose logs -f
 ```
 
 The `docker-compose.yml` only runs the API — build and deploy the frontend separately (static hosting, CDN, or your own container).
+
+### Render
+
+`render.yaml` in the repo root is a ready-to-use Blueprint — Render builds from the existing `Dockerfile` directly, no separate buildpack config needed.
+
+```bash
+# First-time auth, same as Docker above (must be done locally — Render has no browser)
+python -c "from gmail.gmail_client import get_gmail_service; get_gmail_service()"
+# This creates token.json — you'll copy it onto the service's disk after first deploy (below)
+```
+
+1. Push this repo to GitHub (if not already), then in the Render dashboard: **New +** → **Blueprint** → select the repo. Render reads `render.yaml` and provisions the service.
+2. During setup, Render prompts for every env var marked `sync: false` in `render.yaml`: `GEMINI_API_KEY`, `GROQ_API_KEY`, `DATABASE_URL` (your Supabase/Postgres connection string), and `ADDITIONAL_CORS_ORIGINS` (the deployed dashboard's origin, e.g. `https://your-dashboard.onrender.com` — required for Settings login to work from a browser). `SETTINGS_ENCRYPTION_KEY` is generated for you automatically; **never rotate it** once API keys have been saved through Settings, or they become unreadable.
+3. Upload `credentials.json` as a **Secret File** (Dashboard → service → Environment → Secret Files) — it's never rewritten at runtime, so a read-only mount is fine.
+4. `token.json` **is** rewritten on every OAuth refresh, so it needs to live on the writable disk the Blueprint provisions, not a Secret File. After the first deploy, open the service's **Shell** tab and copy the locally-generated `token.json` onto `/data/token.json`.
+5. Pick at least the **Standard** plan, not Free — the OCR pipeline (`paddlepaddle`/`paddleocr`) needs real RAM, and Free-tier services spin down after 15 minutes idle, which would silently stop the daily offer-cleanup scheduler and any background sync job from ever completing.
+
+Once it's live, point the mobile app's `EXPO_PUBLIC_API_URL` and the dashboard's `VITE_API_BASE_URL` (both `<render-url>/api`) at the Render service's `https://*.onrender.com` URL.
 
 ### Cron alternative (for periodic ingestion)
 

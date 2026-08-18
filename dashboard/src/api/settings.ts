@@ -285,6 +285,8 @@ export interface EmailProcessingSettings {
   auto_apply_gmail_label: boolean;
   skip_already_labeled: boolean;
   skip_duplicate_emails: boolean;
+  ocr_max_images_per_email: number;
+  latest_emails_limit: number | null;
   fetch_interval_minutes: number;
   _fetch_interval_wired: boolean;
 }

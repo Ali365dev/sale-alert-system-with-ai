@@ -69,8 +69,18 @@ OCR_GIF_FRAME_STEP    = int(os.getenv("OCR_GIF_FRAME_STEP", "5"))
 OCR_MAX_GIF_FRAMES    = int(os.getenv("OCR_MAX_GIF_FRAMES", "8"))
 OCR_MAX_WORKERS       = int(os.getenv("OCR_MAX_WORKERS", "4"))
 OCR_DOWNLOAD_TIMEOUT  = int(os.getenv("OCR_DOWNLOAD_TIMEOUT", "10"))
-OCR_MAX_IMAGES_PER_EMAIL = int(os.getenv("OCR_MAX_IMAGES_PER_EMAIL", "15"))
+OCR_MAX_IMAGES_PER_EMAIL = int(os.getenv("OCR_MAX_IMAGES_PER_EMAIL", "5"))
 OCR_MAX_DOWNLOAD_BYTES  = int(os.getenv("OCR_MAX_DOWNLOAD_BYTES", str(15 * 1024 * 1024)))
+
+# ── Offer retention ──────────────────────────────────────────────────────────
+# How long an offer stays in the database after it expires / after it was
+# received (for offers with no detectable expiry date) before the daily
+# cleanup job permanently deletes the row. Never touches the source Gmail
+# message — see services/cleanup.py.
+OFFER_RETENTION_AFTER_EXPIRY_DAYS = int(os.getenv("OFFER_RETENTION_AFTER_EXPIRY_DAYS", "7"))
+OFFER_RETENTION_NO_EXPIRY_DAYS = int(os.getenv("OFFER_RETENTION_NO_EXPIRY_DAYS", "30"))
+# Hour of day (UTC, 0-23) the daily cleanup job runs at.
+OFFER_CLEANUP_HOUR_UTC = int(os.getenv("OFFER_CLEANUP_HOUR_UTC", "3"))
 
 # ── App ───────────────────────────────────────────────────────────────────────
 APP_TITLE = "Gmail Sales Offers AI Dashboard"

@@ -25,20 +25,37 @@ _progress_lock = threading.Lock()
 
 def _collect_work_items() -> tuple[object, list[dict]]:
     """Gather both brand-new Gmail messages and any already-stored emails
-    that never got an offer (e.g. left over from a crashed previous run)."""
-    from gmail.gmail_service import list_new_message_ids
+    that never got an offer (e.g. left over from a crashed previous run) —
+    capped per run at Settings -> Email Processing -> "Max emails per sync".
 
-    session, new_ids = list_new_message_ids()
-    items = [{"kind": "new", "gmail_id": mid} for mid in new_ids]
+    Backlog (pending) emails are worked off first, oldest first — whatever
+    budget is left after that is filled with the most recent new Gmail
+    messages (list_new_message_ids() already returns newest-first, so this is
+    a plain slice, not a re-sort). If pending alone already meets the limit,
+    no new messages are fetched this run at all; the next run picks up where
+    this one left off.
+
+    Separately, Settings -> Email Processing -> "Fetch only latest N emails"
+    (latest_emails_limit) bounds what's even listed from Gmail in the first
+    place — messages under the label older than the N most recent are never
+    looked at, regardless of max_emails_per_sync. Off (null) by default.
+    """
+    from gmail.gmail_service import list_new_message_ids
+    from services.settings_service import get_setting
+
+    limit = int(get_setting("max_emails_per_sync", default=500) or 500)
+    latest_only = get_setting("latest_emails_limit", default=None)
+    latest_only = int(latest_only) if latest_only else None
 
     with get_session() as db:
         pending = (
             db.query(Email)
             .filter(~exists().where(Offer.email_id == Email.id))
             .order_by(Email.id.asc())
+            .limit(limit)
             .all()
         )
-        items += [
+        items = [
             {
                 "kind": "pending",
                 "email_id": e.id,
@@ -46,14 +63,19 @@ def _collect_work_items() -> tuple[object, list[dict]]:
                 "body": e.body or "",
                 "sender": e.sender or "",
                 "image_urls": json.loads(e.image_urls) if e.image_urls else [],
+                "received_at": e.received_date or e.processed_at,
             }
             for e in pending
         ]
 
+    remaining = max(0, limit - len(items))
+    session, new_ids = list_new_message_ids(limit=latest_only)
+    items += [{"kind": "new", "gmail_id": mid} for mid in new_ids[:remaining]]
+
     return session, items
 
 
-def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sender: str, image_urls: list[str]) -> str:
+def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sender: str, image_urls: list[str], received_at=None) -> str:
     """Shared gate + OCR + AI-analysis + offer-save tail, used by both the
     just-fetched and already-stored-but-pending paths below."""
     from ai.ocr import extract_and_merge
@@ -83,13 +105,13 @@ def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sende
             e.ocr_text_clean = ocr_result["ocr_clean"] or None
             e.ocr_processed_at = datetime.utcnow()
 
-    result = analyze_email(subject, ocr_result["merged"], sender)
+    result = analyze_email(subject, ocr_result["merged"], sender, received_at=received_at)
     if result is None:
         _mark_processing_result(email_id, "failed", "AI returned no result")
         return "failed"
 
     with get_session() as db:
-        db.add(build_offer(email_id, result))
+        db.add(build_offer(email_id, result, received_at=received_at, subject=subject))
     _mark_processing_result(email_id, "processed", None)
     return "success"
 
@@ -123,12 +145,15 @@ def _process_new(job_id: int, gmail_session, gmail_id: str) -> tuple[str, str]:
         db.flush()
         email_id = email_row.id
 
-    outcome = _analyze_and_save(job_id, email_id, subject, raw["body"], raw["sender"], raw["image_urls"])
+    outcome = _analyze_and_save(
+        job_id, email_id, subject, raw["body"], raw["sender"], raw["image_urls"],
+        received_at=raw["received_date"],
+    )
     return outcome, subject
 
 
-def _process_pending(job_id: int, email_id: int, subject: str, body: str, sender: str, image_urls: list[str]) -> tuple[str, str]:
-    outcome = _analyze_and_save(job_id, email_id, subject, body, sender, image_urls)
+def _process_pending(job_id: int, email_id: int, subject: str, body: str, sender: str, image_urls: list[str], received_at=None) -> tuple[str, str]:
+    outcome = _analyze_and_save(job_id, email_id, subject, body, sender, image_urls, received_at=received_at)
     return outcome, subject
 
 
@@ -153,7 +178,8 @@ def _run_one(job_id: int, gmail_session, item: dict, critical: dict, critical_ev
             outcome, subject = _process_new(job_id, gmail_session, item["gmail_id"])
         else:
             outcome, subject = _process_pending(
-                job_id, item["email_id"], item["subject"], item["body"], item["sender"], item["image_urls"]
+                job_id, item["email_id"], item["subject"], item["body"], item["sender"], item["image_urls"],
+                received_at=item.get("received_at"),
             )
     except Exception as exc:
         # Any exception escaping fetch/analyse here (Gmail auth/API failure, retry-limit

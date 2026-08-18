@@ -64,6 +64,13 @@ export const JOB_TYPES: JobTypeConfig[] = [
     itemNoun: "emails",
     description: "Run AI brand identification on unmatched sender emails in the Unknown Emails queue.",
   },
+  {
+    jobType: "cleanup_expired_offers",
+    title: "Clean Up Expired Offers",
+    icon: <Icon.trash size={17} />,
+    itemNoun: "offers",
+    description: "Delete offers past their retention window (expiry + 7 days, or 30 days for offers with no expiry date). Runs automatically every night — use this to run it on demand.",
+  },
 ];
 
 export const JOB_TYPE_BY_ID: Record<string, JobTypeConfig> = Object.fromEntries(

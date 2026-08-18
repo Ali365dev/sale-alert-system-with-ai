@@ -6,6 +6,7 @@ import { toast } from "../store/toastStore";
 export interface Offer {
   id: number;
   email_id: number | null;
+  title: string | null;
   brand: string | null;
   company: string | null;
   category: string | null;

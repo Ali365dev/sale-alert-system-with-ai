@@ -43,6 +43,7 @@ class ProcessPendingJob(BackgroundJob):
             if e is None:
                 return "skipped"
             subject, body, sender = e.subject, e.body or "", e.sender or ""
+            received_at = e.received_date or e.processed_at
             image_urls = json.loads(e.image_urls) if e.image_urls else []
 
         # Cheap, deterministic gate before spending any OCR/LLM budget: does
@@ -74,7 +75,7 @@ class ProcessPendingJob(BackgroundJob):
                 e.ocr_processed_at = datetime.utcnow()
 
         job_service.set_stage(job_id, "ai_analysis")
-        result = analyze_email(subject, ocr_result["merged"], sender)
+        result = analyze_email(subject, ocr_result["merged"], sender, received_at=received_at)
         if result is None:
             job_service.append_log(job_id, f"⚠ AI returned no result for \"{item.label[:60]}\"", severity="warning", category="ai")
             with get_session() as session:
@@ -87,7 +88,7 @@ class ProcessPendingJob(BackgroundJob):
 
         job_service.set_stage(job_id, "saving_data")
         with get_session() as session:
-            session.add(build_offer(item.id, result))
+            session.add(build_offer(item.id, result, received_at=received_at, subject=subject))
             e = session.query(Email).filter(Email.id == item.id).first()
             if e is not None:
                 e.processing_status = "processed"

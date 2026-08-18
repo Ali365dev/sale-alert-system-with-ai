@@ -124,6 +124,12 @@ class Offer(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     email_id = Column(Integer, ForeignKey("emails.id"), nullable=True, index=True)
 
+    # The source email's subject line, preserved exactly as received — this is
+    # the brand's own original promotional title, so it's used as the offer
+    # title as-is (no AI-generated title, no sanitization). Null only for
+    # offers with no source email (source="ai", web-scraped — see
+    # services/jobs/fetch_sales_web.py).
+    title = Column(String(500), nullable=True)
     brand = Column(String(255), nullable=True, index=True)
     company = Column(String(255), nullable=True)
     category = Column(String(255), nullable=True, index=True)
@@ -132,6 +138,16 @@ class Offer(Base):
     discount_percentage = Column(Float, nullable=True)
     coupon_code = Column(String(100), nullable=True)
     expiry_date = Column(DateTime, nullable=True, index=True)
+    # How expiry_date was determined — "explicit" (a calendar date was stated),
+    # "relative" (resolved from wording like "tomorrow"/"this weekend" using the
+    # email's received_date), or "none" (no reliable expiration info; expiry_date
+    # stays null — see database/offer_retention.py, never guessed).
+    expiry_date_basis = Column(String(20), nullable=True)
+    expiry_date_confidence = Column(Float, nullable=True)
+    # Retention cutoff, computed once at creation (database/offer_retention.py)
+    # and never recomputed per-request. The daily cleanup job (services/cleanup.py)
+    # deletes the row once this is reached — see config.OFFER_RETENTION_*_DAYS.
+    delete_after = Column(DateTime, nullable=True, index=True)
     offer_value = Column(String(255), nullable=True)
     summary = Column(Text, nullable=True)
     key_highlights = Column(Text, nullable=True)   # JSON list stored as text
@@ -157,7 +173,7 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    job_type = Column(String(50), nullable=False, index=True)  # "email_sync" | "process_pending" | "verify_offers" | "fetch_sales_web" | "research_brands"
+    job_type = Column(String(50), nullable=False, index=True)  # "email_sync" | "process_pending" | "verify_offers" | "fetch_sales_web" | "research_brands" | "cleanup_expired_offers"
     status = Column(String(20), nullable=False, default="pending", index=True)
     # "pending" | "running" | "cancelling" | "completed" | "cancelled" | "failed"
 

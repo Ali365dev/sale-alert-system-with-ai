@@ -48,6 +48,10 @@ def _migrate() -> None:
         ("brands", "description",                  "TEXT"),
         ("brands", "country",                       "VARCHAR(100)"),
         ("brands", "social_links",                   "TEXT"),
+        ("offers", "expiry_date_basis",            "VARCHAR(20)"),
+        ("offers", "expiry_date_confidence",       "FLOAT"),
+        ("offers", "delete_after",                 "TIMESTAMP"),
+        ("offers", "title",                        "VARCHAR(500)"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -91,6 +95,20 @@ def _migrate() -> None:
         except Exception:
             conn.rollback()  # already exists — safe to skip
 
+        # Backfill offers.title from the linked email's subject for rows saved
+        # before the column existed. Purely additive (only fills nulls, never
+        # deletes/overwrites anything) — safe to run unconditionally every boot.
+        try:
+            conn.execute(text(
+                "UPDATE offers SET title = "
+                "(SELECT subject FROM emails WHERE emails.id = offers.email_id) "
+                "WHERE title IS NULL AND email_id IS NOT NULL"
+            ))
+            conn.commit()
+            logger.info("Migration: backfilled offers.title from linked email subjects")
+        except Exception:
+            conn.rollback()
+
         # Indexes on offers columns hit by filter/order_by/join in api/offers.py,
         # api/overview.py, api/search.py — these were previously unindexed,
         # forcing full sequential scans on every list/search/overview request.
@@ -106,6 +124,7 @@ def _migrate() -> None:
             ("ix_offers_email_id", "offers (email_id)"),
             ("ix_offers_category_subcategory", "offers (category, subcategory)"),
             ("ix_offers_is_active_verification_status", "offers (is_active, verification_status)"),
+            ("ix_offers_delete_after", "offers (delete_after)"),
         ]
         for index_name, index_target in offer_indexes:
             try:
@@ -113,6 +132,34 @@ def _migrate() -> None:
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+    _backfill_delete_after()
+
+
+def _backfill_delete_after() -> None:
+    """One-time (idempotent) backfill for rows saved before offers.delete_after
+    existed. Done in Python rather than raw SQL date arithmetic since that
+    isn't portable between SQLite (dev) and Postgres (production) — see
+    README's DATABASE_URL. Safe to call on every boot: only touches rows
+    where delete_after is still null."""
+    from database.models import Offer
+    from database.offer_retention import compute_delete_after
+
+    session = SessionLocal()
+    try:
+        rows = session.query(Offer).filter(Offer.delete_after.is_(None)).all()
+        if not rows:
+            return
+        for o in rows:
+            received_at = (o.email.received_date if o.email else None) or o.created_at
+            o.delete_after = compute_delete_after(o.expiry_date, received_at)
+        session.commit()
+        logger.info("Migration: backfilled offers.delete_after for %d row(s)", len(rows))
+    except Exception as exc:
+        session.rollback()
+        logger.error("offers.delete_after backfill failed: %s", exc)
+    finally:
+        session.close()
 
 
 def _seed_brands() -> None:
@@ -180,29 +227,37 @@ def _seed_settings() -> None:
         for key, name, description, category, default_content in defaults:
             settings_service.seed_prompt_if_missing(key, name, description, category, default_content)
 
-        from database.models import Setting
-        if session.query(Setting).count() == 0:
-            import config as _cfg
-            defaults_kv = [
-                ("gemini_model", _cfg.GEMINI_MODEL, "providers"),
-                ("groq_model", _cfg.GROQ_MODEL, "providers"),
-                ("gmail_label", _cfg.GMAIL_LABEL, "gmail"),
-                ("gmail_brand_label", _cfg.GMAIL_BRAND_LABEL, "gmail"),
-                ("timezone", "UTC", "system"),
-                ("date_format", "YYYY-MM-DD", "system"),
-                ("theme", "system", "system"),
-                ("log_level", _cfg.LOG_LEVEL, "system"),
-                ("max_emails_per_sync", 500, "email_processing"),
-                ("retry_attempts", 3, "email_processing"),
-                ("request_timeout_seconds", 60, "email_processing"),
-                ("auto_analyze_emails", True, "email_processing"),
-                ("auto_apply_gmail_label", True, "email_processing"),
-                ("skip_already_labeled", True, "email_processing"),
-                ("skip_duplicate_emails", True, "email_processing"),
-            ]
-            for key, value, category in defaults_kv:
+        # Per-key existence check (not "only if the whole table is empty") —
+        # same reasoning as seed_prompt_if_missing() above: this is what lets
+        # a newly-added setting (like ocr_max_images_per_email) actually get
+        # seeded into a DB that was already initialized in the past, instead
+        # of silently staying unset until someone opens Settings and re-saves.
+        import config as _cfg
+        defaults_kv = [
+            ("gemini_model", _cfg.GEMINI_MODEL, "providers"),
+            ("groq_model", _cfg.GROQ_MODEL, "providers"),
+            ("gmail_label", _cfg.GMAIL_LABEL, "gmail"),
+            ("gmail_brand_label", _cfg.GMAIL_BRAND_LABEL, "gmail"),
+            ("timezone", "UTC", "system"),
+            ("date_format", "YYYY-MM-DD", "system"),
+            ("theme", "system", "system"),
+            ("log_level", _cfg.LOG_LEVEL, "system"),
+            ("max_emails_per_sync", 500, "email_processing"),
+            ("retry_attempts", 3, "email_processing"),
+            ("request_timeout_seconds", 60, "email_processing"),
+            ("auto_analyze_emails", True, "email_processing"),
+            ("auto_apply_gmail_label", True, "email_processing"),
+            ("skip_already_labeled", True, "email_processing"),
+            ("skip_duplicate_emails", True, "email_processing"),
+            ("ocr_max_images_per_email", _cfg.OCR_MAX_IMAGES_PER_EMAIL, "email_processing"),
+        ]
+        seeded = 0
+        for key, value, category in defaults_kv:
+            if settings_service.get_setting(key) is None:
                 settings_service.set_setting(key, value, category=category)
-            logger.info("Seeded %d default setting(s).", len(defaults_kv))
+                seeded += 1
+        if seeded:
+            logger.info("Seeded %d default setting(s).", seeded)
 
 
 def init_db() -> None:

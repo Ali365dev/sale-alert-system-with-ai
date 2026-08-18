@@ -12,6 +12,7 @@ export interface ApiBrand {
 export interface ApiOffer {
   id: number;
   email_id: number | null;
+  title: string | null;
   brand: string | null;
   company: string | null;
   category: string | null;

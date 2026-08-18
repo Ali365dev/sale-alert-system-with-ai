@@ -304,14 +304,20 @@ def update_providers():
 _EMAIL_PROCESSING_KEYS = [
     "gmail_label", "gmail_brand_label", "max_emails_per_sync", "retry_attempts",
     "request_timeout_seconds", "auto_analyze_emails", "auto_apply_gmail_label",
-    "skip_already_labeled", "skip_duplicate_emails",
+    "skip_already_labeled", "skip_duplicate_emails", "ocr_max_images_per_email",
+    "latest_emails_limit",
 ]
 
 
 @bp.get("/email-processing")
 @settings_auth.require_admin
 def get_email_processing():
+    from config import OCR_MAX_IMAGES_PER_EMAIL
+
     values = {k: settings_service.get_setting(k) for k in _EMAIL_PROCESSING_KEYS}
+    values["ocr_max_images_per_email"] = settings_service.get_setting(
+        "ocr_max_images_per_email", default=OCR_MAX_IMAGES_PER_EMAIL
+    )
     # "fetch interval" has no effect without a real scheduler (none exists in this
     # app today) — surfaced as unwired rather than silently doing nothing.
     values["fetch_interval_minutes"] = settings_service.get_setting("fetch_interval_minutes", default=60)

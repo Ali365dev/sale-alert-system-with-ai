@@ -1,0 +1,59 @@
+services:
+  - name: gmail-offers-api
+    type: web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    plan: standard
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    # Persistent, writable disk for the Gmail OAuth token — token.json gets
+    # rewritten by gmail/gmail_client.py on every refresh, so it can't live on
+    # a read-only Secret File. credentials.json never gets written, so a
+    # Secret File is fine for that one (Dashboard -> Environment -> Secret
+    # Files, uploaded manually — not declared here).
+    #
+    # One-time setup after first deploy (see README's Deployment > Render
+    # section): generate token.json locally, then use the Shell tab to copy
+    # its contents onto this disk at /data/token.json.
+    disk:
+      name: gmail-token-disk
+      mountPath: /data
+      sizeGB: 1
+
+    envVars:
+      - key: GMAIL_CREDENTIALS_FILE
+        value: /etc/secrets/credentials.json
+      - key: GMAIL_TOKEN_FILE
+        value: /data/token.json
+      - key: GMAIL_LABEL
+        value: sales_offers
+
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: GROQ_API_KEY
+        sync: false
+
+      # External Postgres — Supabase or Render's own managed Postgres both
+      # work; this just needs a valid connection string either way.
+      - key: DATABASE_URL
+        sync: false
+
+      # Auto-generated on first deploy — required to store/read API keys via
+      # Settings. Do not rotate this after keys have been saved through the
+      # UI; rotating it makes previously-encrypted keys unreadable.
+      - key: SETTINGS_ENCRYPTION_KEY
+        generateValue: true
+
+      # Comma-separated exact origins for the deployed dashboard frontend,
+      # e.g. https://your-dashboard.onrender.com — required for Settings
+      # login (credentialed requests) to work from a browser. Leave unset
+      # only if the dashboard is never used from anywhere but localhost.
+      - key: ADDITIONAL_CORS_ORIGINS
+        sync: false
+
+      - key: LOG_LEVEL
+        value: INFO
