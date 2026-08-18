@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import func
+from sqlalchemy import case, func
 
 from database.db import get_session
 from database.models import Offer
@@ -86,11 +86,16 @@ def list_offers():
 
         # Summary always reflects the full table, not the current filters —
         # matches the Email Manager pattern of stable, unfiltered headline counts.
-        total = session.query(func.count(Offer.id)).scalar() or 0
-        verified = session.query(func.count(Offer.id)).filter(Offer.verification_status == "verified").scalar() or 0
-        suspicious = session.query(func.count(Offer.id)).filter(Offer.verification_status == "suspicious").scalar() or 0
-        invalid = session.query(func.count(Offer.id)).filter(Offer.verification_status == "invalid").scalar() or 0
-        active_count = session.query(func.count(Offer.id)).filter(Offer.is_active.is_(True)).scalar() or 0
+        # One query with conditional aggregation instead of 5 separate
+        # COUNT(*) round-trips — each round-trip to a remote DB costs real
+        # network latency regardless of how trivial the query itself is.
+        total, verified, suspicious, invalid, active_count = session.query(
+            func.count(Offer.id),
+            func.count(case((Offer.verification_status == "verified", 1))),
+            func.count(case((Offer.verification_status == "suspicious", 1))),
+            func.count(case((Offer.verification_status == "invalid", 1))),
+            func.count(case((Offer.is_active.is_(True), 1))),
+        ).one()
         unverified = max(total - verified - suspicious - invalid, 0)
 
         offer_dicts = [_offer_to_dict(o) for o in offers]
@@ -195,8 +200,8 @@ def verify_offer_endpoint(offer_id: int):
         offer_data = _offer_to_dict(o)
 
     result = verify_offer(offer_data)
-    if result is None:
-        return jsonify({"error": "verification failed"}), 502
+    if "error" in result:
+        return jsonify({"error": result["error"]}), 502
 
     with get_session() as session:
         o = session.query(Offer).filter(Offer.id == offer_id).first()

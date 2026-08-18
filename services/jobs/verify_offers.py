@@ -48,8 +48,10 @@ class VerifyOffersJob(BackgroundJob):
             offer_data = _offer_to_dict(o)
 
         result = verify_offer(offer_data)
-        if result is None:
-            job_service.append_log(job_id, f"⚠ Could not verify \"{item.label}\"", severity="warning", category="ai")
+        if "error" in result:
+            job_service.append_log(
+                job_id, f"⚠ Could not verify \"{item.label}\" — {result['error']}", severity="warning", category="ai",
+            )
             return "failed"
 
         with get_session() as session:

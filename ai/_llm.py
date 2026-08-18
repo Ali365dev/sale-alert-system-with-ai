@@ -31,6 +31,13 @@ def call_llm(prompt: str, retries: int = 3) -> Optional[str]:
     return _manager.call(prompt)
 
 
+def get_last_llm_error() -> Optional[str]:
+    """Human-readable reason the most recent call_llm() returned None — read
+    this right after a None result to explain the failure (e.g. in a job
+    log), since call_llm() itself only returns the response text or None."""
+    return _manager.last_error()
+
+
 def get_active_provider() -> str:
     """The provider name (e.g. "gemini") currently in use by this process —
     read for display in Settings, never mutated directly (change it via the

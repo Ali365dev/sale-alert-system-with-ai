@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify
-from sqlalchemy import func
+from sqlalchemy import and_, case, func
 
 from database.db import get_session
 from database.models import Offer
@@ -52,25 +52,22 @@ def overview():
 
 def _build_overview_payload() -> dict:
     with get_session() as session:
-        total_offers = session.query(func.count(Offer.id)).scalar() or 0
-        verified = session.query(func.count(Offer.id)).filter(
-            Offer.verification_status == "verified"
-        ).scalar() or 0
-        invalid = session.query(func.count(Offer.id)).filter(
-            Offer.verification_status == "invalid"
-        ).scalar() or 0
-        suspicious = session.query(func.count(Offer.id)).filter(
-            Offer.verification_status == "suspicious"
-        ).scalar() or 0
-        unverified = total_offers - verified - invalid - suspicious
-
         now = datetime.utcnow()
         soon = now + timedelta(days=7)
-        expiring_soon = session.query(func.count(Offer.id)).filter(
-            Offer.expiry_date.isnot(None),
-            Offer.expiry_date >= now,
-            Offer.expiry_date <= soon,
-        ).scalar() or 0
+
+        # One query with conditional aggregation instead of 5 separate
+        # COUNT(*) round-trips — each one costs real network latency to a
+        # remote DB regardless of how trivial the query itself is.
+        total_offers, verified, invalid, suspicious, expiring_soon = session.query(
+            func.count(Offer.id),
+            func.count(case((Offer.verification_status == "verified", 1))),
+            func.count(case((Offer.verification_status == "invalid", 1))),
+            func.count(case((Offer.verification_status == "suspicious", 1))),
+            func.count(case((and_(
+                Offer.expiry_date.isnot(None), Offer.expiry_date >= now, Offer.expiry_date <= soon,
+            ), 1))),
+        ).one()
+        unverified = total_offers - verified - invalid - suspicious
 
         top_brands = _top_counts(session, Offer.brand)
         top_categories = _top_counts(session, Offer.category)

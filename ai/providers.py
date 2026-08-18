@@ -358,7 +358,14 @@ class ProviderManager:
         self._last_enabled = self._read_enabled()
         self._active_name = self._first_eligible(self._last_order, self._last_enabled)
         self._save_state()
+        # Human-readable reason for the most recent call() that returned None
+        # — callers that need to explain a failure (e.g. verify_offer's job
+        # log) read this via last_error() right after call() returns None.
+        self._last_error: Optional[str] = None
         logger.info("ProviderManager: initialised — active provider: %s", self.active_name)
+
+    def last_error(self) -> Optional[str]:
+        return self._last_error
 
     # ── Settings-driven priority order & enabled state ──────────────────────────
 
@@ -482,7 +489,8 @@ class ProviderManager:
                 self._active_name = self._first_eligible(order, enabled)
 
             if not any(enabled.get(n, True) and not self._in_cooldown(n) for n in order):
-                logger.error("All AI providers are disabled or cooling down — giving up.")
+                self._last_error = "All AI providers are disabled or cooling down (rate-limited recently)."
+                logger.error(self._last_error)
                 return None
 
             while True:
@@ -490,6 +498,7 @@ class ProviderManager:
                 try:
                     result = provider.call(prompt)
                     logger.info("LLM used: %s", provider.name)
+                    self._last_error = None
                     return result
 
                 except _AllKeysExhausted as exc:
@@ -497,6 +506,7 @@ class ProviderManager:
                     if self._advance():
                         logger.info("Retrying with %s …", self.current.name)
                         continue
+                    self._last_error = f"All AI providers exhausted — last error: {exc}"
                     logger.error("All AI providers exhausted — giving up.")
                     return None
 
@@ -507,9 +517,11 @@ class ProviderManager:
                         if self._advance():
                             logger.info("Retrying with %s …", self.current.name)
                             continue
+                        self._last_error = f"All AI providers rate-limited — last error on {provider.name}: {exc}"
                         logger.error("All AI providers exhausted — giving up.")
                         return None
 
                     # Non-retryable: auth failure, malformed request, etc.
+                    self._last_error = f"{provider.name} error: {exc}"
                     logger.error("Non-retryable error on %s: %s", provider.name, exc)
                     return None

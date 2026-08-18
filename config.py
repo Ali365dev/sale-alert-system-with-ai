@@ -1,10 +1,27 @@
 import os
 import logging
 import logging.handlers
+import socket
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Force IPv4 for every outbound HTTPS call (Gmail, Gemini, Groq, Tavily, ...).
+# On networks where IPv6 is DNS-advertised but actually blackholed (no code
+# path, packets just vanish — common on some ISPs/routers/VPNs), Python's
+# requests/urllib3 has no "happy eyeballs" fast-fallback like browsers do: it
+# tries the IPv6 address first and waits out the full ~60s OS TCP-connect
+# timeout before trying IPv4, which is exactly what turns "Connecting to
+# Gmail…" into a multi-minute stall on every fresh process (each new
+# connection pays this cost once). Forcing AF_INET here skips IPv6 entirely,
+# so there's nothing to time out on. Set FORCE_IPV4=false to opt out on a
+# network where IPv6 is known-good — must happen before any other module
+# (which config.py is imported by almost first) makes its first connection.
+if os.getenv("FORCE_IPV4", "true").lower() != "false":
+    import urllib3.util.connection as _urllib3_cn
+
+    _urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
 
 # ── Gmail ────────────────────────────────────────────────────────────────────
 GMAIL_CREDENTIALS_FILE = os.getenv("GMAIL_CREDENTIALS_FILE", "credentials.json")
@@ -71,6 +88,14 @@ OCR_MAX_WORKERS       = int(os.getenv("OCR_MAX_WORKERS", "4"))
 OCR_DOWNLOAD_TIMEOUT  = int(os.getenv("OCR_DOWNLOAD_TIMEOUT", "10"))
 OCR_MAX_IMAGES_PER_EMAIL = int(os.getenv("OCR_MAX_IMAGES_PER_EMAIL", "5"))
 OCR_MAX_DOWNLOAD_BYTES  = int(os.getenv("OCR_MAX_DOWNLOAD_BYTES", str(15 * 1024 * 1024)))
+# The PaddleOCR engine instance is shared and single-threaded-safe only, so
+# every inference call serializes on one process-wide lock (ai/ocr.py). If a
+# single pathological image (huge dimensions, corrupt data) makes the engine
+# hang or run pathologically slowly, this bounds how long every OTHER caller
+# will wait for that lock before giving up on OCR for their image and moving
+# on, rather than blocking indefinitely — which previously froze OCR
+# process-wide for as long as the stuck call ran (observed: hours).
+OCR_INFERENCE_LOCK_TIMEOUT = int(os.getenv("OCR_INFERENCE_LOCK_TIMEOUT", "30"))
 
 # ── Offer retention ──────────────────────────────────────────────────────────
 # How long an offer stays in the database after it expires / after it was

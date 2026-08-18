@@ -2,7 +2,7 @@
 from collections import defaultdict
 
 from flask import Blueprint, jsonify
-from sqlalchemy import func
+from sqlalchemy import case, func
 
 from database.db import get_session
 from database.models import Email, Offer
@@ -50,10 +50,14 @@ def analytics():
         ]
         discount_histogram = _discount_histogram(discounts)
 
-        verified = session.query(func.count(Offer.id)).filter(Offer.verification_status == "verified").scalar() or 0
-        suspicious = session.query(func.count(Offer.id)).filter(Offer.verification_status == "suspicious").scalar() or 0
-        invalid = session.query(func.count(Offer.id)).filter(Offer.verification_status == "invalid").scalar() or 0
-        total = session.query(func.count(Offer.id)).scalar() or 0
+        # One query with conditional aggregation instead of 4 separate
+        # COUNT(*) round-trips.
+        verified, suspicious, invalid, total = session.query(
+            func.count(case((Offer.verification_status == "verified", 1))),
+            func.count(case((Offer.verification_status == "suspicious", 1))),
+            func.count(case((Offer.verification_status == "invalid", 1))),
+            func.count(Offer.id),
+        ).one()
         unverified = max(total - verified - suspicious - invalid, 0)
         verification_status = [
             {"status": "verified", "count": verified},

@@ -16,7 +16,7 @@ import re
 from typing import Optional
 
 from config import logger
-from ai._llm import call_llm
+from ai._llm import call_llm, get_last_llm_error
 from services.settings_service import get_prompt
 
 OFFER_PROMPT_KEY = "offer_verification"
@@ -78,7 +78,7 @@ def _extract_json(text: str) -> Optional[dict]:
     return None
 
 
-def verify_offer(offer_data: dict, retries: int = 3) -> Optional[dict]:
+def verify_offer(offer_data: dict, retries: int = 3) -> dict:
     """
     Call AI to verify whether an offer is genuine.
     Tries Gemini first; falls back to Groq on rate-limit/quota errors.
@@ -89,7 +89,8 @@ def verify_offer(offer_data: dict, retries: int = 3) -> Optional[dict]:
                     offer_value, summary, key_highlights)
 
     Returns:
-        dict with is_valid_offer, confidence, reason, status — or None on failure.
+        dict with is_valid_offer, confidence, reason, status on success, or
+        {"error": "<human-readable reason>"} if every attempt failed.
     """
     highlights = offer_data.get("key_highlights") or []
     if isinstance(highlights, str):
@@ -113,15 +114,18 @@ def verify_offer(offer_data: dict, retries: int = 3) -> Optional[dict]:
         key_highlights=", ".join(highlights) if highlights else "None",
     )
 
+    last_error = "Unknown error."
     for attempt in range(1, retries + 1):
         raw = call_llm(prompt, retries=1)
         if raw is None:
-            logger.warning("Verify attempt %d: no response from AI.", attempt)
+            last_error = get_last_llm_error() or "No response from any AI provider."
+            logger.warning("Verify attempt %d: %s", attempt, last_error)
             continue
 
         data = _extract_json(raw)
         if data is None:
-            logger.warning("Verify attempt %d: could not parse JSON.", attempt)
+            last_error = "AI response could not be parsed as JSON."
+            logger.warning("Verify attempt %d: %s", attempt, last_error)
             continue
 
         is_valid = bool(data.get("is_valid_offer", False))
@@ -148,8 +152,8 @@ def verify_offer(offer_data: dict, retries: int = 3) -> Optional[dict]:
         logger.info("Offer verification: status=%s confidence=%d", status, confidence)
         return result
 
-    logger.error("All %d verification attempts failed.", retries)
-    return None
+    logger.error("All %d verification attempts failed: %s", retries, last_error)
+    return {"error": last_error}
 
 
 _EMAIL_VERIFY_PROMPT = """\

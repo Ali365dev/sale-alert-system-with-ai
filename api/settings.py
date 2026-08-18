@@ -57,10 +57,9 @@ def session_status():
 @bp.get("/google-account")
 @settings_auth.require_admin
 def google_account():
-    from config import GMAIL_TOKEN_FILE
-    import os
+    from gmail.gmail_client import is_connected
 
-    connected = os.path.exists(GMAIL_TOKEN_FILE)
+    connected = is_connected()
     info = {"connected": connected, "email": None, "messages_total": None, "threads_total": None, "last_sync": None}
     if connected:
         try:
@@ -83,11 +82,9 @@ def google_account():
 @bp.post("/google-account/disconnect")
 @settings_auth.require_admin
 def google_disconnect():
-    import os
-    from config import GMAIL_TOKEN_FILE
+    from gmail.gmail_client import disconnect
 
-    if os.path.exists(GMAIL_TOKEN_FILE):
-        os.remove(GMAIL_TOKEN_FILE)
+    disconnect()
     settings_service.write_audit(_actor(), "google_account.disconnect", "gmail", None, "connected", "disconnected")
     return jsonify({"status": "disconnected"})
 

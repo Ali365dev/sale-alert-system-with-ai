@@ -20,6 +20,7 @@ pipeline (AI analysis on subject+body alone) keeps working either way.
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as _FutureTimeoutError
 from io import BytesIO
 from typing import Optional
 
@@ -30,6 +31,7 @@ from config import (
     OCR_DOWNLOAD_TIMEOUT,
     OCR_ENABLED,
     OCR_GIF_FRAME_STEP,
+    OCR_INFERENCE_LOCK_TIMEOUT,
     OCR_LANG,
     OCR_MAX_DOWNLOAD_BYTES,
     OCR_MAX_GIF_FRAMES,
@@ -50,6 +52,16 @@ _engine_load_failed = False
 # module's own per-image thread pool — so actual .predict() calls are
 # serialized here while downloads/decoding above stay concurrent.
 _engine_lock = threading.Lock()
+# Dedicated pool the actual lock+predict() call runs on, so the caller can
+# bound its *own* wait with future.result(timeout=...) — see
+# _run_ocr_on_array. A plain `acquire(timeout=...)` on _engine_lock only
+# bounds how long a caller waits for SOMEONE ELSE's stuck inference; it does
+# nothing if the caller's own predict() call is the one that hangs, which
+# left long-running jobs (and their cancel button) stuck waiting on
+# as_completed() for a future that would never resolve. Submitting the
+# lock+predict sequence here and waiting on it with a timeout bounds both
+# cases identically from the caller's side.
+_inference_executor = ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS, thread_name_prefix="ocr-infer")
 
 
 def _get_engine():
@@ -84,18 +96,12 @@ def _get_engine():
         return None
 
 
-def _run_ocr_on_array(img_array) -> tuple[str, float]:
-    """Run OCR on a numpy image array. Returns (joined_text, avg_confidence).
-
-    PaddleOCR 3.x's .predict() returns one dict-like OCRResult per input
-    image, with "rec_texts" (list[str]) and "rec_scores" (list[float])."""
-    engine = _get_engine()
-    if engine is None:
-        return "", 0.0
-
-    lines: list[str] = []
-    confidences: list[float] = []
+def _do_inference(engine, img_array) -> tuple[str, float]:
+    """Acquire the engine lock and run .predict(). Always called on
+    _inference_executor — see _run_ocr_on_array for why."""
     with _engine_lock:
+        lines: list[str] = []
+        confidences: list[float] = []
         # .predict() returns a lazy generator — the actual inference happens
         # while iterating it, so the lock must stay held through the loop.
         for res in engine.predict(img_array):
@@ -105,10 +111,35 @@ def _run_ocr_on_array(img_array) -> tuple[str, float]:
                 if text and text.strip():
                     lines.append(text.strip())
                     confidences.append(float(confidence))
+    return "\n".join(lines), (sum(confidences) / len(confidences) if confidences else 0.0)
 
-    joined = "\n".join(lines)
-    avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-    return joined, avg_confidence
+
+def _run_ocr_on_array(img_array) -> tuple[str, float]:
+    """Run OCR on a numpy image array. Returns (joined_text, avg_confidence).
+
+    PaddleOCR 3.x's .predict() returns one dict-like OCRResult per input
+    image, with "rec_texts" (list[str]) and "rec_scores" (list[float])."""
+    engine = _get_engine()
+    if engine is None:
+        return "", 0.0
+
+    # Run lock-acquire + predict() on a dedicated executor and bound the
+    # WAIT, not the call itself (Python can't force-kill a running thread).
+    # This bounds the caller's stall regardless of whether the hang is on
+    # acquiring the lock (someone else's stuck image) or inside predict()
+    # itself (this image is the stuck one) — either way the orphaned task
+    # keeps running in the background, but nothing here blocks on it past
+    # OCR_INFERENCE_LOCK_TIMEOUT. See config.OCR_INFERENCE_LOCK_TIMEOUT.
+    future = _inference_executor.submit(_do_inference, engine, img_array)
+    try:
+        return future.result(timeout=OCR_INFERENCE_LOCK_TIMEOUT)
+    except _FutureTimeoutError:
+        logger.warning(
+            "OCR: inference did not finish within %ds — skipping OCR for this image "
+            "instead of blocking indefinitely (it may be a stuck/pathological image).",
+            OCR_INFERENCE_LOCK_TIMEOUT,
+        )
+        return "", 0.0
 
 
 def _download_image(url: str) -> Optional[bytes]:

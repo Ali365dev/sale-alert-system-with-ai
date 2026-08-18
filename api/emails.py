@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 
 from database.db import get_session
 from database.models import Email, Offer
@@ -96,14 +96,19 @@ def list_emails():
     order = sort_col.asc() if sort_dir == "asc" else sort_col.desc()
 
     with get_session() as session:
-        counts = dict(
-            session.query(Offer.email_id, func.count(Offer.id)).group_by(Offer.email_id).all()
-        )
-        # One brand per email (first offer that has one) — used for both the
-        # Brand column and brand-name search matching below.
+        # Offer count + a representative brand per email in one round-trip
+        # instead of two separate full scans of Offer. MIN(brand) instead of
+        # "first offer that has one" — a harmless simplification in the rare
+        # case one email's offers span more than one brand name.
+        counts: dict[int, int] = {}
         brand_by_email: dict[int, str] = {}
-        for email_id, brand in session.query(Offer.email_id, Offer.brand).filter(Offer.email_id.isnot(None)):
-            if brand and email_id not in brand_by_email:
+        for email_id, offer_count, brand in (
+            session.query(Offer.email_id, func.count(Offer.id), func.min(Offer.brand))
+            .filter(Offer.email_id.isnot(None))
+            .group_by(Offer.email_id)
+        ):
+            counts[email_id] = offer_count
+            if brand:
                 brand_by_email[email_id] = brand
 
         q = session.query(Email)
@@ -135,15 +140,19 @@ def list_emails():
         rows = [_email_summary(e, counts.get(e.id, 0), brand_by_email.get(e.id)) for e in emails]
 
         # Summary counts always reflect the full table, not the current
-        # filters — matches the Offers Manager pattern of stable headline counts.
-        grand_total = session.query(func.count(Email.id)).scalar() or 0
-        legitimate = session.query(func.count(Email.id)).filter(Email.email_verification_status == "legitimate").scalar() or 0
-        suspicious = session.query(func.count(Email.id)).filter(Email.email_verification_status == "suspicious").scalar() or 0
-        spam = session.query(func.count(Email.id)).filter(Email.email_verification_status == "spam").scalar() or 0
+        # filters — matches the Offers Manager pattern of stable headline
+        # counts. One query with conditional aggregation instead of 6
+        # separate COUNT(*) round-trips.
+        grand_total, legitimate, suspicious, spam, processed, unprocessed, failed = session.query(
+            func.count(Email.id),
+            func.count(case((Email.email_verification_status == "legitimate", 1))),
+            func.count(case((Email.email_verification_status == "suspicious", 1))),
+            func.count(case((Email.email_verification_status == "spam", 1))),
+            func.count(case((Email.processing_status == "processed", 1))),
+            func.count(case((Email.processing_status == "unprocessed", 1))),
+            func.count(case((Email.processing_status == "failed", 1))),
+        ).one()
         unverified = max(grand_total - legitimate - suspicious - spam, 0)
-        processed = session.query(func.count(Email.id)).filter(Email.processing_status == "processed").scalar() or 0
-        unprocessed = session.query(func.count(Email.id)).filter(Email.processing_status == "unprocessed").scalar() or 0
-        failed = session.query(func.count(Email.id)).filter(Email.processing_status == "failed").scalar() or 0
 
     return jsonify({
         "emails": rows,
