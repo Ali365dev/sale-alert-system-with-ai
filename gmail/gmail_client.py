@@ -25,7 +25,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from config import GMAIL_CREDENTIALS_FILE, GMAIL_TOKEN_FILE, GMAIL_SCOPES, logger
+from config import GMAIL_CREDENTIALS_FILE, GMAIL_CREDENTIALS_JSON, GMAIL_TOKEN_FILE, GMAIL_SCOPES, logger
 
 GMAIL_TOKEN_SETTING_KEY = "gmail_oauth_token"
 
@@ -91,15 +91,21 @@ def get_credentials() -> Credentials:
                 creds = None
 
         if not creds:
-            if not os.path.exists(GMAIL_CREDENTIALS_FILE):
-                raise FileNotFoundError(
-                    f"credentials.json not found at '{GMAIL_CREDENTIALS_FILE}'. "
-                    "Download it from Google Cloud Console → APIs & Services → Credentials."
-                )
             logger.info("Starting OAuth2 browser flow …")
-            flow = InstalledAppFlow.from_client_secrets_file(
-                GMAIL_CREDENTIALS_FILE, GMAIL_SCOPES
-            )
+            if GMAIL_CREDENTIALS_JSON:
+                flow = InstalledAppFlow.from_client_config(
+                    json.loads(GMAIL_CREDENTIALS_JSON), GMAIL_SCOPES
+                )
+            else:
+                if not os.path.exists(GMAIL_CREDENTIALS_FILE):
+                    raise FileNotFoundError(
+                        f"credentials.json not found at '{GMAIL_CREDENTIALS_FILE}' and "
+                        "GMAIL_CREDENTIALS_JSON is not set. Download it from Google Cloud "
+                        "Console → APIs & Services → Credentials."
+                    )
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    GMAIL_CREDENTIALS_FILE, GMAIL_SCOPES
+                )
             creds = flow.run_local_server(port=0)
 
         # Persist for future runs

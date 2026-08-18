@@ -177,19 +177,25 @@ The `docker-compose.yml` only runs the API — build and deploy the frontend sep
 
 ### Render
 
-`render.yaml` in the repo root is a ready-to-use Blueprint — Render builds from the existing `Dockerfile` directly, no separate buildpack config needed.
+`render.yaml` in the repo root is a ready-to-use Blueprint (Free plan) — Render builds from the existing `Dockerfile` directly, no separate buildpack config needed.
 
-```bash
-# First-time auth, same as Docker above (must be done locally — Render has no browser)
-python -c "from gmail.gmail_client import get_gmail_service; get_gmail_service()"
-# This creates token.json — you'll copy it onto the service's disk after first deploy (below)
-```
+The Gmail OAuth token and `credentials.json` are both handled without needing a persistent disk or Secret Files (Free web services support neither reliably): the token lives in the `Setting` DB row `gmail_oauth_token` (Fernet-encrypted), and the OAuth client config is passed as a `GMAIL_CREDENTIALS_JSON` env var instead of a mounted file.
 
 1. Push this repo to GitHub (if not already), then in the Render dashboard: **New +** → **Blueprint** → select the repo. Render reads `render.yaml` and provisions the service.
-2. During setup, Render prompts for every env var marked `sync: false` in `render.yaml`: `GEMINI_API_KEY`, `GROQ_API_KEY`, `DATABASE_URL` (your Supabase/Postgres connection string), and `ADDITIONAL_CORS_ORIGINS` (the deployed dashboard's origin, e.g. `https://your-dashboard.onrender.com` — required for Settings login to work from a browser). `SETTINGS_ENCRYPTION_KEY` is generated for you automatically; **never rotate it** once API keys have been saved through Settings, or they become unreadable.
-3. Upload `credentials.json` as a **Secret File** (Dashboard → service → Environment → Secret Files) — it's never rewritten at runtime, so a read-only mount is fine.
-4. `token.json` **is** rewritten on every OAuth refresh, so it needs to live on the writable disk the Blueprint provisions, not a Secret File. After the first deploy, open the service's **Shell** tab and copy the locally-generated `token.json` onto `/data/token.json`.
-5. Pick at least the **Standard** plan, not Free — the OCR pipeline (`paddlepaddle`/`paddleocr`) needs real RAM, and Free-tier services spin down after 15 minutes idle, which would silently stop the daily offer-cleanup scheduler and any background sync job from ever completing.
+2. During setup, Render prompts for every env var marked `sync: false`:
+   - `GMAIL_CREDENTIALS_JSON` — paste the raw contents of your `credentials.json` file.
+   - `GEMINI_API_KEY`, `GROQ_API_KEY`
+   - `DATABASE_URL` — your Supabase/Postgres connection string.
+   - `SETTINGS_ENCRYPTION_KEY` — generate one (`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`) and use the **same value** in your local `.env` too (see step 3 — it encrypts the Gmail token, so local and deployed must match to share it).
+   - `ADDITIONAL_CORS_ORIGINS` — the deployed dashboard's origin, e.g. `https://your-dashboard.onrender.com` (required for Settings login to work from a browser).
+3. First-time Gmail auth — run this **locally**, with your local `.env`'s `DATABASE_URL` and `SETTINGS_ENCRYPTION_KEY` set to the exact same values you just entered in Render:
+   ```bash
+   python -c "from gmail.gmail_client import get_gmail_service; get_gmail_service()"
+   ```
+   This opens a browser consent flow and writes the resulting token straight into the shared DB — no file to copy, no Shell tab needed. Render picks it up on its next request.
+4. **Free-tier caveats, be aware of both:**
+   - Services spin down after 15 minutes idle and cold-start (~1 min) on the next request. Ping `/api/health` every ~10 min from a free uptime service (UptimeRobot, cron-job.org) to keep it warm — otherwise the daily offer-cleanup scheduler and background sync jobs may not run reliably.
+   - The OCR pipeline (`paddlepaddle`/`paddleocr`) wants real RAM; Free-tier instances are limited. If OCR is slow/fails under load, that's the first thing to check — upgrading to a paid plan (`plan: standard` in `render.yaml`) fixes both this and the spin-down issue.
 
 Once it's live, point the mobile app's `EXPO_PUBLIC_API_URL` and the dashboard's `VITE_API_BASE_URL` (both `<render-url>/api`) at the Render service's `https://*.onrender.com` URL.
 
@@ -206,8 +212,9 @@ Once it's live, point the mobile app's `EXPO_PUBLIC_API_URL` and the dashboard's
 
 | Variable | Default | Description |
 |---|---|---|
-| `GMAIL_CREDENTIALS_FILE` | `credentials.json` | OAuth2 client secrets |
-| `GMAIL_TOKEN_FILE` | `token.json` | Saved user token |
+| `GMAIL_CREDENTIALS_FILE` | `credentials.json` | OAuth2 client secrets (file path) |
+| `GMAIL_CREDENTIALS_JSON` | — | OAuth2 client secrets as raw JSON — takes priority over `GMAIL_CREDENTIALS_FILE` when set. Use this on hosts with no reliable file mount (e.g. Render Free) |
+| `GMAIL_TOKEN_FILE` | `token.json` | Local mirror of the saved user token (best-effort). The DB `Setting` row `gmail_oauth_token` is the source of truth — see `gmail/gmail_client.py` |
 | `GMAIL_LABEL` | `sales_offers` | Gmail label to read |
 | `GEMINI_API_KEY` | — | **Required** |
 | `GEMINI_MODEL` | `gemini-1.5-flash` | Model name |

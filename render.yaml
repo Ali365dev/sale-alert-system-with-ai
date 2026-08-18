@@ -4,29 +4,32 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: ./
-    plan: standard
+    plan: free
     healthCheckPath: /api/health
     autoDeploy: true
 
-    # Persistent, writable disk for the Gmail OAuth token — token.json gets
-    # rewritten by gmail/gmail_client.py on every refresh, so it can't live on
-    # a read-only Secret File. credentials.json never gets written, so a
-    # Secret File is fine for that one (Dashboard -> Environment -> Secret
-    # Files, uploaded manually — not declared here).
+    # No persistent Disk here on purpose — Free web services don't support
+    # one (filesystem resets on every redeploy/restart/spin-down). The Gmail
+    # OAuth token is instead stored in the `Setting` DB row
+    # "gmail_oauth_token" (Fernet-encrypted with SETTINGS_ENCRYPTION_KEY —
+    # see gmail/gmail_client.py), so it survives regardless of host storage.
     #
-    # One-time setup after first deploy (see README's Deployment > Render
-    # section): generate token.json locally, then use the Shell tab to copy
-    # its contents onto this disk at /data/token.json.
-    disk:
-      name: gmail-token-disk
-      mountPath: /data
-      sizeGB: 1
+    # First-time auth: run `python -c "from gmail.gmail_client import
+    # get_gmail_service; get_gmail_service()"` LOCALLY, with your local .env
+    # pointed at the SAME DATABASE_URL and the SAME SETTINGS_ENCRYPTION_KEY
+    # you set below — completing the browser consent flow locally then
+    # writes the token straight into the shared DB this service reads from.
+    # No file to copy, no Shell tab needed.
+    #
+    # Free-tier services spin down after 15 min idle and cold-start on the
+    # next request (~1 min) — ping /api/health every ~10 min from a free
+    # service like UptimeRobot or cron-job.org to keep it warm and so the
+    # daily offer-cleanup scheduler actually fires.
 
     envVars:
-      - key: GMAIL_CREDENTIALS_FILE
-        value: /etc/secrets/credentials.json
-      - key: GMAIL_TOKEN_FILE
-        value: /data/token.json
+      - key: GMAIL_CREDENTIALS_JSON
+        sync: false  # paste the raw contents of your credentials.json here
+
       - key: GMAIL_LABEL
         value: sales_offers
 
@@ -38,15 +41,19 @@ services:
         sync: false
 
       # External Postgres — Supabase or Render's own managed Postgres both
-      # work; this just needs a valid connection string either way.
+      # work; this just needs a valid connection string either way. Use the
+      # SAME connection string in your local .env for first-time Gmail auth
+      # (see note above).
       - key: DATABASE_URL
         sync: false
 
-      # Auto-generated on first deploy — required to store/read API keys via
-      # Settings. Do not rotate this after keys have been saved through the
-      # UI; rotating it makes previously-encrypted keys unreadable.
+      # Must match the value in your local .env used for first-time Gmail
+      # auth (it encrypts the token row in the shared DB) — set it
+      # explicitly here rather than letting Render generate one. Never
+      # rotate it once API keys or the Gmail token have been saved, or they
+      # become unreadable.
       - key: SETTINGS_ENCRYPTION_KEY
-        generateValue: true
+        sync: false
 
       # Comma-separated exact origins for the deployed dashboard frontend,
       # e.g. https://your-dashboard.onrender.com — required for Settings

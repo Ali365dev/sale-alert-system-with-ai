@@ -25,6 +25,11 @@ if os.getenv("FORCE_IPV4", "true").lower() != "false":
 
 # ── Gmail ────────────────────────────────────────────────────────────────────
 GMAIL_CREDENTIALS_FILE = os.getenv("GMAIL_CREDENTIALS_FILE", "credentials.json")
+# Alternative to GMAIL_CREDENTIALS_FILE: the raw contents of credentials.json
+# pasted directly into an env var. Preferred on hosts with no reliable place
+# to mount a file (e.g. Render's free tier, where Secret File support is
+# plan-dependent) — an env var always works. Checked first if set.
+GMAIL_CREDENTIALS_JSON = os.getenv("GMAIL_CREDENTIALS_JSON", "")
 GMAIL_TOKEN_FILE = os.getenv("GMAIL_TOKEN_FILE", "token.json")
 GMAIL_LABEL = os.getenv("GMAIL_LABEL", "sales_offers")
 # Brand-sender auto-labeling (services/jobs/label_brand_emails.py) applies this
