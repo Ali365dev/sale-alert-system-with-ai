@@ -1,0 +1,101 @@
+import { useMemo } from 'react';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useDataStore from '../../state/dataStore';
+import useFavoritesStore from '../../state/favoritesStore';
+import AnimatedListItem from '../../components/AnimatedListItem';
+import BrandCard from '../../components/BrandCard';
+import DealCard from '../../components/DealCard';
+import EmptyState from '../../components/EmptyState';
+import TopAppBar from '../../components/TopAppBar';
+
+const FavoritesScreen = () => {
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const favoriteIds = useFavoritesStore((state) => state.favoriteIds);
+  const deals = useDataStore((state) => state.deals);
+  const brands = useDataStore((state) => state.brands);
+  const brandsById = useDataStore((state) => state.brandsById);
+
+  const favoriteDeals = useMemo(() => deals.filter((d) => favoriteIds.includes(d.id)), [deals, favoriteIds]);
+
+  const followedBrands = useMemo(() => {
+    const ids = new Set(favoriteDeals.map((d) => d.brandId));
+    return brands.filter((b) => ids.has(b.id));
+  }, [favoriteDeals, brands]);
+
+  return (
+    <View style={styles.container}>
+      <TopAppBar hideProfile />
+      {favoriteDeals.length === 0 ? (
+        <EmptyState
+          icon="heart-outline"
+          title="No favorites yet"
+          body="Tap the heart on any deal to save it here for quick access later."
+          ctaLabel="Discover Deals"
+          onPressCta={() => navigation.navigate('Home')}
+        />
+      ) : (
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
+          showsVerticalScrollIndicator={false}>
+          <Text style={styles.heading}>Saved Deals</Text>
+          <View style={styles.dealsList}>
+            {favoriteDeals.map((deal, index) => (
+              <AnimatedListItem key={deal.id} index={index}>
+                <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id })} />
+              </AnimatedListItem>
+            ))}
+          </View>
+
+          {followedBrands.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.heading}>Followed Brands</Text>
+              <FlatList
+                horizontal
+                data={followedBrands}
+                keyExtractor={(b) => b.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.brandRow}
+                renderItem={({ item, index }) => (
+                  <AnimatedListItem index={index}>
+                    <BrandCard brand={item} onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })} />
+                  </AnimatedListItem>
+                )}
+              />
+            </View>
+          )}
+        </ScrollView>
+      )}
+    </View>
+  );
+};
+
+export default FavoritesScreen;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  content: {
+    paddingHorizontal: SPACING.four,
+    paddingTop: SPACING.three,
+    gap: SPACING.four,
+  },
+  heading: {
+    ...TYPOGRAPHY.headline,
+  },
+  dealsList: {
+    gap: SPACING.three,
+    marginTop: SPACING.two,
+  },
+  section: {
+    gap: SPACING.three,
+  },
+  brandRow: {
+    gap: SPACING.three,
+  },
+});

@@ -1,0 +1,87 @@
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import FastImage from '@d11/react-native-fast-image';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { useCountdown } from '../hooks/useCountdown';
+import { usePressScale } from '../hooks/usePressScale';
+
+const dealBadgeLabel = (deal) => (deal.isPercentageOff ? `${deal.discountLabel.replace('-', '')} OFF` : deal.discountLabel);
+
+const ExpiringSoonCard = ({ deal, onPress }) => {
+  const countdown = useCountdown(deal.expiresAt);
+  const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
+
+  return (
+    <Animated.View style={[animatedStyle, styles.card]}>
+      <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.pressable}>
+        <FastImage source={{ uri: deal.image }} style={styles.image} resizeMode={FastImage.resizeMode.cover} />
+        <View style={styles.body}>
+          <Text style={styles.title} numberOfLines={2}>
+            {deal.title}
+          </Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeLabel}>{dealBadgeLabel(deal)}</Text>
+          </View>
+          <View style={styles.timerRow}>
+            <Icon name="time-outline" size={14} color="#B7131A" />
+            <Text style={styles.timerLabel}>{countdown}</Text>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+};
+
+export default ExpiringSoonCard;
+
+const styles = StyleSheet.create({
+  card: {
+    borderRadius: RADIUS.card,
+    ...SHADOWS.card,
+  },
+  pressable: {
+    flexDirection: 'row',
+    gap: SPACING.three,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F0DADA',
+    borderRadius: RADIUS.card,
+    padding: SPACING.two,
+  },
+  image: {
+    width: 72,
+    height: 72,
+    borderRadius: RADIUS.button,
+    backgroundColor: '#171717',
+  },
+  body: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 6,
+  },
+  title: {
+    ...TYPOGRAPHY.smallBold,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#F7D9D9',
+    paddingHorizontal: SPACING.two,
+    paddingVertical: 3,
+    borderRadius: RADIUS.chip,
+  },
+  badgeLabel: {
+    ...TYPOGRAPHY.label,
+    color: '#B7131A',
+    fontSize: 11,
+  },
+  timerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timerLabel: {
+    ...TYPOGRAPHY.small,
+    color: '#B7131A',
+  },
+});

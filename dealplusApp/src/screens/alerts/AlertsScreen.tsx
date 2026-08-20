@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../../styles/theme';
+import { COLORS } from '../../styles/theme';
 
 export function AlertsScreen() {
   return (
@@ -15,10 +15,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: COLORS.background,
   },
   title: {
-    color: colors.text,
+    color: COLORS.text,
     fontSize: 20,
     fontWeight: '700',
   },
