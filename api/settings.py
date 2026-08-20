@@ -209,7 +209,7 @@ def _test_provider_key(provider: str, raw_key: str, model: str | None) -> tuple[
             from groq import Groq
             client = Groq(api_key=raw_key)
             client.chat.completions.create(
-                model=model or "llama-3.3-70b-versatile",
+                model=model or "openai/gpt-oss-120b",
                 messages=[{"role": "user", "content": "ping"}], max_tokens=5,
             )
         elif provider == "tavily":
