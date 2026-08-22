@@ -13,6 +13,7 @@ const CATEGORY_IMAGE_QUERIES = [
 const DEFAULT_IMAGE_QUERY = 'photo-1607082349566-187342175e2f';
 
 const CATEGORY_ICONS = [
+  { match: /footwear|shoe/i, icon: 'shoe-sneaker' },
   { match: /fashion|apparel|clothing|retail/i, icon: 'tshirt-crew-outline' },
   { match: /electronic|software|tech/i, icon: 'laptop' },
   { match: /beauty|cosmetic/i, icon: 'face-woman-outline' },
@@ -153,4 +154,27 @@ export const deriveCategories = (apiOffers) => {
   return Array.from(counts.entries())
     .map(([name, dealCount]) => ({ name, dealCount, icon: iconForCategory(name) }))
     .sort((a, b) => b.dealCount - a.dealCount);
+};
+
+/** Derives the notification feed (newest 15 offers) from raw API offers.
+ * Mirrors mobile/src/state/data.tsx's alerts useMemo. */
+export const deriveAlerts = (apiOffers) => {
+  const sorted = [...apiOffers].sort((a, b) => {
+    const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return bT - aT;
+  });
+  return sorted.slice(0, 15).map((offer, index) => {
+    const isFlash = (offer.discount_percentage ?? 0) >= 30;
+    const brandId = offer.brand ? slugify(offer.brand) : null;
+    return {
+      id: `offer-alert-${offer.id}`,
+      kind: isFlash ? 'flash-sale' : 'new-brand',
+      title: isFlash ? `Flash Sale: ${offer.brand ?? 'New offer'}` : `New offer from ${offer.brand ?? 'a tracked brand'}`,
+      body: offer.summary?.slice(0, 100) ?? (offer.discount_percentage ? `${offer.discount_percentage}% off` : 'New offer tracked'),
+      time: offer.created_at ? new Date(offer.created_at).toLocaleDateString() : '',
+      brandId,
+      read: index >= 5,
+    };
+  });
 };

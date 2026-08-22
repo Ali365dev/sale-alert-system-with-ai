@@ -1,9 +1,10 @@
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const SLIDE_WIDTH = SCREEN_WIDTH * 0.82;
+const SLIDE_WIDTH = SCREEN_WIDTH * 0.85;
 
 const dealHeadline = (deal) => (deal.isPercentageOff ? `${deal.discountLabel.replace('-', '')} OFF` : deal.discountLabel);
 
@@ -20,25 +21,27 @@ const HeroCarousel = ({ deals, brandsById, onPressDeal }) => {
         return (
           <View key={deal.id} style={[styles.slideShadow, { width: SLIDE_WIDTH }]}>
             <Pressable onPress={() => onPressDeal(deal)} style={styles.slide}>
-              <FastImage source={{ uri: deal.image }} style={styles.image} resizeMode={FastImage.resizeMode.cover} />
-              <View style={styles.scrim} />
-
-              {brand?.name && (
-                <View style={styles.brandBadge}>
-                  <Text style={styles.brandBadgeLabel} numberOfLines={1}>
-                    {brand.name.toUpperCase()}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.content}>
-                <Text style={styles.headline} numberOfLines={1}>
+              <View style={styles.textCol}>
+                {brand?.name && (
+                  <View style={styles.brandBadge}>
+                    <Text style={styles.brandBadgeLabel} numberOfLines={1}>
+                      {brand.name.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.headline} numberOfLines={2}>
                   {dealHeadline(deal)}
                 </Text>
-                <Text style={styles.description} numberOfLines={2}>
+                <Text style={styles.description} numberOfLines={3}>
                   {deal.description}
                 </Text>
+                <View style={styles.ctaButton}>
+                  <Text style={styles.ctaLabel}>View Deal</Text>
+                  <Icon name="chevron-forward-circle" size={18} color="#FFFFFF" />
+                </View>
               </View>
+
+              <FastImage source={{ uri: deal.image }} style={styles.image} resizeMode={FastImage.resizeMode.cover} />
             </Pressable>
           </View>
         );
@@ -59,47 +62,60 @@ const styles = StyleSheet.create({
     ...SHADOWS.raised,
   },
   slide: {
+    flexDirection: 'row',
     aspectRatio: 16 / 10,
     borderRadius: RADIUS.card,
     overflow: 'hidden',
     backgroundColor: '#171717',
   },
-  image: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  scrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(183,19,26,0.55)',
+  textCol: {
+    flex: 1,
+    padding: SPACING.three,
+    justifyContent: 'center',
+    gap: SPACING.one,
   },
   brandBadge: {
-    position: 'absolute',
-    top: SPACING.three,
-    left: SPACING.three,
+    alignSelf: 'flex-start',
     backgroundColor: '#F5CB1B',
     paddingHorizontal: SPACING.two,
     paddingVertical: 4,
     borderRadius: 4,
+    marginBottom: SPACING.one,
   },
   brandBadgeLabel: {
     ...TYPOGRAPHY.label,
     color: '#171717',
     fontSize: 11,
   },
-  content: {
-    position: 'absolute',
-    left: SPACING.three,
-    right: SPACING.three,
-    bottom: SPACING.three,
-    gap: 2,
-  },
   headline: {
     ...TYPOGRAPHY.title,
     color: '#FFFFFF',
-    fontSize: 30,
-    lineHeight: 34,
+    fontSize: 26,
+    lineHeight: 28,
   },
   description: {
     ...TYPOGRAPHY.small,
-    color: '#F5E5E5',
+    color: '#D1D5DB',
+    marginTop: 2,
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    backgroundColor: '#B7131A',
+    borderRadius: RADIUS.chip,
+    paddingHorizontal: SPACING.three,
+    paddingVertical: SPACING.two,
+    marginTop: SPACING.two,
+  },
+  ctaLabel: {
+    ...TYPOGRAPHY.label,
+    color: '#FFFFFF',
+    fontSize: 13,
+  },
+  image: {
+    width: '42%',
+    height: '100%',
   },
 });

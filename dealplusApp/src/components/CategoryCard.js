@@ -5,6 +5,7 @@ import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import { usePressScale } from '../hooks/usePressScale';
 
 const TILE_COLORS = {
+  'shoe-sneaker': { bg: '#FBE2E2', fg: '#B7131A' },
   'tshirt-crew-outline': { bg: '#FBE2E2', fg: '#B7131A' },
   laptop: { bg: '#F6EFD8', fg: '#8A6D1F' },
   'face-woman-outline': { bg: '#DCE6F5', fg: '#1F3A6D' },
@@ -19,7 +20,26 @@ const DEFAULT_TILE_COLORS = { bg: '#F0F0F0', fg: '#6B7280' };
 const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
   const compact = variant === 'compact';
+  const circle = variant === 'circle';
   const tile = TILE_COLORS[category.icon] ?? DEFAULT_TILE_COLORS;
+
+  if (circle) {
+    return (
+      <Animated.View style={[animatedStyle, style]}>
+        <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.circleCard}>
+          <View style={[styles.circleIconWrap, { backgroundColor: tile.bg }]}>
+            <Icon name={category.icon} size={26} color={tile.fg} />
+          </View>
+          <Text style={styles.circleName} numberOfLines={1}>
+            {category.name}
+          </Text>
+          <Text style={styles.circleCount} numberOfLines={1}>
+            {category.dealCount.toLocaleString()}+ deals
+          </Text>
+        </Pressable>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View style={[animatedStyle, styles.wrapper, style]}>
@@ -126,6 +146,28 @@ const styles = StyleSheet.create({
   },
   countText: {
     ...TYPOGRAPHY.small,
+    color: '#6B7280',
+  },
+  circleCard: {
+    alignItems: 'center',
+    width: 88,
+    gap: 2,
+  },
+  circleIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.one,
+  },
+  circleName: {
+    ...TYPOGRAPHY.smallBold,
+    textAlign: 'center',
+  },
+  circleCount: {
+    ...TYPOGRAPHY.small,
+    fontSize: 12,
     color: '#6B7280',
   },
 });

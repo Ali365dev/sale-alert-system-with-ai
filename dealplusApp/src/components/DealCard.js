@@ -25,9 +25,8 @@ const isNew = (createdAt) => {
 
 const DealCard = ({ deal, brand, onPress, style }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
-  const isFavorite = useFavoritesStore((state) => state.isFavorite);
+  const favorite = useFavoritesStore((state) => state.favoriteIds.includes(deal.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
-  const favorite = isFavorite(deal.id);
 
   return (
     <Animated.View style={[animatedStyle, styles.card, style]}>

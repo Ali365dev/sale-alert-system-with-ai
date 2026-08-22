@@ -1,6 +1,6 @@
 import { appAxios } from './apiInterceptors';
 import { handleApiError } from '../utils/handleApiError';
-import { deriveBrandsAndDeals, deriveCategories } from '../utils/dealAdapters';
+import { deriveAlerts, deriveBrandsAndDeals, deriveCategories } from '../utils/dealAdapters';
 import useDataStore from '../state/dataStore';
 
 /** Fetches brands + offers in parallel, derives Brand/Deal/Category shapes, and
@@ -18,9 +18,10 @@ export const loadDeals = async () => {
 
     const { brands, deals, brandsById } = deriveBrandsAndDeals(apiBrands, apiOffers);
     const categories = deriveCategories(apiOffers);
+    const alerts = deriveAlerts(apiOffers);
 
-    useDataStore.setState({ brands, deals, brandsById, categories, loading: false });
-    return { brands, deals, categories };
+    useDataStore.setState({ brands, deals, brandsById, categories, alerts, loading: false });
+    return { brands, deals, categories, alerts };
   } catch (error) {
     console.log('Error message:', error);
     useDataStore.setState({ error: error?.message ?? 'Failed to load data', loading: false });

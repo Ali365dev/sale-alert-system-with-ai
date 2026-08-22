@@ -1,4 +1,4 @@
-import { Platform, StatusBar } from 'react-native';
+import { StatusBar } from 'react-native';
 import React, { useEffect } from 'react';
 import Navigation from './src/navigation/Navigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -14,12 +14,8 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
-      <StatusBar
-        translucent={Platform.OS === 'ios'}
-        backgroundColor="transparent"
-        barStyle="dark-content"
-      />
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
         <Navigation />
         <Toast config={toastConfig} position="top" />
       </GestureHandlerRootView>

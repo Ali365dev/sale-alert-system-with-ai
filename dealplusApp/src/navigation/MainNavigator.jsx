@@ -6,7 +6,7 @@ const Stack = createNativeStackNavigator();
 function MainNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="MainTabs"
+      initialRouteName="SplashScreen"
       screenOptions={() => ({
         headerShown: false,
         headerBackButtonDisplayMode: 'minimal',

@@ -53,7 +53,7 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <TopAppBar hideProfile />
+      <TopAppBar />
 
       {loading && deals.length === 0 ? (
         <Animated.View exiting={FadeOut.duration(200)} style={styles.content}>
@@ -79,11 +79,9 @@ const HomeScreen = () => {
 
           <View style={styles.section}>
             <Skeleton width={160} height={20} style={styles.sectionTitleSkeleton} />
-            <View style={styles.categoryGrid}>
+            <View style={styles.rowList}>
               {[0, 1, 2, 3].map((i) => (
-                <View key={i} style={styles.categoryItem}>
-                  <CategoryCardSkeleton />
-                </View>
+                <CategoryCardSkeleton key={i} />
               ))}
             </View>
           </View>
@@ -119,10 +117,15 @@ const HomeScreen = () => {
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor="#B7131A" />}>
-          <Pressable style={styles.searchBar} onPress={() => navigation.navigate('Search')}>
-            <Icon name="search" size={18} color="#6B7280" />
-            <Text style={styles.searchPlaceholder}>Search brands or deals...</Text>
-          </Pressable>
+          <View style={styles.searchRow}>
+            <Pressable style={styles.searchBar} onPress={() => navigation.navigate('Search')}>
+              <Icon name="search" size={18} color="#6B7280" />
+              <Text style={styles.searchPlaceholder}>Search brands or deals...</Text>
+            </Pressable>
+            <Pressable style={styles.filterButton} onPress={() => navigation.navigate('Search')}>
+              <Icon name="options-outline" size={20} color="#FFFFFF" />
+            </Pressable>
+          </View>
 
           {trendingBrands.length > 0 && (
             <View style={styles.section}>
@@ -138,6 +141,14 @@ const HomeScreen = () => {
                     <BrandCard brand={item} onPress={() => openBrand(item.id)} />
                   </AnimatedListItem>
                 )}
+                ListFooterComponent={
+                  <Pressable style={styles.moreBrands} onPress={() => navigation.navigate('BrandListScreen')}>
+                    <View style={styles.moreBrandsCircle}>
+                      <Icon name="add" size={22} color="#6B7280" />
+                    </View>
+                    <Text style={styles.moreBrandsLabel}>More{'\n'}Brands</Text>
+                  </Pressable>
+                }
               />
             </View>
           )}
@@ -152,20 +163,34 @@ const HomeScreen = () => {
           {previewCategories.length > 0 && (
             <View style={styles.section}>
               <SectionHeader title="Browse Categories" />
-              <View style={styles.categoryGrid}>
-                {previewCategories.map((c, index) => (
-                  <AnimatedListItem key={c.name} index={index} style={styles.categoryItem}>
-                    <CategoryCard
-                      category={c}
-                      variant="compact"
-                      onPress={() => navigation.navigate('Search', { category: c.name })}
-                      style={styles.categoryItemFill}
-                    />
+              <FlatList
+                horizontal
+                data={previewCategories}
+                keyExtractor={(c) => c.name}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.rowList}
+                renderItem={({ item, index }) => (
+                  <AnimatedListItem index={index}>
+                    <CategoryCard category={item} variant="circle" onPress={() => navigation.navigate('Search', { category: item.name })} />
                   </AnimatedListItem>
-                ))}
-              </View>
+                )}
+              />
             </View>
           )}
+
+          <Pressable style={styles.signupBanner}>
+            <View style={styles.signupIcon}>
+              <Icon name="pricetag" size={22} color="#FFFFFF" />
+            </View>
+            <View style={styles.signupText}>
+              <Text style={styles.signupTitle}>Get Exclusive Deals & Offers!</Text>
+              <Text style={styles.signupBody}>Sign up and never miss a deal again.</Text>
+            </View>
+            <View style={styles.signupButton}>
+              <Text style={styles.signupButtonLabel}>Sign Up</Text>
+              <Icon name="chevron-forward" size={14} color="#FFFFFF" />
+            </View>
+          </Pressable>
 
           {expiringSoon.length > 0 && (
             <View style={styles.section}>
@@ -216,19 +241,33 @@ const styles = StyleSheet.create({
   section: {
     gap: SPACING.three,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.two,
+    paddingHorizontal: SPACING.four,
+  },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.two,
     backgroundColor: '#F8F9FB',
     borderRadius: RADIUS.chip,
     paddingHorizontal: SPACING.three,
-    marginHorizontal: SPACING.four,
     height: 48,
   },
   searchPlaceholder: {
     ...TYPOGRAPHY.default,
     color: '#6B7280',
+  },
+  filterButton: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.chip,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skeletonPad: {
     paddingHorizontal: SPACING.four,
@@ -241,17 +280,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.four,
     gap: SPACING.three,
   },
-  categoryGrid: {
+  moreBrands: {
+    alignItems: 'center',
+    width: 84,
+    gap: SPACING.two,
+  },
+  moreBrandsCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreBrandsLabel: {
+    ...TYPOGRAPHY.smallBold,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  signupBanner: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: SPACING.three,
-    paddingHorizontal: SPACING.four,
+    marginHorizontal: SPACING.four,
+    backgroundColor: '#FDEEEE',
+    borderRadius: RADIUS.card,
+    padding: SPACING.three,
   },
-  categoryItem: {
-    flexBasis: '47%',
+  signupIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.button,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  categoryItemFill: {
-    flexBasis: '100%',
+  signupText: {
+    flex: 1,
+    gap: 2,
+  },
+  signupTitle: {
+    ...TYPOGRAPHY.smallBold,
+    fontSize: 15,
+  },
+  signupBody: {
+    ...TYPOGRAPHY.small,
+    color: '#6B7280',
+  },
+  signupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.chip,
+    paddingHorizontal: SPACING.three,
+    paddingVertical: SPACING.two,
+  },
+  signupButtonLabel: {
+    ...TYPOGRAPHY.label,
+    color: '#FFFFFF',
+    fontSize: 13,
   },
   latestHeader: {
     flexDirection: 'row',

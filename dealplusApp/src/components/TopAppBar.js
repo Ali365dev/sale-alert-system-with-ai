@@ -3,10 +3,13 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import useDataStore from '../state/dataStore';
+import Logo from './Logo';
 
-const TopAppBar = ({ title = 'DealPulse', showBack, onBack, hideSearch, hideProfile, rightIcon, onPressRight }) => {
+const TopAppBar = ({ title, showBack, onBack, hideSearch, hideProfile, rightIcon, onPressRight }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const unreadCount = useDataStore((state) => state.alerts.filter((a) => !a.read).length);
 
   return (
     <View style={[styles.bar, { paddingTop: insets.top + SPACING.two }]}>
@@ -17,14 +20,14 @@ const TopAppBar = ({ title = 'DealPulse', showBack, onBack, hideSearch, hideProf
           </Pressable>
         ) : (
           !hideSearch && (
-            <Pressable hitSlop={8} onPress={() => navigation.navigate('Search')}>
-              <Icon name="search" size={22} color="#B7131A" />
+            <Pressable hitSlop={8}>
+              <Icon name="menu-outline" size={26} color="#171717" />
             </Pressable>
           )
         )}
       </View>
 
-      <Text style={styles.wordmark}>{title}</Text>
+      {title ? <Text style={styles.title}>{title}</Text> : <Logo size={20} />}
 
       <View style={[styles.side, styles.sideRight]}>
         {rightIcon ? (
@@ -33,8 +36,13 @@ const TopAppBar = ({ title = 'DealPulse', showBack, onBack, hideSearch, hideProf
           </Pressable>
         ) : (
           !hideProfile && (
-            <Pressable hitSlop={8} onPress={() => navigation.navigate('Profile')}>
-              <Icon name="person-circle-outline" size={24} color="#B7131A" />
+            <Pressable hitSlop={8} onPress={() => navigation.navigate('NotificationsScreen')} style={styles.bellWrap}>
+              <Icon name="notifications-outline" size={23} color="#171717" />
+              {unreadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeLabel}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
             </Pressable>
           )
         )}
@@ -64,10 +72,32 @@ const styles = StyleSheet.create({
   sideRight: {
     justifyContent: 'flex-end',
   },
-  wordmark: {
+  title: {
     ...TYPOGRAPHY.headline,
     flex: 1,
     textAlign: 'center',
-    color: '#B7131A',
+    color: COLORS.primary,
+  },
+  bellWrap: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -7,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 3,
+    backgroundColor: COLORS.primary,
+    borderWidth: 1.5,
+    borderColor: COLORS.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

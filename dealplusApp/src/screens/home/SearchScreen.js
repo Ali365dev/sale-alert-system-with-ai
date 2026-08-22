@@ -62,7 +62,7 @@ const SearchScreen = () => {
 
   return (
     <View style={styles.container}>
-      <TopAppBar showBack hideSearch hideProfile />
+      <TopAppBar />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]}
