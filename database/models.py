@@ -45,6 +45,17 @@ class Email(Base):
     processing_error = Column(Text, nullable=True)
     processing_attempted_at = Column(DateTime, nullable=True)
 
+    # Structured detail behind the most recent processing_error, when the
+    # failure came from the AI pipeline (ai.analyzer.analyze_email) — see
+    # ai/providers.py's classify_error() for the failure_reason/error_code
+    # taxonomy. All null for an email that hasn't failed, or failed for a
+    # non-AI reason (e.g. routed to Unknown Emails).
+    failure_reason = Column(String(60), nullable=True)          # e.g. "API rate limit exceeded"
+    failure_error_code = Column(String(20), nullable=True)      # e.g. "429"
+    failure_provider = Column(String(20), nullable=True)        # e.g. "Gemini" — display name, not raw provider key
+    failure_key_identifier = Column(String(120), nullable=True)  # e.g. "Gemini Key 1" — never the raw API key
+    failure_attempt_count = Column(Integer, nullable=True)
+
     offers = relationship("Offer", back_populates="email", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:

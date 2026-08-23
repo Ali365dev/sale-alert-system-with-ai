@@ -28,16 +28,28 @@ anchored to the email's received_at (not to whenever this code runs).
 import json
 import re
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from config import logger
-from ai._llm import call_llm
+from ai._llm import call_llm, describe_active_provider, get_last_llm_failure_info
 from ai.expiry_resolver import resolve_relative_expiry
 from database.models import Offer
 from database.offer_retention import compute_delete_after, utcnow
 from services.settings_service import get_prompt
 
 PROMPT_KEY = "email_analysis"
+
+# Structured reason for the most recent analyze_email() that returned None —
+# mirrors ai._llm.get_last_llm_failure_info(), but also covers the one
+# failure mode that isn't an LLM-call failure at all: the model responded
+# but its output wasn't parseable JSON. Read via get_last_failure_info()
+# right after a None result — see services/email_sync.py and
+# services/jobs/process_pending.py for how job logs use this.
+_last_failure_info: Optional[dict] = None
+
+
+def get_last_failure_info() -> Optional[dict]:
+    return _last_failure_info
 
 _PROMPT_TEMPLATE = """\
 You are a JSON-only extraction engine.  Analyse the email below and return a
@@ -109,10 +121,16 @@ def _safe_float(value: Any, low: float = 0, high: float = 100) -> Optional[float
         return None
 
 
-def analyze_email(subject: str, body: str, sender: str = "", received_at: Optional[datetime] = None) -> Optional[dict]:
+def analyze_email(
+    subject: str, body: str, sender: str = "", received_at: Optional[datetime] = None,
+    on_event: Optional[Callable[[dict], None]] = None,
+) -> Optional[dict]:
     """
     Call AI to extract offer data from a single email.
-    Tries Gemini once; on any failure immediately falls back to Groq.
+    Tries the active provider/key first, falling back across every eligible
+    key and then every eligible provider on a retryable error (rate limit,
+    quota, auth, timeout, server-unavailable, network — see
+    ai/providers.classify_error) until one succeeds or all are exhausted.
 
     received_at is the email's own received date/time (Email.received_date) —
     used as the reference "today" for the AI's year-inference on explicit
@@ -120,8 +138,15 @@ def analyze_email(subject: str, body: str, sender: str = "", received_at: Option
     build_offer() via ai.expiry_resolver, anchored to the same received_at, so
     it stays correct however long the email sat unprocessed.
 
-    Returns the parsed dict or None on failure.
+    `on_event` (optional): forwarded to call_llm() for real-time
+    provider/key-switch visibility — see ai/providers.py's module docstring.
+
+    Returns the parsed dict or None on failure — call get_last_failure_info()
+    right after a None result for the structured reason.
     """
+    global _last_failure_info
+    _last_failure_info = None
+
     reference_date = received_at or datetime.now(timezone.utc)
     today = reference_date.strftime("%Y-%m-%d")
     truncated_body = body[:6000] if body else "(empty body)"
@@ -131,16 +156,25 @@ def analyze_email(subject: str, body: str, sender: str = "", received_at: Option
     )
 
     t_start = datetime.now(timezone.utc)
-    raw = call_llm(prompt)
+    raw = call_llm(prompt, on_event=on_event)
     elapsed = (datetime.now(timezone.utc) - t_start).total_seconds()
 
     if raw is None:
         logger.error("No response from AI for subject=%r (%.2fs)", subject[:60], elapsed)
+        _last_failure_info = get_last_llm_failure_info() or {
+            "status": "failed", "failure_reason": "Unknown API error", "error_code": "unknown",
+            "provider": None, "key_identifier": None, "attempt_count": 1,
+        }
         return None
 
     data = _extract_json(raw)
     if data is None:
         logger.error("Could not parse JSON from AI response for subject=%r (%.2fs)", subject[:60], elapsed)
+        active = describe_active_provider()
+        _last_failure_info = {
+            "status": "failed", "failure_reason": "Invalid AI response", "error_code": "invalid_json",
+            "provider": active["provider"], "key_identifier": active["key_identifier"], "attempt_count": 1,
+        }
         return None
 
     data["discount_percentage"] = _safe_float(data.get("discount_percentage"), 0, 100)

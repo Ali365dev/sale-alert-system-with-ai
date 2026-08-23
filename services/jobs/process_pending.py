@@ -75,15 +75,34 @@ class ProcessPendingJob(BackgroundJob):
                 e.ocr_processed_at = datetime.utcnow()
 
         job_service.set_stage(job_id, "ai_analysis")
-        result = analyze_email(subject, ocr_result["merged"], sender, received_at=received_at)
+        from ai._llm import describe_active_provider
+        from ai.analyzer import get_last_failure_info
+        from services.ai_job_logging import failure_info_or_default, make_provider_event_logger, provider_key_lines
+
+        active = describe_active_provider()
+        job_service.append_log(job_id, f"→ Analysing \"{item.label[:60]}\"\n{provider_key_lines(active)}", category="ai")
+
+        result = analyze_email(
+            subject, ocr_result["merged"], sender, received_at=received_at,
+            on_event=make_provider_event_logger(job_id, item.label),
+        )
         if result is None:
-            job_service.append_log(job_id, f"⚠ AI returned no result for \"{item.label[:60]}\"", severity="warning", category="ai")
+            failure_info = failure_info_or_default(get_last_failure_info())
+            job_service.append_log(
+                job_id, f"⚠ ✗ Failed to analyse \"{item.label[:60]}\"\nReason: {failure_info['failure_reason']}",
+                severity="warning", category="ai",
+            )
             with get_session() as session:
                 e = session.query(Email).filter(Email.id == item.id).first()
                 if e is not None:
                     e.processing_status = "failed"
-                    e.processing_error = "AI returned no result"
+                    e.processing_error = failure_info["failure_reason"]
                     e.processing_attempted_at = datetime.utcnow()
+                    e.failure_reason = failure_info.get("failure_reason")
+                    e.failure_error_code = failure_info.get("error_code")
+                    e.failure_provider = failure_info.get("provider")
+                    e.failure_key_identifier = failure_info.get("key_identifier")
+                    e.failure_attempt_count = failure_info.get("attempt_count")
             return "failed"
 
         job_service.set_stage(job_id, "saving_data")
@@ -94,6 +113,12 @@ class ProcessPendingJob(BackgroundJob):
                 e.processing_status = "processed"
                 e.processing_error = None
                 e.processing_attempted_at = datetime.utcnow()
+                # Clear any stale failure detail from a previous failed attempt on this email.
+                e.failure_reason = None
+                e.failure_error_code = None
+                e.failure_provider = None
+                e.failure_key_identifier = None
+                e.failure_attempt_count = None
 
         job_service.append_log(job_id, f"✓ \"{item.label[:60]}\" analysed and saved", severity="success", category="offer")
         job_service.set_stage(job_id, "processing")

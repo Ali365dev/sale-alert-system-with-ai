@@ -13,11 +13,13 @@ from datetime import datetime
 
 from sqlalchemy import exists
 
-from ai.analyzer import analyze_email, build_offer
+from ai._llm import describe_active_provider
+from ai.analyzer import analyze_email, build_offer, get_last_failure_info
 from config import logger
 from database.db import get_session
 from database.models import Email, Offer
 from services import job_service
+from services.ai_job_logging import failure_info_or_default, make_provider_event_logger, provider_key_lines
 from services.retry import retry_with_backoff
 
 _progress_lock = threading.Lock()
@@ -105,9 +107,20 @@ def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sende
             e.ocr_text_clean = ocr_result["ocr_clean"] or None
             e.ocr_processed_at = datetime.utcnow()
 
-    result = analyze_email(subject, ocr_result["merged"], sender, received_at=received_at)
+    active = describe_active_provider()
+    job_service.append_log(job_id, f"→ Analysing \"{subject[:60]}\"\n{provider_key_lines(active)}", category="ai")
+
+    result = analyze_email(
+        subject, ocr_result["merged"], sender, received_at=received_at,
+        on_event=make_provider_event_logger(job_id, subject),
+    )
     if result is None:
-        _mark_processing_result(email_id, "failed", "AI returned no result")
+        failure_info = failure_info_or_default(get_last_failure_info())
+        job_service.append_log(
+            job_id, f"⚠ ✗ Failed to analyse \"{subject[:60]}\"\nReason: {failure_info['failure_reason']}",
+            severity="warning", category="ai",
+        )
+        _mark_processing_result(email_id, "failed", failure_info["failure_reason"], failure_info)
         return "failed"
 
     with get_session() as db:
@@ -157,13 +170,18 @@ def _process_pending(job_id: int, email_id: int, subject: str, body: str, sender
     return outcome, subject
 
 
-def _mark_processing_result(email_id: int, status: str, error: str | None) -> None:
+def _mark_processing_result(email_id: int, status: str, error: str | None, failure_info: dict | None = None) -> None:
     with get_session() as db:
         e = db.query(Email).filter(Email.id == email_id).first()
         if e is not None:
             e.processing_status = status
             e.processing_error = error
             e.processing_attempted_at = datetime.utcnow()
+            e.failure_reason = failure_info.get("failure_reason") if failure_info else None
+            e.failure_error_code = failure_info.get("error_code") if failure_info else None
+            e.failure_provider = failure_info.get("provider") if failure_info else None
+            e.failure_key_identifier = failure_info.get("key_identifier") if failure_info else None
+            e.failure_attempt_count = failure_info.get("attempt_count") if failure_info else None
 
 
 def _run_one(job_id: int, gmail_session, item: dict, critical: dict, critical_event: threading.Event) -> None:
@@ -200,7 +218,9 @@ def _run_one(job_id: int, gmail_session, item: dict, critical: dict, critical_ev
         elif outcome == "skipped":
             job_service.update_progress(job_id, processed_delta=1, skipped_delta=1, current_email_subject=subject, current_item_label=subject)
         else:
-            job_service.append_log(job_id, f"✗ Failed to analyse \"{subject[:60]}\"", severity="warning", category="ai")
+            # The detailed "⚠ ✗ Failed to analyse ... / Reason: ..." line was
+            # already logged inside _analyze_and_save, where the structured
+            # failure reason is available — nothing generic to add here.
             job_service.update_progress(job_id, processed_delta=1, failed_delta=1, current_email_subject=subject, current_item_label=subject)
 
 
@@ -208,6 +228,9 @@ def run_email_sync_job(job_id: int, worker_count: int) -> None:
     critical: dict = {"exc": None}
     critical_event = threading.Event()
     try:
+        active = describe_active_provider()
+        job_service.append_log(job_id, f"● Pipeline started\n{provider_key_lines(active)}", category="ai")
+
         job_service.set_stage(job_id, "connecting")
         job_service.append_log(job_id, "Connecting to Gmail…", category="gmail")
         gmail_session, items = _collect_work_items()

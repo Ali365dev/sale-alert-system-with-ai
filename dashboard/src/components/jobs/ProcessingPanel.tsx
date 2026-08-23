@@ -231,12 +231,12 @@ export function ProcessingPanel({ jobId, onDismiss }: { jobId: number; onDismiss
             }}
           >
             {[...logs].reverse().map((log) => (
-              <div key={log.id} style={{ display: "flex", gap: 8, color: getSeverityColor(log.severity) }}>
+              <div key={log.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", color: getSeverityColor(log.severity) }}>
                 <span style={{ color: "var(--text-faint)", flex: "0 0 auto" }}>
                   {new Date(log.time).toLocaleTimeString()}
                 </span>
                 <span style={{ flex: "0 0 auto" }}>{getSeverityIcon(log.severity)}</span>
-                <span style={{ color: "var(--text-body)" }}>{log.message}</span>
+                <span style={{ color: "var(--text-body)", whiteSpace: "pre-line" }}>{log.message}</span>
               </div>
             ))}
           </div>

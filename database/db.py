@@ -52,6 +52,11 @@ def _migrate() -> None:
         ("offers", "expiry_date_confidence",       "FLOAT"),
         ("offers", "delete_after",                 "TIMESTAMP"),
         ("offers", "title",                        "VARCHAR(500)"),
+        ("emails", "failure_reason",               "VARCHAR(60)"),
+        ("emails", "failure_error_code",           "VARCHAR(20)"),
+        ("emails", "failure_provider",             "VARCHAR(20)"),
+        ("emails", "failure_key_identifier",       "VARCHAR(120)"),
+        ("emails", "failure_attempt_count",        "INTEGER"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:

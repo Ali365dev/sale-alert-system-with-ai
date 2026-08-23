@@ -257,7 +257,7 @@ def test_api_key(key_id: int):
 @bp.get("/providers")
 @settings_auth.require_admin
 def get_providers():
-    from ai._llm import get_active_provider, get_provider_health
+    from ai._llm import get_active_provider, get_key_health, get_provider_health
     from ai.providers import PROVIDER_NAMES, normalize_provider_enabled, normalize_provider_order
 
     gemini_keys = settings_service.list_api_keys("gemini")
@@ -283,6 +283,10 @@ def get_providers():
         "active_provider": get_active_provider(),
         "provider_health": get_provider_health(),
         "provider_requests_today": requests_today,
+        # Per-key cooldown state (rate-limited/available/retry-after) — in-memory,
+        # per-process; see ai/providers.py's _KeyCooldowns / module docstring.
+        "gemini_key_health": get_key_health("gemini"),
+        "groq_key_health": get_key_health("groq"),
     })
 
 

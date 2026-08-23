@@ -1,14 +1,24 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 const BrandLogo = ({ initials, size = 56, tone = 'outline' }) => {
+  const isFilled = tone === 'filled';
+
   return (
     <View
       style={[
         styles.circle,
-        tone === 'outline' ? styles.outline : styles.filled,
+        isFilled ? styles.filled : styles.outline,
         { width: size, height: size, borderRadius: size / 2 },
       ]}>
-      <Text style={{ fontSize: size * 0.32, lineHeight: size * 0.32 * 1.2, fontWeight: '700' }}>{initials}</Text>
+      <Text
+        style={{
+          fontSize: size * 0.32,
+          lineHeight: size * 0.32 * 1.2,
+          fontWeight: '700',
+          color: isFilled ? '#FFFFFF' : '#171717',
+        }}>
+        {initials}
+      </Text>
     </View>
   );
 };
@@ -27,6 +37,6 @@ const styles = StyleSheet.create({
     borderColor: '#F0DADA',
   },
   filled: {
-    backgroundColor: '#EDEDED',
+    backgroundColor: '#171717',
   },
 });

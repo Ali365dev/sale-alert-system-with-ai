@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, LinearTransition, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -15,7 +15,10 @@ const ICONS = {
 
 const CENTER_ROUTE = 'Deals';
 const CENTER_ICON = 'tag-outline';
-const INDICATOR_HEIGHT = 36;
+const INDICATOR_HEIGHT = 55;
+// Pill reads as cramped when it exactly hugs the icon+label — pad it out symmetrically.
+const INDICATOR_WIDTH_BOOST = 20;
+const INDICATOR_X_OFFSET = INDICATOR_WIDTH_BOOST / 2;
 const ITEM_LAYOUT = LinearTransition.duration(260).easing(Easing.out(Easing.cubic));
 
 function TabItem({ name, label, focused, onPress, onLayout }) {
@@ -31,7 +34,7 @@ function TabItem({ name, label, focused, onPress, onLayout }) {
           hitSlop={8}
           accessibilityRole="button"
           accessibilityState={focused ? { selected: true } : {}}
-          style={[styles.item, focused && styles.itemFocused]}>
+          style={styles.item}>
           <Icon name={ICONS[name]} size={20} color="#FFFFFF" />
           <Text style={styles.label}>{label}</Text>
         </Pressable>
@@ -70,31 +73,50 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const [ready, setReady] = useState(false);
   const indicatorX = useSharedValue(0);
   const indicatorWidth = useSharedValue(0);
+  const indicatorOpacity = useSharedValue(0);
+
+  // localX is relative to whichever sideGroup the item lives in; the right group's offset within
+  // `bar` is resolved lazily (at move time) rather than baked in at layout time, since a right-side
+  // item's onLayout can fire before the right sideGroup's own onLayout has set that offset.
+  const resolveAbsoluteX = useCallback((rect) => (rect.isRightGroup ? rightGroupOffsetRef.current + rect.localX : rect.localX), []);
 
   const moveIndicatorTo = useCallback(
     (routeKey) => {
       const rect = layoutsRef.current[routeKey];
       if (!rect) return;
-      indicatorX.value = withTiming(rect.x, { duration: 260, easing: Easing.out(Easing.cubic) });
-      indicatorWidth.value = withTiming(rect.width, { duration: 260, easing: Easing.out(Easing.cubic) });
+      const x = resolveAbsoluteX(rect);
+      indicatorX.value = withTiming(x - INDICATOR_X_OFFSET, { duration: 260, easing: Easing.out(Easing.cubic) });
+      indicatorWidth.value = withTiming(rect.width + INDICATOR_WIDTH_BOOST, { duration: 260, easing: Easing.out(Easing.cubic) });
     },
-    [indicatorX, indicatorWidth],
+    [indicatorX, indicatorWidth, resolveAbsoluteX],
   );
 
   const handleItemLayout = (route, isRightGroup) => (event) => {
     const { x, width } = event.nativeEvent.layout;
-    const absoluteX = isRightGroup ? rightGroupOffsetRef.current + x : x;
-    layoutsRef.current[route.key] = { x: absoluteX, width };
-    if (state.routes[state.index].key === route.key) {
-      if (!ready) {
-        indicatorX.value = absoluteX;
-        indicatorWidth.value = width;
-        setReady(true);
-      } else {
-        moveIndicatorTo(route.key);
-      }
+    layoutsRef.current[route.key] = { localX: x, width, isRightGroup };
+    if (!ready && state.routes[state.index].key === route.key) {
+      const absoluteX = resolveAbsoluteX(layoutsRef.current[route.key]);
+      indicatorX.value = absoluteX - INDICATOR_X_OFFSET;
+      indicatorWidth.value = width + INDICATOR_WIDTH_BOOST;
+      indicatorOpacity.value = 1;
+      setReady(true);
     }
   };
+
+  // Tab items no longer resize on focus, so onLayout only fires once per item at mount — the
+  // indicator has to be moved explicitly whenever the active route changes, not as a side effect
+  // of a layout event. The center "Deals" tab has no rect in layoutsRef (it isn't a TabItem), so
+  // switching to it just fades the indicator out instead of leaving it stuck on the old tab.
+  useEffect(() => {
+    if (!ready) return;
+    const activeRoute = state.routes[state.index];
+    if (activeRoute.key === centerRoute.key) {
+      indicatorOpacity.value = withTiming(0, { duration: 200 });
+      return;
+    }
+    indicatorOpacity.value = withTiming(1, { duration: 200 });
+    moveIndicatorTo(activeRoute.key);
+  }, [ready, state.index, state.routes, centerRoute.key, moveIndicatorTo, indicatorOpacity]);
 
   const handleRightGroupLayout = (event) => {
     rightGroupOffsetRef.current = event.nativeEvent.layout.x;
@@ -126,7 +148,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: indicatorX.value }],
     width: indicatorWidth.value,
-    opacity: ready ? 1 : 0,
+    opacity: indicatorOpacity.value,
   }));
 
   return (
@@ -164,7 +186,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: '#171717',
-    borderRadius: RADIUS.sheet,
+    borderRadius: RADIUS.card,
     paddingVertical: SPACING.two,
     paddingHorizontal: SPACING.one,
     ...SHADOWS.raised,
@@ -172,9 +194,9 @@ const styles = StyleSheet.create({
   indicator: {
     position: 'absolute',
     left: 0,
-    bottom: SPACING.three,
+    bottom: 6,
     height: INDICATOR_HEIGHT,
-    borderRadius: RADIUS.chip,
+    borderRadius: 5,
     backgroundColor: COLORS.primary,
   },
   sideGroup: {
@@ -200,12 +222,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.two,
     paddingVertical: SPACING.one,
     borderRadius: RADIUS.chip,
-  },
-  itemFocused: {
-    flexDirection: 'row',
-    // gap: 2,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
   },
   label: {
     ...TYPOGRAPHY.smallBold,
