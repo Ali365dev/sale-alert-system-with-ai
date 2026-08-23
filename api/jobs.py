@@ -4,13 +4,32 @@ import threading
 
 from flask import Blueprint, jsonify, request
 
-from services import job_runner, job_service
+from services import job_runner, job_service, settings_auth
 
 bp = Blueprint("jobs", __name__, url_prefix="/api/jobs")
 
 EMAIL_SYNC_TYPE = "email_sync"
 DEFAULT_WORKERS = 5
 MAX_WORKERS = 10
+
+# Every other job type here is an internal pipeline action — starting/retrying
+# one just re-processes this app's own data, so the generic routes below are
+# deliberately left unauthenticated for them (see module-level docstring
+# elsewhere in this app re: single-operator tool). send_push_notification is
+# different: it fans a message out to every real device out there, so it must
+# not be startable (or re-triggerable via retry/bulk-retry) by an arbitrary
+# caller. api/notifications.py's /send is the normal way to start one; this
+# guard exists purely so that route isn't the *only* thing stopping abuse via
+# the generic job endpoints.
+_ADMIN_ONLY_JOB_TYPES = {"send_push_notification"}
+
+
+def _require_admin_for(job_type: str):
+    if job_type in _ADMIN_ONLY_JOB_TYPES and not settings_auth.verify_session_token(
+        request.cookies.get(settings_auth.SESSION_COOKIE)
+    ):
+        return jsonify({"error": "not authenticated"}), 401
+    return None
 
 
 def _dispatch(job_type: str, payload: dict):
@@ -20,6 +39,10 @@ def _dispatch(job_type: str, payload: dict):
     config = job_runner.get_runner(job_type)
     if config is None:
         return jsonify({"error": f"unknown job_type {job_type!r}"}), 404
+
+    guard = _require_admin_for(job_type)
+    if guard:
+        return guard
 
     existing = job_service.get_active_job(job_type)
     if existing:
@@ -102,6 +125,12 @@ def cancel_job(job_id: int):
 
 @bp.post("/<int:job_id>/retry")
 def retry_job_route(job_id: int):
+    existing = job_service.get_job(job_id)
+    if existing:
+        guard = _require_admin_for(existing["job_type"])
+        if guard:
+            return guard
+
     new_job = job_service.retry_job(job_id)
     if new_job is None:
         return jsonify({"error": "job is not retryable"}), 409
@@ -131,6 +160,12 @@ def bulk_action():
         count = job_service.bulk_delete(ids)
         return jsonify({"status": "deleted", "count": count})
     if action == "retry":
+        for jid in ids:
+            job = job_service.get_job(jid)
+            if job:
+                guard = _require_admin_for(job["job_type"])
+                if guard:
+                    return guard
         new_jobs = job_service.bulk_retry(ids)
         for job in new_jobs:
             config = job_runner.get_runner(job["job_type"])

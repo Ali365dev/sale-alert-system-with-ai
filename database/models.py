@@ -312,6 +312,23 @@ class Prompt(Base):
         return f"<Prompt key={self.key!r} version={self.version}>"
 
 
+class DeviceToken(Base):
+    """A single mobile device's FCM registration token — the push audience
+    for services/jobs/send_push_notification.py. Broadcast-only for now (no
+    user/account model exists yet): every active row gets every send."""
+    __tablename__ = "device_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token = Column(String(500), unique=True, nullable=False, index=True)
+    platform = Column(String(10), nullable=False)  # "ios" | "android"
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    last_seen_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<DeviceToken id={self.id} platform={self.platform!r} active={self.is_active}>"
+
+
 class SettingsAuditLog(Base):
     """Append-only record of every Settings mutation — who changed what,
     from what, to what, when."""

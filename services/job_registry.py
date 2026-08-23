@@ -13,6 +13,7 @@ def register_all() -> None:
     from services.jobs.label_brand_emails import LabelBrandEmailsJob
     from services.jobs.discover_brand import DiscoverBrandJob
     from services.jobs.cleanup_expired_offers import CleanupExpiredOffersJob
+    from services.jobs.send_push_notification import SendPushNotificationJob
 
     job_runner.register(EmailSyncJob())
     job_runner.register(VerifyOffersJob())
@@ -22,3 +23,4 @@ def register_all() -> None:
     job_runner.register(LabelBrandEmailsJob())
     job_runner.register(DiscoverBrandJob())
     job_runner.register(CleanupExpiredOffersJob())
+    job_runner.register(SendPushNotificationJob())

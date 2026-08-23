@@ -17,3 +17,4 @@ pillow>=10.0.0
 paddlepaddle>=2.6.0
 paddleocr>=2.7.0
 apscheduler>=3.10.4
+firebase-admin>=6.5.0

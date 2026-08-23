@@ -67,6 +67,9 @@ def create_app() -> Flask:
     from api.settings import bp as settings_bp
     app.register_blueprint(settings_bp)
 
+    from api.notifications import bp as notifications_bp
+    app.register_blueprint(notifications_bp)
+
     @app.get("/api/health")
     def health():
         return {"status": "ok"}
