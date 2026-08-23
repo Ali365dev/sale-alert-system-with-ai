@@ -233,6 +233,12 @@ export const Icon = {
       <rect x="13" y="13" width="8" height="8" rx="1.5" />
     </Svg>
   ),
+  bell: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </Svg>
+  ),
   inbox: (p: IconProps) => (
     <Svg {...p}>
       <path d="M3 12h4.5l1.5 3h6l1.5-3H21" />

@@ -15,6 +15,11 @@ if linkage != nil
 end
 
 target 'dealplusApp' do
+  # Firebase's iOS SDK ships Swift pods (e.g. FirebaseCoreInternal) that
+  # require modular headers to be importable from Swift when linked as
+  # static libraries, which is this project's default (no use_frameworks!).
+  use_modular_headers!
+
   config = use_native_modules!
 
   use_react_native!(

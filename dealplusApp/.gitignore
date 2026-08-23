@@ -35,6 +35,10 @@ local.properties
 !debug.keystore
 .kotlin/
 
+# Firebase — project-specific credentials, provided per-environment, never committed
+android/app/google-services.json
+ios/dealplusApp/GoogleService-Info.plist
+
 # node.js
 #
 node_modules/

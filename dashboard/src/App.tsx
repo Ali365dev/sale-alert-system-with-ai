@@ -6,6 +6,7 @@ import { Analytics } from "./pages/Analytics";
 import { BrandsManager } from "./pages/BrandsManager";
 import { EmailManager } from "./pages/EmailManager";
 import { Insights } from "./pages/Insights";
+import { NotificationManager } from "./pages/NotificationManager";
 import { OffersManager } from "./pages/OffersManager";
 import { Overview } from "./pages/Overview";
 import { PipelineCenter } from "./pages/PipelineCenter";
@@ -85,6 +86,14 @@ function App() {
           element={
             <AppShell title="AI insights">
               <Insights />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <AppShell title="Notification Management">
+              <NotificationManager />
             </AppShell>
           }
         />
