@@ -58,6 +58,7 @@ const pushToAlertsFeed = (remoteMessage) => {
     body: notification.body ?? '',
     time: 'Just now',
     brandId: data?.brandId ?? null,
+    dealId: data?.dealId ?? null,
     read: false,
   };
 

@@ -108,7 +108,13 @@ const NotificationsScreen = () => {
           }
           renderItem={({ item, index }) => (
             <AnimatedListItem index={index}>
-              <AlertRow item={item} onPress={() => item.brandId && navigation.navigate('BrandDetailScreen', { id: item.brandId })} />
+              <AlertRow
+                item={item}
+                onPress={() => {
+                  if (item.dealId) navigation.navigate('DealDetailScreen', { id: item.dealId });
+                  else if (item.brandId) navigation.navigate('BrandDetailScreen', { id: item.brandId });
+                }}
+              />
             </AnimatedListItem>
           )}
         />

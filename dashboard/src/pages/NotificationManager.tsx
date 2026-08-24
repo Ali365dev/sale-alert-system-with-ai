@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useDeviceCount, useFcmStatus, useSaveFcmConfig, useSendNotification } from "../api/notifications";
 import { useJobHistory, type Job } from "../api/jobs";
+import { useOffers, type Offer } from "../api/offers";
 import { getJobStatusStyle } from "../config/jobStatus";
 import { Icon } from "../components/icons";
 import { JobDetailModal } from "../components/jobs/JobDetailModal";
@@ -55,9 +56,105 @@ function FirebaseSetupCard({ onSaved }: { onSaved: () => void }) {
   );
 }
 
+/** Search-as-you-type offer picker — sets data.dealId on the push payload so
+ * dealplusApp's pushNotifications.js (onNotificationOpenedApp/getInitialNotification)
+ * deep-links straight to that offer's DealDetailScreen on tap. No offer
+ * selected just opens the app to its default screen, same as before. */
+function OfferPicker({ selected, onSelect }: { selected: Offer | null; onSelect: (offer: Offer | null) => void }) {
+  const [query, setQuery] = useState("");
+  const { data } = useOffers({});
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? (data?.offers ?? [])
+        .filter((o) => [o.title, o.brand].filter((v): v is string => !!v).some((v) => v.toLowerCase().includes(q)))
+        .slice(0, 20)
+    : [];
+
+  if (selected) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          height: 40,
+          padding: "0 12px",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-sm)",
+          background: "var(--surface-sunken)",
+          fontSize: 13,
+        }}
+      >
+        <Icon.tag size={14} style={{ color: "var(--brand)", flex: "0 0 auto" }} />
+        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {selected.brand ? `${selected.brand} — ` : ""}
+          {selected.title ?? `Offer #${selected.id}`}
+        </span>
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          style={{ border: "none", background: "transparent", color: "var(--text-muted)", cursor: "pointer", fontSize: 13, flex: "0 0 auto" }}
+        >
+          Clear
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <TextInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search offers by title or brand…" />
+      {matches.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            zIndex: 10,
+            maxHeight: 260,
+            overflowY: "auto",
+            background: "var(--surface-card)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-sm)",
+            boxShadow: "var(--shadow-lg)",
+          }}
+        >
+          {matches.map((offer) => (
+            <button
+              key={offer.id}
+              type="button"
+              onClick={() => {
+                onSelect(offer);
+                setQuery("");
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                padding: "8px 12px",
+                fontSize: 12.5,
+                color: "var(--text-body)",
+                borderBottom: "1px solid var(--border)",
+              }}
+            >
+              {offer.brand ? `${offer.brand} — ` : ""}
+              {offer.title ?? `Offer #${offer.id}`}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ComposeCard({ deviceCount }: { deviceCount: number }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [linkedOffer, setLinkedOffer] = useState<Offer | null>(null);
   const send = useSendNotification();
   const [visibleJobId, setVisibleJobId] = useState<number | null>(null);
 
@@ -74,17 +171,29 @@ function ComposeCard({ deviceCount }: { deviceCount: number }) {
         <Label>Body</Label>
         <TextArea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Tap to see today's top deals." rows={3} maxLength={240} />
       </div>
+      <div>
+        <Label>Link to offer (optional)</Label>
+        <OfferPicker selected={linkedOffer} onSelect={setLinkedOffer} />
+        <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--text-faint)" }}>
+          Tapping the notification opens this offer directly instead of just the app.
+        </p>
+      </div>
       <Button
         disabled={!canSend}
         loading={send.isPending}
         onClick={() =>
           send.mutate(
-            { title: title.trim(), body: body.trim() },
+            {
+              title: title.trim(),
+              body: body.trim(),
+              data: linkedOffer ? { dealId: String(linkedOffer.id) } : undefined,
+            },
             {
               onSuccess: (data) => {
                 setVisibleJobId(data.jobId);
                 setTitle("");
                 setBody("");
+                setLinkedOffer(null);
               },
             },
           )
