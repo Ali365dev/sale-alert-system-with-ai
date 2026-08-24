@@ -1,11 +1,10 @@
-"""FastAPI entry point — replaces api_server.py (Flask) once the Phase 3
-cutover in the migration plan is complete. Both apps coexist and can run
-side-by-side (different ports) until every router below is migrated and
-verified.
+"""FastAPI entry point — served via `uvicorn app.main:app` (see Dockerfile).
+Replaced the old Flask app (api_server.py + api/) after every router was
+migrated and verified against it.
 
-Deliberately mirrors api/__init__.py's create_app() startup sequence
-line-for-line (init_db, job_registry.register_all, start_scheduler) — same
-calls, same order, so background jobs/scheduling behave identically."""
+Startup sequence (init_db, job_registry.register_all, start_scheduler) is
+the same as the old Flask create_app() — same calls, same order, so
+background jobs/scheduling behave identically."""
 import os
 from contextlib import asynccontextmanager
 

@@ -4,6 +4,8 @@
 .env.*.local
 credentials.json
 token.json
+token.json.*
+*.bak-readonly
 
 # ── Python ──────────────────────────────────────────────────────────────────
 __pycache__/

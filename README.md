@@ -52,15 +52,15 @@ Visit [Google AI Studio](https://aistudio.google.com/app/apikey) → Create API 
 ### 5. Run the API
 
 ```bash
-python api_server.py
+uvicorn app.main:app --reload --port 8000
 ```
 
 Serves the REST API on [http://localhost:8000](http://localhost:8000).
 
-### 6. Run the frontend
+### 6. Run the dashboard
 
 ```bash
-cd frontend
+cd dashboard
 npm install
 npm run dev
 ```
@@ -81,29 +81,33 @@ Fetches new emails, analyses them with AI, and saves offers — without going th
 
 ```
 gmail-ai-dashboard/
-├── api_server.py        # Flask entry point
-├── api/                  # REST endpoints consumed by the React frontend
-├── config.py             # All env-var settings + logging
-├── frontend/              # React + Vite dashboard (public offers site + admin)
+├── app/                    # FastAPI app
+│   ├── main.py             # Entry point — FastAPI() instance, CORS, lifespan startup
+│   ├── core/
+│   │   └── security.py     # Admin-auth dependency (session cookie)
+│   └── api/
+│       ├── dependencies.py # Shared pagination dependency
+│       └── routers/        # One router per resource (offers, brands, emails, settings, ...)
+├── config.py               # All env-var settings + logging
+├── dashboard/               # React + Vite admin dashboard (public offers site + admin)
 ├── gmail/
-│   ├── gmail_client.py   # OAuth2 authentication
-│   └── gmail_service.py  # Fetch & deduplicate emails
+│   ├── gmail_client.py     # OAuth2 authentication
+│   └── gmail_service.py    # Fetch & deduplicate emails
 ├── ai/
-│   ├── analyzer.py       # Gemini/Groq prompt + JSON extraction (per-email)
-│   └── brand_fetcher.py  # AI-driven brand promotion discovery
+│   ├── analyzer.py         # Gemini/Groq prompt + JSON extraction (per-email)
+│   └── brand_fetcher.py    # AI-driven brand promotion discovery
 ├── services/
-│   ├── email_sync.py     # Background job: fetch + analyse + save
-│   └── jobs/              # Other background job types (verify, research, etc.)
+│   ├── email_sync.py       # Background job: fetch + analyse + save
+│   └── jobs/                # Other background job types (verify, research, etc.)
 ├── database/
-│   ├── models.py         # SQLAlchemy ORM models
-│   └── db.py              # Engine, session, init_db()
-├── research/               # Tavily + Llama brand research pipeline
-├── run.py                 # Manual one-off pipeline runner
-├── logs/                  # Rotating log files
+│   ├── models.py           # SQLAlchemy ORM models
+│   └── db.py                # Engine, session, init_db()
+├── research/                 # Tavily + Llama brand research pipeline
+├── run.py                   # Manual one-off pipeline runner
+├── logs/                    # Rotating log files
 ├── .env.example
 ├── requirements.txt
-├── Dockerfile
-└── docker-compose.yml
+└── Dockerfile
 ```
 
 ---
@@ -138,7 +142,7 @@ Type=simple
 User=ubuntu
 WorkingDirectory=/opt/gmail-dashboard
 EnvironmentFile=/opt/gmail-dashboard/.env
-ExecStart=/opt/gmail-dashboard/.venv/bin/python api_server.py
+ExecStart=/opt/gmail-dashboard/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 Restart=always
 RestartSec=10
 
@@ -164,16 +168,18 @@ cd dashboard && npm install && npm run build
 ```bash
 # First-time auth (must be done locally, not inside Docker)
 python -c "from gmail.gmail_client import get_gmail_service; get_gmail_service()"
-# This creates token.json — copy it to the server
+# Writes the token into the Setting DB row this container's DATABASE_URL points at
+# (see the Render section below) — nothing to copy into the image.
 
 # Build & run the API
-docker compose up -d
+docker build -t gmail-ai-dashboard .
+docker run -d -p 8000:8000 --env-file .env gmail-ai-dashboard
 
 # Logs
-docker compose logs -f
+docker logs -f <container-id>
 ```
 
-The `docker-compose.yml` only runs the API — build and deploy the frontend separately (static hosting, CDN, or your own container).
+Build and deploy the dashboard separately (static hosting, CDN, or your own container) — the Docker image above only runs the API.
 
 ### Render
 
@@ -234,7 +240,7 @@ tail -f logs/app.log
 grep ERROR logs/app.log
 
 # Docker
-docker compose logs -f api
+docker logs -f <container-id>
 ```
 
 ---

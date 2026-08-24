@@ -25,7 +25,7 @@ conditions that make continuing the whole job pointless:
     - one record failing validation
 
 Adding a new pipeline action = subclass BackgroundJob, register an instance
-in services/job_registry.py, add one entry to frontend/src/config/jobTypes.ts.
+in services/job_registry.py, add one entry to dashboard/src/config/jobTypes.tsx.
 No changes to job_runner.py, api/jobs.py, or the frontend job plumbing.
 """
 from dataclasses import dataclass
