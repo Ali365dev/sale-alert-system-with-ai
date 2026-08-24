@@ -35,19 +35,28 @@ def check_gmail_for_changes() -> None:
     actually enumerates messages — that's the job's job, not the
     scheduler's) and returns:
       1. If automation is off, return immediately — no Gmail call at all.
-      2. ensure_gmail_watch_active() — a no-op unless the watch is missing
-         or expiring soon, in which case it makes one `watch` call.
-      3. One `get_mailbox_profile()` call to compare the mailbox's current
-         historyId against our stored cursor. Unchanged -> nothing new,
-         return. Changed -> hand off to the job system and return; all
-         actual processing happens on the job's own thread.
+      2. ensure_gmail_watch_active() — a no-op unless a Pub/Sub topic is
+         configured AND the watch is missing/expiring soon (so this is
+         also a no-op when no topic is set — see step 3 for why that's
+         still fine).
+      3. If there's no history cursor yet (gmail_last_history_id), seed it
+         from get_mailbox_profile() directly — this does NOT depend on
+         ensure_gmail_watch_active() having succeeded, since that only
+         seeds the cursor as a side effect of a real `watch` call, which
+         needs a Pub/Sub topic. Without this fallback, automation would
+         silently never bootstrap when running polling-only (no topic
+         configured) — the cursor would just never get set, ever.
+      4. Otherwise, one more get_mailbox_profile() call to compare the
+         mailbox's current historyId against the stored cursor. Unchanged
+         -> nothing new, return. Changed -> hand off to the job system and
+         return; all actual processing happens on the job's own thread.
     """
     from gmail.gmail_service import (
         _get_session,
         ensure_gmail_watch_active,
         get_mailbox_profile,
     )
-    from services.settings_service import get_setting
+    from services.settings_service import get_setting, set_setting
 
     if not get_setting("automatic_email_processing", default=False):
         return
@@ -55,11 +64,15 @@ def check_gmail_for_changes() -> None:
     try:
         ensure_gmail_watch_active()
 
+        session = _get_session()
         last_known = get_setting("gmail_last_history_id", default="")
         if not last_known:
-            return  # ensure_gmail_watch_active() just seeded it; next tick will see it
+            profile = get_mailbox_profile(session)
+            set_setting("gmail_last_history_id", profile["historyId"], category="gmail")
+            logger.info("Gmail automation: seeded history cursor at %s", profile["historyId"])
+            return
 
-        profile = get_mailbox_profile(_get_session())
+        profile = get_mailbox_profile(session)
         if str(profile.get("historyId")) == str(last_known):
             return  # nothing new
 
