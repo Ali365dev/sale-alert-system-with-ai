@@ -2,8 +2,8 @@
 
 Uses APScheduler (already present in the environment) rather than introducing
 a second scheduling mechanism. In-process, matching the rest of this app's
-single-process/multi-thread deployment model (see api_server.py's waitress
-comment) — no extra infrastructure (Celery, cron, etc.) needed.
+single-process/multi-thread deployment model (see app/main.py — Uvicorn,
+single worker process) — no extra infrastructure (Celery, cron, etc.) needed.
 """
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger

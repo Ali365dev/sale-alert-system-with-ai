@@ -5,10 +5,11 @@ rest of this app's currently-unauthenticated API.
 First call to /login with no admin password set yet bootstraps one (that
 password becomes "the" admin password) rather than requiring a separate
 signup step — reasonable for a single-operator tool.
-"""
-from functools import wraps
 
-from flask import jsonify, request
+The actual "reject an unauthenticated request" dependency lives in
+app/core/security.py (FastAPI) — this module only owns the framework-agnostic
+pieces (password hashing, session token creation/verification) that it
+builds on."""
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -56,12 +57,3 @@ def verify_session_token(token: str | None) -> bool:
         return True
     except (BadSignature, SignatureExpired):
         return False
-
-
-def require_admin(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not verify_session_token(request.cookies.get(SESSION_COOKIE)):
-            return jsonify({"error": "not authenticated"}), 401
-        return fn(*args, **kwargs)
-    return wrapper

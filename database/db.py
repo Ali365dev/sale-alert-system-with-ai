@@ -217,7 +217,7 @@ def _seed_settings() -> None:
         )
         from ai.prompt_builder import _PROMPT as brand_research_ddg_default, PROMPT_KEY as brand_research_ddg_key
         from research.prompts import _PROMPT as brand_research_tavily_default, PROMPT_KEY as brand_research_tavily_key
-        from api.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
+        from app.api.routers.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
         from ai.brand_identifier import _PROMPT_TEMPLATE as brand_identification_default, PROMPT_KEY as brand_identification_key
 
         defaults = [

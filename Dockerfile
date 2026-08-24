@@ -26,4 +26,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-CMD ["python", "api_server.py"]
+# Single worker process on purpose — see app/main.py / services/scheduler.py:
+# several features (brand/email verify-all progress dicts, the AI
+# ProviderManager singleton, APScheduler) keep in-process state that would
+# silently break across multiple worker processes.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
