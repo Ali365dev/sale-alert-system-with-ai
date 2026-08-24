@@ -134,6 +134,32 @@ export function EmailProcessingTab() {
         </div>
       </Card>
 
+      <Card>
+        <CardHeader title="Automatic New-Email Processing" />
+        <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-muted)" }}>
+          When on, new emails flow through fetch → label → analyse → offer → push notification with no manual
+          action — checked every few minutes even without the Pub/Sub topic below configured (just with polling
+          latency instead of near-instant).
+        </p>
+        <ToggleRow
+          label="Automatic new-email processing"
+          checked={!!form.automatic_email_processing}
+          onChange={(v) => set("automatic_email_processing", v)}
+        />
+        <FieldGroup>
+          <Label>Gmail Pub/Sub topic (optional — enables near-instant push instead of polling)</Label>
+          <TextInput
+            value={String(form.gmail_pubsub_topic ?? "")}
+            onChange={(e) => set("gmail_pubsub_topic", e.target.value)}
+            placeholder="projects/your-project/topics/gmail-notifications"
+          />
+          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+            Leave blank to rely on polling alone. See GET /api/automation/config (admin) for the webhook URL/secret
+            to configure on the Pub/Sub push subscription once the topic is set.
+          </span>
+        </FieldGroup>
+      </Card>
+
       <div>
         <Button loading={update.isPending} disabled={!dirty} onClick={() => update.mutate(form)}>
           Save changes

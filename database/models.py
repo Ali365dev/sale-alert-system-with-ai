@@ -244,6 +244,27 @@ class JobLog(Base):
         return f"<JobLog id={self.id} job_id={self.job_id} message={self.message[:40]!r}>"
 
 
+class EmailAutomationRun(Base):
+    """Idempotency guard for the automatic new-email pipeline (services/jobs/
+    email_automation.py) — one row per Gmail message a run has ever claimed.
+    The unique constraint on gmail_message_id is what makes a duplicate
+    webhook delivery or an overlapping scheduler-backstop poll a guaranteed
+    DB-level no-op: collect_work() inserts a row here before process_item()
+    touches that message, so a second trigger covering the same message
+    can't claim it twice. The actual pipeline state (stage/logs/timestamps)
+    lives on the linked Job row — see services/jobs/base.py — this table is
+    deliberately just the claim, not a second job-tracking schema."""
+    __tablename__ = "email_automation_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    gmail_message_id = Column(String(255), unique=True, nullable=False, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<EmailAutomationRun gmail_message_id={self.gmail_message_id!r} job_id={self.job_id}>"
+
+
 class Setting(Base):
     """Generic scalar-config key/value store — model names, Gmail label,
     system prefs, email-processing knobs, admin password hash. Non-string

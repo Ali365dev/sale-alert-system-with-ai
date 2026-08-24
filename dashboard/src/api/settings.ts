@@ -289,6 +289,8 @@ export interface EmailProcessingSettings {
   latest_emails_limit: number | null;
   fetch_interval_minutes: number;
   _fetch_interval_wired: boolean;
+  automatic_email_processing: boolean;
+  gmail_pubsub_topic: string;
 }
 
 export function useEmailProcessing() {

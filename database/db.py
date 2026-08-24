@@ -237,6 +237,8 @@ def _seed_settings() -> None:
         # a newly-added setting (like ocr_max_images_per_email) actually get
         # seeded into a DB that was already initialized in the past, instead
         # of silently staying unset until someone opens Settings and re-saves.
+        import secrets
+
         import config as _cfg
         defaults_kv = [
             ("gemini_model", _cfg.GEMINI_MODEL, "providers"),
@@ -255,6 +257,16 @@ def _seed_settings() -> None:
             ("skip_already_labeled", True, "email_processing"),
             ("skip_duplicate_emails", True, "email_processing"),
             ("ocr_max_images_per_email", _cfg.OCR_MAX_IMAGES_PER_EMAIL, "email_processing"),
+            # Automatic new-email pipeline (services/jobs/email_automation.py) —
+            # off by default so it never activates on an existing deployment
+            # without an explicit admin opt-in. gmail_webhook_secret is
+            # generated once here and never regenerated (only used if the row
+            # doesn't already exist, same as every other seed default).
+            ("automatic_email_processing", False, "email_processing"),
+            ("gmail_pubsub_topic", "", "gmail"),
+            ("gmail_webhook_secret", secrets.token_urlsafe(32), "gmail"),
+            ("gmail_last_history_id", "", "gmail"),
+            ("gmail_watch_expiration", "", "gmail"),
         ]
         seeded = 0
         for key, value, category in defaults_kv:

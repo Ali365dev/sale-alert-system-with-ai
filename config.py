@@ -39,6 +39,10 @@ GMAIL_BRAND_LABEL = os.getenv("GMAIL_BRAND_LABEL", "sales_offers")
 # .modify (not .readonly) is required to create/apply labels — if this scope
 # was just widened, delete GMAIL_TOKEN_FILE once to force re-consent.
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
+# How often services/scheduler.py::check_gmail_for_changes() polls as the
+# backstop for the automatic new-email pipeline (services/jobs/
+# email_automation.py) — a no-op when automatic_email_processing is off.
+GMAIL_AUTOMATION_POLL_MINUTES = int(os.getenv("GMAIL_AUTOMATION_POLL_MINUTES", "5"))
 
 # ── Gemini ───────────────────────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")

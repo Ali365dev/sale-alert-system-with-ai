@@ -22,7 +22,7 @@ from config import GMAIL_LABEL as _GMAIL_LABEL_DEFAULT, logger
 from database.db import get_session
 from database.models import Email
 from gmail.gmail_client import get_credentials
-from services.settings_service import get_setting
+from services.settings_service import get_setting, set_setting
 
 
 def _gmail_label() -> str:
@@ -131,6 +131,88 @@ def get_mailbox_profile(session: AuthorizedSession) -> dict:
     resp = session.get(f"{GMAIL_API_BASE}/profile", timeout=REQUEST_TIMEOUT)
     resp.raise_for_status()
     return resp.json()
+
+
+def watch_mailbox(session: AuthorizedSession, topic_name: str, label_ids: Optional[list[str]] = None) -> dict:
+    """Registers (or renews) a Gmail push-notification watch — Gmail will
+    publish a Pub/Sub message to `topic_name` whenever the mailbox changes.
+    Returns {"historyId": str, "expiration": str (epoch millis)}. A watch
+    lapses after ~7 days and must be re-called before then; see
+    ensure_gmail_watch_active(), the caller that handles renewal."""
+    body: dict = {"topicName": topic_name, "labelFilterAction": "include"}
+    if label_ids:
+        body["labelIds"] = label_ids
+    resp = session.post(f"{GMAIL_API_BASE}/watch", json=body, timeout=REQUEST_TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def stop_watch(session: AuthorizedSession) -> None:
+    """Cancels any active watch on this mailbox."""
+    resp = session.post(f"{GMAIL_API_BASE}/stop", timeout=REQUEST_TIMEOUT)
+    resp.raise_for_status()
+
+
+def list_history(session: AuthorizedSession, start_history_id: str) -> list[dict]:
+    """Every history record (paginated) since start_history_id, filtered to
+    messagesAdded — this is what turns "the mailbox changed" (a watch
+    notification, or the scheduler backstop noticing the profile's historyId
+    moved) into "here are the actual new message IDs" for
+    services/jobs/email_automation.py to process. Gmail can return a 404 if
+    start_history_id is too old (its history has been garbage-collected,
+    which can happen after ~1 week of inactivity) — the caller should treat
+    that as "start fresh from the current historyId," not a transient error
+    to retry."""
+    records: list[dict] = []
+    page_token: Optional[str] = None
+    while True:
+        params: dict = {"startHistoryId": start_history_id, "historyTypes": "messageAdded", "maxResults": 500}
+        if page_token:
+            params["pageToken"] = page_token
+        resp = session.get(f"{GMAIL_API_BASE}/history", params=params, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+        records.extend(data.get("history", []))
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+    return records
+
+
+# Renew a bit before the actual 7-day expiry so a slow/delayed scheduler tick
+# never lets the watch lapse.
+_WATCH_RENEWAL_MARGIN_MS = 24 * 60 * 60 * 1000  # 1 day, in epoch-millis units
+
+
+def ensure_gmail_watch_active() -> None:
+    """Idempotent: registers a watch if none is active, or renews one that's
+    expiring soon. A no-op (no network call) if automatic_email_processing
+    is off or no Pub/Sub topic is configured — see
+    services/scheduler.py::check_gmail_for_changes(), the only caller. Only
+    ever *seeds* gmail_last_history_id (on first-ever activation) — renewal
+    never overwrites the processing cursor, since that would make the
+    automation job silently re-skip whatever it hasn't gotten to yet."""
+    if not get_setting("automatic_email_processing", default=False):
+        return
+    topic_name = get_setting("gmail_pubsub_topic", default="")
+    if not topic_name:
+        return
+
+    expiration = get_setting("gmail_watch_expiration", default="")
+    if expiration:
+        try:
+            renew_due = int(expiration) - _WATCH_RENEWAL_MARGIN_MS
+        except (TypeError, ValueError):
+            renew_due = 0
+        if datetime.now(timezone.utc).timestamp() * 1000 < renew_due:
+            return  # still comfortably valid, nothing to do
+
+    session = _get_session()
+    result = watch_mailbox(session, topic_name)
+    set_setting("gmail_watch_expiration", result["expiration"], category="gmail")
+    if not get_setting("gmail_last_history_id", default=""):
+        set_setting("gmail_last_history_id", result["historyId"], category="gmail")
+    logger.info("Gmail watch active — expires %s", result["expiration"])
 
 
 def _get_label_id(session: AuthorizedSession, label_name: str) -> Optional[str]:
