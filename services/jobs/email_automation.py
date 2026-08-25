@@ -214,9 +214,14 @@ class EmailAutomationJob(BackgroundJob):
             offer = db.query(Offer).filter(Offer.id == offer_id).first()
             if offer is None:
                 return
-            brand = offer.brand or offer.title or "New offer"
             discount = f"{int(offer.discount_percentage)}% off" if offer.discount_percentage else (offer.offer_value or "")
-            summary = offer.summary
+            brand_fallback = f"{offer.brand} — {discount}" if offer.brand and discount else (offer.brand or "New offer")
+            # Offer.title is the source email's own subject line, preserved
+            # as-is (see database/models.py) — that's the offer's real
+            # title, not a synthesized one, so it's what the notification
+            # leads with whenever it's actually present.
+            title = offer.title or brand_fallback
+            body = offer.summary or brand_fallback
             tokens = [
                 row.token for row in
                 db.query(DeviceToken.token).filter(DeviceToken.is_active.is_(True)).all()
@@ -229,11 +234,6 @@ class EmailAutomationJob(BackgroundJob):
             job_service.append_log(job_id, "→ Firebase not configured — notification skipped", severity="warning", category="push")
             return
 
-        # The notification IS the offer — title reads "Brand — 40% off"
-        # (or just the brand/title if no discount), not a generic
-        # "New offer detected" that then makes you tap in to see what it is.
-        title = f"{brand} — {discount}" if discount else brand
-        body = summary or "Tap to view the deal"
         response = fcm_client.send_multicast(tokens[:500], title, body, {"dealId": str(offer_id)})
         job_service.append_log(
             job_id, f"✓ Push notification sent ({response.success_count}/{len(tokens[:500])} device(s))",

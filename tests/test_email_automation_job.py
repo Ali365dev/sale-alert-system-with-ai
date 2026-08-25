@@ -156,9 +156,10 @@ def test_process_item_label_failure_does_not_block_offer_creation(mocker, mock_g
 
 
 def test_send_offer_notification_sends_push_with_offer_details(mocker, mock_get_session, mock_session):
-    """Scenario 9: the notification IS the offer — title is "Brand —
-    discount", not a generic "New offer detected" — and is only attempted
-    when devices are registered and FCM is configured."""
+    """Scenario 9: the notification IS the offer — title is the offer's own
+    title (email subject) and body is the offer's summary, not a generic
+    "New offer detected" — and is only attempted when devices are registered
+    and FCM is configured."""
     mocker.patch("services.job_service.append_log")
     mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
 
@@ -189,7 +190,7 @@ def test_send_offer_notification_sends_push_with_offer_details(mocker, mock_get_
     send.assert_called_once()
     args = send.call_args.args
     assert args[0] == ["device-token-1", "device-token-2"]
-    assert args[1] == "Nike — 40% off"  # title is the actual offer, not a generic phrase
+    assert args[1] == "Nike sale email"  # title is the offer's own title (email subject)
     assert args[2] == "Up to 40% off running shoes this weekend only."  # body is the offer's own summary
 
 
