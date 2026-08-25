@@ -156,12 +156,16 @@ def test_process_item_label_failure_does_not_block_offer_creation(mocker, mock_g
 
 
 def test_send_offer_notification_sends_push_with_offer_details(mocker, mock_get_session, mock_session):
-    """Scenario 9: push notification content includes brand/discount, and
-    is only attempted when devices are registered and FCM is configured."""
+    """Scenario 9: the notification IS the offer — title is "Brand —
+    discount", not a generic "New offer detected" — and is only attempted
+    when devices are registered and FCM is configured."""
     mocker.patch("services.job_service.append_log")
     mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
 
-    offer = types.SimpleNamespace(brand="Nike", discount_percentage=40, offer_value=None)
+    offer = types.SimpleNamespace(
+        brand="Nike", title="Nike sale email", discount_percentage=40, offer_value=None,
+        summary="Up to 40% off running shoes this weekend only.",
+    )
     device_rows = [types.SimpleNamespace(token="device-token-1"), types.SimpleNamespace(token="device-token-2")]
 
     def query_side_effect(model):
@@ -185,15 +189,15 @@ def test_send_offer_notification_sends_push_with_offer_details(mocker, mock_get_
     send.assert_called_once()
     args = send.call_args.args
     assert args[0] == ["device-token-1", "device-token-2"]
-    assert args[1] == "New offer detected"
-    assert "Nike" in args[2] and "40" in args[2]
+    assert args[1] == "Nike — 40% off"  # title is the actual offer, not a generic phrase
+    assert args[2] == "Up to 40% off running shoes this weekend only."  # body is the offer's own summary
 
 
 def test_send_offer_notification_skips_when_no_devices(mocker, mock_get_session, mock_session):
     mocker.patch("services.job_service.append_log")
     mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
 
-    offer = types.SimpleNamespace(brand="Nike", discount_percentage=40, offer_value=None)
+    offer = types.SimpleNamespace(brand="Nike", title="Nike sale email", discount_percentage=40, offer_value=None, summary=None)
 
     def query_side_effect(model):
         q = mocker.Mock()
