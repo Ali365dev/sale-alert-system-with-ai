@@ -2,6 +2,13 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
+
+// Only the icon families this app actually uses (Ionicons, MaterialCommunityIcons)
+// get bundled — fonts.gradle defaults to "*.ttf", which pulls in all 18 font
+// families (~3.8MB) regardless of usage.
+project.ext.vectoricons = [
+    iconFontNames: ["Ionicons.ttf", "MaterialCommunityIcons.ttf"]
+]
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 /**
@@ -59,7 +66,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -104,7 +111,23 @@ android {
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    // Produces one APK per ABI (each only carrying that architecture's native
+    // .so libraries) instead of a single "fat" APK bundling all four — this is
+    // the single biggest lever on install size for a RN app. The universal
+    // fallback is kept for anyone who needs a single install-anywhere file;
+    // for real-device distribution, ship the arm64-v8a APK (covers effectively
+    // all modern phones) or armeabi-v7a for older 32-bit devices.
+    splits {
+        abi {
+            enable true
+            reset()
+            include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            universalApk true
         }
     }
 }

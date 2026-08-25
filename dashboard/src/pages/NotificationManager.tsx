@@ -151,6 +151,20 @@ function OfferPicker({ selected, onSelect }: { selected: Offer | null; onSelect:
   );
 }
 
+/** Mirrors the backend's own fallback logic for the automatic-pipeline
+ * notification (services/jobs/email_automation.py::_send_offer_notification)
+ * so a manually-composed "from an offer" notification reads the same way
+ * an automatic one would. */
+function offerToTitle(offer: Offer): string {
+  if (offer.title) return offer.title;
+  const discount = offer.discount_percentage ? `${Math.round(offer.discount_percentage)}% off` : offer.offer_value ?? "";
+  if (offer.brand && discount) return `${offer.brand} — ${discount}`;
+  return offer.brand ?? `Offer #${offer.id}`;
+}
+function offerToBody(offer: Offer): string {
+  return offer.summary ?? offerToTitle(offer);
+}
+
 function ComposeCard({ deviceCount }: { deviceCount: number }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -164,19 +178,29 @@ function ComposeCard({ deviceCount }: { deviceCount: number }) {
     <Card>
       <CardHeader icon={<Icon.bell size={17} />} title="Compose" />
       <div>
+        <Label>Fill from offer (optional)</Label>
+        <OfferPicker
+          selected={linkedOffer}
+          onSelect={(offer) => {
+            setLinkedOffer(offer);
+            if (offer) {
+              setTitle(offerToTitle(offer));
+              setBody(offerToBody(offer));
+            }
+          }}
+        />
+        <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--text-faint)" }}>
+          Picking an offer fills the title/body below from it — edit them freely afterward. It also makes
+          tapping the notification open this offer directly instead of just the app.
+        </p>
+      </div>
+      <div>
         <Label>Title</Label>
         <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Flash sale — 50% off today" maxLength={100} />
       </div>
       <div>
         <Label>Body</Label>
         <TextArea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Tap to see today's top deals." rows={3} maxLength={240} />
-      </div>
-      <div>
-        <Label>Link to offer (optional)</Label>
-        <OfferPicker selected={linkedOffer} onSelect={setLinkedOffer} />
-        <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--text-faint)" }}>
-          Tapping the notification opens this offer directly instead of just the app.
-        </p>
       </div>
       <Button
         disabled={!canSend}
