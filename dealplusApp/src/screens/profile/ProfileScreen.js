@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
+import { saveInterests } from '../../services/preferencesApi';
 import TopAppBar from '../../components/TopAppBar';
 
 const ProfileScreen = () => {
@@ -15,6 +16,11 @@ const ProfileScreen = () => {
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
   const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
   const [darkMode, setDarkMode] = useState(false);
+
+  const handleToggleCategory = (name) => {
+    toggleCategory(name);
+    saveInterests({ categories: usePreferencesStore.getState().favoriteCategories });
+  };
 
   const otherCategories = useMemo(() => categories.filter((c) => !favoriteCategories.includes(c.name)).slice(0, 4), [categories, favoriteCategories]);
 

@@ -8,6 +8,8 @@ import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useDataStore from '../../state/dataStore';
 import useOnboardingStore from '../../state/onboardingStore';
 import useOnboardingGateStore from '../../state/onboardingGateStore';
+import usePreferencesStore from '../../state/preferencesStore';
+import { saveInterests } from '../../services/preferencesApi';
 import { usePressScale } from '../../hooks/usePressScale';
 import BrandLogo from '../../components/BrandLogo';
 import EmptyState from '../../components/EmptyState';
@@ -36,9 +38,12 @@ const OnboardingBrandsScreen = () => {
   const insets = useSafeAreaInsets();
   const brands = useDataStore((state) => state.brands);
   const loading = useDataStore((state) => state.loading);
+  const brandsById = useDataStore((state) => state.brandsById);
   const brandIds = useOnboardingStore((state) => state.brandIds);
   const toggleBrand = useOnboardingStore((state) => state.toggleBrand);
   const completeOnboarding = useOnboardingGateStore((state) => state.completeOnboarding);
+  const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
+  const setFollowedBrands = usePreferencesStore((state) => state.setFollowedBrands);
   const [query, setQuery] = useState('');
 
   const filteredBrands = useMemo(() => {
@@ -48,6 +53,9 @@ const OnboardingBrandsScreen = () => {
   }, [brands, query]);
 
   const finish = () => {
+    const brandNames = brandIds.map((id) => brandsById[id]?.name).filter(Boolean);
+    setFollowedBrands(brandNames);
+    saveInterests({ brands: brandNames, categories: favoriteCategories });
     completeOnboarding();
     navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
   };

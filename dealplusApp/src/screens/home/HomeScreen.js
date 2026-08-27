@@ -6,7 +6,9 @@ import Animated, { FadeOut } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useDataStore from '../../state/dataStore';
+import usePreferencesStore from '../../state/preferencesStore';
 import { loadDeals } from '../../services/dealsService';
+import { slugify } from '../../utils/dealAdapters';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import BrandCard from '../../components/BrandCard';
 import BrandCardSkeleton from '../../components/BrandCardSkeleton';
@@ -30,6 +32,23 @@ const HomeScreen = () => {
   const brands = useDataStore((state) => state.brands);
   const loading = useDataStore((state) => state.loading);
   const error = useDataStore((state) => state.error);
+  const followedBrands = usePreferencesStore((state) => state.followedBrands);
+  const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
+
+  // Any-overlap match against the device's saved brands/categories, newest
+  // first. Empty when the user has no saved preferences yet — the section
+  // just doesn't render, "Latest Offers" below still shows everything.
+  const forYouDeals = useMemo(() => {
+    if (followedBrands.length === 0 && favoriteCategories.length === 0) return [];
+    const brandSlugs = new Set(followedBrands.map(slugify));
+    const categorySet = new Set(favoriteCategories);
+    const matched = deals.filter((d) => brandSlugs.has(d.brandId) || categorySet.has(d.category));
+    return [...matched].sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [deals, followedBrands, favoriteCategories]);
 
   const heroDeals = useMemo(() => {
     const withExpiry = deals.filter((d) => !!d.expiresAt);
@@ -157,6 +176,19 @@ const HomeScreen = () => {
             <View style={styles.section}>
               <SectionHeader title="Hot Deals" onViewAll={() => navigation.navigate('Search')} />
               <HeroCarousel deals={heroDeals} brandsById={brandsById} onPressDeal={openDeal} />
+            </View>
+          )}
+
+          {forYouDeals.length > 0 && (
+            <View style={styles.section}>
+              <SectionHeader title="For You" onViewAll={() => navigation.navigate('Search')} />
+              <View style={styles.dealsList}>
+                {forYouDeals.slice(0, 6).map((deal, index) => (
+                  <AnimatedListItem key={deal.id} index={index}>
+                    <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => openDeal(deal)} />
+                  </AnimatedListItem>
+                ))}
+              </View>
             </View>
           )}
 

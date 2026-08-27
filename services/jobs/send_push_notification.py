@@ -11,7 +11,10 @@ from services.push import fcm_client
 _BATCH_SIZE = 500  # FCM's cap per send_each_for_multicast call
 
 # FCM error codes that mean the token is permanently dead — safe to deactivate.
-_DEAD_TOKEN_ERRORS = {"UNREGISTERED", "INVALID_ARGUMENT"}
+# NOT_FOUND (str(exc) == "NotRegistered") is the code the Admin SDK actually
+# returns for an uninstalled-app/rotated token via send_each_for_multicast —
+# confirmed empirically (UNREGISTERED never showed up in practice).
+_DEAD_TOKEN_ERRORS = {"UNREGISTERED", "INVALID_ARGUMENT", "NOT_FOUND"}
 
 
 class SendPushNotificationJob(BackgroundJob):

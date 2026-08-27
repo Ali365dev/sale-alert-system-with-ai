@@ -350,6 +350,29 @@ class DeviceToken(Base):
         return f"<DeviceToken id={self.id} platform={self.platform!r} active={self.is_active}>"
 
 
+class UserProfile(Base):
+    """A device's onboarding interests (brands/categories chosen to follow),
+    keyed by a client-generated device_id — independent of DeviceToken.token
+    (the FCM push token) so preferences survive even when push permission is
+    denied or a token rotates. `user_id` stays null until real accounts exist;
+    logging in later just fills it in on the same row rather than requiring a
+    new table."""
+    __tablename__ = "user_profiles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    device_id = Column(String(255), unique=True, nullable=False, index=True)
+    user_id = Column(String(255), nullable=True, index=True)
+
+    brands = Column(Text, nullable=True)      # JSON array of brand names, stored as text
+    categories = Column(Text, nullable=True)  # JSON array of category names, stored as text
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<UserProfile id={self.id} device_id={self.device_id!r}>"
+
+
 class SettingsAuditLog(Base):
     """Append-only record of every Settings mutation — who changed what,
     from what, to what, when."""
