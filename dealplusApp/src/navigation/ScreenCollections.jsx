@@ -2,6 +2,12 @@ import BrandDetailScreen from '../screens/deals/BrandDetailScreen';
 import BrandListScreen from '../screens/deals/BrandListScreen';
 import DealDetailScreen from '../screens/deals/DealDetailScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
+import FollowedBrandsScreen from '../screens/profile/FollowedBrandsScreen';
+import FavoriteCategoriesScreen from '../screens/profile/FavoriteCategoriesScreen';
+import PrivacyPolicyScreen from '../screens/profile/PrivacyPolicyScreen';
+import HelpSupportScreen from '../screens/profile/HelpSupportScreen';
+import TermsConditionsScreen from '../screens/profile/TermsConditionsScreen';
+import NotificationPreferencesScreen from '../screens/profile/NotificationPreferencesScreen';
 import SplashScreen from '../screens/SplashScreen';
 import OnboardingWelcomeScreen from '../screens/onboarding/OnboardingWelcomeScreen';
 import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen';
@@ -48,6 +54,36 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'NotificationsScreen',
     component: NotificationsScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'FollowedBrandsScreen',
+    component: FollowedBrandsScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'FavoriteCategoriesScreen',
+    component: FavoriteCategoriesScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'PrivacyPolicyScreen',
+    component: PrivacyPolicyScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'HelpSupportScreen',
+    component: HelpSupportScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'TermsConditionsScreen',
+    component: TermsConditionsScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'NotificationPreferencesScreen',
+    component: NotificationPreferencesScreen,
   },
 ];
 

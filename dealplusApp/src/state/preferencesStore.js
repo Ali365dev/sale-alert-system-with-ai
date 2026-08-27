@@ -14,6 +14,12 @@ const usePreferencesStore = create()(
             : [...state.favoriteCategories, category],
         })),
       setFollowedBrands: (brands) => set({ followedBrands: brands }),
+      toggleFollowedBrand: (name) =>
+        set((state) => ({
+          followedBrands: state.followedBrands.includes(name)
+            ? state.followedBrands.filter((b) => b !== name)
+            : [...state.followedBrands, name],
+        })),
       /** Overwrites local prefs with the backend's copy — called on app load so a
        * fresh install (or preferences edited from another flow) stays in sync
        * with what's actually saved server-side. */

@@ -1,21 +1,26 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { saveInterests } from '../../services/preferencesApi';
+import { getGuestName } from '../../utils/guestName';
 import TopAppBar from '../../components/TopAppBar';
 
 const ProfileScreen = () => {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const brands = useDataStore((state) => state.brands);
   const deals = useDataStore((state) => state.deals);
   const categories = useDataStore((state) => state.categories);
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
   const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
+  const followedBrands = usePreferencesStore((state) => state.followedBrands);
   const [darkMode, setDarkMode] = useState(false);
+  const guestName = useMemo(() => getGuestName(), []);
 
   const handleToggleCategory = (name) => {
     toggleCategory(name);
@@ -30,16 +35,37 @@ const ProfileScreen = () => {
       label: 'Notification Preferences',
       subtitle: 'Manage push and email alerts',
       kind: 'link',
+      onPress: () => navigation.navigate('NotificationPreferencesScreen'),
     },
     {
       icon: 'business-outline',
       label: 'Followed Brands',
-      subtitle: `${brands.length} brands tracked`,
+      subtitle: `${followedBrands.length} of ${brands.length} brands followed`,
       kind: 'link',
+      onPress: () => navigation.navigate('FollowedBrandsScreen'),
     },
     { icon: 'moon-outline', label: 'Dark Mode', subtitle: 'Switch app appearance', kind: 'toggle' },
-    { icon: 'help-circle-outline', label: 'Help & Support', subtitle: 'FAQ, Contact us', kind: 'link' },
-    { icon: 'shield-checkmark-outline', label: 'Privacy Policy', subtitle: 'How we handle your data', kind: 'link' },
+    {
+      icon: 'help-circle-outline',
+      label: 'Help & Support',
+      subtitle: 'FAQ, Contact us',
+      kind: 'link',
+      onPress: () => navigation.navigate('HelpSupportScreen'),
+    },
+    {
+      icon: 'shield-checkmark-outline',
+      label: 'Privacy Policy',
+      subtitle: 'How we handle your data',
+      kind: 'link',
+      onPress: () => navigation.navigate('PrivacyPolicyScreen'),
+    },
+    {
+      icon: 'document-text-outline',
+      label: 'Terms & Conditions',
+      subtitle: 'Rules for using DealPulse',
+      kind: 'link',
+      onPress: () => navigation.navigate('TermsConditionsScreen'),
+    },
   ];
 
   return (
@@ -55,7 +81,8 @@ const ProfileScreen = () => {
               <Icon name="pencil" size={11} color="#FFFFFF" />
             </View>
           </View>
-          <Text style={styles.accountTitle}>Your Account</Text>
+          <Text style={styles.accountTitle}>{guestName}</Text>
+          <Text style={styles.accountSubtitle}>Browsing as a guest</Text>
           <View style={styles.premiumPill}>
             <Icon name="pricetags-outline" size={13} color="#171717" />
             <Text style={styles.premiumPillLabel}>{deals.length} offers tracked</Text>
@@ -70,26 +97,28 @@ const ProfileScreen = () => {
                 <Icon name="pricetags" size={16} color={COLORS.primary} />
                 <Text style={styles.prefTitle}>Favorite Categories</Text>
               </View>
-              <Text style={styles.editLink}>EDIT</Text>
+              <Pressable onPress={() => navigation.navigate('FavoriteCategoriesScreen')} hitSlop={8}>
+                <Text style={styles.editLink}>EDIT</Text>
+              </Pressable>
             </View>
             <Text style={styles.prefBody}>Tailor your feed by selecting what you want to see most.</Text>
             <View style={styles.chipRow}>
               {favoriteCategories.map((c) => (
-                <Pressable key={c} onPress={() => toggleCategory(c)} style={styles.selectedChip}>
+                <Pressable key={c} onPress={() => handleToggleCategory(c)} style={styles.selectedChip}>
                   <Text style={styles.selectedChipLabel}>{c}</Text>
                   <Icon name="close" size={13} color="#FFFFFF" />
                 </Pressable>
               ))}
               {otherCategories.map((c) => (
-                <Pressable key={c.name} onPress={() => toggleCategory(c.name)} style={styles.addableChip}>
+                <Pressable key={c.name} onPress={() => handleToggleCategory(c.name)} style={styles.addableChip}>
                   <Text style={styles.addableChipLabel}>{c.name}</Text>
                   <Icon name="add" size={13} color="#171717" />
                 </Pressable>
               ))}
               {categories.length > favoriteCategories.length + otherCategories.length && (
-                <View style={styles.moreChip}>
+                <Pressable onPress={() => navigation.navigate('FavoriteCategoriesScreen')} style={styles.moreChip}>
                   <Text style={styles.moreChipLabel}>More...</Text>
-                </View>
+                </Pressable>
               )}
             </View>
           </View>
@@ -100,7 +129,11 @@ const ProfileScreen = () => {
             <Text style={styles.settingsHeaderLabel}>Account Settings</Text>
           </View>
           {rows.map((row, i) => (
-            <View key={row.label} style={[styles.settingRow, i === rows.length - 1 && styles.settingRowLast]}>
+            <Pressable
+              key={row.label}
+              disabled={row.kind !== 'link' || !row.onPress}
+              onPress={row.onPress}
+              style={[styles.settingRow, i === rows.length - 1 && styles.settingRowLast]}>
               <View style={styles.settingIconCircle}>
                 <Icon name={row.icon} size={18} color="#171717" />
               </View>
@@ -113,7 +146,7 @@ const ProfileScreen = () => {
               ) : (
                 <Icon name="chevron-forward" size={18} color="#6B7280" />
               )}
-            </View>
+            </Pressable>
           ))}
         </View>
 
@@ -173,6 +206,11 @@ const styles = StyleSheet.create({
   },
   accountTitle: {
     ...TYPOGRAPHY.headline,
+  },
+  accountSubtitle: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
+    marginTop: -2,
   },
   premiumPill: {
     flexDirection: 'row',
