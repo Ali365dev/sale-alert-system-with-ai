@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router";
 import { AppShell } from "./components/layout/AppShell";
 import { ToastContainer } from "./components/ui/ToastContainer";
 import { Analytics } from "./pages/Analytics";
+import { BrandRequests } from "./pages/BrandRequests";
 import { BrandsManager } from "./pages/BrandsManager";
 import { EmailManager } from "./pages/EmailManager";
 import { Insights } from "./pages/Insights";
@@ -78,6 +79,14 @@ function App() {
           element={
             <AppShell title="Unknown emails">
               <UnknownEmailsManager />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/brand-requests"
+          element={
+            <AppShell title="Brand requests">
+              <BrandRequests />
             </AppShell>
           }
         />

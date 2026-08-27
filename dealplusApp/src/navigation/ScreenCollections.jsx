@@ -1,4 +1,5 @@
 import BrandDetailScreen from '../screens/deals/BrandDetailScreen';
+import ForYouScreen from '../screens/home/ForYouScreen';
 import BrandListScreen from '../screens/deals/BrandListScreen';
 import DealDetailScreen from '../screens/deals/DealDetailScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
@@ -8,6 +9,7 @@ import PrivacyPolicyScreen from '../screens/profile/PrivacyPolicyScreen';
 import HelpSupportScreen from '../screens/profile/HelpSupportScreen';
 import TermsConditionsScreen from '../screens/profile/TermsConditionsScreen';
 import NotificationPreferencesScreen from '../screens/profile/NotificationPreferencesScreen';
+import RequestBrandScreen from '../screens/profile/RequestBrandScreen';
 import SplashScreen from '../screens/SplashScreen';
 import OnboardingWelcomeScreen from '../screens/onboarding/OnboardingWelcomeScreen';
 import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen';
@@ -39,6 +41,11 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'BrandListScreen',
     component: BrandListScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'ForYouScreen',
+    component: ForYouScreen,
   },
   {
     options: { ...stackoptions, headerShown: false },
@@ -84,6 +91,11 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'NotificationPreferencesScreen',
     component: NotificationPreferencesScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'RequestBrandScreen',
+    component: RequestBrandScreen,
   },
 ];
 

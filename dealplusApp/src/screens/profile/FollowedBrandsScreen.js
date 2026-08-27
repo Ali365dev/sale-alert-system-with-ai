@@ -11,6 +11,7 @@ import { saveInterests } from '../../services/preferencesApi';
 import { usePressScale } from '../../hooks/usePressScale';
 import BrandLogo from '../../components/BrandLogo';
 import EmptyState from '../../components/EmptyState';
+import PrimaryButton from '../../components/PrimaryButton';
 
 function BrandCard({ brand, selected, onPress }) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
@@ -68,6 +69,10 @@ const FollowedBrandsScreen = () => {
             style={styles.searchInput}
             returnKeyType="search"
             autoCorrect={false}
+            autoComplete="off"
+            spellCheck={false}
+            textContentType="none"
+            importantForAutofill="no"
           />
         </View>
       </View>
@@ -75,7 +80,17 @@ const FollowedBrandsScreen = () => {
       {brands.length === 0 ? (
         <EmptyState icon="business-outline" title="No brands tracked yet" body="Add brands in your backend and they'll appear here." />
       ) : filteredBrands.length === 0 ? (
-        <Text style={styles.noResults}>No brands match "{query}".</Text>
+        <View style={styles.requestWrap}>
+          <Icon name="search-outline" size={32} color={COLORS.textSecondary} />
+          <Text style={styles.noResults}>No brands match "{query}".</Text>
+          <Text style={styles.requestBody}>Can't find it? Let us know and we'll look into adding it.</Text>
+          <PrimaryButton
+            label={`Request "${query.trim()}"`}
+            icon="add-circle-outline"
+            pill
+            onPress={() => navigation.navigate('RequestBrandScreen', { brandName: query.trim() })}
+          />
+        </View>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.five }]} showsVerticalScrollIndicator={false}>
           <Text style={styles.subtitle}>Tap a brand to get instant alerts when they drop a new deal.</Text>
@@ -84,6 +99,10 @@ const FollowedBrandsScreen = () => {
               <BrandCard key={b.id} brand={b} selected={followedBrands.includes(b.name)} onPress={() => handleToggle(b.name)} />
             ))}
           </View>
+          <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>
+            <Icon name="add-circle-outline" size={16} color={COLORS.primary} />
+            <Text style={styles.requestLinkLabel}>Can't find a brand? Request it</Text>
+          </Pressable>
         </ScrollView>
       )}
     </View>
@@ -112,6 +131,10 @@ const styles = StyleSheet.create({
   },
   searchBarWrap: {
     paddingHorizontal: SPACING.four,
+    // Extra breathing room below the header — some Android keyboards render an
+    // inline correction/suggestion chip just above the cursor, which otherwise
+    // overlaps the back button when the input sits flush under it.
+    paddingTop: SPACING.two,
   },
   searchBar: {
     flexDirection: 'row',
@@ -170,6 +193,28 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.default,
     color: COLORS.textSecondary,
     textAlign: 'center',
+  },
+  requestWrap: {
+    alignItems: 'center',
+    gap: SPACING.two,
+    paddingHorizontal: SPACING.five,
     marginTop: SPACING.six,
+  },
+  requestBody: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.one,
+  },
+  requestLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.two,
+    paddingVertical: SPACING.four,
+  },
+  requestLinkLabel: {
+    ...TYPOGRAPHY.smallBold,
+    color: COLORS.primary,
   },
 });

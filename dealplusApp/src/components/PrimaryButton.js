@@ -32,6 +32,7 @@ const styles = StyleSheet.create({
     gap: SPACING.two,
     backgroundColor: '#B7131A',
     paddingVertical: SPACING.three,
+    paddingHorizontal: SPACING.five,
     borderRadius: RADIUS.button,
     alignItems: 'center',
     justifyContent: 'center',

@@ -373,6 +373,29 @@ class UserProfile(Base):
         return f"<UserProfile id={self.id} device_id={self.device_id!r}>"
 
 
+class BrandRequest(Base):
+    """A user-initiated request for a brand not yet tracked by DealPulse —
+    the mirror image of BrandCandidate (which is system/AI-detected from an
+    unmatched email sender). Surfaced to admins as a review queue so demand
+    for untracked brands is visible instead of anecdotal."""
+    __tablename__ = "brand_requests"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    device_id = Column(String(255), nullable=True, index=True)
+    brand_name = Column(String(255), nullable=False)
+    category = Column(String(255), nullable=True)
+    note = Column(Text, nullable=True)
+
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    # "pending" | "added" | "rejected"
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
+    resolved_at = Column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<BrandRequest id={self.id} brand_name={self.brand_name!r} status={self.status!r}>"
+
+
 class SettingsAuditLog(Base):
     """Append-only record of every Settings mutation — who changed what,
     from what, to what, when."""

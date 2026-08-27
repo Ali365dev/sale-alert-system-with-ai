@@ -12,6 +12,7 @@ import FilterChip from '../../components/FilterChip';
 import SearchBar from '../../components/SearchBar';
 import Skeleton from '../../components/Skeleton';
 import TopAppBar from '../../components/TopAppBar';
+import PrimaryButton from '../../components/PrimaryButton';
 
 const FILTERS = ['All', 'Trending', 'Newly Added', 'Expiring Soon'];
 
@@ -98,6 +99,26 @@ const BrandListScreen = () => {
                 ))}
               </View>
             </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.noResultsWrap}>
+              <Icon name="search-outline" size={32} color={COLORS.textSecondary} />
+              <Text style={styles.noResultsText}>No brands match "{query}".</Text>
+              <PrimaryButton
+                label={`Request "${query.trim()}"`}
+                icon="add-circle-outline"
+                pill
+                onPress={() => navigation.navigate('RequestBrandScreen', { brandName: query.trim() })}
+              />
+            </View>
+          }
+          ListFooterComponent={
+            filtered.length > 0 && (
+              <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>
+                <Icon name="add-circle-outline" size={16} color={COLORS.primary} />
+                <Text style={styles.requestLinkLabel}>Can't find a brand? Request it</Text>
+              </Pressable>
+            )
           }
           renderItem={({ item }) => {
             const discount = bestDiscountByBrand.get(item.id);
@@ -241,5 +262,27 @@ const styles = StyleSheet.create({
   discountLabel: {
     ...TYPOGRAPHY.smallBold,
     color: '#B7131A',
+  },
+  noResultsWrap: {
+    alignItems: 'center',
+    gap: SPACING.three,
+    paddingHorizontal: SPACING.five,
+    paddingTop: SPACING.six,
+  },
+  noResultsText: {
+    ...TYPOGRAPHY.default,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  requestLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.two,
+    paddingVertical: SPACING.four,
+  },
+  requestLinkLabel: {
+    ...TYPOGRAPHY.smallBold,
+    color: COLORS.primary,
   },
 });

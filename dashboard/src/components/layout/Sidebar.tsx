@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { to: "/brands", label: "Brands manager", icon: Icon.home },
   { to: "/emails", label: "Email manager", icon: Icon.mail },
   { to: "/unknown-emails", label: "Unknown emails", icon: Icon.inbox },
+  { to: "/brand-requests", label: "Brand requests", icon: Icon.store },
   { to: "/notifications", label: "Notifications", icon: Icon.bell },
   { to: "/insights", label: "AI insights", icon: Icon.sparkle, badge: 18 },
   { to: "/pipeline", label: "Pipeline Center", icon: Icon.activity },

@@ -156,6 +156,22 @@ export const deriveCategories = (apiOffers) => {
     .sort((a, b) => b.dealCount - a.dealCount);
 };
 
+/** Any-overlap match of deals against a device's saved brands/categories,
+ * newest first. Empty when there are no saved preferences yet — shared by
+ * HomeScreen's "For You" preview and ForYouScreen's full list so the two
+ * never drift out of sync. */
+export const filterForYou = (deals, followedBrands, favoriteCategories) => {
+  if (followedBrands.length === 0 && favoriteCategories.length === 0) return [];
+  const brandSlugs = new Set(followedBrands.map(slugify));
+  const categorySet = new Set(favoriteCategories);
+  const matched = deals.filter((d) => brandSlugs.has(d.brandId) || categorySet.has(d.category));
+  return [...matched].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+};
+
 /** Derives the notification feed (newest 15 offers) from raw API offers.
  * Mirrors mobile/src/state/data.tsx's alerts useMemo. */
 export const deriveAlerts = (apiOffers) => {

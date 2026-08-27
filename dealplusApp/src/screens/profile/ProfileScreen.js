@@ -44,6 +44,13 @@ const ProfileScreen = () => {
       kind: 'link',
       onPress: () => navigation.navigate('FollowedBrandsScreen'),
     },
+    {
+      icon: 'storefront-outline',
+      label: 'Request a Brand',
+      subtitle: "Can't find a brand? Let us know",
+      kind: 'link',
+      onPress: () => navigation.navigate('RequestBrandScreen'),
+    },
     { icon: 'moon-outline', label: 'Dark Mode', subtitle: 'Switch app appearance', kind: 'toggle' },
     {
       icon: 'help-circle-outline',
