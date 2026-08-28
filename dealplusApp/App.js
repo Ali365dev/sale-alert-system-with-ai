@@ -1,6 +1,6 @@
 import { StatusBar } from 'react-native';
 import React, { useEffect } from 'react';
-import Clarity from '@microsoft/react-native-clarity';
+import { initialize as initializeClarity } from '@microsoft/react-native-clarity';
 import Navigation from './src/navigation/Navigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -15,7 +15,7 @@ const App = () => {
     // Session-replay/analytics — inert until a real project ID replaces the
     // placeholder in src/services/config.js (see that file for how to get one).
     if (CLARITY_PROJECT_ID && CLARITY_PROJECT_ID !== 'YOUR_CLARITY_PROJECT_ID') {
-      Clarity.initialize(CLARITY_PROJECT_ID);
+      initializeClarity(CLARITY_PROJECT_ID);
     }
 
     loadDeals();
