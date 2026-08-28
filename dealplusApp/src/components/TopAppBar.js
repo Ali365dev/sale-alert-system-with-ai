@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../styles/theme';
@@ -20,7 +20,7 @@ const TopAppBar = ({ title, showBack, onBack, hideSearch, hideProfile, rightIcon
           </Pressable>
         ) : (
           !hideSearch && (
-            <Pressable hitSlop={8}>
+            <Pressable hitSlop={8} onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
               <Icon name="menu-outline" size={26} color="#171717" />
             </Pressable>
           )

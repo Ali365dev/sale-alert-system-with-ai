@@ -5,18 +5,49 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useDataStore from '../../state/dataStore';
-import { POPULAR_SEARCHES, RECENT_SEARCHES } from '../../utils/mock';
+import { RECENT_SEARCHES } from '../../utils/mock';
 import AnimatedListItem from '../../components/AnimatedListItem';
-import BrandLogo from '../../components/BrandLogo';
 import DealCard from '../../components/DealCard';
 import EmptyState from '../../components/EmptyState';
-import FilterChip from '../../components/FilterChip';
 import PrimaryButton from '../../components/PrimaryButton';
 import SearchBar from '../../components/SearchBar';
-import TopAppBar from '../../components/TopAppBar';
 
 const DISCOUNT_TIERS = [20, 50, 70];
 const SORTS = ['Highest Discount', 'Newest', 'Expiring Soonest'];
+
+const CATEGORY_ICONS = [
+  { match: /fashion|apparel|clothing|retail/i, icon: 'shirt-outline' },
+  { match: /men/i, icon: 'body-outline' },
+  { match: /electronic|software|tech/i, icon: 'laptop-outline' },
+  { match: /beauty|cosmetic|personal care|skincare/i, icon: 'flask-outline' },
+  { match: /food|restaurant|grocery|dining/i, icon: 'restaurant-outline' },
+  { match: /travel/i, icon: 'airplane-outline' },
+  { match: /sport|fitness|outdoor/i, icon: 'football-outline' },
+  { match: /home|furniture|garden/i, icon: 'home-outline' },
+  { match: /footwear|shoe/i, icon: 'footsteps-outline' },
+];
+const iconForCategory = (name) => CATEGORY_ICONS.find((c) => c.match.test(name))?.icon ?? 'pricetag-outline';
+
+function CategoryChip({ label, icon, selected, onPress }) {
+  return (
+    <Pressable style={[styles.categoryChip, selected && styles.categoryChipSelected]} onPress={onPress}>
+      <Icon name={icon} size={15} color={selected ? '#FFFFFF' : COLORS.primary} />
+      <Text style={[styles.categoryChipLabel, selected && styles.categoryChipLabelSelected]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function DiscountCard({ tier, selected, onPress }) {
+  return (
+    <Pressable style={[styles.discountCard, selected && styles.discountCardSelected]} onPress={onPress}>
+      <View style={[styles.discountIconBadge, selected && styles.discountIconBadgeSelected]}>
+        <Icon name="pricetag" size={16} color={selected ? '#FFFFFF' : COLORS.primary} />
+      </View>
+      <Text style={styles.discountTierLabel}>{tier}%+</Text>
+      <Text style={styles.discountTierSub}>Deals</Text>
+    </Pressable>
+  );
+}
 
 const SearchScreen = () => {
   const navigation = useNavigation();
@@ -24,14 +55,15 @@ const SearchScreen = () => {
   const insets = useSafeAreaInsets();
   const deals = useDataStore((state) => state.deals);
   const categories = useDataStore((state) => state.categories);
-  const brands = useDataStore((state) => state.brands);
   const brandsById = useDataStore((state) => state.brandsById);
 
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(route.params?.category ?? null);
   const [minDiscount, setMinDiscount] = useState(null);
   const [sort, setSort] = useState('Highest Discount');
+  const [sortOpen, setSortOpen] = useState(false);
   const [showResults, setShowResults] = useState(Boolean(route.params?.category));
+  const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -48,7 +80,7 @@ const SearchScreen = () => {
       return true;
     });
     if (sort === 'Highest Discount') {
-      list = [...list].sort((a, b) => (parseInt(b.discountLabel) || 0) * -1 - (parseInt(a.discountLabel) || 0) * -1);
+      list = [...list].sort((a, b) => (parseInt(a.discountLabel) || 0) - (parseInt(b.discountLabel) || 0));
     } else if (sort === 'Newest') {
       list = [...list].sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
     } else {
@@ -58,11 +90,24 @@ const SearchScreen = () => {
   }, [deals, brandsById, query, selectedCategory, minDiscount, sort]);
 
   const showFilters = query.trim().length === 0 && !showResults;
-  const suggestedBrands = useMemo(() => brands.slice(0, 2), [brands]);
+  const previewCategories = useMemo(() => categories.slice(0, 6), [categories]);
+
+  const goBack = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate('Deals');
+  };
 
   return (
     <View style={styles.container}>
-      <TopAppBar />
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
+        <Pressable onPress={goBack} hitSlop={8}>
+          <Icon name="chevron-back" size={24} color="#171717" />
+        </Pressable>
+        <Text style={styles.headerTitle}>DealPulse</Text>
+        <Pressable style={styles.filterButton} onPress={() => setShowResults(false)} hitSlop={4}>
+          <Icon name="filter" size={17} color="#FFFFFF" />
+        </Pressable>
+      </View>
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]}
@@ -73,94 +118,130 @@ const SearchScreen = () => {
             setQuery(t);
             setShowResults(false);
           }}
-          placeholder="Search deals, brands, categories."
+          placeholder="Search deals, brands, categories..."
           showMic
         />
 
         {showFilters ? (
           <>
-            <Text style={styles.groupLabel}>Category</Text>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Categories</Text>
+              <Pressable onPress={() => navigation.navigate('Deals')} hitSlop={8}>
+                <Text style={styles.sectionLink}>View All</Text>
+              </Pressable>
+            </View>
             <View style={styles.chipRow}>
-              <FilterChip label="All" selected={!selectedCategory} onPress={() => setSelectedCategory(null)} />
-              {categories.slice(0, 6).map((c) => (
-                <FilterChip
+              <CategoryChip label="All" icon="grid" selected={!selectedCategory} onPress={() => setSelectedCategory(null)} />
+              {previewCategories.map((c) => (
+                <CategoryChip
                   key={c.name}
                   label={c.name}
+                  icon={iconForCategory(c.name)}
                   selected={selectedCategory === c.name}
                   onPress={() => setSelectedCategory(selectedCategory === c.name ? null : c.name)}
                 />
               ))}
             </View>
 
-            <Text style={styles.groupLabel}>Discount Range</Text>
-            <View style={styles.chipRow}>
+            <Text style={styles.sectionTitle}>Discount Range</Text>
+            <View style={styles.discountGrid}>
               {DISCOUNT_TIERS.map((tier) => (
-                <FilterChip
+                <DiscountCard
                   key={tier}
-                  label={`${tier}%+`}
+                  tier={tier}
                   selected={minDiscount === tier}
                   onPress={() => setMinDiscount(minDiscount === tier ? null : tier)}
                 />
               ))}
             </View>
 
-            <Text style={styles.groupLabel}>Sort By</Text>
-            <Pressable
-              style={styles.sortBox}
-              onPress={() => {
-                const i = SORTS.indexOf(sort);
-                setSort(SORTS[(i + 1) % SORTS.length]);
-              }}>
-              <Text style={styles.sortLabel}>{sort}</Text>
-              <Icon name="chevron-down" size={18} color="#6B7280" />
-            </Pressable>
-
-            <PrimaryButton label={`Show Results (${filtered.length})`} style={styles.showResultsButton} onPress={() => setShowResults(true)} />
-
-            {RECENT_SEARCHES.length > 0 && (
-              <View style={styles.suggestionSection}>
-                <Text style={styles.groupLabel}>Recent Searches</Text>
-                <View style={styles.chipRow}>
-                  {RECENT_SEARCHES.map((s) => (
-                    <FilterChip key={s} label={s} onPress={() => setQuery(s)} />
-                  ))}
+            <Text style={styles.sectionTitle}>Sort By</Text>
+            <View style={styles.sortWrap}>
+              <Pressable style={styles.sortBox} onPress={() => setSortOpen((o) => !o)}>
+                <View style={styles.sortIconBadge}>
+                  <Icon name="swap-vertical" size={15} color={COLORS.primary} />
                 </View>
-              </View>
-            )}
-
-            <View style={styles.suggestionSection}>
-              <Text style={styles.groupLabel}>Popular Searches</Text>
-              <View style={styles.chipRow}>
-                {POPULAR_SEARCHES.map((s) => (
-                  <FilterChip key={s} label={s} onPress={() => setQuery(s)} />
-                ))}
-              </View>
-            </View>
-
-            {suggestedBrands.length > 0 && (
-              <View style={styles.suggestionSection}>
-                <Text style={styles.groupLabel}>Suggested Brands</Text>
-                <View style={styles.brandRow}>
-                  {suggestedBrands.map((b) => (
-                    <Pressable key={b.id} style={styles.brandChip} onPress={() => navigation.navigate('BrandDetailScreen', { id: b.id })}>
-                      <BrandLogo initials={b.initials} size={40} tone="filled" />
-                      <Text style={styles.brandChipLabel}>{b.name}</Text>
+                <Text style={styles.sortLabel}>{sort}</Text>
+                <Icon name={sortOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7280" />
+              </Pressable>
+              {sortOpen && (
+                <View style={styles.sortDropdown}>
+                  {SORTS.map((option, index) => (
+                    <Pressable
+                      key={option}
+                      style={[styles.sortDropdownItem, index === SORTS.length - 1 && styles.sortDropdownItemLast]}
+                      onPress={() => {
+                        setSort(option);
+                        setSortOpen(false);
+                      }}>
+                      <Text style={styles.sortDropdownItemLabel}>{option}</Text>
+                      {sort === option && <Icon name="checkmark" size={16} color={COLORS.primary} />}
                     </Pressable>
                   ))}
                 </View>
+              )}
+            </View>
+
+            <PrimaryButton
+              label={`Show Results (${filtered.length})`}
+              icon="search"
+              pill
+              style={styles.showResultsButton}
+              onPress={() => setShowResults(true)}
+            />
+
+            {recentSearches.length > 0 && (
+              <View style={styles.suggestionSection}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>Recent Searches</Text>
+                  <Pressable onPress={() => setRecentSearches([])} hitSlop={8}>
+                    <Text style={styles.sectionLink}>Clear All</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.chipRow}>
+                  {recentSearches.map((s) => (
+                    <View key={s} style={styles.recentChip}>
+                      <Icon name="time-outline" size={14} color="#6B7280" />
+                      <Pressable onPress={() => setQuery(s)}>
+                        <Text style={styles.recentChipLabel}>{s}</Text>
+                      </Pressable>
+                      <Pressable onPress={() => setRecentSearches((prev) => prev.filter((item) => item !== s))} hitSlop={8}>
+                        <Icon name="close" size={14} color="#6B7280" />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
+
           </>
         ) : filtered.length === 0 ? (
           <EmptyState icon="search-outline" title="No results" body="Try a different search term or clear your filters." />
         ) : (
-          <View style={styles.results}>
-            {filtered.map((deal, index) => (
-              <AnimatedListItem key={deal.id} index={index}>
-                <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id })} />
-              </AnimatedListItem>
-            ))}
-          </View>
+          <>
+            {selectedCategory && (
+              <View style={styles.activeFilterRow}>
+                <Text style={styles.activeFilterLabel}>Showing:</Text>
+                <Pressable
+                  style={styles.activeFilterChip}
+                  onPress={() => {
+                    setSelectedCategory(null);
+                    setShowResults(false);
+                  }}>
+                  <Text style={styles.activeFilterChipLabel}>{selectedCategory}</Text>
+                  <Icon name="close" size={14} color="#FFFFFF" />
+                </Pressable>
+              </View>
+            )}
+
+            <View style={styles.results}>
+              {filtered.map((deal, index) => (
+                <AnimatedListItem key={deal.id} index={index}>
+                  <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id })} />
+                </AnimatedListItem>
+              ))}
+            </View>
+          </>
         )}
       </ScrollView>
     </View>
@@ -174,32 +255,163 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.four,
+    paddingBottom: SPACING.three,
+  },
+  headerTitle: {
+    ...TYPOGRAPHY.headline,
+    color: COLORS.primary,
+  },
+  filterButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
     paddingHorizontal: SPACING.four,
     paddingTop: SPACING.three,
     gap: SPACING.three,
   },
-  groupLabel: {
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.two,
+  },
+  sectionTitle: {
     ...TYPOGRAPHY.headline,
     marginTop: SPACING.two,
+  },
+  sectionLink: {
+    ...TYPOGRAPHY.linkPrimary,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.two,
   },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.chip,
+    paddingHorizontal: SPACING.three,
+    paddingVertical: SPACING.two,
+    backgroundColor: '#FFFFFF',
+  },
+  categoryChipSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  categoryChipLabel: {
+    ...TYPOGRAPHY.smallBold,
+    color: COLORS.text,
+  },
+  categoryChipLabelSelected: {
+    color: '#FFFFFF',
+  },
+  discountGrid: {
+    flexDirection: 'row',
+    gap: SPACING.two,
+  },
+  discountCard: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.card,
+    paddingVertical: SPACING.three,
+  },
+  discountCardSelected: {
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+  },
+  discountIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FDEEEE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  discountIconBadgeSelected: {
+    backgroundColor: COLORS.primary,
+  },
+  discountTierLabel: {
+    ...TYPOGRAPHY.smallBold,
+    fontSize: 15,
+  },
+  discountTierSub: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
+  },
+  sortWrap: {
+    zIndex: 10,
+  },
   sortBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: SPACING.two,
     borderWidth: 1,
-    borderColor: '#F0DADA',
+    borderColor: COLORS.border,
     borderRadius: RADIUS.button,
     paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.three,
+    paddingVertical: SPACING.two,
+  },
+  sortIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FDEEEE',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sortLabel: {
     ...TYPOGRAPHY.default,
+    flex: 1,
+  },
+  sortDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: SPACING.one,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.button,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  sortDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.three,
+    paddingVertical: SPACING.three,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  sortDropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+  sortDropdownItemLabel: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.text,
   },
   showResultsButton: {
     marginTop: SPACING.two,
@@ -208,24 +420,43 @@ const styles = StyleSheet.create({
     gap: SPACING.two,
     marginTop: SPACING.three,
   },
-  brandRow: {
-    flexDirection: 'row',
-    gap: SPACING.three,
-  },
-  brandChip: {
+  recentChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.two,
+    gap: 6,
     borderWidth: 1,
-    borderColor: '#F0DADA',
-    borderRadius: RADIUS.card,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.chip,
     paddingHorizontal: SPACING.three,
     paddingVertical: SPACING.two,
   },
-  brandChipLabel: {
+  recentChipLabel: {
     ...TYPOGRAPHY.smallBold,
+    color: COLORS.text,
   },
   results: {
     gap: SPACING.three,
+  },
+  activeFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.two,
+  },
+  activeFilterLabel: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
+  },
+  activeFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.chip,
+    paddingHorizontal: SPACING.three,
+    paddingVertical: SPACING.two,
+  },
+  activeFilterChipLabel: {
+    ...TYPOGRAPHY.smallBold,
+    color: '#FFFFFF',
   },
 });

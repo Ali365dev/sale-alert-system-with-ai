@@ -1,5 +1,6 @@
 import { StatusBar } from 'react-native';
 import React, { useEffect } from 'react';
+import Clarity from '@microsoft/react-native-clarity';
 import Navigation from './src/navigation/Navigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -7,9 +8,16 @@ import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/utils/CustomToast';
 import { loadDeals } from './src/services/dealsService';
 import { registerDeviceToken, requestNotificationPermission, setupPushListeners } from './src/services/pushNotifications';
+import { CLARITY_PROJECT_ID } from './src/services/config';
 
 const App = () => {
   useEffect(() => {
+    // Session-replay/analytics — inert until a real project ID replaces the
+    // placeholder in src/services/config.js (see that file for how to get one).
+    if (CLARITY_PROJECT_ID && CLARITY_PROJECT_ID !== 'YOUR_CLARITY_PROJECT_ID') {
+      Clarity.initialize(CLARITY_PROJECT_ID);
+    }
+
     loadDeals();
 
     // Best-effort: a denied permission or a registration failure should

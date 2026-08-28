@@ -21,7 +21,11 @@ const FavoritesScreen = () => {
 
   const favoriteDeals = useMemo(() => deals.filter((d) => favoriteIds.includes(d.id)), [deals, favoriteIds]);
 
-  const followedBrands = useMemo(() => {
+  // Deliberately distinct from "Followed Brands" (usePreferencesStore) —
+  // this is just brands with at least one saved deal, not the user's actual
+  // follow list, so the section below is labeled differently to avoid
+  // implying it's the same thing.
+  const brandsWithSaves = useMemo(() => {
     const ids = new Set(favoriteDeals.map((d) => d.brandId));
     return brands.filter((b) => ids.has(b.id));
   }, [favoriteDeals, brands]);
@@ -50,12 +54,12 @@ const FavoritesScreen = () => {
             ))}
           </View>
 
-          {followedBrands.length > 0 && (
+          {brandsWithSaves.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.heading}>Followed Brands</Text>
+              <Text style={styles.heading}>From These Brands</Text>
               <FlatList
                 horizontal
-                data={followedBrands}
+                data={brandsWithSaves}
                 keyExtractor={(b) => b.id}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.brandRow}

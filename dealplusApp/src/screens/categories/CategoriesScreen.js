@@ -99,6 +99,7 @@ const CategoriesScreen = () => {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
         ListHeaderComponent={
           <View style={styles.header}>
+            <Text style={styles.pageTitle}>Categories</Text>
             <SearchBar value={query} onChangeText={setQuery} placeholder="Search categories..." />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
               {FILTERS.map((f) => (
@@ -109,7 +110,7 @@ const CategoriesScreen = () => {
         }
         renderItem={({ item, index }) => (
           <AnimatedListItem index={index} style={styles.gridItem}>
-            <CategoryCard category={item} onPress={() => navigation.navigate('Search', { category: item.name })} style={styles.gridItemFill} />
+            <CategoryCard category={item} onPress={() => navigation.navigate('CategoryDealsScreen', { category: item.name })} style={styles.gridItemFill} />
           </AnimatedListItem>
         )}
         ListFooterComponent={
@@ -154,6 +155,9 @@ const styles = StyleSheet.create({
   header: {
     gap: SPACING.three,
     marginBottom: SPACING.two,
+  },
+  pageTitle: {
+    ...TYPOGRAPHY.title,
   },
   filterRow: {
     flexDirection: 'row',

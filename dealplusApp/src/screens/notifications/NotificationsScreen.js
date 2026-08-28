@@ -31,7 +31,7 @@ const ICON_COLOR = {
   'flash-sale': '#B7131A',
 };
 
-const FILTERS = ['All Alerts', 'New Deals', 'Expiring Soon'];
+const FILTERS = ['All Alerts', 'New Deals', 'Flash Sales'];
 
 function AlertRow({ item, onPress }) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
@@ -75,7 +75,7 @@ const NotificationsScreen = () => {
 
   const visible = useMemo(() => {
     if (filter === 'New Deals') return alerts.filter((a) => !a.read);
-    if (filter === 'Expiring Soon') return alerts.filter((a) => a.kind === 'flash-sale');
+    if (filter === 'Flash Sales') return alerts.filter((a) => a.kind === 'flash-sale');
     return alerts;
   }, [alerts, filter]);
 

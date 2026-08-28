@@ -4,8 +4,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FastImage from '@d11/react-native-fast-image';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useDataStore from '../../state/dataStore';
+import usePreferencesStore from '../../state/preferencesStore';
+import { saveInterests } from '../../services/preferencesApi';
 import DealCard from '../../components/DealCard';
 import EmptyState from '../../components/EmptyState';
 
@@ -16,14 +18,29 @@ const BrandDetailScreen = () => {
   const id = route.params?.id;
   const brands = useDataStore((state) => state.brands);
   const deals = useDataStore((state) => state.deals);
+  const followedBrands = usePreferencesStore((state) => state.followedBrands);
+  const toggleFollowedBrand = usePreferencesStore((state) => state.toggleFollowedBrand);
 
   const brand = useMemo(() => brands.find((b) => b.id === id), [brands, id]);
   const brandDeals = useMemo(() => deals.filter((d) => d.brandId === id), [deals, id]);
+  const isFollowing = brand ? followedBrands.includes(brand.name) : false;
+
+  const handleToggleFollow = () => {
+    if (!brand) return;
+    toggleFollowedBrand(brand.name);
+    saveInterests({ brands: usePreferencesStore.getState().followedBrands });
+  };
 
   if (!brand) {
     return (
       <View style={styles.container}>
-        <EmptyState icon="alert-circle-outline" title="Brand not found" body="" ctaLabel="Go Back" onPressCta={() => navigation.goBack()} />
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Brand not found"
+          body="This brand may have been removed or is no longer tracked."
+          ctaLabel="Go Back"
+          onPressCta={() => navigation.goBack()}
+        />
       </View>
     );
   }
@@ -45,8 +62,20 @@ const BrandDetailScreen = () => {
               </View>
             </View>
             <View style={styles.header}>
-              <Text style={styles.brandName}>{brand.name}</Text>
-              <Text style={styles.dealCount}>{brand.dealCount} tracked offers</Text>
+              <View style={styles.titleRow}>
+                <View style={styles.titleTextWrap}>
+                  <Text style={styles.brandName}>{brand.name}</Text>
+                  <Text style={styles.dealCount}>{brand.dealCount} tracked offers</Text>
+                </View>
+                <Pressable
+                  onPress={handleToggleFollow}
+                  style={[styles.followButton, isFollowing && styles.followButtonActive]}>
+                  <Icon name={isFollowing ? 'checkmark' : 'add'} size={16} color={isFollowing ? '#FFFFFF' : COLORS.primary} />
+                  <Text style={[styles.followButtonLabel, isFollowing && styles.followButtonLabelActive]}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Text>
+                </Pressable>
+              </View>
               <Text style={styles.description}>{brand.description}</Text>
               {brand.website && (
                 <Pressable onPress={() => Linking.openURL(brand.website)}>
@@ -100,6 +129,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.four,
     paddingTop: SPACING.three,
     gap: SPACING.one,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING.three,
+  },
+  titleTextWrap: {
+    flex: 1,
+    gap: 1,
+  },
+  followButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: RADIUS.chip,
+    paddingHorizontal: SPACING.three,
+    paddingVertical: SPACING.two,
+  },
+  followButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  followButtonLabel: {
+    ...TYPOGRAPHY.smallBold,
+    color: COLORS.primary,
+  },
+  followButtonLabelActive: {
+    color: '#FFFFFF',
   },
   brandName: {
     ...TYPOGRAPHY.title,

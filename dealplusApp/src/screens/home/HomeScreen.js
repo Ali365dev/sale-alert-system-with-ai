@@ -174,6 +174,7 @@ const HomeScreen = () => {
           {forYouDeals.length > 0 && (
             <View style={styles.section}>
               <SectionHeader title="For You" onViewAll={() => navigation.navigate('ForYouScreen')} />
+              <Text style={styles.forYouCaption}>Matched from your followed brands and categories</Text>
               <View style={styles.dealsList}>
                 {forYouDeals.slice(0, 6).map((deal, index) => (
                   <AnimatedListItem key={deal.id} index={index}>
@@ -195,23 +196,23 @@ const HomeScreen = () => {
                 contentContainerStyle={styles.rowList}
                 renderItem={({ item, index }) => (
                   <AnimatedListItem index={index}>
-                    <CategoryCard category={item} variant="circle" onPress={() => navigation.navigate('Search', { category: item.name })} />
+                    <CategoryCard category={item} variant="circle" onPress={() => navigation.navigate('CategoryDealsScreen', { category: item.name })} />
                   </AnimatedListItem>
                 )}
               />
             </View>
           )}
 
-          <Pressable style={styles.signupBanner}>
+          <Pressable style={styles.signupBanner} onPress={() => navigation.navigate('FollowedBrandsScreen')}>
             <View style={styles.signupIcon}>
               <Icon name="pricetag" size={22} color="#FFFFFF" />
             </View>
             <View style={styles.signupText}>
-              <Text style={styles.signupTitle}>Get Exclusive Deals & Offers!</Text>
-              <Text style={styles.signupBody}>Sign up and never miss a deal again.</Text>
+              <Text style={styles.signupTitle}>Never Miss a Deal</Text>
+              <Text style={styles.signupBody}>Follow your favorite brands for personalized alerts.</Text>
             </View>
             <View style={styles.signupButton}>
-              <Text style={styles.signupButtonLabel}>Sign Up</Text>
+              <Text style={styles.signupButtonLabel}>Follow</Text>
               <Icon name="chevron-forward" size={14} color="#FFFFFF" />
             </View>
           </Pressable>
@@ -264,6 +265,12 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: SPACING.three,
+  },
+  forYouCaption: {
+    ...TYPOGRAPHY.small,
+    color: '#6B7280',
+    paddingHorizontal: SPACING.four,
+    marginTop: -SPACING.two,
   },
   searchRow: {
     flexDirection: 'row',

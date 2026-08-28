@@ -1,5 +1,6 @@
 import BrandDetailScreen from '../screens/deals/BrandDetailScreen';
 import ForYouScreen from '../screens/home/ForYouScreen';
+import CategoryDealsScreen from '../screens/categories/CategoryDealsScreen';
 import BrandListScreen from '../screens/deals/BrandListScreen';
 import DealDetailScreen from '../screens/deals/DealDetailScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
@@ -16,7 +17,7 @@ import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen
 import OnboardingCategoriesScreen from '../screens/onboarding/OnboardingCategoriesScreen';
 import OnboardingBrandsScreen from '../screens/onboarding/OnboardingBrandsScreen';
 import { COLORS } from '../styles/theme';
-import HomeNavigator from './HomeNavigator';
+import RootDrawer from './RootDrawer';
 
 const stackoptions = {
   headerShown: true,
@@ -35,7 +36,7 @@ const stackoptions = {
 export const homeStack = [
   {
     name: 'MainTabs',
-    component: HomeNavigator,
+    component: RootDrawer,
   },
   {
     options: { ...stackoptions, headerShown: false },
@@ -46,6 +47,11 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'ForYouScreen',
     component: ForYouScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'CategoryDealsScreen',
+    component: CategoryDealsScreen,
   },
   {
     options: { ...stackoptions, headerShown: false },

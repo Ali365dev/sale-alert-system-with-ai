@@ -125,7 +125,7 @@ const RequestBrandScreen = () => {
           </Text>
           <PrimaryButton
             label="Back to Home"
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Tabs', params: { screen: 'Home' } })}
             style={styles.fullWidthButton}
           />
           <OutlineButton label="Request Another Brand" icon="add-circle-outline" onPress={resetForm} />

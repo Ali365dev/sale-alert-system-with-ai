@@ -65,10 +65,14 @@ const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
         <Text style={styles.name}>{category.name}</Text>
 
         {compact ? (
-          <Text style={[styles.compactCount, { color: tile.fg }]}>{category.dealCount.toLocaleString()} Deals</Text>
+          <Text style={[styles.compactCount, { color: tile.fg }]}>
+            {category.dealCount.toLocaleString()} {category.dealCount === 1 ? 'Deal' : 'Deals'}
+          </Text>
         ) : (
           <View style={styles.countChip}>
-            <Text style={styles.countText}>{category.dealCount.toLocaleString()} deals</Text>
+            <Text style={styles.countText}>
+              {category.dealCount.toLocaleString()} {category.dealCount === 1 ? 'deal' : 'deals'}
+            </Text>
           </View>
         )}
       </Pressable>

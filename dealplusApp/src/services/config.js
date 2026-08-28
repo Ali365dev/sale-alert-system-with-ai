@@ -9,3 +9,6 @@
 // would mean the emulator itself, not your Mac). For a physical device, swap
 // this for your machine's LAN IP instead (e.g. 192.168.x.x:8000).
 export const BASE_URL = 'http://10.0.2.2:8000/api';
+
+// Microsoft Clarity project ID (clarity.microsoft.com).
+export const CLARITY_PROJECT_ID = 'y9fq0ureju';
