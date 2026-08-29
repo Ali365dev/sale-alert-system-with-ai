@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { RADIUS } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 
 /** Pulsing gray bone used to shape loading placeholders before real content fades in. */
 const Skeleton = ({ width, height = 14, radius = RADIUS.button, style }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const opacity = useSharedValue(0.5);
 
   useEffect(() => {
@@ -18,8 +21,9 @@ const Skeleton = ({ width, height = 14, radius = RADIUS.button, style }) => {
 
 export default Skeleton;
 
-const styles = StyleSheet.create({
-  bone: {
-    backgroundColor: '#E8E8E8',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    bone: {
+      backgroundColor: colors.skeletonBase,
+    },
+  });

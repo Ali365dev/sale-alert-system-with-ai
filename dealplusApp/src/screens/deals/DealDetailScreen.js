@@ -4,7 +4,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FastImage from '@d11/react-native-fast-image';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import BrandLogo from '../../components/BrandLogo';
@@ -28,6 +29,8 @@ const DealDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const id = route.params?.id;
   const deals = useDataStore((state) => state.deals);
   const brandsById = useDataStore((state) => state.brandsById);
@@ -81,7 +84,7 @@ const DealDetailScreen = () => {
             <View style={styles.brandText}>
               <View style={styles.brandNameRow}>
                 <Text style={styles.brandName}>{brand?.name ?? 'Unknown brand'}</Text>
-                {deal.isFeatured && <Icon name="checkmark-circle" size={16} color="#B7131A" />}
+                {deal.isFeatured && <Icon name="checkmark-circle" size={16} color={colors.primary} />}
               </View>
               <Text style={styles.dealStatus}>{expiryLabel(deal.expiresAt) === 'Expired' ? 'Expired Deal' : 'Active Deal'}</Text>
             </View>
@@ -90,7 +93,7 @@ const DealDetailScreen = () => {
           <Text style={styles.title}>{deal.title}</Text>
 
           <View style={styles.metaRow}>
-            <Icon name="time-outline" size={14} color="#6B7280" />
+            <Icon name="time-outline" size={14} color={colors.textSecondary} />
             <Text style={styles.metaText}>{expiryLabel(deal.expiresAt)}</Text>
           </View>
 
@@ -144,122 +147,127 @@ const DealDetailScreen = () => {
 
 export default DealDetailScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  hero: {
-    width: '100%',
-    aspectRatio: 4 / 3,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  heroBadge: {
-    position: 'absolute',
-    left: SPACING.three,
-    bottom: SPACING.three,
-    backgroundColor: '#F5CB1B',
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-    borderRadius: 999,
-  },
-  heroBadgeLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#171717',
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.four,
-    gap: SPACING.two,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.three,
-  },
-  brandText: {
-    gap: 2,
-  },
-  brandNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  brandName: {
-    ...TYPOGRAPHY.subtitle,
-  },
-  dealStatus: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  title: {
-    ...TYPOGRAPHY.headline,
-    marginTop: SPACING.two,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: SPACING.one,
-  },
-  metaText: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  section: {
-    marginTop: SPACING.five,
-    gap: SPACING.two,
-  },
-  sectionHeading: {
-    ...TYPOGRAPHY.headline,
-    marginBottom: 0,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F0DADA',
-    marginBottom: SPACING.two,
-  },
-  bulletList: {
-    gap: SPACING.two,
-  },
-  bulletRow: {
-    flexDirection: 'row',
-    gap: SPACING.two,
-  },
-  bulletDot: {
-    ...TYPOGRAPHY.default,
-  },
-  bulletText: {
-    ...TYPOGRAPHY.default,
-    color: '#6B7280',
-    flex: 1,
-    lineHeight: 20,
-  },
-  termsLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#6B7280',
-  },
-  terms: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  relatedSection: {
-    marginTop: SPACING.five,
-    gap: SPACING.three,
-  },
-  relatedList: {
-    paddingHorizontal: SPACING.four,
-    gap: SPACING.three,
-  },
-  footer: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    borderTopWidth: 1,
-    borderTopColor: '#F0DADA',
-    backgroundColor: '#FFFFFF',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    hero: {
+      width: '100%',
+      aspectRatio: 4 / 3,
+    },
+    heroImage: {
+      width: '100%',
+      height: '100%',
+    },
+    heroBadge: {
+      position: 'absolute',
+      left: SPACING.three,
+      bottom: SPACING.three,
+      backgroundColor: '#F5CB1B',
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+      borderRadius: 999,
+    },
+    heroBadgeLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#171717',
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.four,
+      gap: SPACING.two,
+    },
+    brandRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.three,
+    },
+    brandText: {
+      gap: 2,
+    },
+    brandNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    brandName: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.text,
+    },
+    dealStatus: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    title: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+      marginTop: SPACING.two,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: SPACING.one,
+    },
+    metaText: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    section: {
+      marginTop: SPACING.five,
+      gap: SPACING.two,
+    },
+    sectionHeading: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+      marginBottom: 0,
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.border,
+      marginBottom: SPACING.two,
+    },
+    bulletList: {
+      gap: SPACING.two,
+    },
+    bulletRow: {
+      flexDirection: 'row',
+      gap: SPACING.two,
+    },
+    bulletDot: {
+      ...TYPOGRAPHY.default,
+      color: colors.text,
+    },
+    bulletText: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+      flex: 1,
+      lineHeight: 20,
+    },
+    termsLabel: {
+      ...TYPOGRAPHY.label,
+      color: colors.textSecondary,
+    },
+    terms: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      lineHeight: 20,
+    },
+    relatedSection: {
+      marginTop: SPACING.five,
+      gap: SPACING.three,
+    },
+    relatedList: {
+      paddingHorizontal: SPACING.four,
+      gap: SPACING.three,
+    },
+    footer: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+  });

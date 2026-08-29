@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
 import AnimatedListItem from '../../components/AnimatedListItem';
@@ -19,6 +20,8 @@ const FILTERS = ['All Categories', 'Trending', 'Closing Soon'];
 const CategoriesScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const categories = useDataStore((state) => state.categories);
   const deals = useDataStore((state) => state.deals);
   const loading = useDataStore((state) => state.loading);
@@ -129,66 +132,68 @@ const CategoriesScreen = () => {
 
 export default CategoriesScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    gap: SPACING.three,
-  },
-  row: {
-    gap: SPACING.three,
-  },
-  skeletonRow: {
-    flexDirection: 'row',
-    gap: SPACING.three,
-  },
-  gridItem: {
-    flexBasis: '47%',
-  },
-  gridItemFill: {
-    flexBasis: '100%',
-  },
-  header: {
-    gap: SPACING.three,
-    marginBottom: SPACING.two,
-  },
-  pageTitle: {
-    ...TYPOGRAPHY.title,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: SPACING.two,
-  },
-  banner: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.card,
-    padding: SPACING.four,
-    alignItems: 'center',
-    marginTop: SPACING.three,
-    gap: 4,
-  },
-  bannerTitle: {
-    ...TYPOGRAPHY.headline,
-    color: '#FFFFFF',
-  },
-  bannerBody: {
-    ...TYPOGRAPHY.small,
-    color: '#F5D9D9',
-    textAlign: 'center',
-  },
-  bannerCta: {
-    backgroundColor: COLORS.accent,
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.four,
-    paddingVertical: SPACING.two,
-    marginTop: SPACING.two,
-  },
-  bannerCtaLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#171717',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      gap: SPACING.three,
+    },
+    row: {
+      gap: SPACING.three,
+    },
+    skeletonRow: {
+      flexDirection: 'row',
+      gap: SPACING.three,
+    },
+    gridItem: {
+      flexBasis: '47%',
+    },
+    gridItemFill: {
+      flexBasis: '100%',
+    },
+    header: {
+      gap: SPACING.three,
+      marginBottom: SPACING.two,
+    },
+    pageTitle: {
+      ...TYPOGRAPHY.title,
+      color: colors.text,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      gap: SPACING.two,
+    },
+    banner: {
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.card,
+      padding: SPACING.four,
+      alignItems: 'center',
+      marginTop: SPACING.three,
+      gap: 4,
+    },
+    bannerTitle: {
+      ...TYPOGRAPHY.headline,
+      color: '#FFFFFF',
+    },
+    bannerBody: {
+      ...TYPOGRAPHY.small,
+      color: '#F5D9D9',
+      textAlign: 'center',
+    },
+    bannerCta: {
+      backgroundColor: colors.accent,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.four,
+      paddingVertical: SPACING.two,
+      marginTop: SPACING.two,
+    },
+    bannerCtaLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#171717',
+    },
+  });

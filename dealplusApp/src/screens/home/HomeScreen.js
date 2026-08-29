@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { loadDeals } from '../../services/dealsService';
@@ -26,6 +27,8 @@ import TopAppBar from '../../components/TopAppBar';
 const HomeScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const deals = useDataStore((state) => state.deals);
   const categories = useDataStore((state) => state.categories);
   const brandsById = useDataStore((state) => state.brandsById);
@@ -127,10 +130,10 @@ const HomeScreen = () => {
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor="#B7131A" />}>
+          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor={colors.primary} />}>
           <View style={styles.searchRow}>
             <Pressable style={styles.searchBar} onPress={() => navigation.navigate('Search')}>
-              <Icon name="search" size={18} color="#6B7280" />
+              <Icon name="search" size={18} color={colors.textSecondary} />
               <Text style={styles.searchPlaceholder}>Search brands or deals...</Text>
             </Pressable>
             <Pressable style={styles.filterButton} onPress={() => navigation.navigate('Search')}>
@@ -155,7 +158,7 @@ const HomeScreen = () => {
                 ListFooterComponent={
                   <Pressable style={styles.moreBrands} onPress={() => navigation.navigate('BrandListScreen')}>
                     <View style={styles.moreBrandsCircle}>
-                      <Icon name="add" size={22} color="#6B7280" />
+                      <Icon name="add" size={22} color={colors.textSecondary} />
                     </View>
                     <Text style={styles.moreBrandsLabel}>More{'\n'}Brands</Text>
                   </Pressable>
@@ -234,7 +237,7 @@ const HomeScreen = () => {
             <View style={styles.latestHeader}>
               <Text style={styles.latestTitle}>Latest Offers</Text>
               <Pressable style={styles.filterLink} onPress={() => navigation.navigate('Search')}>
-                <Icon name="filter-outline" size={16} color="#6B7280" />
+                <Icon name="filter-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.filterLabel}>Filter</Text>
               </Pressable>
             </View>
@@ -254,146 +257,149 @@ const HomeScreen = () => {
 
 export default HomeScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    gap: SPACING.five,
-    paddingTop: SPACING.three,
-  },
-  section: {
-    gap: SPACING.three,
-  },
-  forYouCaption: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-    paddingHorizontal: SPACING.four,
-    marginTop: -SPACING.two,
-  },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.two,
-    paddingHorizontal: SPACING.four,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.two,
-    backgroundColor: '#F8F9FB',
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    height: 48,
-  },
-  searchPlaceholder: {
-    ...TYPOGRAPHY.default,
-    color: '#6B7280',
-  },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: RADIUS.chip,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  skeletonPad: {
-    paddingHorizontal: SPACING.four,
-  },
-  sectionTitleSkeleton: {
-    marginHorizontal: SPACING.four,
-  },
-  rowList: {
-    flexDirection: 'row',
-    paddingHorizontal: SPACING.four,
-    gap: SPACING.three,
-  },
-  moreBrands: {
-    alignItems: 'center',
-    width: 84,
-    gap: SPACING.two,
-  },
-  moreBrandsCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moreBrandsLabel: {
-    ...TYPOGRAPHY.smallBold,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  signupBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.three,
-    marginHorizontal: SPACING.four,
-    backgroundColor: '#FDEEEE',
-    borderRadius: RADIUS.card,
-    padding: SPACING.three,
-  },
-  signupIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: RADIUS.button,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  signupText: {
-    flex: 1,
-    gap: 2,
-  },
-  signupTitle: {
-    ...TYPOGRAPHY.smallBold,
-    fontSize: 15,
-  },
-  signupBody: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  signupButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-  },
-  signupButtonLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#FFFFFF',
-    fontSize: 13,
-  },
-  latestHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.four,
-  },
-  latestTitle: {
-    ...TYPOGRAPHY.headline,
-  },
-  filterLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  filterLabel: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  dealsList: {
-    paddingHorizontal: SPACING.four,
-    gap: SPACING.three,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      gap: SPACING.five,
+      paddingTop: SPACING.three,
+    },
+    section: {
+      gap: SPACING.three,
+    },
+    forYouCaption: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      paddingHorizontal: SPACING.four,
+      marginTop: -SPACING.two,
+    },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.two,
+      paddingHorizontal: SPACING.four,
+    },
+    searchBar: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.two,
+      backgroundColor: colors.backgroundElement,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      height: 48,
+    },
+    searchPlaceholder: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+    },
+    filterButton: {
+      width: 48,
+      height: 48,
+      borderRadius: RADIUS.chip,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    skeletonPad: {
+      paddingHorizontal: SPACING.four,
+    },
+    sectionTitleSkeleton: {
+      marginHorizontal: SPACING.four,
+    },
+    rowList: {
+      flexDirection: 'row',
+      paddingHorizontal: SPACING.four,
+      gap: SPACING.three,
+    },
+    moreBrands: {
+      alignItems: 'center',
+      width: 84,
+      gap: SPACING.two,
+    },
+    moreBrandsCircle: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    moreBrandsLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    signupBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.three,
+      marginHorizontal: SPACING.four,
+      backgroundColor: colors.errorTint,
+      borderRadius: RADIUS.card,
+      padding: SPACING.three,
+    },
+    signupIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: RADIUS.button,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    signupText: {
+      flex: 1,
+      gap: 2,
+    },
+    signupTitle: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      fontSize: 15,
+    },
+    signupBody: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    signupButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+    },
+    signupButtonLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#FFFFFF',
+      fontSize: 13,
+    },
+    latestHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.four,
+    },
+    latestTitle: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+    },
+    filterLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    filterLabel: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    dealsList: {
+      paddingHorizontal: SPACING.four,
+      gap: SPACING.three,
+    },
+  });

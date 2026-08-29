@@ -5,12 +5,17 @@ import CategoriesScreen from '../screens/categories/CategoriesScreen';
 import FavoritesScreen from '../screens/home/FavoritesScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import CustomTabBar from './CustomTabBar';
+import useTheme from '../hooks/useTheme';
 
 const Tab = createBottomTabNavigator();
 
 function HomeNavigator() {
+  const { colors } = useTheme();
+
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false, animation: 'shift' }} tabBar={(props) => <CustomTabBar {...props} />}>
+    <Tab.Navigator
+      screenOptions={{ headerShown: false, animation: 'shift', sceneContainerStyle: { backgroundColor: colors.background } }}
+      tabBar={(props) => <CustomTabBar {...props} />}>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Deals" component={CategoriesScreen} />

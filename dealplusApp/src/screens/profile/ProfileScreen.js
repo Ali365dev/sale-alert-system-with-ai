@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { saveInterests } from '../../services/preferencesApi';
@@ -13,13 +14,14 @@ import TopAppBar from '../../components/TopAppBar';
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors, isDark, toggleTheme } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const brands = useDataStore((state) => state.brands);
   const deals = useDataStore((state) => state.deals);
   const categories = useDataStore((state) => state.categories);
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
   const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
-  const [darkMode, setDarkMode] = useState(false);
   const guestName = useMemo(() => getGuestName(), []);
 
   const handleToggleCategory = (name) => {
@@ -91,7 +93,7 @@ const ProfileScreen = () => {
           <Text style={styles.accountTitle}>{guestName}</Text>
           <Text style={styles.accountSubtitle}>Browsing as a guest</Text>
           <View style={styles.premiumPill}>
-            <Icon name="pricetags-outline" size={13} color="#171717" />
+            <Icon name="pricetags-outline" size={13} color={colors.text} />
             <Text style={styles.premiumPillLabel}>{deals.length} offers tracked</Text>
           </View>
         </View>
@@ -101,7 +103,7 @@ const ProfileScreen = () => {
           <View style={styles.prefCard}>
             <View style={styles.prefHeader}>
               <View style={styles.prefTitleRow}>
-                <Icon name="pricetags" size={16} color={COLORS.primary} />
+                <Icon name="pricetags" size={16} color={colors.primary} />
                 <Text style={styles.prefTitle}>Favorite Categories</Text>
               </View>
               <Pressable onPress={() => navigation.navigate('FavoriteCategoriesScreen')} hitSlop={8}>
@@ -119,7 +121,7 @@ const ProfileScreen = () => {
               {otherCategories.map((c) => (
                 <Pressable key={c.name} onPress={() => handleToggleCategory(c.name)} style={styles.addableChip}>
                   <Text style={styles.addableChipLabel}>{c.name}</Text>
-                  <Icon name="add" size={13} color="#171717" />
+                  <Icon name="add" size={13} color={colors.text} />
                 </Pressable>
               ))}
               {categories.length > favoriteCategories.length + otherCategories.length && (
@@ -142,23 +144,23 @@ const ProfileScreen = () => {
               onPress={row.onPress}
               style={[styles.settingRow, i === rows.length - 1 && styles.settingRowLast]}>
               <View style={styles.settingIconCircle}>
-                <Icon name={row.icon} size={18} color="#171717" />
+                <Icon name={row.icon} size={18} color={colors.text} />
               </View>
               <View style={styles.settingText}>
                 <Text style={styles.settingLabel}>{row.label}</Text>
                 <Text style={styles.settingSubtitle}>{row.subtitle}</Text>
               </View>
               {row.kind === 'toggle' ? (
-                <Switch value={darkMode} onValueChange={setDarkMode} trackColor={{ false: '#E5E7EB', true: COLORS.primary }} />
+                <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.primary }} />
               ) : (
-                <Icon name="chevron-forward" size={18} color="#6B7280" />
+                <Icon name="chevron-forward" size={18} color={colors.textSecondary} />
               )}
             </Pressable>
           ))}
         </View>
 
         <Pressable style={styles.logoutButton}>
-          <Icon name="log-out-outline" size={18} color={COLORS.primary} />
+          <Icon name="log-out-outline" size={18} color={colors.primary} />
           <Text style={styles.logoutLabel}>Log Out</Text>
         </Pressable>
 
@@ -170,207 +172,215 @@ const ProfileScreen = () => {
 
 export default ProfileScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.four,
-    gap: SPACING.five,
-  },
-  avatarCard: {
-    alignItems: 'center',
-    gap: SPACING.two,
-    backgroundColor: '#FDEEEE',
-    borderRadius: RADIUS.card,
-    paddingVertical: SPACING.five,
-  },
-  avatarWrap: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#171717',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.primary,
-    borderWidth: 2,
-    borderColor: '#FDEEEE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  accountTitle: {
-    ...TYPOGRAPHY.headline,
-  },
-  accountSubtitle: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    marginTop: -2,
-  },
-  premiumPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#E5E7EB',
-    paddingHorizontal: SPACING.three,
-    paddingVertical: 4,
-    borderRadius: RADIUS.chip,
-    marginTop: 2,
-  },
-  premiumPillLabel: {
-    ...TYPOGRAPHY.small,
-  },
-  section: {
-    gap: SPACING.three,
-  },
-  sectionTitle: {
-    ...TYPOGRAPHY.headline,
-  },
-  prefCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.card,
-    padding: SPACING.three,
-    gap: SPACING.two,
-  },
-  prefHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  prefTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.two,
-  },
-  prefTitle: {
-    ...TYPOGRAPHY.subtitle,
-  },
-  editLink: {
-    ...TYPOGRAPHY.linkPrimary,
-  },
-  prefBody: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.two,
-    marginTop: SPACING.one,
-  },
-  selectedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-  },
-  selectedChipLabel: {
-    ...TYPOGRAPHY.smallBold,
-    color: '#FFFFFF',
-  },
-  addableChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F8F9FB',
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-  },
-  addableChipLabel: {
-    ...TYPOGRAPHY.smallBold,
-  },
-  moreChip: {
-    backgroundColor: '#F8F9FB',
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-  },
-  moreChipLabel: {
-    ...TYPOGRAPHY.smallBold,
-    color: COLORS.textSecondary,
-  },
-  settingsCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.card,
-    overflow: 'hidden',
-  },
-  settingsHeader: {
-    backgroundColor: '#F8F9FB',
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-  },
-  settingsHeaderLabel: {
-    ...TYPOGRAPHY.subtitle,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.three,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.three,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  settingRowLast: {
-    borderBottomWidth: 0,
-  },
-  settingIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingText: {
-    flex: 1,
-    gap: 1,
-  },
-  settingLabel: {
-    ...TYPOGRAPHY.default,
-  },
-  settingSubtitle: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.two,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: RADIUS.chip,
-    paddingVertical: SPACING.three,
-  },
-  logoutLabel: {
-    ...TYPOGRAPHY.label,
-    color: COLORS.primary,
-  },
-  version: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: -SPACING.three,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.four,
+      gap: SPACING.five,
+    },
+    avatarCard: {
+      alignItems: 'center',
+      gap: SPACING.two,
+      backgroundColor: colors.errorTint,
+      borderRadius: RADIUS.card,
+      paddingVertical: SPACING.five,
+    },
+    avatarWrap: {
+      position: 'relative',
+    },
+    avatar: {
+      width: 84,
+      height: 84,
+      borderRadius: 42,
+      backgroundColor: colors.inverseSurface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    editBadge: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      borderWidth: 2,
+      borderColor: colors.errorTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    accountTitle: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+    },
+    accountSubtitle: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      marginTop: -2,
+    },
+    premiumPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.backgroundElement,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: 4,
+      borderRadius: RADIUS.chip,
+      marginTop: 2,
+    },
+    premiumPillLabel: {
+      ...TYPOGRAPHY.small,
+      color: colors.text,
+    },
+    section: {
+      gap: SPACING.three,
+    },
+    sectionTitle: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+    },
+    prefCard: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.card,
+      padding: SPACING.three,
+      gap: SPACING.two,
+    },
+    prefHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    prefTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.two,
+    },
+    prefTitle: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.text,
+    },
+    editLink: {
+      ...TYPOGRAPHY.linkPrimary,
+    },
+    prefBody: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: SPACING.two,
+      marginTop: SPACING.one,
+    },
+    selectedChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+    },
+    selectedChipLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: '#FFFFFF',
+    },
+    addableChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.backgroundElement,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+    },
+    addableChipLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+    },
+    moreChip: {
+      backgroundColor: colors.backgroundElement,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+    },
+    moreChipLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.textSecondary,
+    },
+    settingsCard: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.card,
+      overflow: 'hidden',
+    },
+    settingsHeader: {
+      backgroundColor: colors.backgroundElement,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+    },
+    settingsHeaderLabel: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.text,
+    },
+    settingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.three,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.three,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    settingRowLast: {
+      borderBottomWidth: 0,
+    },
+    settingIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.backgroundElement,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    settingText: {
+      flex: 1,
+      gap: 1,
+    },
+    settingLabel: {
+      ...TYPOGRAPHY.default,
+      color: colors.text,
+    },
+    settingSubtitle: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    logoutButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.two,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: RADIUS.chip,
+      paddingVertical: SPACING.three,
+    },
+    logoutLabel: {
+      ...TYPOGRAPHY.label,
+      color: colors.primary,
+    },
+    version: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: -SPACING.three,
+    },
+  });

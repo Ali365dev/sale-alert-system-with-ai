@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 import useFavoritesStore from '../state/favoritesStore';
 import BrandLogo from './BrandLogo';
 import FavoriteButton from './FavoriteButton';
@@ -9,6 +11,8 @@ import { usePressScale } from '../hooks/usePressScale';
 
 const DealCardCompact = ({ deal, brand, onPress }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const favorite = useFavoritesStore((state) => state.favoriteIds.includes(deal.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
@@ -38,41 +42,43 @@ const DealCardCompact = ({ deal, brand, onPress }) => {
 
 export default DealCardCompact;
 
-const styles = StyleSheet.create({
-  card: {
-    width: 200,
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: '#F0DADA',
-    padding: SPACING.three,
-    gap: 4,
-    ...SHADOWS.card,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  brandName: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  title: {
-    ...TYPOGRAPHY.smallBold,
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: SPACING.two,
-  },
-  viewDetails: {
-    ...TYPOGRAPHY.link,
-    color: '#B7131A',
-    fontSize: 12,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    card: {
+      width: 200,
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: SPACING.three,
+      gap: 4,
+      ...SHADOWS.card,
+    },
+    topRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 2,
+    },
+    brandName: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    title: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      fontSize: 14,
+      lineHeight: 18,
+    },
+    bottomRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: SPACING.two,
+    },
+    viewDetails: {
+      ...TYPOGRAPHY.link,
+      color: colors.primary,
+      fontSize: 12,
+    },
+  });

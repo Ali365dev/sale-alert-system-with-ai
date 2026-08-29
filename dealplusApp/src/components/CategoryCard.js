@@ -1,9 +1,14 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 import { usePressScale } from '../hooks/usePressScale';
 
+// Decorative per-category accent tiles — deliberately theme-invariant (like a
+// calendar's category colors), since darkening each pastel individually would
+// need a hand-picked dark variant per tile with little practical benefit.
 const TILE_COLORS = {
   'shoe-sneaker': { bg: '#FBE2E2', fg: '#B7131A' },
   'tshirt-crew-outline': { bg: '#FBE2E2', fg: '#B7131A' },
@@ -15,13 +20,14 @@ const TILE_COLORS = {
   'sofa-outline': { bg: '#E1F0E1', fg: '#1F6D3A' },
   'controller-classic-outline': { bg: '#EDE1F5', fg: '#5A1F6D' },
 };
-const DEFAULT_TILE_COLORS = { bg: '#F0F0F0', fg: '#6B7280' };
 
 const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const compact = variant === 'compact';
   const circle = variant === 'circle';
-  const tile = TILE_COLORS[category.icon] ?? DEFAULT_TILE_COLORS;
+  const tile = TILE_COLORS[category.icon] ?? { bg: colors.backgroundElement, fg: colors.textSecondary };
 
   if (circle) {
     return (
@@ -49,7 +55,12 @@ const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
         onPressOut={onPressOut}
         style={[styles.card, compact ? styles.cardCompact : styles.cardDefault]}>
         {compact && (
-          <Icon name={category.icon} size={110} color="rgba(23,23,23,0.05)" style={styles.watermark} />
+          <Icon
+            name={category.icon}
+            size={110}
+            color={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(23,23,23,0.05)'}
+            style={styles.watermark}
+          />
         )}
 
         {compact ? (
@@ -58,7 +69,7 @@ const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
           </View>
         ) : (
           <View style={styles.iconCircle}>
-            <Icon name={category.icon} size={24} color="#B7131A" />
+            <Icon name={category.icon} size={24} color={colors.primary} />
           </View>
         )}
 
@@ -82,96 +93,99 @@ const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
 
 export default CategoryCard;
 
-const styles = StyleSheet.create({
-  wrapper: {
-    flexBasis: '47%',
-    borderRadius: RADIUS.card,
-    ...SHADOWS.card,
-  },
-  card: {
-    borderRadius: RADIUS.card,
-    padding: SPACING.three,
-    gap: 4,
-  },
-  cardCompact: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F0DADA',
-    paddingVertical: SPACING.four,
-    paddingHorizontal: SPACING.three,
-    gap: SPACING.one,
-    overflow: 'hidden',
-    position: 'relative',
-    minHeight: 148,
-  },
-  cardDefault: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F0DADA',
-    alignItems: 'center',
-    paddingVertical: SPACING.four,
-  },
-  watermark: {
-    position: 'absolute',
-    bottom: -18,
-    right: -16,
-  },
-  iconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.four,
-  },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.one,
-  },
-  name: {
-    ...TYPOGRAPHY.smallBold,
-    fontSize: 16,
-  },
-  compactCount: {
-    ...TYPOGRAPHY.small,
-    fontSize: 13,
-  },
-  countChip: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.two,
-    paddingVertical: 2,
-    marginTop: 2,
-  },
-  countText: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  circleCard: {
-    alignItems: 'center',
-    width: 88,
-    gap: 2,
-  },
-  circleIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.one,
-  },
-  circleName: {
-    ...TYPOGRAPHY.smallBold,
-    textAlign: 'center',
-  },
-  circleCount: {
-    ...TYPOGRAPHY.small,
-    fontSize: 12,
-    color: '#6B7280',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    wrapper: {
+      flexBasis: '47%',
+      borderRadius: RADIUS.card,
+      ...SHADOWS.card,
+    },
+    card: {
+      borderRadius: RADIUS.card,
+      padding: SPACING.three,
+      gap: 4,
+    },
+    cardCompact: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: SPACING.four,
+      paddingHorizontal: SPACING.three,
+      gap: SPACING.one,
+      overflow: 'hidden',
+      position: 'relative',
+      minHeight: 148,
+    },
+    cardDefault: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      paddingVertical: SPACING.four,
+    },
+    watermark: {
+      position: 'absolute',
+      bottom: -18,
+      right: -16,
+    },
+    iconBadge: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: SPACING.four,
+    },
+    iconCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.backgroundElement,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: SPACING.one,
+    },
+    name: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      fontSize: 16,
+    },
+    compactCount: {
+      ...TYPOGRAPHY.small,
+      fontSize: 13,
+    },
+    countChip: {
+      backgroundColor: colors.backgroundElement,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.two,
+      paddingVertical: 2,
+      marginTop: 2,
+    },
+    countText: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    circleCard: {
+      alignItems: 'center',
+      width: 88,
+      gap: 2,
+    },
+    circleIconWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: SPACING.one,
+    },
+    circleName: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      textAlign: 'center',
+    },
+    circleCount: {
+      ...TYPOGRAPHY.small,
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+  });

@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 
 const SECTIONS = [
   {
@@ -37,12 +39,14 @@ const SECTIONS = [
 const TermsConditionsScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Icon name="chevron-back" size={24} color="#171717" />
+          <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Terms & Conditions</Text>
         <View style={styles.headerSpacer} />
@@ -68,45 +72,48 @@ const TermsConditionsScreen = () => {
 
 export default TermsConditionsScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.four,
-    paddingBottom: SPACING.two,
-  },
-  headerTitle: {
-    ...TYPOGRAPHY.subtitle,
-  },
-  headerSpacer: {
-    width: 24,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    gap: SPACING.five,
-  },
-  updated: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    marginTop: -SPACING.two,
-  },
-  section: {
-    gap: SPACING.two,
-  },
-  sectionTitle: {
-    ...TYPOGRAPHY.subtitle,
-    paddingBottom: SPACING.two,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  paragraph: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.four,
+      paddingBottom: SPACING.two,
+    },
+    headerTitle: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.text,
+    },
+    headerSpacer: {
+      width: 24,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      gap: SPACING.five,
+    },
+    updated: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      marginTop: -SPACING.two,
+    },
+    section: {
+      gap: SPACING.two,
+    },
+    sectionTitle: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.text,
+      paddingBottom: SPACING.two,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    paragraph: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+    },
+  });

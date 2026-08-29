@@ -1,7 +1,12 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 
 const OnboardingProgress = ({ step, total }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.row}>
       {Array.from({ length: total }).map((_, i) => (
@@ -18,34 +23,35 @@ const OnboardingProgress = ({ step, total }) => {
 
 export default OnboardingProgress;
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.two,
-  },
-  track: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#E5E7EB',
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    backgroundColor: COLORS.primary,
-  },
-  fillFull: {
-    width: '100%',
-  },
-  fillHalf: {
-    width: '50%',
-  },
-  fillNone: {
-    width: 0,
-  },
-  label: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.two,
+    },
+    track: {
+      flex: 1,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.border,
+      overflow: 'hidden',
+    },
+    fill: {
+      height: '100%',
+      backgroundColor: colors.primary,
+    },
+    fillFull: {
+      width: '100%',
+    },
+    fillHalf: {
+      width: '50%',
+    },
+    fillNone: {
+      width: 0,
+    },
+    label: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+  });

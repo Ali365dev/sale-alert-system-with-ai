@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { withSequence, withSpring } from 'react-native-reanimated';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 import { usePressScale } from '../hooks/usePressScale';
 
 const CouponCodeBlock = ({ code }) => {
   const [copied, setCopied] = useState(false);
   const { animatedStyle, onPressIn, onPressOut, scale } = usePressScale();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const onCopy = () => {
     Clipboard.setString(code);
@@ -35,42 +38,44 @@ const CouponCodeBlock = ({ code }) => {
 
 export default CouponCodeBlock;
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8F9FB',
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    padding: SPACING.three,
-  },
-  codeSide: {
-    gap: 2,
-  },
-  promoLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#6B7280',
-    letterSpacing: 0.5,
-  },
-  code: {
-    ...TYPOGRAPHY.headline,
-    letterSpacing: 1,
-  },
-  copyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#B7131A',
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-    ...SHADOWS.button,
-  },
-  copyLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#FFFFFF',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.backgroundElement,
+      borderRadius: RADIUS.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      padding: SPACING.three,
+    },
+    codeSide: {
+      gap: 2,
+    },
+    promoLabel: {
+      ...TYPOGRAPHY.label,
+      color: colors.textSecondary,
+      letterSpacing: 0.5,
+    },
+    code: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+      letterSpacing: 1,
+    },
+    copyButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+      ...SHADOWS.button,
+    },
+    copyLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#FFFFFF',
+    },
+  });

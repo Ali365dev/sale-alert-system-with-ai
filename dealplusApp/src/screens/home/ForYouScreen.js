@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { filterForYou } from '../../utils/dealAdapters';
@@ -14,6 +15,8 @@ import TopAppBar from '../../components/TopAppBar';
 const ForYouScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const deals = useDataStore((state) => state.deals);
   const brandsById = useDataStore((state) => state.brandsById);
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
@@ -55,25 +58,27 @@ const ForYouScreen = () => {
 
 export default ForYouScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-  },
-  pageTitle: {
-    ...TYPOGRAPHY.title,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.one,
-    marginBottom: SPACING.four,
-  },
-  list: {
-    gap: SPACING.three,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+    },
+    pageTitle: {
+      ...TYPOGRAPHY.title,
+      color: colors.text,
+    },
+    subtitle: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+      marginTop: SPACING.one,
+      marginBottom: SPACING.four,
+    },
+    list: {
+      gap: SPACING.three,
+    },
+  });

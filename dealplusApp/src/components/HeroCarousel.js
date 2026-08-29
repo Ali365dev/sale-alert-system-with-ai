@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SLIDE_WIDTH = SCREEN_WIDTH * 0.85;
@@ -9,6 +11,9 @@ const SLIDE_WIDTH = SCREEN_WIDTH * 0.85;
 const dealHeadline = (deal) => (deal.isPercentageOff ? `${deal.discountLabel.replace('-', '')} OFF` : deal.discountLabel);
 
 const HeroCarousel = ({ deals, brandsById, onPressDeal }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <ScrollView
       horizontal
@@ -52,70 +57,71 @@ const HeroCarousel = ({ deals, brandsById, onPressDeal }) => {
 
 export default HeroCarousel;
 
-const styles = StyleSheet.create({
-  scrollContent: {
-    paddingHorizontal: SPACING.four,
-    gap: SPACING.three,
-  },
-  slideShadow: {
-    borderRadius: RADIUS.card,
-    ...SHADOWS.raised,
-  },
-  slide: {
-    flexDirection: 'row',
-    aspectRatio: 16 / 10,
-    borderRadius: RADIUS.card,
-    overflow: 'hidden',
-    backgroundColor: '#171717',
-  },
-  textCol: {
-    flex: 1,
-    padding: SPACING.three,
-    justifyContent: 'center',
-    gap: SPACING.one,
-  },
-  brandBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F5CB1B',
-    paddingHorizontal: SPACING.two,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: SPACING.one,
-  },
-  brandBadgeLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#171717',
-    fontSize: 11,
-  },
-  headline: {
-    ...TYPOGRAPHY.title,
-    color: '#FFFFFF',
-    fontSize: 26,
-    lineHeight: 28,
-  },
-  description: {
-    ...TYPOGRAPHY.small,
-    color: '#D1D5DB',
-    marginTop: 2,
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    backgroundColor: '#B7131A',
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-    marginTop: SPACING.two,
-  },
-  ctaLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#FFFFFF',
-    fontSize: 13,
-  },
-  image: {
-    width: '42%',
-    height: '100%',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    scrollContent: {
+      paddingHorizontal: SPACING.four,
+      gap: SPACING.three,
+    },
+    slideShadow: {
+      borderRadius: RADIUS.card,
+      ...SHADOWS.raised,
+    },
+    slide: {
+      flexDirection: 'row',
+      aspectRatio: 16 / 10,
+      borderRadius: RADIUS.card,
+      overflow: 'hidden',
+      backgroundColor: colors.inverseSurface,
+    },
+    textCol: {
+      flex: 1,
+      padding: SPACING.three,
+      justifyContent: 'center',
+      gap: SPACING.one,
+    },
+    brandBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: colors.accent,
+      paddingHorizontal: SPACING.two,
+      paddingVertical: 4,
+      borderRadius: 4,
+      marginBottom: SPACING.one,
+    },
+    brandBadgeLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#171717',
+      fontSize: 11,
+    },
+    headline: {
+      ...TYPOGRAPHY.title,
+      color: '#FFFFFF',
+      fontSize: 26,
+      lineHeight: 28,
+    },
+    description: {
+      ...TYPOGRAPHY.small,
+      color: '#D1D5DB',
+      marginTop: 2,
+    },
+    ctaButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 6,
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+      marginTop: SPACING.two,
+    },
+    ctaLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#FFFFFF',
+      fontSize: 13,
+    },
+    image: {
+      width: '42%',
+      height: '100%',
+    },
+  });

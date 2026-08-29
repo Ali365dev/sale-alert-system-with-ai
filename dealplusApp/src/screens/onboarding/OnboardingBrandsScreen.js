@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import useOnboardingStore from '../../state/onboardingStore';
 import useOnboardingGateStore from '../../state/onboardingGateStore';
@@ -18,7 +19,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import Logo from '../../components/Logo';
 import Skeleton from '../../components/Skeleton';
 
-function BrandCard({ brand, selected, onPress }) {
+function BrandCard({ brand, selected, onPress, styles }) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
 
   return (
@@ -36,6 +37,8 @@ function BrandCard({ brand, selected, onPress }) {
 const OnboardingBrandsScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const brands = useDataStore((state) => state.brands);
   const loading = useDataStore((state) => state.loading);
   const brandsById = useDataStore((state) => state.brandsById);
@@ -64,7 +67,7 @@ const OnboardingBrandsScreen = () => {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Icon name="chevron-back" size={24} color="#171717" />
+          <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <Logo size={20} />
         <View style={styles.headerSpacer} />
@@ -76,12 +79,12 @@ const OnboardingBrandsScreen = () => {
         <Text style={styles.subtitle}>Get instant alerts when they drop a new deal.</Text>
 
         <View style={styles.searchBar}>
-          <Icon name="search" size={18} color="#6B7280" />
+          <Icon name="search" size={18} color={colors.textSecondary} />
           <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Search brands..."
-            placeholderTextColor="#6B7280"
+            placeholderTextColor={colors.textSecondary}
             style={styles.searchInput}
             returnKeyType="search"
             autoCorrect={false}
@@ -106,7 +109,7 @@ const OnboardingBrandsScreen = () => {
         ) : (
           <View style={styles.grid}>
             {filteredBrands.map((b) => (
-              <BrandCard key={b.id} brand={b} selected={brandIds.includes(b.id)} onPress={() => toggleBrand(b.id)} />
+              <BrandCard key={b.id} brand={b} selected={brandIds.includes(b.id)} onPress={() => toggleBrand(b.id)} styles={styles} />
             ))}
           </View>
         )}
@@ -121,92 +124,95 @@ const OnboardingBrandsScreen = () => {
 
 export default OnboardingBrandsScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.four,
-    paddingBottom: SPACING.two,
-  },
-  headerSpacer: {
-    width: 24,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    gap: SPACING.two,
-    paddingTop: SPACING.three,
-  },
-  title: {
-    ...TYPOGRAPHY.title,
-    marginTop: SPACING.three,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.two,
-    backgroundColor: '#F8F9FB',
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    height: 48,
-    marginTop: SPACING.three,
-  },
-  searchInput: {
-    flex: 1,
-    ...TYPOGRAPHY.default,
-    color: COLORS.text,
-    padding: 0,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: SPACING.four,
-  },
-  brandCardWrap: {
-    width: '48%',
-    marginBottom: SPACING.three,
-  },
-  brandCard: {
-    alignItems: 'center',
-    gap: SPACING.two,
-    padding: SPACING.three,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: '#FFFFFF',
-  },
-  brandCardSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  brandName: {
-    ...TYPOGRAPHY.smallBold,
-  },
-  brandNameSelected: {
-    color: '#FFFFFF',
-  },
-  gapTop: {
-    marginTop: SPACING.two,
-  },
-  noResults: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: SPACING.six,
-  },
-  footer: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.four,
+      paddingBottom: SPACING.two,
+    },
+    headerSpacer: {
+      width: 24,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      gap: SPACING.two,
+      paddingTop: SPACING.three,
+    },
+    title: {
+      ...TYPOGRAPHY.title,
+      color: colors.text,
+      marginTop: SPACING.three,
+    },
+    subtitle: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.two,
+      backgroundColor: colors.backgroundElement,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      height: 48,
+      marginTop: SPACING.three,
+    },
+    searchInput: {
+      flex: 1,
+      ...TYPOGRAPHY.default,
+      color: colors.text,
+      padding: 0,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      marginTop: SPACING.four,
+    },
+    brandCardWrap: {
+      width: '48%',
+      marginBottom: SPACING.three,
+    },
+    brandCard: {
+      alignItems: 'center',
+      gap: SPACING.two,
+      padding: SPACING.three,
+      borderRadius: RADIUS.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    brandCardSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    brandName: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+    },
+    brandNameSelected: {
+      color: '#FFFFFF',
+    },
+    gapTop: {
+      marginTop: SPACING.two,
+    },
+    noResults: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: SPACING.six,
+    },
+    footer: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+  });

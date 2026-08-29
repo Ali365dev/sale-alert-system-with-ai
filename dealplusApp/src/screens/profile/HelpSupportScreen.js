@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 
 const FAQS = [
   {
@@ -27,12 +28,12 @@ const FAQS = [
   },
 ];
 
-function FaqItem({ question, answer, expanded, onPress }) {
+function FaqItem({ question, answer, expanded, onPress, colors, styles }) {
   return (
     <Pressable onPress={onPress} style={styles.faqItem}>
       <View style={styles.faqHeader}>
         <Text style={styles.faqQuestion}>{question}</Text>
-        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7280" />
+        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
       </View>
       {expanded && <Text style={styles.faqAnswer}>{answer}</Text>}
     </Pressable>
@@ -42,6 +43,8 @@ function FaqItem({ question, answer, expanded, onPress }) {
 const HelpSupportScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [openIndex, setOpenIndex] = useState(null);
 
   const toggle = (i) => setOpenIndex((prev) => (prev === i ? null : i));
@@ -50,7 +53,7 @@ const HelpSupportScreen = () => {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Icon name="chevron-back" size={24} color="#171717" />
+          <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Help & Support</Text>
         <View style={styles.headerSpacer} />
@@ -62,13 +65,13 @@ const HelpSupportScreen = () => {
           <Text style={styles.contactBody}>Our team usually replies within a day.</Text>
           <Pressable style={styles.contactRow} onPress={() => Linking.openURL('mailto:support@dealpulse.app')}>
             <View style={styles.contactIconCircle}>
-              <Icon name="mail-outline" size={18} color={COLORS.primary} />
+              <Icon name="mail-outline" size={18} color={colors.primary} />
             </View>
             <View style={styles.contactText}>
               <Text style={styles.contactLabel}>Email Support</Text>
               <Text style={styles.contactValue}>support@dealpulse.app</Text>
             </View>
-            <Icon name="chevron-forward" size={18} color="#6B7280" />
+            <Icon name="chevron-forward" size={18} color={colors.textSecondary} />
           </Pressable>
         </View>
 
@@ -77,7 +80,7 @@ const HelpSupportScreen = () => {
           <View style={styles.faqCard}>
             {FAQS.map((faq, i) => (
               <View key={faq.question} style={[styles.faqWrap, i === FAQS.length - 1 && styles.faqWrapLast]}>
-                <FaqItem question={faq.question} answer={faq.answer} expanded={openIndex === i} onPress={() => toggle(i)} />
+                <FaqItem question={faq.question} answer={faq.answer} expanded={openIndex === i} onPress={() => toggle(i)} colors={colors} styles={styles} />
               </View>
             ))}
           </View>
@@ -89,106 +92,112 @@ const HelpSupportScreen = () => {
 
 export default HelpSupportScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.four,
-    paddingBottom: SPACING.two,
-  },
-  headerTitle: {
-    ...TYPOGRAPHY.subtitle,
-  },
-  headerSpacer: {
-    width: 24,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    gap: SPACING.five,
-  },
-  contactCard: {
-    backgroundColor: '#FDEEEE',
-    borderRadius: RADIUS.card,
-    padding: SPACING.four,
-    gap: SPACING.one,
-  },
-  contactTitle: {
-    ...TYPOGRAPHY.headline,
-  },
-  contactBody: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.two,
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.three,
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.button,
-    padding: SPACING.three,
-  },
-  contactIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  contactText: {
-    flex: 1,
-    gap: 1,
-  },
-  contactLabel: {
-    ...TYPOGRAPHY.default,
-  },
-  contactValue: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-  },
-  section: {
-    gap: SPACING.three,
-  },
-  sectionTitle: {
-    ...TYPOGRAPHY.headline,
-  },
-  faqCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.card,
-    overflow: 'hidden',
-  },
-  faqWrap: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  faqWrapLast: {
-    borderBottomWidth: 0,
-  },
-  faqItem: {
-    padding: SPACING.three,
-    gap: SPACING.two,
-  },
-  faqHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: SPACING.two,
-  },
-  faqQuestion: {
-    ...TYPOGRAPHY.smallBold,
-    flex: 1,
-  },
-  faqAnswer: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.four,
+      paddingBottom: SPACING.two,
+    },
+    headerTitle: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.text,
+    },
+    headerSpacer: {
+      width: 24,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      gap: SPACING.five,
+    },
+    contactCard: {
+      backgroundColor: colors.errorTint,
+      borderRadius: RADIUS.card,
+      padding: SPACING.four,
+      gap: SPACING.one,
+    },
+    contactTitle: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+    },
+    contactBody: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      marginBottom: SPACING.two,
+    },
+    contactRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.three,
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.button,
+      padding: SPACING.three,
+    },
+    contactIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.backgroundElement,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    contactText: {
+      flex: 1,
+      gap: 1,
+    },
+    contactLabel: {
+      ...TYPOGRAPHY.default,
+      color: colors.text,
+    },
+    contactValue: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    section: {
+      gap: SPACING.three,
+    },
+    sectionTitle: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+    },
+    faqCard: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.card,
+      overflow: 'hidden',
+    },
+    faqWrap: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    faqWrapLast: {
+      borderBottomWidth: 0,
+    },
+    faqItem: {
+      padding: SPACING.three,
+      gap: SPACING.two,
+    },
+    faqHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: SPACING.two,
+    },
+    faqQuestion: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      flex: 1,
+    },
+    faqAnswer: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+  });

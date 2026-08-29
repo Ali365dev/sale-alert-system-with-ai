@@ -9,8 +9,11 @@ import { toastConfig } from './src/utils/CustomToast';
 import { loadDeals } from './src/services/dealsService';
 import { registerDeviceToken, requestNotificationPermission, setupPushListeners } from './src/services/pushNotifications';
 import { CLARITY_PROJECT_ID } from './src/services/config';
+import useTheme from './src/hooks/useTheme';
 
 const App = () => {
+  const { isDark } = useTheme();
+
   useEffect(() => {
     // Session-replay/analytics — inert until a real project ID replaces the
     // placeholder in src/services/config.js (see that file for how to get one).
@@ -43,7 +46,7 @@ const App = () => {
 
   return (
     <SafeAreaProvider>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? 'light-content' : 'dark-content'} />
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
         <Navigation />
         <Toast config={toastConfig} position="top" />

@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useNotificationPrefsStore from '../../state/notificationPrefsStore';
 
 const TOGGLE_ROWS = [
@@ -35,6 +37,8 @@ const TOGGLE_ROWS = [
 const NotificationPreferencesScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const prefs = useNotificationPrefsStore();
   const setPref = useNotificationPrefsStore((state) => state.setPref);
 
@@ -42,7 +46,7 @@ const NotificationPreferencesScreen = () => {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Icon name="chevron-back" size={24} color="#171717" />
+          <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Notification Preferences</Text>
         <View style={styles.headerSpacer} />
@@ -61,8 +65,8 @@ const NotificationPreferencesScreen = () => {
             <Switch
               value={prefs.pushEnabled}
               onValueChange={(v) => setPref('pushEnabled', v)}
-              trackColor={{ false: '#E5E7EB', true: '#FFFFFF' }}
-              thumbColor={prefs.pushEnabled ? COLORS.primary : undefined}
+              trackColor={{ false: colors.border, true: '#FFFFFF' }}
+              thumbColor={prefs.pushEnabled ? colors.primary : undefined}
             />
           </View>
         </View>
@@ -72,7 +76,7 @@ const NotificationPreferencesScreen = () => {
           {TOGGLE_ROWS.map((row, i) => (
             <View key={row.key} style={[styles.settingRow, i === TOGGLE_ROWS.length - 1 && styles.settingRowLast]}>
               <View style={styles.settingIconCircle}>
-                <Icon name={row.icon} size={18} color="#171717" />
+                <Icon name={row.icon} size={18} color={colors.text} />
               </View>
               <View style={styles.settingText}>
                 <Text style={styles.settingLabel}>{row.label}</Text>
@@ -82,7 +86,7 @@ const NotificationPreferencesScreen = () => {
                 disabled={!prefs.pushEnabled}
                 value={prefs[row.key]}
                 onValueChange={(v) => setPref(row.key, v)}
-                trackColor={{ false: '#E5E7EB', true: COLORS.primary }}
+                trackColor={{ false: colors.border, true: colors.primary }}
               />
             </View>
           ))}
@@ -99,110 +103,113 @@ const NotificationPreferencesScreen = () => {
 
 export default NotificationPreferencesScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.four,
-    paddingBottom: SPACING.two,
-  },
-  headerTitle: {
-    ...TYPOGRAPHY.subtitle,
-  },
-  headerSpacer: {
-    width: 24,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    gap: SPACING.three,
-  },
-  masterCard: {
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.card,
-    padding: SPACING.three,
-  },
-  masterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.three,
-  },
-  masterIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  masterText: {
-    flex: 1,
-    gap: 1,
-  },
-  masterLabel: {
-    ...TYPOGRAPHY.smallBold,
-    color: '#FFFFFF',
-    fontSize: 15,
-  },
-  masterSubtitle: {
-    ...TYPOGRAPHY.small,
-    color: 'rgba(255,255,255,0.85)',
-  },
-  sectionLabel: {
-    ...TYPOGRAPHY.label,
-    color: COLORS.textSecondary,
-    letterSpacing: 1,
-    marginTop: SPACING.two,
-  },
-  rowsCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.card,
-    overflow: 'hidden',
-  },
-  rowsCardDisabled: {
-    opacity: 0.5,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.three,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.three,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  settingRowLast: {
-    borderBottomWidth: 0,
-  },
-  settingIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingText: {
-    flex: 1,
-    gap: 1,
-  },
-  settingLabel: {
-    ...TYPOGRAPHY.default,
-  },
-  settingSubtitle: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-  },
-  footNote: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.one,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.four,
+      paddingBottom: SPACING.two,
+    },
+    headerTitle: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.text,
+    },
+    headerSpacer: {
+      width: 24,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      gap: SPACING.three,
+    },
+    masterCard: {
+      backgroundColor: colors.primary,
+      borderRadius: RADIUS.card,
+      padding: SPACING.three,
+    },
+    masterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.three,
+    },
+    masterIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    masterText: {
+      flex: 1,
+      gap: 1,
+    },
+    masterLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: '#FFFFFF',
+      fontSize: 15,
+    },
+    masterSubtitle: {
+      ...TYPOGRAPHY.small,
+      color: 'rgba(255,255,255,0.85)',
+    },
+    sectionLabel: {
+      ...TYPOGRAPHY.label,
+      color: colors.textSecondary,
+      letterSpacing: 1,
+      marginTop: SPACING.two,
+    },
+    rowsCard: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.card,
+      overflow: 'hidden',
+    },
+    rowsCardDisabled: {
+      opacity: 0.5,
+    },
+    settingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.three,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.three,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    settingRowLast: {
+      borderBottomWidth: 0,
+    },
+    settingIconCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.backgroundElement,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    settingText: {
+      flex: 1,
+      gap: 1,
+    },
+    settingLabel: {
+      ...TYPOGRAPHY.default,
+      color: colors.text,
+    },
+    settingSubtitle: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    footNote: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      marginTop: SPACING.one,
+    },
+  });

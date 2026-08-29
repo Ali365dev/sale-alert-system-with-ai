@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
 import { usePressScale } from '../../hooks/usePressScale';
@@ -13,6 +14,8 @@ import EmptyState from '../../components/EmptyState';
 import FilterChip from '../../components/FilterChip';
 import TopAppBar from '../../components/TopAppBar';
 
+// Small per-kind decorative accents — deliberately theme-invariant (same
+// reasoning as SaleBadge/CategoryCard's tile colors).
 const ICON_BY_KIND = {
   'price-drop': 'heart',
   'new-brand': 'pricetag',
@@ -33,15 +36,15 @@ const ICON_COLOR = {
 
 const FILTERS = ['All Alerts', 'New Deals', 'Flash Sales'];
 
-function AlertRow({ item, onPress }) {
+function AlertRow({ item, onPress, colors, styles }) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
   const urgent = item.kind === 'flash-sale' && !item.read;
 
   return (
     <Animated.View style={animatedStyle}>
       <Pressable style={[styles.card, urgent && styles.cardUrgent]} onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
-        <View style={[styles.iconCircle, { backgroundColor: item.read ? '#EDEDED' : CIRCLE_BG[item.kind] }]}>
-          <Icon name={item.read ? 'notifications' : ICON_BY_KIND[item.kind]} size={20} color={item.read ? '#9CA3AF' : ICON_COLOR[item.kind]} />
+        <View style={[styles.iconCircle, { backgroundColor: item.read ? colors.backgroundElement : CIRCLE_BG[item.kind] }]}>
+          <Icon name={item.read ? 'notifications' : ICON_BY_KIND[item.kind]} size={20} color={item.read ? colors.textSecondary : ICON_COLOR[item.kind]} />
         </View>
         <View style={styles.textBlock}>
           <View style={styles.titleRow}>
@@ -69,6 +72,8 @@ function AlertRow({ item, onPress }) {
 const NotificationsScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const alerts = useDataStore((state) => state.alerts);
   const error = useDataStore((state) => state.error);
   const [filter, setFilter] = useState('All Alerts');
@@ -114,6 +119,8 @@ const NotificationsScreen = () => {
                   if (item.dealId) navigation.navigate('DealDetailScreen', { id: item.dealId });
                   else if (item.brandId) navigation.navigate('BrandDetailScreen', { id: item.brandId });
                 }}
+                colors={colors}
+                styles={styles}
               />
             </AnimatedListItem>
           )}
@@ -125,86 +132,87 @@ const NotificationsScreen = () => {
 
 export default NotificationsScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    gap: SPACING.three,
-  },
-  header: {
-    gap: SPACING.three,
-    marginBottom: SPACING.two,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: SPACING.two,
-  },
-  card: {
-    flexDirection: 'row',
-    gap: SPACING.three,
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: '#F0DADA',
-    padding: SPACING.three,
-    marginBottom: SPACING.three,
-    ...SHADOWS.card,
-  },
-  cardUrgent: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#B7131A',
-  },
-  iconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textBlock: {
-    flex: 1,
-    gap: 4,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: SPACING.two,
-  },
-  title: {
-    ...TYPOGRAPHY.smallBold,
-    flex: 1,
-    color: COLORS.text,
-  },
-  titleRead: {
-    color: COLORS.textSecondary,
-  },
-  timeLabel: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-  },
-  body: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-  },
-  timeBadge: {
-    backgroundColor: '#DB322F',
-    paddingHorizontal: SPACING.two,
-    paddingVertical: 2,
-    borderRadius: RADIUS.chip,
-  },
-  timeBadgeLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#FFFFFF',
-    fontSize: 11,
-  },
-  viewDeal: {
-    ...TYPOGRAPHY.label,
-    color: '#B7131A',
-    marginTop: 2,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      gap: SPACING.three,
+    },
+    header: {
+      gap: SPACING.three,
+      marginBottom: SPACING.two,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      gap: SPACING.two,
+    },
+    card: {
+      flexDirection: 'row',
+      gap: SPACING.three,
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: SPACING.three,
+      marginBottom: SPACING.three,
+      ...SHADOWS.card,
+    },
+    cardUrgent: {
+      borderLeftWidth: 3,
+      borderLeftColor: colors.primary,
+    },
+    iconCircle: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    textBlock: {
+      flex: 1,
+      gap: 4,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: SPACING.two,
+    },
+    title: {
+      ...TYPOGRAPHY.smallBold,
+      flex: 1,
+      color: colors.text,
+    },
+    titleRead: {
+      color: colors.textSecondary,
+    },
+    timeLabel: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    body: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    timeBadge: {
+      backgroundColor: '#DB322F',
+      paddingHorizontal: SPACING.two,
+      paddingVertical: 2,
+      borderRadius: RADIUS.chip,
+    },
+    timeBadgeLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#FFFFFF',
+      fontSize: 11,
+    },
+    viewDeal: {
+      ...TYPOGRAPHY.label,
+      color: colors.primary,
+      marginTop: 2,
+    },
+  });

@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FastImage from '@d11/react-native-fast-image';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
 import EmptyState from '../../components/EmptyState';
@@ -19,6 +20,8 @@ const FILTERS = ['All', 'Trending', 'Newly Added', 'Expiring Soon'];
 const BrandListScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const brands = useDataStore((state) => state.brands);
   const deals = useDataStore((state) => state.deals);
   const loading = useDataStore((state) => state.loading);
@@ -102,7 +105,7 @@ const BrandListScreen = () => {
           }
           ListEmptyComponent={
             <View style={styles.noResultsWrap}>
-              <Icon name="search-outline" size={32} color={COLORS.textSecondary} />
+              <Icon name="search-outline" size={32} color={colors.textSecondary} />
               <Text style={styles.noResultsText}>No brands match "{query}".</Text>
               <PrimaryButton
                 label={`Request "${query.trim()}"`}
@@ -115,7 +118,7 @@ const BrandListScreen = () => {
           ListFooterComponent={
             filtered.length > 0 && (
               <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>
-                <Icon name="add-circle-outline" size={16} color={COLORS.primary} />
+                <Icon name="add-circle-outline" size={16} color={colors.primary} />
                 <Text style={styles.requestLinkLabel}>Can't find a brand? Request it</Text>
               </Pressable>
             )
@@ -159,130 +162,133 @@ const BrandListScreen = () => {
 
 export default BrandListScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    gap: SPACING.three,
-    marginBottom: SPACING.three,
-  },
-  pageTitle: {
-    ...TYPOGRAPHY.title,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.two,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-  },
-  row: {
-    justifyContent: 'space-between',
-    gap: SPACING.three,
-  },
-  skeletonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING.three,
-  },
-  tileSkeleton: {
-    width: '48%',
-  },
-  tileSkeletonImage: {
-    aspectRatio: 1,
-    height: undefined,
-  },
-  gapTop: {
-    marginTop: SPACING.two,
-  },
-  gapSmall: {
-    marginTop: 4,
-  },
-  card: {
-    width: '48%',
-    marginBottom: SPACING.three,
-    borderRadius: RADIUS.card,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F0DADA',
-  },
-  imageWrap: {
-    width: '100%',
-    aspectRatio: 1,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  newBadge: {
-    position: 'absolute',
-    top: SPACING.two,
-    left: SPACING.two,
-    backgroundColor: '#F5CB1B',
-    paddingHorizontal: SPACING.two,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  newBadgeLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#171717',
-  },
-  heartButton: {
-    position: 'absolute',
-    top: SPACING.two,
-    right: SPACING.two,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardBody: {
-    padding: SPACING.three,
-    gap: 2,
-  },
-  brandName: {
-    ...TYPOGRAPHY.smallBold,
-  },
-  brandCategory: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  dealCount: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  discountLabel: {
-    ...TYPOGRAPHY.smallBold,
-    color: '#B7131A',
-  },
-  noResultsWrap: {
-    alignItems: 'center',
-    gap: SPACING.three,
-    paddingHorizontal: SPACING.five,
-    paddingTop: SPACING.six,
-  },
-  noResultsText: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  requestLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.two,
-    paddingVertical: SPACING.four,
-  },
-  requestLinkLabel: {
-    ...TYPOGRAPHY.smallBold,
-    color: COLORS.primary,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      gap: SPACING.three,
+      marginBottom: SPACING.three,
+    },
+    pageTitle: {
+      ...TYPOGRAPHY.title,
+      color: colors.text,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: SPACING.two,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+    },
+    row: {
+      justifyContent: 'space-between',
+      gap: SPACING.three,
+    },
+    skeletonRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: SPACING.three,
+    },
+    tileSkeleton: {
+      width: '48%',
+    },
+    tileSkeletonImage: {
+      aspectRatio: 1,
+      height: undefined,
+    },
+    gapTop: {
+      marginTop: SPACING.two,
+    },
+    gapSmall: {
+      marginTop: 4,
+    },
+    card: {
+      width: '48%',
+      marginBottom: SPACING.three,
+      borderRadius: RADIUS.card,
+      overflow: 'hidden',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    imageWrap: {
+      width: '100%',
+      aspectRatio: 1,
+    },
+    image: {
+      width: '100%',
+      height: '100%',
+    },
+    newBadge: {
+      position: 'absolute',
+      top: SPACING.two,
+      left: SPACING.two,
+      backgroundColor: '#F5CB1B',
+      paddingHorizontal: SPACING.two,
+      paddingVertical: 3,
+      borderRadius: 4,
+    },
+    newBadgeLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#171717',
+    },
+    heartButton: {
+      position: 'absolute',
+      top: SPACING.two,
+      right: SPACING.two,
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: 'rgba(255,255,255,0.9)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardBody: {
+      padding: SPACING.three,
+      gap: 2,
+    },
+    brandName: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+    },
+    brandCategory: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    dealCount: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    discountLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.primary,
+    },
+    noResultsWrap: {
+      alignItems: 'center',
+      gap: SPACING.three,
+      paddingHorizontal: SPACING.five,
+      paddingTop: SPACING.six,
+    },
+    noResultsText: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    requestLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.two,
+      paddingVertical: SPACING.four,
+    },
+    requestLinkLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.primary,
+    },
+  });

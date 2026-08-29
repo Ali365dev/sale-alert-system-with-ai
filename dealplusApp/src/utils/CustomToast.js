@@ -2,11 +2,14 @@
 import React from 'react';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { StatusBar, StyleSheet } from 'react-native';
-import { COLORS, moderateScale } from '../styles/theme';
+import { moderateScale } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 
-export const toastConfig = {
-  success: (props) => (
+function SuccessToastWithTheme(props) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  return (
     <BaseToast
       {...props}
       style={styles.successToast}
@@ -15,11 +18,16 @@ export const toastConfig = {
       text2Style={styles.message}
       text2NumberOfLines={3}
       renderLeadingIcon={() => (
-        <Icon name="check-circle" size={24} color={COLORS.primary} style={{ marginLeft: moderateScale(8), marginTop: moderateScale(4) }} />
+        <Icon name="check-circle" size={24} color={colors.primary} style={{ marginLeft: moderateScale(8), marginTop: moderateScale(4) }} />
       )}
     />
-  ),
-  error: (props) => (
+  );
+}
+
+function ErrorToastWithTheme(props) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  return (
     <ErrorToast
       {...props}
       style={styles.errorToast}
@@ -31,7 +39,12 @@ export const toastConfig = {
         <Icon name="exclamation-circle" size={24} color="#ff4444" style={{ marginLeft: moderateScale(8), marginTop: moderateScale(4) }} />
       )}
     />
-  ),
+  );
+}
+
+export const toastConfig = {
+  success: (props) => <SuccessToastWithTheme {...props} />,
+  error: (props) => <ErrorToastWithTheme {...props} />,
 };
 
 // Custom toast functions
@@ -82,54 +95,55 @@ export const showSuccessToast = (message) => {
   });
 };
 
-const styles = StyleSheet.create({
-  successToast: {
-    borderLeftColor: COLORS.primary,
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    marginHorizontal: 16,
-    height: 'auto',
-    minHeight: 60,
-    paddingVertical: 12,
-    shadowColor: COLORS.white,
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const createStyles = (colors) =>
+  StyleSheet.create({
+    successToast: {
+      borderLeftColor: colors.primary,
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      marginHorizontal: 16,
+      height: 'auto',
+      minHeight: 60,
+      paddingVertical: 12,
+      shadowColor: '#FFFFFF',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  errorToast: {
-    borderLeftColor: '#ff4444',
-    backgroundColor: COLORS.white,
-    borderRadius: 8,
-    marginHorizontal: 16,
-    height: 'auto',
-    minHeight: 60,
-    paddingVertical: 12,
-    shadowColor: '#ff4444',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+    errorToast: {
+      borderLeftColor: '#ff4444',
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      marginHorizontal: 16,
+      height: 'auto',
+      minHeight: 60,
+      paddingVertical: 12,
+      shadowColor: '#ff4444',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+      zIndex: 1000,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 1000,
-  },
-  contentContainer: {
-    paddingHorizontal: moderateScale(8),
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.black,
-  },
-  message: {
-    fontSize: 14,
-    color: COLORS.black,
-    fontWeight: '400',
-    flexWrap: 'wrap',
-  },
-});
+    contentContainer: {
+      paddingHorizontal: moderateScale(8),
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    message: {
+      fontSize: 14,
+      color: colors.text,
+      fontWeight: '400',
+      flexWrap: 'wrap',
+    },
+  });

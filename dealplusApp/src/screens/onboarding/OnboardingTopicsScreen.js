@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useOnboardingStore from '../../state/onboardingStore';
 import OnboardingProgress from '../../components/OnboardingProgress';
 import PrimaryButton from '../../components/PrimaryButton';
@@ -19,6 +21,8 @@ const TOPICS = [
 const OnboardingTopicsScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const topics = useOnboardingStore((state) => state.topics);
   const toggleTopic = useOnboardingStore((state) => state.toggleTopic);
 
@@ -64,49 +68,51 @@ const OnboardingTopicsScreen = () => {
 
 export default OnboardingTopicsScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    gap: SPACING.two,
-  },
-  wordmark: {
-    alignSelf: 'center',
-    marginTop: SPACING.four,
-  },
-  title: {
-    ...TYPOGRAPHY.headline,
-    textAlign: 'center',
-    marginTop: SPACING.two,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: SPACING.four,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.three,
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  skip: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-  },
-  continueButton: {
-    flex: 1,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      gap: SPACING.two,
+    },
+    wordmark: {
+      alignSelf: 'center',
+      marginTop: SPACING.four,
+    },
+    title: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+      textAlign: 'center',
+      marginTop: SPACING.two,
+    },
+    subtitle: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      marginTop: SPACING.four,
+    },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.three,
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    skip: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+    },
+    continueButton: {
+      flex: 1,
+    },
+  });

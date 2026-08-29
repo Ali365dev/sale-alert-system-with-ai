@@ -3,7 +3,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import DealCard from '../../components/DealCard';
@@ -15,6 +16,8 @@ const CategoryDealsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const category = route.params?.category;
   const deals = useDataStore((state) => state.deals);
   const brandsById = useDataStore((state) => state.brandsById);
@@ -40,7 +43,7 @@ const CategoryDealsScreen = () => {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Icon name="chevron-back" size={24} color="#171717" />
+          <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {category}
@@ -59,7 +62,7 @@ const CategoryDealsScreen = () => {
             <View style={styles.sortWrap}>
               <Pressable style={styles.sortBox} onPress={() => setSortOpen((o) => !o)}>
                 <Text style={styles.sortLabel}>{sort}</Text>
-                <Icon name={sortOpen ? 'chevron-up' : 'chevron-down'} size={16} color="#6B7280" />
+                <Icon name={sortOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
               </Pressable>
               {sortOpen && (
                 <View style={styles.sortDropdown}>
@@ -72,7 +75,7 @@ const CategoryDealsScreen = () => {
                         setSortOpen(false);
                       }}>
                       <Text style={styles.sortDropdownItemLabel}>{option}</Text>
-                      {sort === option && <Icon name="checkmark" size={16} color={COLORS.primary} />}
+                      {sort === option && <Icon name="checkmark" size={16} color={colors.primary} />}
                     </Pressable>
                   ))}
                 </View>
@@ -95,92 +98,94 @@ const CategoryDealsScreen = () => {
 
 export default CategoryDealsScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.four,
-    paddingBottom: SPACING.three,
-    gap: SPACING.two,
-  },
-  headerTitle: {
-    ...TYPOGRAPHY.subtitle,
-    flex: 1,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 24,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.two,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.three,
-  },
-  count: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-  },
-  sortWrap: {
-    zIndex: 10,
-  },
-  sortBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.button,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-  },
-  sortLabel: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.text,
-  },
-  sortDropdown: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: SPACING.one,
-    minWidth: 180,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.button,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  sortDropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.three,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  sortDropdownItemLast: {
-    borderBottomWidth: 0,
-  },
-  sortDropdownItemLabel: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.text,
-  },
-  list: {
-    gap: SPACING.three,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.four,
+      paddingBottom: SPACING.three,
+      gap: SPACING.two,
+    },
+    headerTitle: {
+      ...TYPOGRAPHY.subtitle,
+      color: colors.text,
+      flex: 1,
+      textAlign: 'center',
+    },
+    headerSpacer: {
+      width: 24,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.two,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: SPACING.three,
+    },
+    count: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+    },
+    sortWrap: {
+      zIndex: 10,
+    },
+    sortBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.button,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+    },
+    sortLabel: {
+      ...TYPOGRAPHY.small,
+      color: colors.text,
+    },
+    sortDropdown: {
+      position: 'absolute',
+      top: '100%',
+      right: 0,
+      marginTop: SPACING.one,
+      minWidth: 180,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: RADIUS.button,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+    },
+    sortDropdownItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.three,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    sortDropdownItemLast: {
+      borderBottomWidth: 0,
+    },
+    sortDropdownItemLabel: {
+      ...TYPOGRAPHY.small,
+      color: colors.text,
+    },
+    list: {
+      gap: SPACING.three,
+    },
+  });

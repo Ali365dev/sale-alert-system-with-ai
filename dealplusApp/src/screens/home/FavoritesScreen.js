@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import useFavoritesStore from '../../state/favoritesStore';
 import AnimatedListItem from '../../components/AnimatedListItem';
@@ -14,6 +15,8 @@ import TopAppBar from '../../components/TopAppBar';
 const FavoritesScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const favoriteIds = useFavoritesStore((state) => state.favoriteIds);
   const deals = useDataStore((state) => state.deals);
   const brands = useDataStore((state) => state.brands);
@@ -79,27 +82,29 @@ const FavoritesScreen = () => {
 
 export default FavoritesScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    gap: SPACING.four,
-  },
-  heading: {
-    ...TYPOGRAPHY.headline,
-  },
-  dealsList: {
-    gap: SPACING.three,
-    marginTop: SPACING.two,
-  },
-  section: {
-    gap: SPACING.three,
-  },
-  brandRow: {
-    gap: SPACING.three,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      gap: SPACING.four,
+    },
+    heading: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+    },
+    dealsList: {
+      gap: SPACING.three,
+      marginTop: SPACING.two,
+    },
+    section: {
+      gap: SPACING.three,
+    },
+    brandRow: {
+      gap: SPACING.three,
+    },
+  });

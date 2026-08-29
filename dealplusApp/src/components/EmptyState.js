@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import Animated, {
   FadeInDown,
@@ -10,15 +10,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 import PrimaryButton from './PrimaryButton';
 
-const TONE = {
-  empty: { bg: '#F5F5F5', fg: '#B7131A' },
-  error: { bg: '#FBDCDC', fg: '#B7131A' },
-};
-
 const EmptyState = ({ icon, title, body, ctaLabel, onPressCta, variant = 'empty' }) => {
-  const tone = TONE[variant];
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const tone = variant === 'error' ? { bg: colors.errorTint, fg: colors.primary } : { bg: colors.backgroundElement, fg: colors.primary };
   const breathe = useSharedValue(1);
 
   useEffect(() => {
@@ -43,32 +41,34 @@ const EmptyState = ({ icon, title, body, ctaLabel, onPressCta, variant = 'empty'
 
 export default EmptyState;
 
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    paddingHorizontal: SPACING.five,
-    paddingVertical: SPACING.six,
-    gap: SPACING.two,
-  },
-  iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.two,
-  },
-  title: {
-    ...TYPOGRAPHY.headline,
-    textAlign: 'center',
-  },
-  body: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  cta: {
-    marginTop: SPACING.three,
-    minWidth: 180,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      paddingHorizontal: SPACING.five,
+      paddingVertical: SPACING.six,
+      gap: SPACING.two,
+    },
+    iconCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: SPACING.two,
+    },
+    title: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+      textAlign: 'center',
+    },
+    body: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    cta: {
+      marginTop: SPACING.three,
+      minWidth: 180,
+    },
+  });

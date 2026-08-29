@@ -1,7 +1,12 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 
 const SectionHeader = ({ title, onViewAll }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
@@ -16,19 +21,20 @@ const SectionHeader = ({ title, onViewAll }) => {
 
 export default SectionHeader;
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.four,
-    marginBottom: SPACING.two,
-  },
-  title: {
-    ...TYPOGRAPHY.headline,
-    color: COLORS.text,
-  },
-  link: {
-    ...TYPOGRAPHY.linkPrimary,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.four,
+      marginBottom: SPACING.two,
+    },
+    title: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+    },
+    link: {
+      ...TYPOGRAPHY.linkPrimary,
+    },
+  });

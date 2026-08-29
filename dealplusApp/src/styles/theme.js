@@ -29,9 +29,14 @@ export const FONT_SIZES = {
 };
 
 // Matched against the DealPulse Expo app's design tokens (mobile/src/constants/theme.ts).
-export const COLORS = {
+// `surface` is an elevated card/sheet background, distinct from `background`
+// (the screen backdrop) — the two are identical in light mode but diverge in
+// dark mode (see DARK_COLORS), so use `surface` for cards and `background`
+// for the screen itself.
+export const LIGHT_COLORS = {
   text: '#171717',
   background: '#FFFFFF',
+  surface: '#FFFFFF',
   backgroundElement: '#F8F9FB',
   backgroundSelected: '#B7131A',
   textSecondary: '#6B7280',
@@ -43,7 +48,39 @@ export const COLORS = {
   onPrimary: '#FFFFFF',
   white: '#FFFFFF',
   black: '#000000',
+  skeletonBase: '#E8E8E8',
+  errorTint: '#FBDCDC',
+  // A deliberately-dark accent surface (hero slides, image placeholders,
+  // dark CTA buttons) — near-black in light mode for contrast; needs to
+  // lighten a touch in dark mode so it still reads as a distinct surface
+  // against the (also near-black) page background.
+  inverseSurface: '#171717',
 };
+
+export const DARK_COLORS = {
+  text: '#F2F2F3',
+  background: '#121212',
+  surface: '#1E1E1E',
+  backgroundElement: '#242424',
+  backgroundSelected: '#B7131A',
+  textSecondary: '#9CA3AF',
+  border: '#2E2E2E',
+  primary: '#B7131A',
+  sale: '#E14A42',
+  accent: '#F5CB1B',
+  success: '#22C55E',
+  onPrimary: '#FFFFFF',
+  white: '#FFFFFF',
+  black: '#000000',
+  skeletonBase: '#2C2C2E',
+  errorTint: '#3A1F1F',
+  inverseSurface: '#2A2A2C',
+};
+
+// Static default (light) — kept for any code that hasn't been migrated to
+// useTheme() yet, so nothing breaks mid-refactor. New/updated code should
+// read colors from useTheme() instead of importing COLORS directly.
+export const COLORS = LIGHT_COLORS;
 
 export const SPACING = {
   half: 2,

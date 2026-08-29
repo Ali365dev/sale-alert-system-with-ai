@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 import useFavoritesStore from '../state/favoritesStore';
 import BrandLogo from './BrandLogo';
 import FavoriteButton from './FavoriteButton';
@@ -25,6 +27,8 @@ const isNew = (createdAt) => {
 
 const DealCard = ({ deal, brand, onPress, style }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const favorite = useFavoritesStore((state) => state.favoriteIds.includes(deal.id));
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
@@ -61,7 +65,7 @@ const DealCard = ({ deal, brand, onPress, style }) => {
         </Text>
 
         <View style={styles.metaRow}>
-          <Icon name="time-outline" size={14} color="#6B7280" />
+          <Icon name="time-outline" size={14} color={colors.textSecondary} />
           <Text style={styles.metaText}>{expiryLabel(deal.expiresAt)}</Text>
         </View>
 
@@ -76,67 +80,70 @@ const DealCard = ({ deal, brand, onPress, style }) => {
 
 export default DealCard;
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: '#F0DADA',
-    padding: SPACING.three,
-    gap: SPACING.two,
-    ...SHADOWS.card,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.two,
-  },
-  headerText: {
-    flex: 1,
-  },
-  brandName: {
-    ...TYPOGRAPHY.smallBold,
-  },
-  category: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  badgeRow: {
-    marginVertical: SPACING.two,
-    flexDirection: 'row',
-    gap: SPACING.two,
-  },
-  title: {
-    ...TYPOGRAPHY.smallBold,
-    marginVertical: SPACING.one,
-  },
-  description: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-    lineHeight: 18,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginVertical: SPACING.one,
-  },
-  metaText: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    gap: SPACING.two,
-    backgroundColor: '#171717',
-    borderRadius: RADIUS.button,
-    paddingVertical: SPACING.three,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: SPACING.one,
-  },
-  ctaLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#FFFFFF',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: SPACING.three,
+      gap: SPACING.two,
+      ...SHADOWS.card,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.two,
+    },
+    headerText: {
+      flex: 1,
+    },
+    brandName: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+    },
+    category: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    badgeRow: {
+      marginVertical: SPACING.two,
+      flexDirection: 'row',
+      gap: SPACING.two,
+    },
+    title: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      marginVertical: SPACING.one,
+    },
+    description: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      lineHeight: 18,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginVertical: SPACING.one,
+    },
+    metaText: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    ctaButton: {
+      flexDirection: 'row',
+      gap: SPACING.two,
+      backgroundColor: colors.inverseSurface,
+      borderRadius: RADIUS.button,
+      paddingVertical: SPACING.three,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: SPACING.one,
+    },
+    ctaLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#FFFFFF',
+    },
+  });

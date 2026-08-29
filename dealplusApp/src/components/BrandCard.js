@@ -1,13 +1,17 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 import BrandLogo from './BrandLogo';
 import SaleBadge from './SaleBadge';
 import { usePressScale } from '../hooks/usePressScale';
 
 const BrandCard = ({ brand, onPress, variant = 'default', badge }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (variant === 'avatar') {
     return (
@@ -44,7 +48,7 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge }) => {
 
         <View style={styles.viewDeal}>
           <Text style={styles.viewDealLabel}>View Deal</Text>
-          <Icon name="open-outline" size={13} color={COLORS.primary} />
+          <Icon name="open-outline" size={13} color={colors.primary} />
         </View>
       </Pressable>
     </Animated.View>
@@ -55,62 +59,64 @@ export default BrandCard;
 
 const CARD_WIDTH = 152;
 
-const styles = StyleSheet.create({
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: COLORS.background,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.three,
-    ...SHADOWS.card,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoWrap: {
-    position: 'relative',
-    // alignSelf: 'flex-start',
-    marginBottom: SPACING.two,
-  },
-  badgeWrap: {
-    position: 'absolute',
-    top: -6,
-    left: -8,
-  },
-  name: {
-    ...TYPOGRAPHY.smallBold,
-    fontSize: 15,
-  },
-  dealCount: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  dealCountNumber: {
-    color: COLORS.primary,
-    fontWeight: '800',
-  },
-  viewDeal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: SPACING.two,
-  },
-  viewDealLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  avatarCard: {
-    alignContent: 'center',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 84,
-    gap: SPACING.two,
-  },
-  avatarName: {
-    ...TYPOGRAPHY.smallBold,
-    textAlign: 'center',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    card: {
+      width: CARD_WIDTH,
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: SPACING.three,
+      ...SHADOWS.card,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    logoWrap: {
+      position: 'relative',
+      marginBottom: SPACING.two,
+    },
+    badgeWrap: {
+      position: 'absolute',
+      top: -6,
+      left: -8,
+    },
+    name: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      fontSize: 15,
+    },
+    dealCount: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    dealCountNumber: {
+      color: colors.primary,
+      fontWeight: '800',
+    },
+    viewDeal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: SPACING.two,
+    },
+    viewDealLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    avatarCard: {
+      alignContent: 'center',
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: 84,
+      gap: SPACING.two,
+    },
+    avatarName: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      textAlign: 'center',
+    },
+  });

@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import OnboardingProgress from '../../components/OnboardingProgress';
@@ -39,6 +41,8 @@ const iconFor = (name) => ICONS.find((c) => c.match.test(name))?.icon ?? DEFAULT
 const OnboardingCategoriesScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const realCategories = useDataStore((state) => state.categories);
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
   const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
@@ -49,7 +53,7 @@ const OnboardingCategoriesScreen = () => {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
-          <Icon name="chevron-back" size={24} color="#171717" />
+          <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <Logo size={20} />
         <View style={styles.headerSpacer} />
@@ -81,44 +85,46 @@ const OnboardingCategoriesScreen = () => {
 
 export default OnboardingCategoriesScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.four,
-    paddingBottom: SPACING.two,
-  },
-  headerSpacer: {
-    width: 24,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    gap: SPACING.two,
-    paddingTop: SPACING.three,
-  },
-  title: {
-    ...TYPOGRAPHY.title,
-    marginTop: SPACING.three,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: SPACING.four,
-  },
-  footer: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: SPACING.four,
+      paddingBottom: SPACING.two,
+    },
+    headerSpacer: {
+      width: 24,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      gap: SPACING.two,
+      paddingTop: SPACING.three,
+    },
+    title: {
+      ...TYPOGRAPHY.title,
+      color: colors.text,
+      marginTop: SPACING.three,
+    },
+    subtitle: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      marginTop: SPACING.four,
+    },
+    footer: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+  });

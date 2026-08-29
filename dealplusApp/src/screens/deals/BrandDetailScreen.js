@@ -4,7 +4,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FastImage from '@d11/react-native-fast-image';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { saveInterests } from '../../services/preferencesApi';
@@ -15,6 +16,8 @@ const BrandDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const id = route.params?.id;
   const brands = useDataStore((state) => state.brands);
   const deals = useDataStore((state) => state.deals);
@@ -70,7 +73,7 @@ const BrandDetailScreen = () => {
                 <Pressable
                   onPress={handleToggleFollow}
                   style={[styles.followButton, isFollowing && styles.followButtonActive]}>
-                  <Icon name={isFollowing ? 'checkmark' : 'add'} size={16} color={isFollowing ? '#FFFFFF' : COLORS.primary} />
+                  <Icon name={isFollowing ? 'checkmark' : 'add'} size={16} color={isFollowing ? '#FFFFFF' : colors.primary} />
                   <Text style={[styles.followButtonLabel, isFollowing && styles.followButtonLabelActive]}>
                     {isFollowing ? 'Following' : 'Follow'}
                   </Text>
@@ -97,98 +100,101 @@ const BrandDetailScreen = () => {
 
 export default BrandDetailScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  cover: {
-    width: '100%',
-    aspectRatio: 16 / 9,
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: SPACING.four,
-  },
-  circleButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  header: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    gap: SPACING.one,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: SPACING.three,
-  },
-  titleTextWrap: {
-    flex: 1,
-    gap: 1,
-  },
-  followButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
-    borderRadius: RADIUS.chip,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-  },
-  followButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  followButtonLabel: {
-    ...TYPOGRAPHY.smallBold,
-    color: COLORS.primary,
-  },
-  followButtonLabelActive: {
-    color: '#FFFFFF',
-  },
-  brandName: {
-    ...TYPOGRAPHY.title,
-  },
-  dealCount: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-  },
-  description: {
-    ...TYPOGRAPHY.default,
-    color: '#6B7280',
-    marginTop: SPACING.two,
-    lineHeight: 22,
-  },
-  website: {
-    ...TYPOGRAPHY.linkPrimary,
-  },
-  sectionTitle: {
-    ...TYPOGRAPHY.headline,
-    paddingHorizontal: SPACING.four,
-    marginTop: SPACING.five,
-    marginBottom: SPACING.two,
-  },
-  card: {
-    marginHorizontal: SPACING.four,
-    marginBottom: SPACING.three,
-  },
-  empty: {
-    ...TYPOGRAPHY.small,
-    color: '#6B7280',
-    paddingHorizontal: SPACING.four,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    cover: {
+      width: '100%',
+      aspectRatio: 16 / 9,
+    },
+    coverImage: {
+      width: '100%',
+      height: '100%',
+    },
+    topBar: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: SPACING.four,
+    },
+    circleButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    header: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      gap: SPACING.one,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: SPACING.three,
+    },
+    titleTextWrap: {
+      flex: 1,
+      gap: 1,
+    },
+    followButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+    },
+    followButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    followButtonLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.primary,
+    },
+    followButtonLabelActive: {
+      color: '#FFFFFF',
+    },
+    brandName: {
+      ...TYPOGRAPHY.title,
+      color: colors.text,
+    },
+    dealCount: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+    },
+    description: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+      marginTop: SPACING.two,
+      lineHeight: 22,
+    },
+    website: {
+      ...TYPOGRAPHY.linkPrimary,
+    },
+    sectionTitle: {
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
+      paddingHorizontal: SPACING.four,
+      marginTop: SPACING.five,
+      marginBottom: SPACING.two,
+    },
+    card: {
+      marginHorizontal: SPACING.four,
+      marginBottom: SPACING.three,
+    },
+    empty: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      paddingHorizontal: SPACING.four,
+    },
+  });

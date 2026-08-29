@@ -1,6 +1,10 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import useTheme from '../hooks/useTheme';
 
 const BrandLogo = ({ initials, size = 56, tone = 'outline' }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isFilled = tone === 'filled';
 
   return (
@@ -15,7 +19,7 @@ const BrandLogo = ({ initials, size = 56, tone = 'outline' }) => {
           fontSize: size * 0.32,
           lineHeight: size * 0.32 * 1.2,
           fontWeight: '700',
-          color: isFilled ? '#FFFFFF' : '#171717',
+          color: isFilled ? '#FFFFFF' : colors.text,
         }}>
         {initials}
       </Text>
@@ -25,18 +29,21 @@ const BrandLogo = ({ initials, size = 56, tone = 'outline' }) => {
 
 export default BrandLogo;
 
-const styles = StyleSheet.create({
-  circle: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  outline: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F0DADA',
-  },
-  filled: {
-    backgroundColor: '#171717',
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    circle: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    outline: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    filled: {
+      // Deliberately theme-invariant — a solid dark accent chip, not tied to
+      // the surrounding page background.
+      backgroundColor: '#171717',
+    },
+  });

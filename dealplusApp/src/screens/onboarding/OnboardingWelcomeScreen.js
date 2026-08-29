@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import useTheme from '../../hooks/useTheme';
 import PrimaryButton from '../../components/PrimaryButton';
 import Logo from '../../components/Logo';
 
@@ -10,6 +12,8 @@ const heroImage = require('../../assets/images/onboarding-hero.jpg');
 const OnboardingWelcomeScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
@@ -48,93 +52,95 @@ const OnboardingWelcomeScreen = () => {
 
 export default OnboardingWelcomeScreen;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  content: {
-    paddingHorizontal: SPACING.four,
-    alignItems: 'center',
-  },
-  logoRow: {
-    marginBottom: SPACING.five,
-  },
-  heroWrap: {
-    width: '100%',
-    marginTop: SPACING.two,
-    marginBottom: SPACING.six,
-  },
-  heroCard: {
-    width: '100%',
-    height: 260,
-    borderRadius: RADIUS.card,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: '#FFFFFF',
-    ...SHADOWS.card,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  offBadge: {
-    position: 'absolute',
-    bottom: -14,
-    left: -8,
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: SPACING.two,
-    borderRadius: RADIUS.button,
-    transform: [{ rotate: '-10deg' }],
-    ...SHADOWS.raised,
-  },
-  offBadgeLabel: {
-    ...TYPOGRAPHY.smallBold,
-    color: '#171717',
-  },
-  flashBadge: {
-    position: 'absolute',
-    top: 16,
-    right: -8,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.three,
-    paddingVertical: 6,
-    borderRadius: RADIUS.button - 6,
-    transform: [{ rotate: '6deg' }],
-    ...SHADOWS.card,
-  },
-  flashBadgeLabel: {
-    ...TYPOGRAPHY.label,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  headline: {
-    ...TYPOGRAPHY.title,
-    textAlign: 'center',
-    marginBottom: SPACING.three,
-  },
-  headlineAccent: {
-    color: COLORS.primary,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.default,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: SPACING.two,
-  },
-  footer: {
-    paddingHorizontal: SPACING.four,
-    paddingTop: SPACING.three,
-    gap: SPACING.two,
-  },
-  loginRow: {
-    ...TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-  },
-  loginLink: {
-    ...TYPOGRAPHY.linkPrimary,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: SPACING.four,
+      alignItems: 'center',
+    },
+    logoRow: {
+      marginBottom: SPACING.five,
+    },
+    heroWrap: {
+      width: '100%',
+      marginTop: SPACING.two,
+      marginBottom: SPACING.six,
+    },
+    heroCard: {
+      width: '100%',
+      height: 260,
+      borderRadius: RADIUS.card,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      ...SHADOWS.card,
+    },
+    heroImage: {
+      width: '100%',
+      height: '100%',
+    },
+    offBadge: {
+      position: 'absolute',
+      bottom: -14,
+      left: -8,
+      backgroundColor: colors.accent,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: SPACING.two,
+      borderRadius: RADIUS.button,
+      transform: [{ rotate: '-10deg' }],
+      ...SHADOWS.raised,
+    },
+    offBadgeLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: '#171717',
+    },
+    flashBadge: {
+      position: 'absolute',
+      top: 16,
+      right: -8,
+      backgroundColor: colors.primary,
+      paddingHorizontal: SPACING.three,
+      paddingVertical: 6,
+      borderRadius: RADIUS.button - 6,
+      transform: [{ rotate: '6deg' }],
+      ...SHADOWS.card,
+    },
+    flashBadgeLabel: {
+      ...TYPOGRAPHY.label,
+      color: '#FFFFFF',
+      letterSpacing: 0.5,
+    },
+    headline: {
+      ...TYPOGRAPHY.title,
+      color: colors.text,
+      textAlign: 'center',
+      marginBottom: SPACING.three,
+    },
+    headlineAccent: {
+      color: colors.primary,
+    },
+    subtitle: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: SPACING.two,
+    },
+    footer: {
+      paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.three,
+      gap: SPACING.two,
+    },
+    loginRow: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    loginLink: {
+      ...TYPOGRAPHY.linkPrimary,
+    },
+  });
