@@ -22,6 +22,7 @@ import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
 import { Icon } from "../components/icons";
 import { toast } from "../store/toastStore";
+import { exportBrandsToCsv, exportBrandsToPdf } from "../utils/exportBrands";
 
 function formatDateTime(iso: string | null) {
   if (!iso) return "Never";
@@ -184,7 +185,29 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
       </div>
 
       <Card>
-        <CardHeader title="Search brands" />
+        <CardHeader
+          title="Search brands"
+          aside={
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={filtered.length === 0}
+                onClick={() => exportBrandsToCsv(filtered, `brands-${new Date().toISOString().slice(0, 10)}.csv`)}
+              >
+                <Icon.download size={14} /> CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={filtered.length === 0}
+                onClick={() => exportBrandsToPdf(filtered, `brands-${new Date().toISOString().slice(0, 10)}.pdf`)}
+              >
+                <Icon.download size={14} /> PDF
+              </Button>
+            </div>
+          }
+        />
         <div style={{ position: "relative" }}>
           <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
           <TextInput

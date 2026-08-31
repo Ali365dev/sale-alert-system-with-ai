@@ -164,21 +164,11 @@ class EmailAutomationJob(BackgroundJob):
             e = db.query(Email).filter(Email.id == email_id).first()
             subject = e.subject if e else message_id
 
-        # ── LABELING ─────────────────────────────────────────────────────
-        if get_setting("auto_apply_gmail_label", default=True):
-            job_service.set_stage(job_id, "LABELING")
-            label_name = get_setting("gmail_label", default="sales_offers")
-            job_service.append_log(job_id, f"→ Applying label: {label_name}", category="gmail")
-            try:
-                label_id = get_or_create_label_id(session, label_name)
-                apply_label(session, message_id, label_id)
-                job_service.append_log(job_id, "✓ Label applied", severity="success", category="gmail")
-            except _GMAIL_STEP_ERRORS as exc:
-                # Labeling is not fatal to the pipeline — an offer with no
-                # label is still a real offer; log and continue.
-                job_service.append_log(job_id, f"⚠ Label apply failed: {exc}", severity="warning", category="gmail")
-
         # ── ANALYZING / CREATING_OFFER (reuses the shared core) ─────────
+        # reprocess_email() applies the same sender-domain gate as every
+        # other pipeline (process_pending.py) — anything not from a known
+        # Brand is routed to Unknown Emails here, before any Gmail-side
+        # side effect happens, instead of after.
         job_service.set_stage(job_id, "ANALYZING")
         active = describe_active_provider()
         job_service.append_log(job_id, f"→ Analysing \"{subject[:60]}\"\n{provider_key_lines(active)}", category="ai")
@@ -197,6 +187,25 @@ class EmailAutomationJob(BackgroundJob):
         offer_id = result["offer_id"]
         job_service.set_stage(job_id, "CREATING_OFFER")
         job_service.append_log(job_id, f"✓ Offer created #{offer_id}", severity="success", category="offer")
+
+        # ── LABELING ─────────────────────────────────────────────────────
+        # Only reached for a message that just produced a real Offer above —
+        # never applied to mail from senders the gate didn't recognize as a
+        # known Brand, so the Gmail label stays a reliable "this is an
+        # actual offer" marker instead of landing on every message the
+        # account receives.
+        if get_setting("auto_apply_gmail_label", default=True):
+            job_service.set_stage(job_id, "LABELING")
+            label_name = get_setting("gmail_label", default="sales_offers")
+            job_service.append_log(job_id, f"→ Applying label: {label_name}", category="gmail")
+            try:
+                label_id = get_or_create_label_id(session, label_name)
+                apply_label(session, message_id, label_id)
+                job_service.append_log(job_id, "✓ Label applied", severity="success", category="gmail")
+            except _GMAIL_STEP_ERRORS as exc:
+                # Labeling is not fatal to the pipeline — an offer with no
+                # label is still a real offer; log and continue.
+                job_service.append_log(job_id, f"⚠ Label apply failed: {exc}", severity="warning", category="gmail")
 
         # ── NOTIFYING ────────────────────────────────────────────────────
         job_service.set_stage(job_id, "NOTIFYING")

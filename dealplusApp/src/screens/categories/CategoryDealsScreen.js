@@ -84,11 +84,19 @@ const CategoryDealsScreen = () => {
           </View>
 
           <View style={styles.list}>
-            {categoryDeals.map((deal, index) => (
-              <AnimatedListItem key={deal.id} index={index}>
-                <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id })} />
-              </AnimatedListItem>
-            ))}
+            {categoryDeals.map((deal, index) => {
+              const tag = `category-${deal.id}`;
+              return (
+                <AnimatedListItem key={deal.id} index={index}>
+                  <DealCard
+                    deal={deal}
+                    brand={brandsById[deal.brandId]}
+                    transitionTag={tag}
+                    onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id, transitionTag: tag })}
+                  />
+                </AnimatedListItem>
+              );
+            })}
           </View>
         </ScrollView>
       )}

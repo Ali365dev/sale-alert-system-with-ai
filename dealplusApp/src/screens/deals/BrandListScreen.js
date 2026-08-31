@@ -8,6 +8,7 @@ import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
+import AnimatedListItem from '../../components/AnimatedListItem';
 import EmptyState from '../../components/EmptyState';
 import FilterChip from '../../components/FilterChip';
 import SearchBar from '../../components/SearchBar';
@@ -123,35 +124,37 @@ const BrandListScreen = () => {
               </Pressable>
             )
           }
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const discount = bestDiscountByBrand.get(item.id);
             return (
-              <Pressable style={styles.card} onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })}>
-                <View style={styles.imageWrap}>
-                  <FastImage source={{ uri: item.coverImage }} style={styles.image} resizeMode={FastImage.resizeMode.cover} />
-                  {isNewBrand(item) && (
-                    <View style={styles.newBadge}>
-                      <Text style={styles.newBadgeLabel}>NEWEST DEALS</Text>
+              <AnimatedListItem index={index} style={styles.card}>
+                <Pressable style={styles.cardInner} onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })}>
+                  <View style={styles.imageWrap}>
+                    <FastImage source={{ uri: item.coverImage }} style={styles.image} resizeMode={FastImage.resizeMode.cover} />
+                    {isNewBrand(item) && (
+                      <View style={styles.newBadge}>
+                        <Text style={styles.newBadgeLabel}>NEWEST DEALS</Text>
+                      </View>
+                    )}
+                    <View style={styles.heartButton}>
+                      <Icon name="heart-outline" size={16} color="#171717" />
                     </View>
-                  )}
-                  <View style={styles.heartButton}>
-                    <Icon name="heart-outline" size={16} color="#171717" />
                   </View>
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.brandName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.brandCategory} numberOfLines={1}>
-                    {item.category}
-                  </Text>
-                  {discount ? (
-                    <Text style={styles.discountLabel}>UP TO {discount}% OFF</Text>
-                  ) : (
-                    <Text style={styles.dealCount}>{item.dealCount} deals</Text>
-                  )}
-                </View>
-              </Pressable>
+                  <View style={styles.cardBody}>
+                    <Text style={styles.brandName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.brandCategory} numberOfLines={1}>
+                      {item.category}
+                    </Text>
+                    {discount ? (
+                      <Text style={styles.discountLabel}>UP TO {discount}% OFF</Text>
+                    ) : (
+                      <Text style={styles.dealCount}>{item.dealCount} deals</Text>
+                    )}
+                  </View>
+                </Pressable>
+              </AnimatedListItem>
             );
           }}
         />
@@ -210,6 +213,8 @@ const createStyles = (colors) =>
     card: {
       width: '48%',
       marginBottom: SPACING.three,
+    },
+    cardInner: {
       borderRadius: RADIUS.card,
       overflow: 'hidden',
       backgroundColor: colors.surface,

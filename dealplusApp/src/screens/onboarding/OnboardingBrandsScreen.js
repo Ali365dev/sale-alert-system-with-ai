@@ -12,6 +12,7 @@ import useOnboardingGateStore from '../../state/onboardingGateStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { saveInterests } from '../../services/preferencesApi';
 import { usePressScale } from '../../hooks/usePressScale';
+import AnimatedListItem from '../../components/AnimatedListItem';
 import BrandLogo from '../../components/BrandLogo';
 import EmptyState from '../../components/EmptyState';
 import OnboardingProgress from '../../components/OnboardingProgress';
@@ -23,7 +24,7 @@ function BrandCard({ brand, selected, onPress, styles }) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
 
   return (
-    <Animated.View style={[animatedStyle, styles.brandCardWrap]}>
+    <Animated.View style={animatedStyle}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={[styles.brandCard, selected && styles.brandCardSelected]}>
         <BrandLogo initials={brand.initials} size={64} />
         <Text style={[styles.brandName, selected && styles.brandNameSelected]} numberOfLines={1}>
@@ -108,8 +109,10 @@ const OnboardingBrandsScreen = () => {
           <Text style={styles.noResults}>No brands match "{query}".</Text>
         ) : (
           <View style={styles.grid}>
-            {filteredBrands.map((b) => (
-              <BrandCard key={b.id} brand={b} selected={brandIds.includes(b.id)} onPress={() => toggleBrand(b.id)} styles={styles} />
+            {filteredBrands.map((b, index) => (
+              <AnimatedListItem key={b.id} index={index} style={styles.brandCardWrap}>
+                <BrandCard brand={b} selected={brandIds.includes(b.id)} onPress={() => toggleBrand(b.id)} styles={styles} />
+              </AnimatedListItem>
             ))}
           </View>
         )}

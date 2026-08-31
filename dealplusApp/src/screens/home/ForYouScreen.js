@@ -44,11 +44,19 @@ const ForYouScreen = () => {
           <Text style={styles.pageTitle}>For You</Text>
           <Text style={styles.subtitle}>Matched from your followed brands and categories.</Text>
           <View style={styles.list}>
-            {forYouDeals.map((deal, index) => (
-              <AnimatedListItem key={deal.id} index={index}>
-                <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id })} />
-              </AnimatedListItem>
-            ))}
+            {forYouDeals.map((deal, index) => {
+              const tag = `foryou-${deal.id}`;
+              return (
+                <AnimatedListItem key={deal.id} index={index}>
+                  <DealCard
+                    deal={deal}
+                    brand={brandsById[deal.brandId]}
+                    transitionTag={tag}
+                    onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id, transitionTag: tag })}
+                  />
+                </AnimatedListItem>
+              );
+            })}
           </View>
         </ScrollView>
       )}

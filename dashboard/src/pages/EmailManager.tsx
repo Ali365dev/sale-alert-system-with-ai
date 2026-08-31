@@ -174,6 +174,7 @@ function EmailDetailModal({ id, onClose }: { id: number; onClose: () => void }) 
           <div><strong style={{ color: "var(--text-strong)" }}>Sender:</strong> {data.sender}</div>
           {data.brand && <div><strong style={{ color: "var(--text-strong)" }}>Brand:</strong> {data.brand}</div>}
           <div><strong style={{ color: "var(--text-strong)" }}>Received:</strong> {formatDateTime(data.received_date)}</div>
+          <div><strong style={{ color: "var(--text-strong)" }}>Created:</strong> {formatDateTime(data.processed_at)}</div>
           <div><strong style={{ color: "var(--text-strong)" }}>Offers extracted:</strong> {data.offers_count}</div>
           <div>
             <strong style={{ color: "var(--text-strong)" }}>Processing:</strong>{" "}
@@ -345,7 +346,7 @@ function PipelineActions() {
   );
 }
 
-const columns = "56px 190px 1fr 130px 130px 90px 300px";
+const columns = "56px 170px 1fr 120px 120px 130px 80px 260px";
 
 function TableSkeleton() {
   return (
@@ -365,6 +366,7 @@ function TableSkeleton() {
           <div className="skeleton-shimmer" style={{ height: 12, width: 24 }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: "80%" }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: "60%" }} />
+          <div className="skeleton-shimmer" style={{ height: 12, width: "70%" }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: "70%" }} />
           <div className="skeleton-shimmer" style={{ height: 20, width: 80, borderRadius: 999 }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: 24 }} />
@@ -597,13 +599,21 @@ export function EmailManager() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Button loading={verifyAll.isPending || running} onClick={() => verifyAll.mutate()}>
+          <Button loading={verifyAll.isPending || running} disabled={verifyAll.isPending || running} onClick={() => verifyAll.mutate(undefined)}>
             Verify all unverified
+          </Button>
+          <Button
+            variant="secondary"
+            loading={verifyAll.isPending || running}
+            disabled={verifyAll.isPending || running}
+            onClick={() => verifyAll.mutate(["suspicious", "spam"])}
+          >
+            Re-verify suspicious/spam
           </Button>
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
             {running
               ? `Verifying ${verifyAllStatus.data?.done}/${verifyAllStatus.data?.total}…`
-              : `${summary?.unverified ?? 0} unverified email(s) · ${summary?.total ?? 0} total`}
+              : `${summary?.unverified ?? 0} unverified · ${summary?.suspicious ?? 0} suspicious · ${summary?.spam ?? 0} spam · ${summary?.total ?? 0} total`}
           </span>
         </div>
       </Card>
@@ -633,6 +643,7 @@ export function EmailManager() {
               <span><SortableHeader label="Sender" field="sender" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
               <span><SortableHeader label="Subject / Brand" field="subject" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
               <span><SortableHeader label="Received" field="received_date" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
+              <span>Created</span>
               <span><SortableHeader label="Status" field="processing_status" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
               <span>Offers</span>
               <span>Actions</span>
@@ -681,6 +692,12 @@ export function EmailManager() {
                     )}
                   </span>
                   <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(email.received_date)}</span>
+                  <span
+                    title="When this email was fetched into DealPulse"
+                    style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}
+                  >
+                    {formatDateTime(email.processed_at)}
+                  </span>
                   <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
                     <Badge tone={PROCESSING_TONE[email.processing_status]}>{PROCESSING_LABEL[email.processing_status]}</Badge>
                     {email.processing_status === "failed" && email.processing_error && (

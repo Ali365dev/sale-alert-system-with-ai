@@ -62,7 +62,7 @@ const HomeScreen = () => {
     return sorted.slice(0, 4);
   }, [deals]);
 
-  const openDeal = (deal) => navigation.navigate('DealDetailScreen', { id: deal.id });
+  const openDeal = (deal, transitionTag) => navigation.navigate('DealDetailScreen', { id: deal.id, transitionTag });
   const openBrand = (brandId) => navigation.navigate('BrandDetailScreen', { id: brandId });
 
   return (
@@ -179,11 +179,14 @@ const HomeScreen = () => {
               <SectionHeader title="For You" onViewAll={() => navigation.navigate('ForYouScreen')} />
               <Text style={styles.forYouCaption}>Matched from your followed brands and categories</Text>
               <View style={styles.dealsList}>
-                {forYouDeals.slice(0, 6).map((deal, index) => (
-                  <AnimatedListItem key={deal.id} index={index}>
-                    <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => openDeal(deal)} />
-                  </AnimatedListItem>
-                ))}
+                {forYouDeals.slice(0, 6).map((deal, index) => {
+                  const tag = `home-foryou-${deal.id}`;
+                  return (
+                    <AnimatedListItem key={deal.id} index={index}>
+                      <DealCard deal={deal} brand={brandsById[deal.brandId]} transitionTag={tag} onPress={() => openDeal(deal, tag)} />
+                    </AnimatedListItem>
+                  );
+                })}
               </View>
             </View>
           )}
@@ -242,11 +245,14 @@ const HomeScreen = () => {
               </Pressable>
             </View>
             <View style={styles.dealsList}>
-              {deals.map((deal, index) => (
-                <AnimatedListItem key={deal.id} index={index}>
-                  <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => openDeal(deal)} />
-                </AnimatedListItem>
-              ))}
+              {deals.map((deal, index) => {
+                const tag = `home-latest-${deal.id}`;
+                return (
+                  <AnimatedListItem key={deal.id} index={index}>
+                    <DealCard deal={deal} brand={brandsById[deal.brandId]} transitionTag={tag} onPress={() => openDeal(deal, tag)} />
+                  </AnimatedListItem>
+                );
+              })}
             </View>
           </View>
         </ScrollView>

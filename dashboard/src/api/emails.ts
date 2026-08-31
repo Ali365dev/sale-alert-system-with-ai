@@ -145,8 +145,11 @@ export function useVerifyEmail() {
 export function useVerifyAllEmails() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const { data } = await apiClient.post<{ status: string }>("/emails/verify-all");
+    // No statuses (or omitted) re-verifies unverified emails only, same as
+    // before — pass e.g. ["suspicious", "spam"] to re-verify already-flagged
+    // ones instead.
+    mutationFn: async (statuses?: string[]) => {
+      const { data } = await apiClient.post<{ status: string }>("/emails/verify-all", statuses?.length ? { statuses } : {});
       return data;
     },
     onSuccess: () => {

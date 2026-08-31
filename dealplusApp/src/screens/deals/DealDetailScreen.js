@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated from 'react-native-reanimated';
 import FastImage from '@d11/react-native-fast-image';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SPACING, TYPOGRAPHY } from '../../styles/theme';
@@ -32,6 +33,7 @@ const DealDetailScreen = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const id = route.params?.id;
+  const transitionTag = route.params?.transitionTag;
   const deals = useDataStore((state) => state.deals);
   const brandsById = useDataStore((state) => state.brandsById);
 
@@ -71,12 +73,12 @@ const DealDetailScreen = () => {
       />
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + SPACING.four }} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
+        <Animated.View style={styles.hero} sharedTransitionTag={transitionTag}>
           <FastImage source={{ uri: deal.image }} style={styles.heroImage} resizeMode={FastImage.resizeMode.cover} />
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeLabel}>Up to {deal.discountLabel.replace('-', '')} OFF</Text>
           </View>
-        </View>
+        </Animated.View>
 
         <View style={styles.content}>
           <View style={styles.brandRow}>

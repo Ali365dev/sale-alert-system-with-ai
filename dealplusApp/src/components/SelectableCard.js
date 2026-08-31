@@ -1,18 +1,27 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
+import Animated, { Easing, FadeInDown } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import { usePressScale } from '../hooks/usePressScale';
 
-const SelectableCard = ({ label, icon, selected, onPress, iconVariant = 'plain', fullWidth }) => {
+const STAGGER_STEP_MS = 130;
+const MAX_STAGGER_INDEX = 10;
+
+const SelectableCard = ({ label, icon, selected, onPress, iconVariant = 'plain', fullWidth, index }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const entering =
+    index != null
+      ? FadeInDown.delay(Math.min(index, MAX_STAGGER_INDEX) * STAGGER_STEP_MS)
+          .duration(420)
+          .easing(Easing.out(Easing.cubic))
+      : undefined;
 
   return (
-    <Animated.View style={[animatedStyle, fullWidth ? styles.wrapperFull : styles.wrapper]}>
+    <Animated.View entering={entering} style={[animatedStyle, fullWidth ? styles.wrapperFull : styles.wrapper]}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={[styles.card, selected && styles.cardSelected]}>
         {icon &&
           (iconVariant === 'circle' ? (

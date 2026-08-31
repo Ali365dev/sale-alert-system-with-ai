@@ -65,9 +65,10 @@ const FavoriteCategoriesScreen = () => {
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.five }]} showsVerticalScrollIndicator={false}>
           <Text style={styles.subtitle}>Tailor your feed by selecting what you want to see most.</Text>
           <View style={styles.grid}>
-            {categories.map((c) => (
+            {categories.map((c, index) => (
               <SelectableCard
                 key={c.name}
+                index={index}
                 label={c.name}
                 icon={iconFor(c.name)}
                 iconVariant="circle"

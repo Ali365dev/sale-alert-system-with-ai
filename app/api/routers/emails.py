@@ -5,7 +5,7 @@ import json
 import threading
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import case, func, or_
 
@@ -227,13 +227,16 @@ def verify_email_endpoint(email_id: int):
     return result
 
 
-def _run_verify_all():
+_VALID_EMAIL_STATUSES = {"legitimate", "suspicious", "spam"}
+
+
+def _run_verify_all(statuses: list[str] | None = None):
     from ai.verifier import verify_email_content
 
     with get_session() as session:
-        pending_ids = [
-            e.id for e in session.query(Email.id).filter(Email.email_verification_status.is_(None)).all()
-        ]
+        query = session.query(Email.id)
+        query = query.filter(Email.email_verification_status.in_(statuses)) if statuses else query.filter(Email.email_verification_status.is_(None))
+        pending_ids = [e.id for e in query.all()]
 
     _verify_all_state.update({"running": True, "done": 0, "total": len(pending_ids), "failed": 0})
     for email_id in pending_ids:
@@ -263,10 +266,11 @@ def _run_verify_all():
 
 
 @router.post("/verify-all")
-def verify_all_emails():
+def verify_all_emails(body: dict = Body(default={})):
     if _verify_all_state["running"]:
         return JSONResponse({"status": "already_running"}, status_code=409)
-    threading.Thread(target=_run_verify_all, daemon=True).start()
+    statuses = [s for s in (body or {}).get("statuses") or [] if s in _VALID_EMAIL_STATUSES]
+    threading.Thread(target=_run_verify_all, args=(statuses or None,), daemon=True).start()
     return JSONResponse({"status": "started"}, status_code=202)
 
 

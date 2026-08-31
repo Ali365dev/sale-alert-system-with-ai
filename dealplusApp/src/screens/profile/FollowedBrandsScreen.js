@@ -12,13 +12,14 @@ import { saveInterests } from '../../services/preferencesApi';
 import { usePressScale } from '../../hooks/usePressScale';
 import BrandLogo from '../../components/BrandLogo';
 import EmptyState from '../../components/EmptyState';
+import AnimatedListItem from '../../components/AnimatedListItem';
 import PrimaryButton from '../../components/PrimaryButton';
 
 function BrandCard({ brand, selected, onPress, colors, styles }) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
 
   return (
-    <Animated.View style={[animatedStyle, styles.brandCardWrap]}>
+    <Animated.View style={animatedStyle}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={[styles.brandCard, selected && styles.brandCardSelected]}>
         <BrandLogo initials={brand.initials} size={56} />
         <Text style={[styles.brandName, selected && styles.brandNameSelected]} numberOfLines={1}>
@@ -98,8 +99,10 @@ const FollowedBrandsScreen = () => {
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.five }]} showsVerticalScrollIndicator={false}>
           <Text style={styles.subtitle}>Tap a brand to get instant alerts when they drop a new deal.</Text>
           <View style={styles.grid}>
-            {filteredBrands.map((b) => (
-              <BrandCard key={b.id} brand={b} selected={followedBrands.includes(b.name)} onPress={() => handleToggle(b.name)} colors={colors} styles={styles} />
+            {filteredBrands.map((b, index) => (
+              <AnimatedListItem key={b.id} index={index} style={styles.brandCardWrap}>
+                <BrandCard brand={b} selected={followedBrands.includes(b.name)} onPress={() => handleToggle(b.name)} colors={colors} styles={styles} />
+              </AnimatedListItem>
             ))}
           </View>
           <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>

@@ -245,4 +245,21 @@ export const Icon = {
       <path d="M5 5h14l2 7v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6z" />
     </Svg>
   ),
+  download: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M4 19h16" />
+    </Svg>
+  ),
+  list: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <path d="M3 6h.01" />
+      <path d="M3 12h.01" />
+      <path d="M3 18h.01" />
+    </Svg>
+  ),
 };

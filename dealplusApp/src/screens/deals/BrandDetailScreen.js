@@ -9,6 +9,7 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { saveInterests } from '../../services/preferencesApi';
+import AnimatedListItem from '../../components/AnimatedListItem';
 import DealCard from '../../components/DealCard';
 import EmptyState from '../../components/EmptyState';
 
@@ -89,8 +90,10 @@ const BrandDetailScreen = () => {
             <Text style={styles.sectionTitle}>Current Offers</Text>
           </>
         }
-        renderItem={({ item }) => (
-          <DealCard deal={item} brand={brand} onPress={() => navigation.navigate('DealDetailScreen', { id: item.id })} style={styles.card} />
+        renderItem={({ item, index }) => (
+          <AnimatedListItem index={index} style={styles.card}>
+            <DealCard deal={item} brand={brand} onPress={() => navigation.navigate('DealDetailScreen', { id: item.id })} />
+          </AnimatedListItem>
         )}
         ListEmptyComponent={<Text style={styles.empty}>No offers tracked for this brand yet.</Text>}
       />

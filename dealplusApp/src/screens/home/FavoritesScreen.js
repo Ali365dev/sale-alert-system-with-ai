@@ -50,11 +50,19 @@ const FavoritesScreen = () => {
           showsVerticalScrollIndicator={false}>
           <Text style={styles.heading}>Saved Deals</Text>
           <View style={styles.dealsList}>
-            {favoriteDeals.map((deal, index) => (
-              <AnimatedListItem key={deal.id} index={index}>
-                <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id })} />
-              </AnimatedListItem>
-            ))}
+            {favoriteDeals.map((deal, index) => {
+              const tag = `favorites-${deal.id}`;
+              return (
+                <AnimatedListItem key={deal.id} index={index}>
+                  <DealCard
+                    deal={deal}
+                    brand={brandsById[deal.brandId]}
+                    transitionTag={tag}
+                    onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id, transitionTag: tag })}
+                  />
+                </AnimatedListItem>
+              );
+            })}
           </View>
 
           {brandsWithSaves.length > 0 && (

@@ -65,8 +65,8 @@ const OnboardingCategoriesScreen = () => {
         <Text style={styles.subtitle}>Select the categories you want to see deals for.</Text>
 
         <View style={styles.grid}>
-          {options.map((c) => (
-            <SelectableCard key={c} label={c} icon={iconFor(c)} iconVariant="circle" selected={favoriteCategories.includes(c)} onPress={() => toggleCategory(c)} />
+          {options.map((c, index) => (
+            <SelectableCard key={c} index={index} label={c} icon={iconFor(c)} iconVariant="circle" selected={favoriteCategories.includes(c)} onPress={() => toggleCategory(c)} />
           ))}
         </View>
       </ScrollView>

@@ -25,7 +25,7 @@ const isNew = (createdAt) => {
   return days <= 3;
 };
 
-const DealCard = ({ deal, brand, onPress, style }) => {
+const DealCard = ({ deal, brand, onPress, style, transitionTag }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -33,7 +33,7 @@ const DealCard = ({ deal, brand, onPress, style }) => {
   const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
   return (
-    <Animated.View style={[animatedStyle, styles.card, style]}>
+    <Animated.View style={[animatedStyle, styles.card, style]} sharedTransitionTag={transitionTag}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
         <View style={styles.header}>
           <BrandLogo initials={brand?.initials ?? '?'} size={45} tone="filled" />

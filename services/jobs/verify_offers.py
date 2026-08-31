@@ -27,12 +27,23 @@ def _offer_to_dict(o: Offer) -> dict:
     }
 
 
+_VALID_STATUSES = {"verified", "suspicious", "invalid"}
+
+
 class VerifyOffersJob(BackgroundJob):
     job_type = "verify_offers"
 
     def collect_work(self, job: dict) -> list[WorkItem]:
+        # payload.statuses lets the caller re-verify already-classified offers
+        # (e.g. "suspicious"/"invalid") instead of only unverified ones — no
+        # payload (or an empty/invalid list) preserves the original
+        # unverified-only behavior.
+        statuses = [s for s in (job.get("payload") or {}).get("statuses") or [] if s in _VALID_STATUSES]
+
         with get_session() as session:
-            offers = session.query(Offer).filter(Offer.verification_status.is_(None)).order_by(Offer.id.asc()).all()
+            query = session.query(Offer)
+            query = query.filter(Offer.verification_status.in_(statuses)) if statuses else query.filter(Offer.verification_status.is_(None))
+            offers = query.order_by(Offer.id.asc()).all()
             return [WorkItem(id=o.id, label=f"{o.brand or 'Unknown brand'} — offer #{o.id}") for o in offers]
 
     def process_item(self, job_id: int, item: WorkItem) -> str:

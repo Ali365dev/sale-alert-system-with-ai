@@ -39,6 +39,7 @@ const OnboardingTopicsScreen = () => {
           {TOPICS.map((t, i) => (
             <SelectableCard
               key={t.label}
+              index={i}
               label={t.label}
               icon={t.icon}
               selected={topics.includes(t.label)}

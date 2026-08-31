@@ -34,9 +34,91 @@ function VerifyButton({ offer }: { offer: Offer }) {
   );
 }
 
+type ViewMode = "table" | "cards";
+const VIEW_MODE_KEY = "dealpulse:offers-view-mode";
+
+function OfferActions({ offer, onView, onEdit }: { offer: Offer; onView: () => void; onEdit: () => void }) {
+  const deleteOffer = useDeleteOffer();
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <Button size="sm" variant="ghost" onClick={onView}>
+        View
+      </Button>
+      <Button size="sm" variant="secondary" onClick={onEdit}>
+        Edit
+      </Button>
+      <VerifyButton offer={offer} />
+      <Button
+        size="sm"
+        variant="danger"
+        onClick={() => {
+          if (window.confirm(`Delete offer #${offer.id}?`)) deleteOffer.mutate(offer.id);
+        }}
+      >
+        Delete
+      </Button>
+    </div>
+  );
+}
+
+function OfferCard({ offer, onView, onEdit }: { offer: Offer; onView: () => void; onEdit: () => void }) {
+  return (
+    <Card style={{ gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)", marginBottom: 4 }}>#{offer.id}</div>
+          <div style={{ fontWeight: 700, color: "var(--text-strong)", fontSize: 14 }}>{offer.brand ?? "—"}</div>
+        </div>
+        {offer.verification_status ? (
+          <Badge tone={VERIFICATION_TONE[offer.verification_status] ?? "neutral"}>{offer.verification_status}</Badge>
+        ) : (
+          <Badge tone="neutral">unverified</Badge>
+        )}
+      </div>
+
+      <div
+        title={offer.title ?? undefined}
+        style={{
+          fontSize: 13,
+          color: offer.title ? "var(--text-body)" : "var(--text-faint)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+        }}
+      >
+        {offer.title ?? "—"}
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12, color: "var(--text-muted)" }}>
+        {offer.category && <span>{offer.category}</span>}
+        {offer.offer_type && <span>· {offer.offer_type}</span>}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ font: "700 18px/1 var(--font-mono)", color: "var(--brand)" }}>
+          {offer.discount_percentage != null ? `${offer.discount_percentage}%` : "—"}
+        </span>
+        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Expires {formatDate(offer.expiry_date)}</span>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-muted)" }}>
+        <span>{offer.is_active ? "Active" : "Inactive"}</span>
+        <span>Created {formatDate(offer.created_at)}</span>
+      </div>
+
+      <div style={{ borderTop: "1px solid var(--border)", marginTop: 2, paddingTop: 10 }}>
+        <OfferActions offer={offer} onView={onView} onEdit={onEdit} />
+      </div>
+    </Card>
+  );
+}
+
 function OffersTable() {
   const [filters, setFilters] = useState<OfferFilters>({});
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || "table");
   const { data, isLoading } = useOffers(filters);
   const summary = data?.summary;
   const q = search.trim().toLowerCase();
@@ -47,7 +129,6 @@ function OffersTable() {
           .some((v) => v.toLowerCase().includes(q)),
       )
     : data?.offers;
-  const deleteOffer = useDeleteOffer();
   const updateOffer = useUpdateOffer();
   const verifyAll = useStartJob("verify_offers");
   const activeVerifyAll = useActiveJob("verify_offers");
@@ -61,6 +142,11 @@ function OffersTable() {
 
   const watchedJob = useJob(visibleJobId);
   const bulkRunning = isJobActive(watchedJob.data?.status);
+
+  const changeViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_KEY, mode);
+  };
 
   return (
     <>
@@ -150,9 +236,20 @@ function OffersTable() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <Button
             loading={verifyAll.isPending || bulkRunning}
+            disabled={verifyAll.isPending || bulkRunning}
             onClick={() => verifyAll.mutate(undefined, { onSuccess: (data) => setVisibleJobId(data.jobId) })}
           >
             Verify all unverified offers
+          </Button>
+          <Button
+            variant="secondary"
+            loading={verifyAll.isPending || bulkRunning}
+            disabled={verifyAll.isPending || bulkRunning}
+            onClick={() =>
+              verifyAll.mutate({ statuses: ["suspicious", "invalid"] }, { onSuccess: (data) => setVisibleJobId(data.jobId) })
+            }
+          >
+            Re-verify suspicious/invalid
           </Button>
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
             {watchedJob.data?.status === "cancelling"
@@ -161,7 +258,7 @@ function OffersTable() {
                 ? `Verifying ${watchedJob.data?.processed_items}/${watchedJob.data?.total_items}… `
                 : q
                   ? `${offers?.length ?? 0} of ${data?.offers.length ?? 0} offer(s) match “${search.trim()}” `
-                  : `${summary?.unverified ?? 0} unverified offer(s) · ${summary?.total ?? 0} total `}
+                  : `${summary?.unverified ?? 0} unverified · ${summary?.suspicious ?? 0} suspicious · ${summary?.invalid ?? 0} invalid · ${summary?.total ?? 0} total `}
             <Link to="/pipeline" style={{ color: "var(--brand)" }}>
               View in Pipeline Center →
             </Link>
@@ -169,16 +266,80 @@ function OffersTable() {
         </div>
       </Card>
 
-      <Card padded={false} style={{ overflow: "hidden" }}>
-        {isLoading ? (
-          <div style={{ padding: 20, color: "var(--text-muted)" }}>Loading offers…</div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 4 }}>
+        <button
+          type="button"
+          onClick={() => changeViewMode("table")}
+          aria-label="Table view"
+          aria-pressed={viewMode === "table"}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            height: 32,
+            padding: "0 10px",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-sm) 0 0 var(--radius-sm)",
+            borderRight: "none",
+            background: viewMode === "table" ? "var(--brand-subtle)" : "var(--surface-card)",
+            color: viewMode === "table" ? "var(--brand)" : "var(--text-muted)",
+            fontSize: 12.5,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          <Icon.list size={14} /> Table
+        </button>
+        <button
+          type="button"
+          onClick={() => changeViewMode("cards")}
+          aria-label="Card view"
+          aria-pressed={viewMode === "cards"}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            height: 32,
+            padding: "0 10px",
+            border: "1px solid var(--border)",
+            borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
+            background: viewMode === "cards" ? "var(--brand-subtle)" : "var(--surface-card)",
+            color: viewMode === "cards" ? "var(--brand)" : "var(--text-muted)",
+            fontSize: 12.5,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          <Icon.grid size={14} /> Cards
+        </button>
+      </div>
+
+      {isLoading ? (
+        <Card>
+          <div style={{ color: "var(--text-muted)" }}>Loading offers…</div>
+        </Card>
+      ) : viewMode === "cards" ? (
+        offers?.length === 0 ? (
+          <Card>
+            <div style={{ textAlign: "center", fontSize: 12.5, color: "var(--text-muted)" }}>
+              {q ? `No offers match “${search.trim()}”.` : "No offers found."}
+            </div>
+          </Card>
         ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+            {offers?.map((offer) => (
+              <OfferCard key={offer.id} offer={offer} onView={() => setViewing(offer)} onEdit={() => setEditing(offer)} />
+            ))}
+          </div>
+        )
+      ) : (
+        <Card padded={false} style={{ overflow: "hidden" }}>
           <div style={{ overflowX: "auto" }}>
             <div style={{ minWidth: 1100 }}>
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "60px minmax(180px, 1fr) 120px 110px 100px 90px 100px 90px 120px 220px",
+                  gridTemplateColumns: "60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 110px 200px",
                   gap: 12,
                   padding: "11px 20px",
                   background: "var(--surface-sunken)",
@@ -197,6 +358,7 @@ function OffersTable() {
                 <span>Type</span>
                 <span style={{ textAlign: "right" }}>Disc %</span>
                 <span>Expiry</span>
+                <span>Created</span>
                 <span>Active</span>
                 <span>Verification</span>
                 <span>Actions</span>
@@ -212,7 +374,7 @@ function OffersTable() {
                   key={offer.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "60px minmax(180px, 1fr) 120px 110px 100px 90px 100px 90px 120px 220px",
+                    gridTemplateColumns: "60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 110px 200px",
                     alignItems: "center",
                     gap: 12,
                     padding: "var(--row-pad) 20px",
@@ -239,36 +401,20 @@ function OffersTable() {
                     {offer.discount_percentage != null ? `${offer.discount_percentage}%` : "—"}
                   </span>
                   <span style={{ font: "500 12px/1 var(--font-mono)" }}>{formatDate(offer.expiry_date)}</span>
+                  <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDate(offer.created_at)}</span>
                   <span>{offer.is_active ? "Yes" : "No"}</span>
                   {offer.verification_status ? (
                     <Badge tone={VERIFICATION_TONE[offer.verification_status] ?? "neutral"}>{offer.verification_status}</Badge>
                   ) : (
                     <Badge tone="neutral">unverified</Badge>
                   )}
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <Button size="sm" variant="ghost" onClick={() => setViewing(offer)}>
-                      View
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => setEditing(offer)}>
-                      Edit
-                    </Button>
-                    <VerifyButton offer={offer} />
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => {
-                        if (window.confirm(`Delete offer #${offer.id}?`)) deleteOffer.mutate(offer.id);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+                  <OfferActions offer={offer} onView={() => setViewing(offer)} onEdit={() => setEditing(offer)} />
                 </div>
               ))}
             </div>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
 
       {editing && (
         <Modal title={`Edit offer #${editing.id}`} onClose={() => setEditing(null)}>
@@ -288,6 +434,7 @@ function OffersTable() {
             <div><strong style={{ color: "var(--text-strong)" }}>Category:</strong> {viewing.category ?? "—"} / {viewing.subcategory ?? "—"}</div>
             <div><strong style={{ color: "var(--text-strong)" }}>Discount:</strong> {viewing.discount_percentage != null ? `${viewing.discount_percentage}%` : "—"}</div>
             <div><strong style={{ color: "var(--text-strong)" }}>Coupon code:</strong> {viewing.coupon_code ?? "—"}</div>
+            <div><strong style={{ color: "var(--text-strong)" }}>Created:</strong> {formatDate(viewing.created_at)}</div>
             {viewing.website && (
               <div>
                 <strong style={{ color: "var(--text-strong)" }}>Website:</strong>{" "}

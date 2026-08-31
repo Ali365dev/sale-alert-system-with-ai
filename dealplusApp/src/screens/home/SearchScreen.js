@@ -241,11 +241,19 @@ const SearchScreen = () => {
             )}
 
             <View style={styles.results}>
-              {filtered.map((deal, index) => (
-                <AnimatedListItem key={deal.id} index={index}>
-                  <DealCard deal={deal} brand={brandsById[deal.brandId]} onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id })} />
-                </AnimatedListItem>
-              ))}
+              {filtered.map((deal, index) => {
+                const tag = `search-${deal.id}`;
+                return (
+                  <AnimatedListItem key={deal.id} index={index}>
+                    <DealCard
+                      deal={deal}
+                      brand={brandsById[deal.brandId]}
+                      transitionTag={tag}
+                      onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id, transitionTag: tag })}
+                    />
+                  </AnimatedListItem>
+                );
+              })}
             </View>
           </>
         )}
