@@ -5,8 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import CrownIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
-import useTheme from '../hooks/useTheme';
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import { getGuestName } from '../utils/guestName';
 import Logo from '../components/Logo';
 
@@ -43,8 +42,6 @@ const notifySignInComingSoon = () =>
 
 const AppDrawerContent = (props) => {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
-  const styles = useMemo(() => createStyles(colors), [colors]);
   const guestName = useMemo(() => getGuestName(), []);
 
   const go = (item) => {
@@ -85,7 +82,7 @@ const AppDrawerContent = (props) => {
             </View>
           </View>
 
-          <Pressable style={styles.unlockCard} onPress={notifySignInComingSoon}>
+          {/* <Pressable style={styles.unlockCard} onPress={notifySignInComingSoon}>
             <View style={styles.crownBadge}>
               <CrownIcon name="crown" size={18} color="#FFFFFF" />
             </View>
@@ -94,7 +91,7 @@ const AppDrawerContent = (props) => {
               <Text style={styles.unlockBody}>Save favorites, get alerts & never miss a great deal.</Text>
             </View>
             <Icon name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
-          </Pressable>
+          </Pressable> */}
         </View>
 
         <View style={styles.linksWrap}>
@@ -104,10 +101,10 @@ const AppDrawerContent = (props) => {
               {section.items.map((item) => (
                 <Pressable key={item.label} style={styles.row} onPress={() => go(item)}>
                   <View style={styles.rowIconBadge}>
-                    <Icon name={item.icon} size={18} color={colors.primary} />
+                    <Icon name={item.icon} size={18} color={COLORS.primary} />
                   </View>
                   <Text style={styles.rowLabel}>{item.label}</Text>
-                  <Icon name="chevron-forward" size={18} color={colors.textSecondary} />
+                  <Icon name="chevron-forward" size={18} color="#9CA3AF" />
                 </Pressable>
               ))}
             </View>
@@ -117,7 +114,7 @@ const AppDrawerContent = (props) => {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
         <View style={styles.footerIconBadge}>
-          <Icon name="log-in-outline" size={18} color={colors.primary} />
+          <Icon name="log-in-outline" size={18} color={COLORS.primary} />
         </View>
         <View style={styles.footerText}>
           <Text style={styles.footerTitle}>Sign in / Create account</Text>
@@ -133,205 +130,201 @@ const AppDrawerContent = (props) => {
 
 export default AppDrawerContent;
 
-const createStyles = (colors) =>
-  StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingBottom: SPACING.four,
-    },
-    // The hero stays a deliberately dark, always-branded header regardless of
-    // app theme — literal colors here are intentional, not missed tokens.
-    hero: {
-      backgroundColor: '#171717',
-      paddingHorizontal: SPACING.four,
-      paddingBottom: SPACING.four,
-      borderBottomLeftRadius: RADIUS.card,
-      borderBottomRightRadius: RADIUS.card,
-      overflow: 'hidden',
-      gap: SPACING.four,
-    },
-    glowOuter: {
-      position: 'absolute',
-      top: -80,
-      right: -60,
-      width: 220,
-      height: 220,
-      borderRadius: 110,
-      backgroundColor: 'rgba(183,19,26,0.35)',
-    },
-    glowInner: {
-      position: 'absolute',
-      top: -40,
-      right: -20,
-      width: 140,
-      height: 140,
-      borderRadius: 70,
-      backgroundColor: 'rgba(183,19,26,0.45)',
-    },
-    heroTopRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-    },
-    heroIconWrap: {
-      alignItems: 'center',
-    },
-    sparkle: {
-      marginBottom: 2,
-      marginLeft: 18,
-    },
-    tagIconCircle: {
-      width: 48,
-      height: 48,
-      borderRadius: 16,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      transform: [{ rotate: '-12deg' }],
-    },
-    tagIcon: {
-      transform: [{ rotate: '12deg' }],
-    },
-    avatarRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.three,
-    },
-    avatarRing: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      borderWidth: 2,
-      borderColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatar: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    guestName: {
-      ...TYPOGRAPHY.subtitle,
-      color: '#FFFFFF',
-    },
-    guestSubtitle: {
-      ...TYPOGRAPHY.small,
-      color: 'rgba(255,255,255,0.6)',
-    },
-    unlockCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.three,
-      backgroundColor: 'rgba(255,255,255,0.08)',
-      borderRadius: RADIUS.button,
-      padding: SPACING.three,
-    },
-    crownBadge: {
-      width: 36,
-      height: 36,
-      borderRadius: RADIUS.button,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    unlockText: {
-      flex: 1,
-      gap: 1,
-    },
-    unlockTitle: {
-      ...TYPOGRAPHY.smallBold,
-      color: '#FFFFFF',
-    },
-    unlockBody: {
-      ...TYPOGRAPHY.small,
-      color: 'rgba(255,255,255,0.6)',
-    },
-    linksWrap: {
-      paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.four,
-    },
-    sectionDivider: {
-      marginTop: SPACING.three,
-      paddingTop: SPACING.three,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    sectionLabel: {
-      ...TYPOGRAPHY.label,
-      color: colors.primary,
-      letterSpacing: 1,
-      marginBottom: SPACING.two,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.three,
-      paddingVertical: SPACING.two,
-    },
-    rowIconBadge: {
-      width: 40,
-      height: 40,
-      borderRadius: RADIUS.button,
-      backgroundColor: colors.errorTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    rowLabel: {
-      ...TYPOGRAPHY.smallBold,
-      flex: 1,
-      color: colors.text,
-    },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.three,
-      marginHorizontal: SPACING.four,
-      marginTop: SPACING.three,
-      paddingHorizontal: SPACING.three,
-      paddingTop: SPACING.three,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.card,
-      backgroundColor: colors.errorTint,
-    },
-    footerIconBadge: {
-      width: 40,
-      height: 40,
-      borderRadius: RADIUS.button,
-      backgroundColor: colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    footerText: {
-      flex: 1,
-      gap: 1,
-    },
-    footerTitle: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.text,
-    },
-    footerBody: {
-      ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
-    },
-    signInButton: {
-      backgroundColor: colors.primary,
-      borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.four,
-      paddingVertical: SPACING.two,
-    },
-    signInButtonLabel: {
-      ...TYPOGRAPHY.smallBold,
-      color: '#FFFFFF',
-    },
-  });
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: SPACING.four,
+  },
+  hero: {
+    backgroundColor: '#171717',
+    paddingHorizontal: SPACING.four,
+    paddingBottom: SPACING.four,
+    borderBottomLeftRadius: RADIUS.card,
+    borderBottomRightRadius: RADIUS.card,
+    overflow: 'hidden',
+    gap: SPACING.four,
+  },
+  glowOuter: {
+    position: 'absolute',
+    top: -80,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(183,19,26,0.35)',
+  },
+  glowInner: {
+    position: 'absolute',
+    top: -40,
+    right: -20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(183,19,26,0.45)',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  heroIconWrap: {
+    alignItems: 'center',
+  },
+  sparkle: {
+    marginBottom: 2,
+    marginLeft: 18,
+  },
+  tagIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-12deg' }],
+  },
+  tagIcon: {
+    transform: [{ rotate: '12deg' }],
+  },
+  avatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.three,
+  },
+  avatarRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestName: {
+    ...TYPOGRAPHY.subtitle,
+    color: '#FFFFFF',
+  },
+  guestSubtitle: {
+    ...TYPOGRAPHY.small,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  unlockCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.three,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: RADIUS.button,
+    padding: SPACING.three,
+  },
+  crownBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.button,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unlockText: {
+    flex: 1,
+    gap: 1,
+  },
+  unlockTitle: {
+    ...TYPOGRAPHY.smallBold,
+    color: '#FFFFFF',
+  },
+  unlockBody: {
+    ...TYPOGRAPHY.small,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  linksWrap: {
+    paddingHorizontal: SPACING.four,
+    paddingTop: SPACING.four,
+  },
+  sectionDivider: {
+    marginTop: SPACING.three,
+    paddingTop: SPACING.three,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  sectionLabel: {
+    ...TYPOGRAPHY.label,
+    color: COLORS.primary,
+    letterSpacing: 1,
+    marginBottom: SPACING.two,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.three,
+    paddingVertical: SPACING.two,
+  },
+  rowIconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.button,
+    backgroundColor: '#FDEEEE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowLabel: {
+    ...TYPOGRAPHY.smallBold,
+    flex: 1,
+    color: COLORS.text,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.three,
+    marginHorizontal: SPACING.four,
+    marginTop: SPACING.three,
+    paddingHorizontal: SPACING.three,
+    paddingTop: SPACING.three,
+    borderWidth: 1,
+    borderColor: '#F0DADA',
+    borderRadius: RADIUS.card,
+    backgroundColor: '#FDEEEE',
+  },
+  footerIconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.button,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    flex: 1,
+    gap: 1,
+  },
+  footerTitle: {
+    ...TYPOGRAPHY.smallBold,
+  },
+  footerBody: {
+    ...TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
+  },
+  signInButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.chip,
+    paddingHorizontal: SPACING.four,
+    paddingVertical: SPACING.two,
+  },
+  signInButtonLabel: {
+    ...TYPOGRAPHY.smallBold,
+    color: '#FFFFFF',
+  },
+});

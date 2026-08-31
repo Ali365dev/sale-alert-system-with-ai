@@ -10,6 +10,8 @@ import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { loadDeals } from '../../services/dealsService';
 import { filterForYou } from '../../utils/dealAdapters';
+import { isCloseToBottom } from '../../utils/scroll';
+import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import BrandCard from '../../components/BrandCard';
 import BrandCardSkeleton from '../../components/BrandCardSkeleton';
@@ -20,6 +22,7 @@ import DealCardSkeleton from '../../components/DealCardSkeleton';
 import EmptyState from '../../components/EmptyState';
 import ExpiringSoonCard from '../../components/ExpiringSoonCard';
 import HeroCarousel from '../../components/HeroCarousel';
+import PaginationLoader from '../../components/PaginationLoader';
 import SectionHeader from '../../components/SectionHeader';
 import Skeleton from '../../components/Skeleton';
 import TopAppBar from '../../components/TopAppBar';
@@ -63,6 +66,12 @@ const HomeScreen = () => {
   }, [deals]);
 
   const openDeal = (deal, transitionTag) => navigation.navigate('DealDetailScreen', { id: deal.id, transitionTag });
+
+  const {
+    visibleItems: visibleDeals,
+    isLoadingMore: isLoadingMoreDeals,
+    loadMore: loadMoreDeals,
+  } = usePagination(deals);
   const openBrand = (brandId) => navigation.navigate('BrandDetailScreen', { id: brandId });
 
   return (
@@ -130,6 +139,8 @@ const HomeScreen = () => {
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
+          onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMoreDeals()}
+          scrollEventThrottle={200}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor={colors.primary} />}>
           <View style={styles.searchRow}>
             <Pressable style={styles.searchBar} onPress={() => navigation.navigate('Search')}>
@@ -245,7 +256,7 @@ const HomeScreen = () => {
               </Pressable>
             </View>
             <View style={styles.dealsList}>
-              {deals.map((deal, index) => {
+              {visibleDeals.map((deal, index) => {
                 const tag = `home-latest-${deal.id}`;
                 return (
                   <AnimatedListItem key={deal.id} index={index}>
@@ -253,6 +264,7 @@ const HomeScreen = () => {
                   </AnimatedListItem>
                 );
               })}
+              {isLoadingMoreDeals && <PaginationLoader />}
             </View>
           </View>
         </ScrollView>

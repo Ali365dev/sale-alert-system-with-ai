@@ -7,7 +7,10 @@ import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { RECENT_SEARCHES } from '../../utils/mock';
+import { isCloseToBottom } from '../../utils/scroll';
+import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
+import PaginationLoader from '../../components/PaginationLoader';
 import DealCard from '../../components/DealCard';
 import EmptyState from '../../components/EmptyState';
 import PrimaryButton from '../../components/PrimaryButton';
@@ -94,6 +97,7 @@ const SearchScreen = () => {
 
   const showFilters = query.trim().length === 0 && !showResults;
   const previewCategories = useMemo(() => categories.slice(0, 6), [categories]);
+  const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(filtered);
 
   const goBack = () => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -114,7 +118,9 @@ const SearchScreen = () => {
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
+        scrollEventThrottle={200}>
         <SearchBar
           value={query}
           onChangeText={(t) => {
@@ -241,7 +247,7 @@ const SearchScreen = () => {
             )}
 
             <View style={styles.results}>
-              {filtered.map((deal, index) => {
+              {visibleDeals.map((deal, index) => {
                 const tag = `search-${deal.id}`;
                 return (
                   <AnimatedListItem key={deal.id} index={index}>
@@ -254,6 +260,7 @@ const SearchScreen = () => {
                   </AnimatedListItem>
                 );
               })}
+              {isLoadingMore && <PaginationLoader />}
             </View>
           </>
         )}

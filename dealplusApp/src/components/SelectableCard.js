@@ -5,20 +5,14 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import { usePressScale } from '../hooks/usePressScale';
-
-const STAGGER_STEP_MS = 130;
-const MAX_STAGGER_INDEX = 10;
+import { staggerDelay } from '../utils/stagger';
 
 const SelectableCard = ({ label, icon, selected, onPress, iconVariant = 'plain', fullWidth, index }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const entering =
-    index != null
-      ? FadeInDown.delay(Math.min(index, MAX_STAGGER_INDEX) * STAGGER_STEP_MS)
-          .duration(420)
-          .easing(Easing.out(Easing.cubic))
-      : undefined;
+    index != null ? FadeInDown.delay(staggerDelay(index)).duration(420).easing(Easing.out(Easing.cubic)) : undefined;
 
   return (
     <Animated.View entering={entering} style={[animatedStyle, fullWidth ? styles.wrapperFull : styles.wrapper]}>

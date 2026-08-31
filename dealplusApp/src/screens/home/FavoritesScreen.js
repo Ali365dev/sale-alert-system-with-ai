@@ -6,10 +6,13 @@ import { SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import useFavoritesStore from '../../state/favoritesStore';
+import { isCloseToBottom } from '../../utils/scroll';
+import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import BrandCard from '../../components/BrandCard';
 import DealCard from '../../components/DealCard';
 import EmptyState from '../../components/EmptyState';
+import PaginationLoader from '../../components/PaginationLoader';
 import TopAppBar from '../../components/TopAppBar';
 
 const FavoritesScreen = () => {
@@ -23,6 +26,7 @@ const FavoritesScreen = () => {
   const brandsById = useDataStore((state) => state.brandsById);
 
   const favoriteDeals = useMemo(() => deals.filter((d) => favoriteIds.includes(d.id)), [deals, favoriteIds]);
+  const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(favoriteDeals);
 
   // Deliberately distinct from "Followed Brands" (usePreferencesStore) —
   // this is just brands with at least one saved deal, not the user's actual
@@ -47,10 +51,12 @@ const FavoritesScreen = () => {
       ) : (
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
+          scrollEventThrottle={200}>
           <Text style={styles.heading}>Saved Deals</Text>
           <View style={styles.dealsList}>
-            {favoriteDeals.map((deal, index) => {
+            {visibleDeals.map((deal, index) => {
               const tag = `favorites-${deal.id}`;
               return (
                 <AnimatedListItem key={deal.id} index={index}>
@@ -63,6 +69,7 @@ const FavoritesScreen = () => {
                 </AnimatedListItem>
               );
             })}
+            {isLoadingMore && <PaginationLoader />}
           </View>
 
           {brandsWithSaves.length > 0 && (

@@ -7,9 +7,12 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { filterForYou } from '../../utils/dealAdapters';
+import { isCloseToBottom } from '../../utils/scroll';
+import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import DealCard from '../../components/DealCard';
 import EmptyState from '../../components/EmptyState';
+import PaginationLoader from '../../components/PaginationLoader';
 import TopAppBar from '../../components/TopAppBar';
 
 const ForYouScreen = () => {
@@ -26,6 +29,7 @@ const ForYouScreen = () => {
     () => filterForYou(deals, followedBrands, favoriteCategories),
     [deals, followedBrands, favoriteCategories],
   );
+  const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(forYouDeals);
 
   return (
     <View style={styles.container}>
@@ -40,11 +44,15 @@ const ForYouScreen = () => {
           onPressCta={() => navigation.navigate('FollowedBrandsScreen')}
         />
       ) : (
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
+          scrollEventThrottle={200}>
           <Text style={styles.pageTitle}>For You</Text>
           <Text style={styles.subtitle}>Matched from your followed brands and categories.</Text>
           <View style={styles.list}>
-            {forYouDeals.map((deal, index) => {
+            {visibleDeals.map((deal, index) => {
               const tag = `foryou-${deal.id}`;
               return (
                 <AnimatedListItem key={deal.id} index={index}>
@@ -57,6 +65,7 @@ const ForYouScreen = () => {
                 </AnimatedListItem>
               );
             })}
+            {isLoadingMore && <PaginationLoader />}
           </View>
         </ScrollView>
       )}

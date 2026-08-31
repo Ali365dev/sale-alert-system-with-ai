@@ -8,9 +8,11 @@ import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
+import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import EmptyState from '../../components/EmptyState';
 import FilterChip from '../../components/FilterChip';
+import PaginationLoader from '../../components/PaginationLoader';
 import SearchBar from '../../components/SearchBar';
 import Skeleton from '../../components/Skeleton';
 import TopAppBar from '../../components/TopAppBar';
@@ -61,6 +63,7 @@ const BrandListScreen = () => {
     }
     return list;
   }, [brands, query, filter]);
+  const { visibleItems: visibleBrands, isLoadingMore, loadMore } = usePagination(filtered, 12);
 
   return (
     <View style={styles.container}>
@@ -88,11 +91,13 @@ const BrandListScreen = () => {
         <EmptyState icon="business-outline" title="No brands tracked yet" body="Brands you track in your backend will show up here." ctaLabel="Refresh" onPressCta={loadDeals} />
       ) : (
         <FlatList
-          data={filtered}
+          data={visibleBrands}
           keyExtractor={(b) => b.id}
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]}
+          onEndReached={() => loadMore()}
+          onEndReachedThreshold={0.5}
           ListHeaderComponent={
             <View style={styles.header}>
               <Text style={styles.pageTitle}>Top Brands</Text>
@@ -118,10 +123,13 @@ const BrandListScreen = () => {
           }
           ListFooterComponent={
             filtered.length > 0 && (
-              <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>
-                <Icon name="add-circle-outline" size={16} color={colors.primary} />
-                <Text style={styles.requestLinkLabel}>Can't find a brand? Request it</Text>
-              </Pressable>
+              <>
+                {isLoadingMore && <PaginationLoader />}
+                <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>
+                  <Icon name="add-circle-outline" size={16} color={colors.primary} />
+                  <Text style={styles.requestLinkLabel}>Can't find a brand? Request it</Text>
+                </Pressable>
+              </>
             )
           }
           renderItem={({ item, index }) => {

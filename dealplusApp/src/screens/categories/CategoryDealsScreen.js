@@ -6,7 +6,10 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
+import { isCloseToBottom } from '../../utils/scroll';
+import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
+import PaginationLoader from '../../components/PaginationLoader';
 import DealCard from '../../components/DealCard';
 import EmptyState from '../../components/EmptyState';
 
@@ -38,6 +41,7 @@ const CategoryDealsScreen = () => {
     }
     return list;
   }, [deals, category, sort]);
+  const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(categoryDeals);
 
   return (
     <View style={styles.container}>
@@ -54,7 +58,11 @@ const CategoryDealsScreen = () => {
       {categoryDeals.length === 0 ? (
         <EmptyState icon="pricetags-outline" title="No deals yet" body={`No offers tracked in ${category ?? 'this category'} right now.`} />
       ) : (
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.five }]} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.five }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
+          scrollEventThrottle={200}>
           <View style={styles.metaRow}>
             <Text style={styles.count}>
               {categoryDeals.length} deal{categoryDeals.length === 1 ? '' : 's'}
@@ -84,7 +92,7 @@ const CategoryDealsScreen = () => {
           </View>
 
           <View style={styles.list}>
-            {categoryDeals.map((deal, index) => {
+            {visibleDeals.map((deal, index) => {
               const tag = `category-${deal.id}`;
               return (
                 <AnimatedListItem key={deal.id} index={index}>
@@ -97,6 +105,7 @@ const CategoryDealsScreen = () => {
                 </AnimatedListItem>
               );
             })}
+            {isLoadingMore && <PaginationLoader />}
           </View>
         </ScrollView>
       )}
