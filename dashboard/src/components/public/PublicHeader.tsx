@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 
+import { useLogout } from "../../api/auth";
 import { Icon } from "../icons";
+import { useAuthStore } from "../../store/authStore";
 import { useUiStore } from "../../store/uiStore";
 
 const NAV_LINKS = [
@@ -17,6 +19,8 @@ export function PublicHeader() {
   const [query, setQuery] = useState(params.get("q") ?? "");
   const navigate = useNavigate();
   const { theme, toggleTheme } = useUiStore();
+  const user = useAuthStore((s) => s.user);
+  const logout = useLogout();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -142,6 +146,53 @@ export function PublicHeader() {
         >
           {theme === "dark" ? "Dark" : "Light"}
         </button>
+
+        {user ? (
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              navigate("/");
+            }}
+            title={`Signed in as ${user.email}`}
+            style={{
+              flex: "0 0 auto",
+              height: 38,
+              padding: "0 14px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-pill)",
+              background: "var(--surface-card)",
+              color: "var(--text-body)",
+              font: "600 12.5px/1 var(--font-sans)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {user.name || user.email.split("@")[0]}
+          </button>
+        ) : (
+          <Link
+            to="/sign-in"
+            style={{
+              flex: "0 0 auto",
+              height: 38,
+              padding: "0 16px",
+              display: "inline-flex",
+              alignItems: "center",
+              border: "1px solid transparent",
+              borderRadius: "var(--radius-pill)",
+              background: "var(--brand)",
+              color: "var(--on-brand)",
+              font: "600 12.5px/1 var(--font-sans)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Sign in
+          </Link>
+        )}
       </div>
     </header>
   );

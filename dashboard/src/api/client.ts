@@ -1,5 +1,6 @@
 import axios from "axios";
 
+import { useAuthStore } from "../store/authStore";
 import { toast } from "../store/toastStore";
 
 // VITE_API_BASE_URL (dashboard/.env, gitignored) always wins when set — lets
@@ -15,6 +16,14 @@ const DEFAULT_API_BASE_URL = import.meta.env.PROD
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL,
   withCredentials: true, // needed for the Settings module's httpOnly session cookie
+});
+
+apiClient.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().token;
+  if (token) {
+    config.headers.set("Authorization", `Bearer ${token}`);
+  }
+  return config;
 });
 
 apiClient.interceptors.response.use(

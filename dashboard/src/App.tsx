@@ -14,6 +14,8 @@ import { PipelineCenter } from "./pages/PipelineCenter";
 import { BrandDetailPage } from "./pages/public/BrandDetailPage";
 import { OfferDetailPage } from "./pages/public/OfferDetailPage";
 import { PublicOffers } from "./pages/public/PublicOffers";
+import { SignInPage } from "./pages/public/SignInPage";
+import { SignUpPage } from "./pages/public/SignUpPage";
 import { Settings } from "./pages/Settings";
 import { Search } from "./pages/Search";
 import { UnknownEmailsManager } from "./pages/UnknownEmailsManager";
@@ -26,6 +28,8 @@ function App() {
         <Route path="/" element={<PublicOffers />} />
         <Route path="/deals/brand/:name" element={<BrandDetailPage />} />
         <Route path="/deals/:id" element={<OfferDetailPage />} />
+        <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/sign-up" element={<SignUpPage />} />
         <Route
           path="/dashboard"
           element={
