@@ -374,18 +374,26 @@ class UserProfile(Base):
 
 
 class User(Base):
-    """A real mobile-app account (email + password) — optional; guest/device
-    mode (UserProfile.device_id) keeps working independently. Signing up or
+    """A real mobile-app account — email + password, and/or Google via
+    Firebase (firebase_uid) — optional; guest/device mode
+    (UserProfile.device_id) keeps working independently. Signing up or
     logging in on a device links that device's existing UserProfile row to
     this user (UserProfile.user_id = str(User.id)) rather than creating a
     parallel preferences record, so followed brands/favorite categories
-    carry over from guest use — see services/user_auth.py and
-    app/api/routers/auth.py."""
+    carry over from guest use — see services/user_auth.py,
+    services/firebase_auth.py, and app/api/routers/auth.py.
+
+    password_hash is nullable because a Google-only account never sets one;
+    firebase_uid is nullable because a password-only account never gets one
+    — either can be set alone, or both (a password account that later also
+    signs in with Google under the same email gets firebase_uid backfilled
+    onto its existing row rather than creating a duplicate account)."""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
+    firebase_uid = Column(String(255), unique=True, nullable=True, index=True)
     name = Column(String(255), nullable=True)
 
     created_at = Column(DateTime, default=_utcnow, nullable=False)

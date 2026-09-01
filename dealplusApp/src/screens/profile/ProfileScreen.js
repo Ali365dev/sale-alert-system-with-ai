@@ -7,6 +7,7 @@ import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
+import useAuthStore from '../../state/authStore';
 import { saveInterests } from '../../services/preferencesApi';
 import { getGuestName } from '../../utils/guestName';
 import TopAppBar from '../../components/TopAppBar';
@@ -23,6 +24,8 @@ const ProfileScreen = () => {
   const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
   const guestName = useMemo(() => getGuestName(), []);
+  const user = useAuthStore((state) => state.user);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
 
   const handleToggleCategory = (name) => {
     toggleCategory(name);
@@ -90,8 +93,8 @@ const ProfileScreen = () => {
               <Icon name="pencil" size={11} color="#FFFFFF" />
             </View>
           </View>
-          <Text style={styles.accountTitle}>{guestName}</Text>
-          <Text style={styles.accountSubtitle}>Browsing as a guest</Text>
+          <Text style={styles.accountTitle}>{user ? user.name || user.email : guestName}</Text>
+          <Text style={styles.accountSubtitle}>{user ? (user.name ? user.email : 'Signed in') : 'Browsing as a guest'}</Text>
           <View style={styles.premiumPill}>
             <Icon name="pricetags-outline" size={13} color={colors.text} />
             <Text style={styles.premiumPillLabel}>{deals.length} offers tracked</Text>
@@ -159,10 +162,17 @@ const ProfileScreen = () => {
           ))}
         </View>
 
-        <Pressable style={styles.logoutButton}>
-          <Icon name="log-out-outline" size={18} color={colors.primary} />
-          <Text style={styles.logoutLabel}>Log Out</Text>
-        </Pressable>
+        {user ? (
+          <Pressable style={styles.logoutButton} onPress={clearAuth}>
+            <Icon name="log-out-outline" size={18} color={colors.primary} />
+            <Text style={styles.logoutLabel}>Log Out</Text>
+          </Pressable>
+        ) : (
+          <Pressable style={styles.logoutButton} onPress={() => navigation.navigate('SignInScreen')}>
+            <Icon name="log-in-outline" size={18} color={colors.primary} />
+            <Text style={styles.logoutLabel}>Sign In / Create Account</Text>
+          </Pressable>
+        )}
 
         <Text style={styles.version}>DealPulse v1.0.0</Text>
       </ScrollView>

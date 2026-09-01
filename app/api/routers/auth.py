@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.user_security import get_current_user
 from database.db import get_session
 from database.models import User, UserProfile
-from services import user_auth
+from services import firebase_auth, user_auth
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -122,10 +122,67 @@ def login(body: dict = Body(...)):
 
     with get_session() as session:
         user = session.query(User).filter(User.email == email).first()
-        if user is None or not user_auth.check_password(user.password_hash, password):
+        # user.password_hash is None for a Google-only account (never set
+        # one) — check_password would error on a None hash, not just fail,
+        # so that has to short-circuit before it's even called.
+        if user is None or not user.password_hash or not user_auth.check_password(user.password_hash, password):
             return JSONResponse({"error": "Incorrect email or password."}, status_code=401)
 
         user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        profile = _link_device_and_get_profile(session, user, device_id)
+        token = user_auth.create_user_token(user.id)
+        return {"token": token, "user": _user_to_dict(user), **_profile_fields(profile)}
+
+
+@router.post("/google")
+def google_login(body: dict = Body(...)):
+    """Exchanges a Firebase ID token (the mobile app signs in with Google via
+    Firebase Auth, then sends its resulting Firebase ID token here — never a
+    raw Google token) for this app's own session token. Finds the account by
+    firebase_uid first (repeat sign-ins), falling back to matching by email
+    so a user who already signed up with a password and later taps
+    "Continue with Google" under the same address gets linked onto their
+    existing account instead of a duplicate — they can then use either
+    method going forward."""
+    body = body or {}
+    id_token = body.get("id_token") or ""
+    device_id = body.get("device_id")
+
+    if not firebase_auth.is_configured():
+        return JSONResponse({"error": "Google sign-in isn't set up on the server yet."}, status_code=503)
+
+    payload = firebase_auth.verify_firebase_token(id_token)
+    if payload is None:
+        return JSONResponse({"error": "Invalid or expired Google sign-in token."}, status_code=401)
+
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        return JSONResponse({"error": "That Google account has no email address."}, status_code=400)
+    firebase_uid = payload.get("uid") or payload.get("user_id")
+    name = payload.get("name")
+
+    with get_session() as session:
+        user = session.query(User).filter(User.firebase_uid == firebase_uid).first() if firebase_uid else None
+        if user is None:
+            user = session.query(User).filter(User.email == email).first()
+
+        if user is None:
+            user = User(
+                email=email,
+                password_hash=None,
+                name=name,
+                firebase_uid=firebase_uid,
+                last_login_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            )
+            session.add(user)
+            session.flush()
+        else:
+            user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            if firebase_uid and not user.firebase_uid:
+                user.firebase_uid = firebase_uid
+            if name and not user.name:
+                user.name = name
+
         profile = _link_device_and_get_profile(session, user, device_id)
         token = user_auth.create_user_token(user.id)
         return {"token": token, "user": _user_to_dict(user), **_profile_fields(profile)}

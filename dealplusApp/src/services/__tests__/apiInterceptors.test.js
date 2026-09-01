@@ -9,12 +9,14 @@ jest.mock('../../utils/CustomToast', () => ({ showErrorToast: jest.fn() }));
 import NetInfo from '@react-native-community/netinfo';
 import { showErrorToast } from '../../utils/CustomToast';
 import { appAxios } from '../apiInterceptors';
+import useAuthStore from '../../state/authStore';
 
 const requestInterceptor = appAxios.interceptors.request.handlers[0];
 const responseInterceptor = appAxios.interceptors.response.handlers[0];
 
 beforeEach(() => {
   jest.clearAllMocks();
+  useAuthStore.setState({ token: null, user: null });
 });
 
 test('appAxios is configured with a 15s timeout so a hung request fails instead of waiting forever', () => {
@@ -45,6 +47,20 @@ describe('request interceptor', () => {
     const config = await requestInterceptor.fulfilled({ headers: { Authorization: 'Bearer x' } });
     expect(config.headers.Authorization).toBe('Bearer x');
     expect(config.headers['Content-Type']).toBe('application/json; charset=utf-8');
+  });
+
+  test('a signed-in user\'s token is attached as a Bearer Authorization header', async () => {
+    NetInfo.fetch.mockResolvedValue({ isConnected: true, isInternetReachable: true });
+    useAuthStore.setState({ token: 'signed-in-token', user: { id: 1 } });
+
+    const config = await requestInterceptor.fulfilled({ headers: {} });
+    expect(config.headers.Authorization).toBe('Bearer signed-in-token');
+  });
+
+  test('a guest (no token) sends no Authorization header at all', async () => {
+    NetInfo.fetch.mockResolvedValue({ isConnected: true, isInternetReachable: true });
+    const config = await requestInterceptor.fulfilled({ headers: {} });
+    expect(config.headers.Authorization).toBeUndefined();
   });
 });
 

@@ -57,6 +57,7 @@ def _migrate() -> None:
         ("emails", "failure_provider",             "VARCHAR(20)"),
         ("emails", "failure_key_identifier",       "VARCHAR(120)"),
         ("emails", "failure_attempt_count",        "INTEGER"),
+        ("users", "firebase_uid",                  "VARCHAR(255)"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -91,6 +92,21 @@ def _migrate() -> None:
             logger.info("Migration: offers.email_id is now nullable")
         except Exception:
             conn.rollback()  # already nullable — safe to skip
+
+        # Make users.password_hash nullable — a Google-only account (via
+        # Firebase) never sets a password.
+        try:
+            conn.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL"))
+            conn.commit()
+            logger.info("Migration: users.password_hash is now nullable")
+        except Exception:
+            conn.rollback()  # already nullable — safe to skip
+
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_firebase_uid ON users (firebase_uid)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
         # Add website column for offer/brand URL
         try:

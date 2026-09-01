@@ -11,6 +11,8 @@ import HelpSupportScreen from '../screens/profile/HelpSupportScreen';
 import TermsConditionsScreen from '../screens/profile/TermsConditionsScreen';
 import NotificationPreferencesScreen from '../screens/profile/NotificationPreferencesScreen';
 import RequestBrandScreen from '../screens/profile/RequestBrandScreen';
+import SignInScreen from '../screens/auth/SignInScreen';
+import SignUpScreen from '../screens/auth/SignUpScreen';
 import SplashScreen from '../screens/SplashScreen';
 import OnboardingWelcomeScreen from '../screens/onboarding/OnboardingWelcomeScreen';
 import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen';
@@ -102,6 +104,16 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'RequestBrandScreen',
     component: RequestBrandScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'SignInScreen',
+    component: SignInScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'SignUpScreen',
+    component: SignUpScreen,
   },
 ];
 

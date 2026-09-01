@@ -8,6 +8,7 @@ import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/utils/CustomToast';
 import { loadDeals } from './src/services/dealsService';
 import { registerDeviceToken, requestNotificationPermission, setupPushListeners } from './src/services/pushNotifications';
+import { configureGoogleSignIn } from './src/services/googleAuth';
 import { CLARITY_PROJECT_ID } from './src/services/config';
 import useTheme from './src/hooks/useTheme';
 
@@ -20,6 +21,11 @@ const App = () => {
     if (CLARITY_PROJECT_ID && CLARITY_PROJECT_ID !== 'YOUR_CLARITY_PROJECT_ID') {
       initializeClarity(CLARITY_PROJECT_ID);
     }
+
+    // Must happen before any GoogleSignin.signIn() call (SignInScreen /
+    // SignUpScreen's "Continue with Google") — without this, that call
+    // fails since the native module has no webClientId configured yet.
+    configureGoogleSignIn();
 
     loadDeals();
 

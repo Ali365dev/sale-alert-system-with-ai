@@ -3,10 +3,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import CrownIcon from 'react-native-vector-icons/MaterialCommunityIcons';
-import Toast from 'react-native-toast-message';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import { getGuestName } from '../utils/guestName';
+import useAuthStore from '../state/authStore';
 import Logo from '../components/Logo';
 
 const SECTIONS = [
@@ -35,14 +34,16 @@ const SECTIONS = [
   },
 ];
 
-// No auth system exists yet (app is guest-only by design) — every sign-in
-// tap just signals that instead of silently doing nothing.
-const notifySignInComingSoon = () =>
-  Toast.show({ type: 'info', text1: 'Coming soon', text2: "Accounts aren't available yet — you're all set as a guest." });
-
 const AppDrawerContent = (props) => {
   const insets = useSafeAreaInsets();
   const guestName = useMemo(() => getGuestName(), []);
+  const user = useAuthStore((state) => state.user);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+
+  const goToSignIn = () => {
+    props.navigation.closeDrawer();
+    props.navigation.navigate('SignInScreen');
+  };
 
   const go = (item) => {
     props.navigation.closeDrawer();
@@ -61,7 +62,7 @@ const AppDrawerContent = (props) => {
           <View style={styles.glowInner} />
 
           <View style={styles.heroTopRow}>
-            <Logo light size={19} />
+            <Logo light size={24} />
             <View style={styles.heroIconWrap}>
               <Icon name="sparkles" size={14} color="#F5CB1B" style={styles.sparkle} />
               <View style={styles.tagIconCircle}>
@@ -77,21 +78,10 @@ const AppDrawerContent = (props) => {
               </View>
             </View>
             <View>
-              <Text style={styles.guestName}>{guestName}</Text>
-              <Text style={styles.guestSubtitle}>Browsing as a guest</Text>
+              <Text style={styles.guestName}>{user ? user.name || user.email : guestName}</Text>
+              <Text style={styles.guestSubtitle}>{user ? (user.name ? user.email : 'Signed in') : 'Browsing as a guest'}</Text>
             </View>
           </View>
-
-          {/* <Pressable style={styles.unlockCard} onPress={notifySignInComingSoon}>
-            <View style={styles.crownBadge}>
-              <CrownIcon name="crown" size={18} color="#FFFFFF" />
-            </View>
-            <View style={styles.unlockText}>
-              <Text style={styles.unlockTitle}>Sign in to unlock more</Text>
-              <Text style={styles.unlockBody}>Save favorites, get alerts & never miss a great deal.</Text>
-            </View>
-            <Icon name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
-          </Pressable> */}
         </View>
 
         <View style={styles.linksWrap}>
@@ -112,18 +102,7 @@ const AppDrawerContent = (props) => {
         </View>
       </DrawerContentScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
-        <View style={styles.footerIconBadge}>
-          <Icon name="log-in-outline" size={18} color={COLORS.primary} />
-        </View>
-        <View style={styles.footerText}>
-          <Text style={styles.footerTitle}>Sign in / Create account</Text>
-          <Text style={styles.footerBody}>Access personalized deals & more</Text>
-        </View>
-        <Pressable style={styles.signInButton} onPress={notifySignInComingSoon}>
-          <Text style={styles.signInButtonLabel}>Sign In</Text>
-        </Pressable>
-      </View>
+    
     </View>
   );
 };
@@ -147,6 +126,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.four,
     borderBottomLeftRadius: RADIUS.card,
     borderBottomRightRadius: RADIUS.card,
+    borderTopLeftRadius: RADIUS.card,
+    borderTopRightRadius: RADIUS.card,
     overflow: 'hidden',
     gap: SPACING.four,
   },
@@ -219,34 +200,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   guestSubtitle: {
-    ...TYPOGRAPHY.small,
-    color: 'rgba(255,255,255,0.6)',
-  },
-  unlockCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.three,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: RADIUS.button,
-    padding: SPACING.three,
-  },
-  crownBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.button,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unlockText: {
-    flex: 1,
-    gap: 1,
-  },
-  unlockTitle: {
-    ...TYPOGRAPHY.smallBold,
-    color: '#FFFFFF',
-  },
-  unlockBody: {
     ...TYPOGRAPHY.small,
     color: 'rgba(255,255,255,0.6)',
   },

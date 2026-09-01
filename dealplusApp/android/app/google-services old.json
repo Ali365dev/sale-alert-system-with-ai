@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "254426897331",
+    "project_id": "sale-alert-sys",
+    "storage_bucket": "sale-alert-sys.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:254426897331:android:5b3b53986a87e05774c9c6",
+        "android_client_info": {
+          "package_name": "com.dealplusapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDw4EHIwkJg8m6Ug8Laxc0s6fqWw0LIjUE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
