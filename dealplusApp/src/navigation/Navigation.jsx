@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import MainNavigator from './MainNavigator';
-import { navigationRef } from '../utils/NavigationUtil';
+import { flushPendingNavigation, navigationRef } from '../utils/NavigationUtil';
 import useTheme from '../hooks/useTheme';
 
 const Navigation = () => {
@@ -28,7 +28,7 @@ const Navigation = () => {
   }, [isDark, colors]);
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingNavigation}>
       <MainNavigator />
     </NavigationContainer>
   );

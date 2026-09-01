@@ -373,6 +373,28 @@ class UserProfile(Base):
         return f"<UserProfile id={self.id} device_id={self.device_id!r}>"
 
 
+class User(Base):
+    """A real mobile-app account (email + password) — optional; guest/device
+    mode (UserProfile.device_id) keeps working independently. Signing up or
+    logging in on a device links that device's existing UserProfile row to
+    this user (UserProfile.user_id = str(User.id)) rather than creating a
+    parallel preferences record, so followed brands/favorite categories
+    carry over from guest use — see services/user_auth.py and
+    app/api/routers/auth.py."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    last_login_at = Column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<User id={self.id} email={self.email!r}>"
+
+
 class BrandRequest(Base):
     """A user-initiated request for a brand not yet tracked by DealPulse —
     the mirror image of BrandCandidate (which is system/AI-detected from an

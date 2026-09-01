@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.security import AdminAuthError
+from app.core.user_security import UserAuthError
 from config import logger
 from database.db import init_db
 
@@ -54,6 +55,11 @@ def admin_auth_error_handler(request: Request, exc: AdminAuthError):
     return JSONResponse({"error": "not authenticated"}, status_code=401)
 
 
+@app.exception_handler(UserAuthError)
+def user_auth_error_handler(request: Request, exc: UserAuthError):
+    return JSONResponse({"error": "not authenticated"}, status_code=401)
+
+
 @app.get("/health")
 @app.get("/api/health")
 def health():
@@ -61,10 +67,11 @@ def health():
 
 
 from app.api.routers import (  # noqa: E402
-    analytics, automation, brand_requests, brands, emails, insights, jobs, notifications, offers, overview,
+    analytics, auth, automation, brand_requests, brands, emails, insights, jobs, notifications, offers, overview,
     preferences, search, settings, unknown_emails,
 )
 
+app.include_router(auth.router)
 app.include_router(overview.router)
 app.include_router(analytics.router)
 app.include_router(insights.router)

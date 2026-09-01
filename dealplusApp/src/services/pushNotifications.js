@@ -65,10 +65,41 @@ const pushToAlertsFeed = (remoteMessage) => {
   useDataStore.setState((state) => ({ alerts: [alert, ...state.alerts] }));
 };
 
+// Falls back here — rather than doing nothing — whenever a notification was
+// unmistakably tapped (remoteMessage exists) but its data payload doesn't
+// resolve to a specific deal or brand: an admin-composed announcement push,
+// a malformed/future payload shape, or a client on an older app version
+// that doesn't recognize a new data field. A tap should always land
+// somewhere, and the alerts feed built by pushToAlertsFeed() is always a
+// contextually correct place to land on from a notification.
+export const NOTIFICATION_FALLBACK_SCREEN = 'NotificationsScreen';
+
+const asNonEmptyString = (value) => (typeof value === 'string' && value.trim() ? value.trim() : null);
+
+/** Maps a Firebase remoteMessage to { screen, params } — pure and exported
+ * for testing independently of Firebase/navigation. Returns null only when
+ * there is no remoteMessage at all (i.e. the app wasn't opened via a
+ * notification tap); an existing-but-dataless/invalid message still
+ * resolves to the fallback screen rather than null, since "no navigation
+ * happens" would look like a broken tap to the user. Deal takes priority
+ * over brand when a payload (incorrectly) carries both, since the deal is
+ * the more specific destination. */
+export const parseNotificationTarget = (remoteMessage) => {
+  if (!remoteMessage) return null;
+
+  const data = remoteMessage.data ?? {};
+  const dealId = asNonEmptyString(data.dealId);
+  const brandId = asNonEmptyString(data.brandId);
+
+  if (dealId) return { screen: 'DealDetailScreen', params: { id: dealId } };
+  if (brandId) return { screen: 'BrandDetailScreen', params: { id: brandId } };
+  return { screen: NOTIFICATION_FALLBACK_SCREEN };
+};
+
 const navigateFromNotification = (remoteMessage) => {
-  const { data } = remoteMessage ?? {};
-  if (data?.brandId) navigate('BrandDetailScreen', { id: data.brandId });
-  else if (data?.dealId) navigate('DealDetailScreen', { id: data.dealId });
+  const target = parseNotificationTarget(remoteMessage);
+  if (!target) return;
+  navigate(target.screen, target.params);
 };
 
 /** Wires up foreground display, background/quit-state tap handling, and
