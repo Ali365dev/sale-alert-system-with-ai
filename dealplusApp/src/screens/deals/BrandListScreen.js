@@ -50,6 +50,15 @@ const BrandListScreen = () => {
     });
   };
 
+  const hasExpiringSoonDeal = (brand) => {
+    const brandDeals = deals.filter((d) => d.brandId === brand.id);
+    return brandDeals.some((d) => {
+      if (!d.expiresAt) return false;
+      const days = (new Date(d.expiresAt).getTime() - Date.now()) / 86400000;
+      return days >= 0 && days <= 7;
+    });
+  };
+
   const filtered = useMemo(() => {
     let list = [...brands];
     if (query.trim()) {
@@ -57,12 +66,18 @@ const BrandListScreen = () => {
       list = list.filter((b) => b.name.toLowerCase().includes(q));
     }
     if (filter === 'Trending') {
-      list.sort((a, b) => b.dealCount - a.dealCount);
-    } else {
-      list.sort((a, b) => a.name.localeCompare(b.name));
+      list = list.filter((b) => b.dealCount > 0);
+    } else if (filter === 'Newly Added') {
+      list = list.filter((b) => isNewBrand(b));
+    } else if (filter === 'Expiring Soon') {
+      list = list.filter((b) => hasExpiringSoonDeal(b));
     }
+    // Brands with tracked deals always lead, most deals first; brands with
+    // none fall to the end, alphabetically among themselves either way.
+    list.sort((a, b) => b.dealCount - a.dealCount || a.name.localeCompare(b.name));
     return list;
-  }, [brands, query, filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brands, deals, query, filter]);
   const { visibleItems: visibleBrands, isLoadingMore, loadMore } = usePagination(filtered, 12);
 
   return (

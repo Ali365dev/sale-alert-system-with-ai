@@ -6,7 +6,6 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepe
 import useDataStore from '../state/dataStore';
 import useOnboardingGateStore from '../state/onboardingGateStore';
 import { resetAndNavigate } from '../utils/NavigationUtil';
-import { SCREEN_HEIGHT, SCREEN_WIDTH } from '../styles/theme';
 
 const backgroundImage = require('../assets/images/splash-background.png');
 
@@ -124,8 +123,8 @@ const SplashScreen = () => {
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
-      <Animated.View style={[StyleSheet.absoluteFill,backgroundStyle]} pointerEvents="none">
-        <Image source={backgroundImage} style={{}} resizeMode="contain" height={SCREEN_HEIGHT} width={SCREEN_WIDTH} />
+      <Animated.View style={[StyleSheet.absoluteFill, styles.backgroundWrap, backgroundStyle]} pointerEvents="none">
+        <Image source={backgroundImage} style={styles.backgroundImage} resizeMode="contain" />
       </Animated.View>
 
       <View style={styles.center}>
@@ -165,6 +164,14 @@ const styles = StyleSheet.create({
   },
   center: {
     alignItems: 'center',
+  },
+  backgroundWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backgroundImage: {
+    width: '100%',
+    height: '100%',
   },
   iconWrap: {
     width: 88,
