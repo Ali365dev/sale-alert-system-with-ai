@@ -58,6 +58,20 @@ export function useLogout() {
   };
 }
 
+/** Account + data deletion, required by Google Play's User Data policy for
+ * any app that supports account creation — this is the "web page where a
+ * user can request deletion without needing the app installed" leg of that
+ * requirement (dealplusApp's Profile screen is the in-app leg). */
+export function useDeleteAccount() {
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  return useMutation({
+    mutationFn: async () => {
+      await apiClient.delete("/auth/me");
+    },
+    onSuccess: () => clearAuth(),
+  });
+}
+
 export function useMe() {
   const token = useAuthStore((s) => s.token);
   return useQuery({

@@ -14,6 +14,7 @@ import {
   expiryLabel,
   hostnameOf,
   humanize,
+  imageForOffer,
   isExpired,
   shareOffer,
 } from "../../lib/publicOffers";
@@ -46,7 +47,7 @@ export function OfferDetailPage() {
   const title = offer ? `${brandName ?? "Offer"} — ${discountLabel(offer) ?? humanize(offer.offer_type) ?? "Deal"}` : "Offer";
 
   useSeo({
-    title: offer ? `${title} | DealHub` : "Offer | DealHub",
+    title: offer ? `${title} | DealPulse` : "Offer | DealPulse",
     description: offer ? offer.summary ?? `${discountLabel(offer) ?? "Special"} deal from ${brandName ?? "this brand"}.` : undefined,
     type: "product",
     structuredData:
@@ -104,6 +105,30 @@ export function OfferDetailPage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 28 }} className="offer-detail-grid">
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ position: "relative", aspectRatio: "16 / 9", borderRadius: "var(--radius-lg)", overflow: "hidden", opacity: expired ? 0.7 : 1 }}>
+              <img src={imageForOffer(offer.category, brandName)} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              {discount && (
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 14,
+                    bottom: 14,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    height: 30,
+                    padding: "0 14px",
+                    borderRadius: "var(--radius-pill)",
+                    background: "var(--danger)",
+                    color: "#FFFFFF",
+                    font: "700 13.5px/1 var(--font-mono)",
+                    boxShadow: "var(--shadow-sm)",
+                  }}
+                >
+                  {discount}
+                </span>
+              )}
+            </div>
+
             <div
               style={{
                 background: "var(--surface-card)",

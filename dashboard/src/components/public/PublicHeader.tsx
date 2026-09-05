@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 
-import { useLogout } from "../../api/auth";
 import { Icon } from "../icons";
 import { useAuthStore } from "../../store/authStore";
 import { useUiStore } from "../../store/uiStore";
 
 const NAV_LINKS = [
-  { label: "All Offers", href: "/#offers" },
-  { label: "Brands", href: "/#brands" },
-  { label: "Categories", href: "/#categories" },
-  { label: "Expiring Soon", href: "/#expiring" },
+  { label: "Home", href: "/" },
+  { label: "Deals", href: "/deals" },
+  { label: "Categories", href: "/categories" },
+  { label: "Brands", href: "/deals/brands" },
+  { label: "Favorites", href: "/favorites" },
 ];
 
 export function PublicHeader() {
@@ -18,9 +18,9 @@ export function PublicHeader() {
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const navigate = useNavigate();
+  const location = useLocation();
   const { theme, toggleTheme } = useUiStore();
   const user = useAuthStore((s) => s.user);
-  const logout = useLogout();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -32,7 +32,7 @@ export function PublicHeader() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = query.trim();
-    navigate(trimmed ? `/?q=${encodeURIComponent(trimmed)}` : "/");
+    navigate(trimmed ? `/deals/search?q=${encodeURIComponent(trimmed)}` : "/deals/search");
   }
 
   return (
@@ -69,38 +69,41 @@ export function PublicHeader() {
         >
           <span
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: "var(--brand)",
-              color: "var(--on-brand)",
+              width: 30,
+              height: 30,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              color: "var(--brand)",
             }}
           >
-            <Icon.gift size={18} />
+            <Icon.pulse size={22} strokeWidth={2.5} />
           </span>
-          <span style={{ font: "var(--fw-bold) 17px/1 var(--font-sans)", letterSpacing: "var(--ls-snug)" }}>DealHub</span>
+          <span style={{ font: "var(--fw-extra) 18px/1 var(--font-sans)", letterSpacing: "var(--ls-snug)" }}>
+            Deal<span style={{ color: "var(--brand)" }}>Pulse</span>
+          </span>
         </Link>
 
         <nav style={{ display: "flex", alignItems: "center", gap: 4, flex: "1 1 auto" }} className="public-nav-links">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "var(--radius-sm)",
-                fontSize: 13.5,
-                fontWeight: 600,
-                color: "var(--text-body)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {link.label}
-            </a>
-          ))}
+          {NAV_LINKS.map((link) => {
+            const active = link.href === "/" ? location.pathname === "/" : location.pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                to={link.href}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  color: active ? "var(--brand)" : "var(--text-body)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <form onSubmit={handleSubmit} style={{ flex: "0 1 320px", position: "relative" }} className="public-header-search">
@@ -148,12 +151,8 @@ export function PublicHeader() {
         </button>
 
         {user ? (
-          <button
-            type="button"
-            onClick={() => {
-              logout();
-              navigate("/");
-            }}
+          <Link
+            to="/account"
             title={`Signed in as ${user.email}`}
             style={{
               flex: "0 0 auto",
@@ -167,12 +166,11 @@ export function PublicHeader() {
               background: "var(--surface-card)",
               color: "var(--text-body)",
               font: "600 12.5px/1 var(--font-sans)",
-              cursor: "pointer",
               whiteSpace: "nowrap",
             }}
           >
             {user.name || user.email.split("@")[0]}
-          </button>
+          </Link>
         ) : (
           <Link
             to="/sign-in"

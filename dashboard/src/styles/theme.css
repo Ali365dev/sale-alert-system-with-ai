@@ -3,7 +3,14 @@
   --surface-app: #0c0f0e;
   --surface-card: #161a18;
   --surface-sunken: #1e2422;
-  --surface-inverse: #f7f9f8;
+  /* Matches dealplusApp's inverseSurface (src/styles/theme.js): a
+     deliberately-dark accent surface (dark CTA buttons, badges) that stays
+     dark in both themes, just lightening a touch here so it's still a
+     visibly distinct surface against this theme's own near-black page bg —
+     never flips to a light color, which would make --text-on-inverse (always
+     white) unreadable. */
+  --surface-inverse: #2a2a2c;
+  --text-on-inverse: #ffffff;
   --border: #262d2a;
   --border-strong: #39423e;
   --text-strong: #f4f7f6;
@@ -46,6 +53,7 @@
   --surface-app: #f7f9f8;
   --surface-card: #ffffff;
   --surface-sunken: #eef2f0;
+  --surface-inverse: #171717;
   --border: #e1e7e4;
   --border-strong: #cbd3cf;
   --text-strong: #161a18;

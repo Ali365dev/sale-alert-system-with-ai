@@ -18,6 +18,7 @@ export function BrandForm({
   const [form, setForm] = useState({
     name: initial?.name ?? "",
     website: initial?.website ?? "",
+    logo_url: initial?.logo_url ?? "",
     categories: initial?.categories.join(", ") ?? "",
     emails: initial?.emails.join("\n") ?? "",
     is_active: initial?.is_active ?? true,
@@ -31,6 +32,7 @@ export function BrandForm({
     onSubmit({
       name: form.name.trim(),
       website: form.website.trim() || null,
+      logo_url: form.logo_url.trim() || null,
       categories: form.categories.split(",").map((c) => c.trim()).filter(Boolean),
       emails,
       is_active: form.is_active,
@@ -47,6 +49,30 @@ export function BrandForm({
         <div>
           <Label>Website URL</Label>
           <TextInput value={form.website} onChange={(e) => update({ website: e.target.value })} />
+        </div>
+      </div>
+      <div>
+        <Label>Logo URL</Label>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <TextInput
+            placeholder="https://example.com/logo.png"
+            value={form.logo_url}
+            onChange={(e) => update({ logo_url: e.target.value })}
+            style={{ flex: 1 }}
+          />
+          {form.logo_url.trim() && (
+            <img
+              src={form.logo_url.trim()}
+              alt=""
+              style={{ width: 36, height: 36, borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", objectFit: "contain", background: "var(--surface-card)" }}
+              onError={(e) => {
+                e.currentTarget.style.visibility = "hidden";
+              }}
+              onLoad={(e) => {
+                e.currentTarget.style.visibility = "visible";
+              }}
+            />
+          )}
         </div>
       </div>
       <div>

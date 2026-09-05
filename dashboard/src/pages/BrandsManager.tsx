@@ -13,6 +13,7 @@ import {
   useUpdateBrand,
 } from "../api/brands";
 import { BrandForm } from "../components/brands/BrandForm";
+import { BrandLogo } from "../components/public/BrandLogo";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
@@ -264,7 +265,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "50px 140px 1fr 1fr 80px 160px 160px",
+                gridTemplateColumns: "50px 46px 140px 1fr 1fr 80px 160px 160px",
                 gap: 12,
                 padding: "11px 20px",
                 background: "var(--surface-sunken)",
@@ -277,6 +278,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
               }}
             >
               <span>ID</span>
+              <span>Logo</span>
               <span>Name</span>
               <span>Website</span>
               <span>Emails</span>
@@ -294,7 +296,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                 key={b.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "50px 140px 1fr 1fr 80px 160px 160px",
+                  gridTemplateColumns: "50px 46px 140px 1fr 1fr 80px 160px 160px",
                   alignItems: "center",
                   gap: 12,
                   padding: "var(--row-pad) 20px",
@@ -303,6 +305,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                 }}
               >
                 <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{b.id}</span>
+                <BrandLogo name={b.name} size={30} />
                 <span style={{ fontWeight: 600, color: "var(--text-strong)" }}>{b.name}</span>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-muted)" }}>
                   {b.website ?? "—"}

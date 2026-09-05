@@ -1,7 +1,13 @@
+import { useState } from "react";
+
+import { useBrandLogoCandidates } from "../../hooks/useBrandLogoCandidates";
 import { TONE_BG, TONE_FG, toneForName } from "../../lib/publicOffers";
 
 export function BrandLogo({ name, size = 44 }: { name: string; size?: number }) {
   const tone = toneForName(name);
+  const candidates = useBrandLogoCandidates(name);
+  const [attempt, setAttempt] = useState(0);
+  const src = candidates[attempt];
   const initials = name
     .split(/\s+/)
     .filter(Boolean)
@@ -9,12 +15,41 @@ export function BrandLogo({ name, size = 44 }: { name: string; size?: number }) 
     .map((w) => w[0]?.toUpperCase())
     .join("");
 
+  const radius = size > 32 ? "var(--radius-md)" : "var(--radius-sm)";
+
+  if (src) {
+    return (
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: radius,
+          background: "var(--surface-card)",
+          border: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          flex: "0 0 auto",
+        }}
+      >
+        <img
+          key={src}
+          src={src}
+          alt={name}
+          onError={() => setAttempt((a) => a + 1)}
+          style={{ width: "78%", height: "78%", objectFit: "contain" }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
         width: size,
         height: size,
-        borderRadius: size > 32 ? "var(--radius-md)" : "var(--radius-sm)",
+        borderRadius: radius,
         background: TONE_BG[tone],
         color: TONE_FG[tone],
         display: "flex",

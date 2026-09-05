@@ -64,3 +64,21 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+@media (max-width: 860px) {
+  .category-page-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .public-hero-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .public-hero-carousel {
+    min-height: 220px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .auth-two-col {
+    grid-template-columns: 1fr !important;
+  }
+}

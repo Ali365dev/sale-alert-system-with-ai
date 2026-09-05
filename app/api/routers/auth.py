@@ -198,3 +198,20 @@ def logout():
 @router.get("/me")
 def me(user: User = Depends(get_current_user)):
     return _user_to_dict(user)
+
+
+@router.delete("/me")
+def delete_me(user: User = Depends(get_current_user)):
+    """Account + data deletion, required by Google Play's User Data policy
+    for any app that supports account creation. Removes the account itself
+    and any UserProfile rows linked to it (followed brands/categories) —
+    the account holder's guest-mode data on OTHER devices they never signed
+    into stays untouched, since it was never linked to this user_id."""
+    with get_session() as session:
+        db_user = session.query(User).filter(User.id == user.id).first()
+        if db_user is None:
+            return JSONResponse({"error": "Account not found."}, status_code=404)
+        session.query(UserProfile).filter(UserProfile.user_id == str(db_user.id)).delete()
+        session.delete(db_user)
+        session.flush()
+    return {"status": "deleted"}

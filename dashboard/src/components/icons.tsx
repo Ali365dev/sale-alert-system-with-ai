@@ -107,6 +107,18 @@ export const Icon = {
       <path d="m4 7 8 6 8-6" />
     </Svg>
   ),
+  lock: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </Svg>
+  ),
+  user: (p: IconProps) => (
+    <Svg {...p}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+    </Svg>
+  ),
   image: (p: IconProps) => (
     <Svg {...p}>
       <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -260,6 +272,41 @@ export const Icon = {
       <path d="M3 6h.01" />
       <path d="M3 12h.01" />
       <path d="M3 18h.01" />
+    </Svg>
+  ),
+  pulse: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M2 12h4l2-7 4 14 2-9 2 2h6" />
+    </Svg>
+  ),
+  external: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+    </Svg>
+  ),
+  facebook: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M15 3h-2a5 5 0 0 0-5 5v3H6v4h2v6h4v-6h2.6l.4-4H12V8a1 1 0 0 1 1-1h2z" />
+    </Svg>
+  ),
+  instagram: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M17.5 6.5h.01" />
+    </Svg>
+  ),
+  twitter: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M4 4l7.5 9.5L4.5 20H7l5.5-5.5L17 20h3l-8-10L19.5 4H17l-5 5-4-5z" />
+    </Svg>
+  ),
+  youtube: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="2" y="5" width="20" height="14" rx="4" />
+      <path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none" />
     </Svg>
   ),
 };

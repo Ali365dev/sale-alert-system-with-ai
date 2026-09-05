@@ -11,11 +11,21 @@ import { NotificationManager } from "./pages/NotificationManager";
 import { OffersManager } from "./pages/OffersManager";
 import { Overview } from "./pages/Overview";
 import { PipelineCenter } from "./pages/PipelineCenter";
+import { AccountPage } from "./pages/public/AccountPage";
 import { BrandDetailPage } from "./pages/public/BrandDetailPage";
+import { BrandsPage } from "./pages/public/BrandsPage";
+import { CategoriesPage } from "./pages/public/CategoriesPage";
+import { ContactPage } from "./pages/public/ContactPage";
+import { DealsPage } from "./pages/public/DealsPage";
+import { FavoritesPage } from "./pages/public/FavoritesPage";
+import { HelpSupportPage } from "./pages/public/HelpSupportPage";
 import { OfferDetailPage } from "./pages/public/OfferDetailPage";
+import { PrivacyPolicyPage } from "./pages/public/PrivacyPolicyPage";
 import { PublicOffers } from "./pages/public/PublicOffers";
+import { SearchPage } from "./pages/public/SearchPage";
 import { SignInPage } from "./pages/public/SignInPage";
 import { SignUpPage } from "./pages/public/SignUpPage";
+import { TermsConditionsPage } from "./pages/public/TermsConditionsPage";
 import { Settings } from "./pages/Settings";
 import { Search } from "./pages/Search";
 import { UnknownEmailsManager } from "./pages/UnknownEmailsManager";
@@ -26,8 +36,18 @@ function App() {
       <ToastContainer />
       <Routes>
         <Route path="/" element={<PublicOffers />} />
+        <Route path="/account" element={<AccountPage />} />
+        <Route path="/deals" element={<DealsPage />} />
+        <Route path="/deals/brands" element={<BrandsPage />} />
+        <Route path="/deals/search" element={<SearchPage />} />
         <Route path="/deals/brand/:name" element={<BrandDetailPage />} />
         <Route path="/deals/:id" element={<OfferDetailPage />} />
+        <Route path="/categories" element={<CategoriesPage />} />
+        <Route path="/favorites" element={<FavoritesPage />} />
+        <Route path="/help" element={<HelpSupportPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsConditionsPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
         <Route

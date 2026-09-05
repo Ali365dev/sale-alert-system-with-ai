@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -9,7 +9,9 @@ import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import useAuthStore from '../../state/authStore';
 import { saveInterests } from '../../services/preferencesApi';
+import { deleteAccount } from '../../services/authApi';
 import { getGuestName } from '../../utils/guestName';
+import { showErrorToast, showSuccessToast } from '../../utils/CustomToast';
 import TopAppBar from '../../components/TopAppBar';
 
 const ProfileScreen = () => {
@@ -26,6 +28,32 @@ const ProfileScreen = () => {
   const guestName = useMemo(() => getGuestName(), []);
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      "This permanently deletes your account and saved preferences (followed brands, favorite categories). This can't be undone. Favorites and offers you've browsed as a guest on this device aren't affected.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const result = await deleteAccount();
+            setDeleting(false);
+            if (result.ok) {
+              clearAuth();
+              showSuccessToast('Your account has been deleted.');
+            } else {
+              showErrorToast(result.error);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const handleToggleCategory = (name) => {
     toggleCategory(name);
@@ -163,10 +191,16 @@ const ProfileScreen = () => {
         </View>
 
         {user ? (
-          <Pressable style={styles.logoutButton} onPress={clearAuth}>
-            <Icon name="log-out-outline" size={18} color={colors.primary} />
-            <Text style={styles.logoutLabel}>Log Out</Text>
-          </Pressable>
+          <>
+            <Pressable style={styles.logoutButton} onPress={clearAuth}>
+              <Icon name="log-out-outline" size={18} color={colors.primary} />
+              <Text style={styles.logoutLabel}>Log Out</Text>
+            </Pressable>
+            <Pressable style={styles.deleteAccountButton} onPress={handleDeleteAccount} disabled={deleting}>
+              <Icon name="trash-outline" size={16} color={colors.textSecondary} />
+              <Text style={styles.deleteAccountLabel}>{deleting ? 'Deleting…' : 'Delete Account'}</Text>
+            </Pressable>
+          </>
         ) : (
           <Pressable style={styles.logoutButton} onPress={() => navigation.navigate('SignInScreen')}>
             <Icon name="log-in-outline" size={18} color={colors.primary} />
@@ -386,6 +420,18 @@ const createStyles = (colors) =>
     logoutLabel: {
       ...TYPOGRAPHY.label,
       color: colors.primary,
+    },
+    deleteAccountButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: SPACING.two,
+      paddingVertical: SPACING.three,
+      marginTop: -SPACING.two,
+    },
+    deleteAccountLabel: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
     },
     version: {
       ...TYPOGRAPHY.small,

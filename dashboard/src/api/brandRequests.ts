@@ -30,6 +30,18 @@ export function useBrandRequests() {
   });
 }
 
+/** Public — called from the DealPulse website's "Request a Brand" form
+ * (dealplusApp's RequestBrandScreen equivalent). Mirrors POST /api/brand-requests,
+ * which has no auth dependency (see app/api/routers/brand_requests.py). */
+export function useCreateBrandRequest() {
+  return useMutation({
+    mutationFn: async (input: { brand_name: string; category?: string | null; note?: string | null }) => {
+      const { data } = await apiClient.post<BrandRequest>("/brand-requests", input);
+      return data;
+    },
+  });
+}
+
 export function useUpdateBrandRequestStatus() {
   const queryClient = useQueryClient();
   return useMutation({

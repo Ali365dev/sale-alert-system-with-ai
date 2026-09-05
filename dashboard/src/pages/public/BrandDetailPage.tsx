@@ -8,7 +8,7 @@ import { EmptyState } from "../../components/public/EmptyState";
 import { OfferCard, OfferCardSkeleton } from "../../components/public/OfferCard";
 import { PublicLayout } from "../../components/public/PublicLayout";
 import { Icon } from "../../components/icons";
-import { hostnameOf, isExpired } from "../../lib/publicOffers";
+import { hostnameOf, imageForOffer, isExpired } from "../../lib/publicOffers";
 import { useSeo } from "../../lib/seo";
 
 export function BrandDetailPage() {
@@ -22,7 +22,7 @@ export function BrandDetailPage() {
   const offers = useMemo(() => (data?.offers ?? []).filter((o) => !isExpired(o)), [data]);
 
   useSeo({
-    title: `${brandName} Offers & Coupons | DealHub`,
+    title: `${brandName} Offers & Coupons | DealPulse`,
     description: `${offers.length} active offer${offers.length === 1 ? "" : "s"} from ${brandName}. Discounts, coupon codes, and deals verified with AI.`,
     structuredData: {
       "@context": "https://schema.org",
@@ -39,8 +39,19 @@ export function BrandDetailPage() {
           <Icon.chevron size={14} style={{ transform: "rotate(180deg)" }} /> Back to offers
         </Link>
 
+        <div style={{ position: "relative", aspectRatio: "21 / 6", borderRadius: "var(--radius-lg)", overflow: "hidden", marginBottom: -40 }}>
+          <img
+            src={imageForOffer(brandRecord?.categories?.[0], brandName)}
+            alt=""
+            aria-hidden
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35))" }} />
+        </div>
+
         <div
           style={{
+            position: "relative",
             display: "flex",
             alignItems: "center",
             gap: 18,
@@ -50,6 +61,8 @@ export function BrandDetailPage() {
             borderRadius: "var(--radius-lg)",
             boxShadow: "var(--shadow-sm)",
             marginBottom: 32,
+            marginLeft: 16,
+            marginRight: 16,
             flexWrap: "wrap",
           }}
         >
