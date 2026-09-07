@@ -61,6 +61,7 @@ def _migrate() -> None:
         ("emails", "sale_relevance_score",          "FLOAT"),
         ("emails", "filter_status",                 "VARCHAR(20)"),
         ("emails", "filter_reason",                 "TEXT"),
+        ("brand_discoveries", "brand_request_id",   "INTEGER"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:

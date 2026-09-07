@@ -5,6 +5,7 @@ import+register line here — nothing else in the framework needs to change."""
 
 def register_all() -> None:
     from services import job_runner
+    from services.jobs.brand_discovery import BrandDiscoveryJob
     from services.jobs.cleanup_expired_offers import CleanupExpiredOffersJob
     from services.jobs.discover_brand import DiscoverBrandJob
     from services.jobs.email_automation import EmailAutomationJob
@@ -23,6 +24,7 @@ def register_all() -> None:
     job_runner.register(ResearchBrandsJob())
     job_runner.register(LabelBrandEmailsJob())
     job_runner.register(DiscoverBrandJob())
+    job_runner.register(BrandDiscoveryJob())
     job_runner.register(CleanupExpiredOffersJob())
     job_runner.register(SendPushNotificationJob())
     job_runner.register(EmailAutomationJob())

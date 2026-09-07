@@ -67,8 +67,8 @@ def health():
 
 
 from app.api.routers import (  # noqa: E402
-    analytics, auth, automation, brand_requests, brands, emails, insights, jobs, notifications, offers, overview,
-    preferences, search, settings, unknown_emails,
+    analytics, auth, automation, brand_discovery, brand_requests, brands, emails, insights, jobs, notifications,
+    offers, overview, preferences, search, settings, unknown_emails,
 )
 
 app.include_router(auth.router)
@@ -79,6 +79,7 @@ app.include_router(search.router)
 app.include_router(offers.router)
 app.include_router(brands.router)
 app.include_router(brand_requests.router)
+app.include_router(brand_discovery.router)
 app.include_router(emails.router)
 app.include_router(unknown_emails.router)
 app.include_router(jobs.router)

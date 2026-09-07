@@ -71,6 +71,13 @@ export const JOB_TYPES: JobTypeConfig[] = [
     itemNoun: "offers",
     description: "Delete offers past their retention window (expiry + 7 days, or 30 days for offers with no expiry date). Runs automatically every night — use this to run it on demand.",
   },
+  {
+    jobType: "brand_discovery",
+    title: "Brand Discovery",
+    icon: <Icon.globe size={17} />,
+    itemNoun: "brand",
+    description: "Crawl a brand's website (or a picked search result) to extract its logo, description, category, and social media links. Started from the Discover Brand page.",
+  },
 ];
 
 export const JOB_TYPE_BY_ID: Record<string, JobTypeConfig> = Object.fromEntries(

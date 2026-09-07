@@ -138,6 +138,72 @@ class BrandCandidate(Base):
         return f"<BrandCandidate id={self.id} email_id={self.email_id} status={self.status!r}>"
 
 
+class BrandDiscovery(Base):
+    """One admin-initiated Brand Discovery run (services/brand_discovery/,
+    services/jobs/brand_discovery.py) — the mirror image of BrandCandidate,
+    but triggered by an admin searching a brand name or pasting a website
+    URL instead of an unmatched email arriving. No email_id: this flow never
+    involves an Email row."""
+    __tablename__ = "brand_discoveries"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    mode  = Column(String(20), nullable=False)   # "search_name" | "scan_website"
+    query = Column(Text, nullable=False)         # the brand name or URL the admin entered
+
+    # Set when this discovery was started from a BrandRequest's "Discover"
+    # button (dashboard/src/pages/BrandRequests.tsx) — on save, that request
+    # is automatically marked "added" (app/api/routers/brand_discovery.py's
+    # save_discovery). Null for a discovery started directly from the
+    # Discover Brand page with no originating request.
+    brand_request_id = Column(Integer, ForeignKey("brand_requests.id"), nullable=True)
+
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    # "pending" | "discovering" | "review" | "saved" | "discarded" | "failed"
+
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=True)
+
+    # Discovered/edited brand fields — same shape as Brand's own columns,
+    # plus subcategory (Brand has none; folded into Brand.categories on save).
+    name        = Column(String(255), nullable=True)
+    website     = Column(String(500), nullable=True)
+    logo_url    = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
+    category    = Column(String(100), nullable=True)
+    subcategory = Column(String(100), nullable=True)
+    country     = Column(String(100), nullable=True)
+
+    # Per-field provenance: {"name": "website_metadata", "logo_url": "website_metadata", ...}
+    # — "official_website" | "search_result" | "website_metadata" | "website_footer" | "manual_entry".
+    # An admin edit (PUT) flips that field's entry to "manual_entry".
+    field_sources = Column(Text, nullable=True)
+
+    # {"facebook": {"url": "...", "source": "website_footer", "verified": false}, ...}
+    # — one entry per platform in facebook/instagram/tiktok/twitter/youtube/linkedin, only for
+    # platforms actually discovered or manually added.
+    social_links = Column(Text, nullable=True)
+
+    confidence = Column(Float, nullable=True)  # 0.0-1.0, overall — see services/brand_discovery/pipeline.py
+
+    # Deterministic duplicate-check result — same shape/reasons as BrandCandidate's,
+    # plus "social_link_match" (services/brand_discovery/duplicate_detector.py).
+    duplicate_brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True)
+    duplicate_score     = Column(Float, nullable=True)
+    duplicate_reason    = Column(String(50), nullable=True)
+
+    error = Column(Text, nullable=True)
+
+    # Resolution outcome
+    resolved_brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True)
+    resolved_at        = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<BrandDiscovery id={self.id} mode={self.mode!r} status={self.status!r}>"
+
+
 class Offer(Base):
     __tablename__ = "offers"
 

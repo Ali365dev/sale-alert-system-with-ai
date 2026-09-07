@@ -315,4 +315,26 @@ export const Icon = {
       <path d="M10 9.5v5l4.5-2.5z" fill="currentColor" stroke="none" />
     </Svg>
   ),
+  linkedin: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <line x1="7.5" y1="10" x2="7.5" y2="17" />
+      <circle cx="7.5" cy="6.7" r="0.9" fill="currentColor" stroke="none" />
+      <path d="M11.5 17v-4.5a2.5 2.5 0 0 1 5 0V17" />
+      <line x1="11.5" y1="10" x2="11.5" y2="17" />
+    </Svg>
+  ),
+  tiktok: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M14 4v9.5a3.5 3.5 0 1 1-3-3.46" />
+      <path d="M14 4c.5 2.3 2.2 4 4.5 4.3" />
+    </Svg>
+  ),
+  globe: (p: IconProps) => (
+    <Svg {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+    </Svg>
+  ),
 };

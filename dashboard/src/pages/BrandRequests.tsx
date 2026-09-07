@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router";
 
 import {
   useBrandRequests,
@@ -44,7 +45,7 @@ function RequestRow({ request }: { request: BrandRequest }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "1fr 140px 1fr 140px 130px 220px",
+        gridTemplateColumns: "1fr 140px 1fr 140px 130px 300px",
         alignItems: "center",
         gap: 12,
         padding: "12px 20px",
@@ -79,6 +80,14 @@ function RequestRow({ request }: { request: BrandRequest }) {
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         {request.status === "pending" ? (
           <>
+            <Link
+              to={`/discover-brand?requestId=${request.id}&name=${encodeURIComponent(request.brand_name)}`}
+              title="Find this brand's official website, logo, and social links"
+            >
+              <Button size="sm" variant="secondary" type="button">
+                Discover
+              </Button>
+            </Link>
             <Button size="sm" variant="secondary" loading={pending} onClick={() => updateStatus.mutate({ id: request.id, status: "added" })}>
               Mark added
             </Button>
@@ -158,7 +167,7 @@ export function BrandRequests() {
         )}
 
         <div style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: 900 }}>
+          <div style={{ minWidth: 980 }}>
             {filtered.map((request) => (
               <RequestRow key={request.id} request={request} />
             ))}
