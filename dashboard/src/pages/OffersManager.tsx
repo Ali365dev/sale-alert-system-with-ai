@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router";
 
 import type { Offer, OfferFilters } from "../api/offers";
 import { useCreateOffer, useDeleteOffer, useOffers, useUpdateOffer, useVerifyOffer } from "../api/offers";
+import { apiClient } from "../api/client";
 import { isJobActive, useActiveJob, useJob, useStartJob } from "../api/jobs";
 import { OfferForm } from "../components/offers/OfferForm";
 import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
+import { Button, IconButton } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Label, Select, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
+import { toast } from "../store/toastStore";
 
 const VERIFICATION_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   verified: "success",
@@ -28,9 +31,12 @@ function formatDate(iso: string | null) {
 function VerifyButton({ offer }: { offer: Offer }) {
   const verify = useVerifyOffer();
   return (
-    <Button size="sm" variant="ghost" loading={verify.isPending} onClick={() => verify.mutate(offer.id)}>
-      {verify.isPending ? "Verifying" : "Verify AI"}
-    </Button>
+    <IconButton
+      icon={<Icon.sparkle size={14} />}
+      label="Verify with AI"
+      loading={verify.isPending}
+      onClick={() => verify.mutate(offer.id)}
+    />
   );
 }
 
@@ -40,23 +46,18 @@ const VIEW_MODE_KEY = "dealpulse:offers-view-mode";
 function OfferActions({ offer, onView, onEdit }: { offer: Offer; onView: () => void; onEdit: () => void }) {
   const deleteOffer = useDeleteOffer();
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      <Button size="sm" variant="ghost" onClick={onView}>
-        View
-      </Button>
-      <Button size="sm" variant="secondary" onClick={onEdit}>
-        Edit
-      </Button>
+    <div style={{ display: "flex", gap: 4 }}>
+      <IconButton icon={<Icon.eye size={14} />} label="View" variant="ghost" onClick={onView} />
+      <IconButton icon={<Icon.edit size={14} />} label="Edit" variant="secondary" onClick={onEdit} />
       <VerifyButton offer={offer} />
-      <Button
-        size="sm"
+      <IconButton
+        icon={<Icon.trash size={14} />}
+        label="Delete"
         variant="danger"
         onClick={() => {
           if (window.confirm(`Delete offer #${offer.id}?`)) deleteOffer.mutate(offer.id);
         }}
-      >
-        Delete
-      </Button>
+      />
     </div>
   );
 }
@@ -116,7 +117,13 @@ function OfferCard({ offer, onView, onEdit }: { offer: Offer; onView: () => void
 }
 
 function OffersTable() {
-  const [filters, setFilters] = useState<OfferFilters>({});
+  const [searchParams, setSearchParams] = useSearchParams();
+  const brandParam = searchParams.get("brand") ?? undefined;
+  const emailIdParam = searchParams.get("email_id");
+  const [filters, setFilters] = useState<OfferFilters>({
+    brand: brandParam,
+    email_id: emailIdParam ? Number(emailIdParam) : undefined,
+  });
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || "table");
   const { data, isLoading } = useOffers(filters);
@@ -135,6 +142,45 @@ function OffersTable() {
   const [visibleJobId, setVisibleJobId] = useState<number | null>(null);
   const [editing, setEditing] = useState<Offer | null>(null);
   const [viewing, setViewing] = useState<Offer | null>(null);
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selectionBulkRunning, setSelectionBulkRunning] = useState(false);
+
+  function toggleSelected(id: number) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkDelete() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} selected offer(s)?`)) return;
+    setSelectionBulkRunning(true);
+    const results = await Promise.allSettled(ids.map((id) => apiClient.delete(`/offers/${id}`)));
+    setSelectionBulkRunning(false);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    queryClient.invalidateQueries({ queryKey: ["offers"] });
+    if (failed === 0) toast.success(`${ids.length} offer(s) deleted.`);
+    else toast.error(`Deleted ${ids.length - failed} offer(s), ${failed} failed.`);
+    setSelected(new Set());
+  }
+
+  async function bulkReverify() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setSelectionBulkRunning(true);
+    const results = await Promise.allSettled(ids.map((id) => apiClient.post(`/offers/${id}/verify`)));
+    setSelectionBulkRunning(false);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    queryClient.invalidateQueries({ queryKey: ["offers"] });
+    if (failed === 0) toast.success(`${ids.length} offer(s) re-verified.`);
+    else toast.error(`Re-verified ${ids.length - failed} offer(s), ${failed} failed.`);
+    setSelected(new Set());
+  }
 
   useEffect(() => {
     if (activeVerifyAll.data && visibleJobId === null) setVisibleJobId(activeVerifyAll.data.id);
@@ -162,6 +208,72 @@ function OffersTable() {
       )}
 
       <Card>
+        {(filters.brand || filters.email_id) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {filters.brand && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "5px 10px",
+                  borderRadius: "var(--radius-pill)",
+                  background: "var(--brand-subtle)",
+                  color: "var(--brand)",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                }}
+              >
+                Brand: {filters.brand}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, brand: undefined }));
+                    setSearchParams((p) => {
+                      p.delete("brand");
+                      return p;
+                    });
+                  }}
+                  aria-label="Clear brand filter"
+                  style={{ display: "flex", border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0 }}
+                >
+                  <Icon.x size={12} />
+                </button>
+              </span>
+            )}
+            {filters.email_id && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "5px 10px",
+                  borderRadius: "var(--radius-pill)",
+                  background: "var(--brand-subtle)",
+                  color: "var(--brand)",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                }}
+              >
+                From email #{filters.email_id}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, email_id: undefined }));
+                    setSearchParams((p) => {
+                      p.delete("email_id");
+                      return p;
+                    });
+                  }}
+                  aria-label="Clear email filter"
+                  style={{ display: "flex", border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0 }}
+                >
+                  <Icon.x size={12} />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
         <div style={{ position: "relative" }}>
           <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
           <TextInput
@@ -314,6 +426,23 @@ function OffersTable() {
         </button>
       </div>
 
+      {viewMode === "table" && selected.size > 0 && (
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)" }}>{selected.size} selected</span>
+            <Button size="sm" loading={selectionBulkRunning} disabled={selectionBulkRunning} onClick={bulkReverify}>
+              Re-verify selected
+            </Button>
+            <Button size="sm" variant="danger" loading={selectionBulkRunning} disabled={selectionBulkRunning} onClick={bulkDelete}>
+              Delete selected
+            </Button>
+            <Button size="sm" variant="ghost" disabled={selectionBulkRunning} onClick={() => setSelected(new Set())}>
+              Clear selection
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {isLoading ? (
         <Card>
           <div style={{ color: "var(--text-muted)" }}>Loading offers…</div>
@@ -339,7 +468,7 @@ function OffersTable() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 110px 200px",
+                  gridTemplateColumns: "28px 60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 110px 200px",
                   gap: 12,
                   padding: "11px 20px",
                   background: "var(--surface-sunken)",
@@ -351,6 +480,16 @@ function OffersTable() {
                   color: "var(--text-muted)",
                 }}
               >
+                <input
+                  type="checkbox"
+                  aria-label="Select all loaded offers"
+                  checked={!!offers?.length && offers.every((o) => selected.has(o.id))}
+                  onChange={(e) => {
+                    if (e.target.checked) setSelected(new Set(offers?.map((o) => o.id) ?? []));
+                    else setSelected(new Set());
+                  }}
+                  style={{ width: 14, height: 14 }}
+                />
                 <span>ID</span>
                 <span>Title</span>
                 <span>Brand</span>
@@ -374,7 +513,7 @@ function OffersTable() {
                   key={offer.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 110px 200px",
+                    gridTemplateColumns: "28px 60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 110px 200px",
                     alignItems: "center",
                     gap: 12,
                     padding: "var(--row-pad) 20px",
@@ -382,6 +521,13 @@ function OffersTable() {
                     fontSize: 12.5,
                   }}
                 >
+                  <input
+                    type="checkbox"
+                    aria-label={`Select offer #${offer.id}`}
+                    checked={selected.has(offer.id)}
+                    onChange={() => toggleSelected(offer.id)}
+                    style={{ width: 14, height: 14 }}
+                  />
                   <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{offer.id}</span>
                   <span
                     title={offer.title ?? undefined}

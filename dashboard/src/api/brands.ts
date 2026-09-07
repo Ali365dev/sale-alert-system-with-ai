@@ -15,7 +15,7 @@ export interface Brand {
   logo_url: string | null;
   description: string | null;
   country: string | null;
-  social_links: Record<string, string | null>;
+  social_links: Record<string, string | null> | null;
 }
 
 export interface BrandsResponse {

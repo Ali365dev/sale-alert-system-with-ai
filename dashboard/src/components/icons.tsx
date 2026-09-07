@@ -279,6 +279,12 @@ export const Icon = {
       <path d="M2 12h4l2-7 4 14 2-9 2 2h6" />
     </Svg>
   ),
+  edit: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="M15 5l4 4" />
+    </Svg>
+  ),
   external: (p: IconProps) => (
     <Svg {...p}>
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />

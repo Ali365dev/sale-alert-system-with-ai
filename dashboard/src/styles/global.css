@@ -54,6 +54,33 @@ button {
   border-radius: 4px;
 }
 
+.icon-tooltip {
+  position: relative;
+}
+.icon-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  white-space: nowrap;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--text-strong);
+  color: var(--surface-app);
+  font: 600 11.5px/1 var(--font-sans);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 30;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.icon-tooltip:hover::after,
+.icon-tooltip:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 0.25s;
+}
+
 .search-input-clean::-webkit-search-cancel-button,
 .search-input-clean::-webkit-search-decoration,
 .search-input-clean::-webkit-search-results-button,

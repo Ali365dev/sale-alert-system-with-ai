@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 
 import type { Brand } from "../api/brands";
 import {
@@ -152,7 +154,39 @@ function BulkSearch({ brands }: { brands: Brand[] }) {
   );
 }
 
+const SOCIAL_ICONS = {
+  facebook: Icon.facebook,
+  instagram: Icon.instagram,
+  twitter: Icon.twitter,
+  youtube: Icon.youtube,
+} as const;
+
+function IconLink({ href, title, children }: { href: string; title: string; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={title}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 26,
+        height: 26,
+        borderRadius: "var(--radius-sm)",
+        color: "var(--text-muted)",
+        background: "var(--surface-sunken)",
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
 function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: number; active: number; ever_searched: number; known_sender_emails: number } }) {
+  const navigate = useNavigate();
   const deleteBrand = useDeleteBrand();
   const updateBrand = useUpdateBrand();
   const [editing, setEditing] = useState<Brand | null>(null);
@@ -265,7 +299,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "50px 46px 140px 1fr 1fr 80px 160px 160px",
+                gridTemplateColumns: "50px 46px 140px 60px 120px 1fr 80px 160px 160px",
                 gap: 12,
                 padding: "11px 20px",
                 background: "var(--surface-sunken)",
@@ -281,6 +315,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
               <span>Logo</span>
               <span>Name</span>
               <span>Website</span>
+              <span>Social</span>
               <span>Emails</span>
               <span>Active</span>
               <span>Last searched</span>
@@ -294,21 +329,46 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
               filtered.map((b) => (
               <div
                 key={b.id}
+                onClick={() => navigate(`/offers?brand=${encodeURIComponent(b.name)}`)}
+                title={`View offers from ${b.name}`}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "50px 46px 140px 1fr 1fr 80px 160px 160px",
+                  gridTemplateColumns: "50px 46px 140px 60px 120px 1fr 80px 160px 160px",
                   alignItems: "center",
                   gap: 12,
                   padding: "var(--row-pad) 20px",
                   borderBottom: "1px solid var(--border)",
                   fontSize: 12.5,
+                  cursor: "pointer",
                 }}
               >
                 <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{b.id}</span>
                 <BrandLogo name={b.name} size={30} />
                 <span style={{ fontWeight: 600, color: "var(--text-strong)" }}>{b.name}</span>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-muted)" }}>
-                  {b.website ?? "—"}
+                <span>
+                  {b.website ? (
+                    <IconLink href={b.website} title={b.website}>
+                      <Icon.external size={14} />
+                    </IconLink>
+                  ) : (
+                    <span style={{ color: "var(--text-faint)" }}>—</span>
+                  )}
+                </span>
+                <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {(() => {
+                    const platforms = (Object.keys(SOCIAL_ICONS) as (keyof typeof SOCIAL_ICONS)[]).filter(
+                      (platform) => b.social_links?.[platform],
+                    );
+                    if (platforms.length === 0) return <span style={{ color: "var(--text-faint)" }}>—</span>;
+                    return platforms.map((platform) => {
+                      const SocialIcon = SOCIAL_ICONS[platform];
+                      return (
+                        <IconLink key={platform} href={b.social_links?.[platform] ?? "#"} title={platform}>
+                          <SocialIcon size={13} />
+                        </IconLink>
+                      );
+                    });
+                  })()}
                 </span>
                 <span
                   title={b.emails.join(", ")}
@@ -324,7 +384,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                 </span>
                 <span>{b.is_active ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Inactive</Badge>}</span>
                 <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(b.last_searched)}</span>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
                   <Button size="sm" variant="secondary" onClick={() => setEditing(b)}>
                     Edit
                   </Button>

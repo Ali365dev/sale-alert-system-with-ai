@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
 import { isJobActive, useActiveJob, useJob, useStartJob } from "../api/jobs";
 import {
@@ -15,14 +15,16 @@ import {
   type EmailSummary,
   type ProcessingStatus,
 } from "../api/emails";
+import { apiClient } from "../api/client";
 import { getJobTypeConfig } from "../config/jobTypes";
 import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
+import { Button, IconButton, IconLinkButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
 import { Label, Select } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
+import { toast } from "../store/toastStore";
 
 const VERIFICATION_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   legitimate: "success",
@@ -84,9 +86,12 @@ function rowAccentStyle(status: ProcessingStatus): React.CSSProperties {
 function VerifyButton({ emailId }: { emailId: number }) {
   const verify = useVerifyEmail();
   return (
-    <Button size="sm" variant="ghost" loading={verify.isPending} onClick={() => verify.mutate(emailId)}>
-      {verify.isPending ? "Verifying" : "Verify AI"}
-    </Button>
+    <IconButton
+      icon={<Icon.sparkle size={14} />}
+      label="Verify with AI"
+      loading={verify.isPending}
+      onClick={() => verify.mutate(emailId)}
+    />
   );
 }
 
@@ -94,28 +99,26 @@ function ProcessButton({ email }: { email: EmailSummary }) {
   const process = useProcessEmail();
   const isRetry = email.processing_status !== "unprocessed";
   return (
-    <Button size="sm" variant={isRetry ? "ghost" : "secondary"} loading={process.isPending} onClick={() => process.mutate(email.id)}>
-      {process.isPending ? "Processing" : isRetry ? "Reprocess" : "Process"}
-    </Button>
+    <IconButton
+      icon={<Icon.retry size={14} />}
+      label={isRetry ? "Reprocess" : "Process"}
+      variant={isRetry ? "ghost" : "secondary"}
+      loading={process.isPending}
+      onClick={() => process.mutate(email.id)}
+    />
   );
 }
 
 function OpenInGmailButton({ email }: { email: EmailSummary }) {
-  if (!email.gmail_link) {
-    return (
-      <span title="No Gmail message ID stored for this email — can't open it in Gmail.">
-        <Button size="sm" variant="ghost" disabled>
-          <Icon.mail size={13} /> Gmail
-        </Button>
-      </span>
-    );
-  }
   return (
-    <a href={email.gmail_link} target="_blank" rel="noreferrer">
-      <Button size="sm" variant="ghost">
-        <Icon.mail size={13} /> Gmail
-      </Button>
-    </a>
+    <IconLinkButton
+      icon={<Icon.mail size={14} />}
+      label={email.gmail_link ? "Open in Gmail" : "No Gmail message ID stored for this email — can't open it in Gmail."}
+      href={email.gmail_link ?? undefined}
+      target="_blank"
+      rel="noreferrer"
+      disabled={!email.gmail_link}
+    />
   );
 }
 
@@ -346,7 +349,7 @@ function PipelineActions() {
   );
 }
 
-const columns = "56px 170px 1fr 120px 120px 130px 80px 260px";
+const columns = "28px 56px 170px 1fr 120px 120px 130px 80px 260px";
 
 function TableSkeleton() {
   return (
@@ -363,6 +366,7 @@ function TableSkeleton() {
             borderBottom: "1px solid var(--border)",
           }}
         >
+          <div className="skeleton-shimmer" style={{ height: 14, width: 14 }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: 24 }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: "80%" }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: "60%" }} />
@@ -414,6 +418,7 @@ function SortableHeader({
 }
 
 export function EmailManager() {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState(params.get("q") ?? "");
   const debouncedSearch = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
@@ -460,6 +465,46 @@ export function EmailManager() {
   const verifyAllStatus = useVerifyAllEmailsStatus(verifyAll.isPending || (verifyAll.isSuccess && !!data));
   const [viewingId, setViewingId] = useState<number | null>(null);
   const [viewingImagesId, setViewingImagesId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
+
+  function toggleSelected(id: number) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkDelete() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (!window.confirm(`Delete ${ids.length} selected email(s) and their extracted offers?`)) return;
+    setBulkRunning(true);
+    const results = await Promise.allSettled(ids.map((id) => apiClient.delete(`/emails/${id}`)));
+    setBulkRunning(false);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    queryClient.invalidateQueries({ queryKey: ["emails"] });
+    if (failed === 0) toast.success(`${ids.length} email(s) deleted.`);
+    else toast.error(`Deleted ${ids.length - failed} email(s), ${failed} failed.`);
+    setSelected(new Set());
+  }
+
+  async function bulkReprocess() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setBulkRunning(true);
+    const results = await Promise.allSettled(ids.map((id) => apiClient.post(`/emails/${id}/process`)));
+    setBulkRunning(false);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    queryClient.invalidateQueries({ queryKey: ["emails"] });
+    queryClient.invalidateQueries({ queryKey: ["offers"] });
+    if (failed === 0) toast.success(`${ids.length} email(s) reprocessed.`);
+    else toast.error(`Reprocessed ${ids.length - failed} email(s), ${failed} failed.`);
+    setSelected(new Set());
+  }
 
   if (isError) return <div style={{ color: "var(--danger)" }}>Failed to load emails.</div>;
 
@@ -618,6 +663,23 @@ export function EmailManager() {
         </div>
       </Card>
 
+      {selected.size > 0 && (
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)" }}>{selected.size} selected</span>
+            <Button size="sm" loading={bulkRunning} disabled={bulkRunning} onClick={bulkReprocess}>
+              Reprocess selected
+            </Button>
+            <Button size="sm" variant="danger" loading={bulkRunning} disabled={bulkRunning} onClick={bulkDelete}>
+              Delete selected
+            </Button>
+            <Button size="sm" variant="ghost" disabled={bulkRunning} onClick={() => setSelected(new Set())}>
+              Clear selection
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <Card padded={false} style={{ overflow: "hidden" }}>
         <div style={{ overflowX: "auto", maxHeight: "70vh", overflowY: "auto" }}>
           <div style={{ minWidth: 1200 }}>
@@ -639,6 +701,16 @@ export function EmailManager() {
                 zIndex: 1,
               }}
             >
+              <input
+                type="checkbox"
+                aria-label="Select all loaded emails"
+                checked={emails.length > 0 && emails.every((e) => selected.has(e.id))}
+                onChange={(e) => {
+                  if (e.target.checked) setSelected(new Set(emails.map((em) => em.id)));
+                  else setSelected(new Set());
+                }}
+                style={{ width: 14, height: 14 }}
+              />
               <span>ID</span>
               <span><SortableHeader label="Sender" field="sender" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
               <span><SortableHeader label="Subject / Brand" field="subject" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
@@ -677,6 +749,13 @@ export function EmailManager() {
                     ...rowAccentStyle(email.processing_status),
                   }}
                 >
+                  <input
+                    type="checkbox"
+                    aria-label={`Select email #${email.id}`}
+                    checked={selected.has(email.id)}
+                    onChange={() => toggleSelected(email.id)}
+                    style={{ width: 14, height: 14 }}
+                  />
                   <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{email.id}</span>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-muted)" }}>
                     <Highlight text={email.sender} query={activeQuery} />
@@ -707,27 +786,49 @@ export function EmailManager() {
                     )}
                   </div>
                   <span style={{ font: "600 12px/1 var(--font-mono)" }}>{email.offers_count}</span>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <Button size="sm" variant="secondary" onClick={() => setViewingId(email.id)}>
-                      View
-                    </Button>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <IconButton icon={<Icon.eye size={14} />} label="View details" variant="secondary" onClick={() => setViewingId(email.id)} />
+                    {email.offers_count > 0 && (
+                      <IconButton
+                        icon={<Icon.offer size={14} />}
+                        label="View offers"
+                        onClick={() => navigate(`/offers?email_id=${email.id}`)}
+                      />
+                    )}
                     <ProcessButton email={email} />
                     <OpenInGmailButton email={email} />
                     {email.image_count > 0 && (
-                      <Button size="sm" variant="ghost" onClick={() => setViewingImagesId(email.id)}>
-                        <Icon.image size={13} /> {email.image_count}
-                      </Button>
+                      <span style={{ position: "relative" }}>
+                        <IconButton icon={<Icon.image size={14} />} label={`View ${email.image_count} image(s)`} onClick={() => setViewingImagesId(email.id)} />
+                        <span
+                          style={{
+                            position: "absolute",
+                            top: -4,
+                            right: -4,
+                            minWidth: 14,
+                            height: 14,
+                            padding: "0 3px",
+                            borderRadius: "var(--radius-pill)",
+                            background: "var(--brand)",
+                            color: "var(--on-brand)",
+                            font: "700 9px/14px var(--font-mono)",
+                            textAlign: "center",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          {email.image_count}
+                        </span>
+                      </span>
                     )}
                     <VerifyButton emailId={email.id} />
-                    <Button
-                      size="sm"
+                    <IconButton
+                      icon={<Icon.trash size={14} />}
+                      label="Delete"
                       variant="danger"
                       onClick={() => {
                         if (window.confirm(`Delete email #${email.id} and its extracted offers?`)) deleteEmail.mutate(email.id);
                       }}
-                    >
-                      Delete
-                    </Button>
+                    />
                   </div>
                 </div>
               ))

@@ -1,4 +1,6 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
+
+import { Spinner } from "./Spinner";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
@@ -11,7 +13,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children?: ReactNode;
 }
 
-const variantStyles: Record<Variant, React.CSSProperties> = {
+const variantStyles: Record<Variant, CSSProperties> = {
   primary: {
     background: "var(--brand)",
     color: "var(--on-brand)",
@@ -67,5 +69,108 @@ export function Button({
     >
       {loading ? "Working…" : children}
     </button>
+  );
+}
+
+function iconButtonSize(size: Size) {
+  return size === "sm" ? 30 : 36;
+}
+
+interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "style"> {
+  icon: ReactNode;
+  label: string;
+  variant?: Variant;
+  size?: Size;
+  loading?: boolean;
+  style?: CSSProperties;
+}
+
+/** Compact square icon-only button for dense action rows (table rows, toolbars) — always carries a hover tooltip + `aria-label` since there's no visible text. */
+export function IconButton({ icon, label, variant = "ghost", size = "sm", loading, disabled, style, className, ...rest }: IconButtonProps) {
+  const dim = iconButtonSize(size);
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      data-tooltip={label}
+      className={["icon-tooltip", className].filter(Boolean).join(" ")}
+      disabled={disabled || loading}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flex: "0 0 auto",
+        width: dim,
+        height: dim,
+        padding: 0,
+        borderRadius: "var(--radius-sm)",
+        cursor: disabled || loading ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.45 : loading ? 0.7 : 1,
+        ...variantStyles[variant],
+        ...style,
+      }}
+      {...rest}
+    >
+      {loading ? <Spinner size={14} /> : icon}
+    </button>
+  );
+}
+
+interface IconLinkButtonProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "children" | "style"> {
+  icon: ReactNode;
+  label: string;
+  variant?: Variant;
+  size?: Size;
+  disabled?: boolean;
+  style?: CSSProperties;
+}
+
+/** Anchor-tag counterpart to IconButton, for actions that open a link (Gmail, a brand's site, a filtered page) rather than firing a handler. */
+export function IconLinkButton({ icon, label, variant = "ghost", size = "sm", disabled, style, ...rest }: IconLinkButtonProps) {
+  const dim = iconButtonSize(size);
+  if (disabled) {
+    return (
+      <span
+        aria-label={label}
+        data-tooltip={label}
+        className="icon-tooltip"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: "0 0 auto",
+          width: dim,
+          height: dim,
+          borderRadius: "var(--radius-sm)",
+          opacity: 0.45,
+          cursor: "not-allowed",
+          ...variantStyles[variant],
+        }}
+      >
+        {icon}
+      </span>
+    );
+  }
+  return (
+    <a
+      aria-label={label}
+      data-tooltip={label}
+      className="icon-tooltip"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flex: "0 0 auto",
+        width: dim,
+        height: dim,
+        borderRadius: "var(--radius-sm)",
+        textDecoration: "none",
+        ...variantStyles[variant],
+        ...style,
+      }}
+      {...rest}
+    >
+      {icon}
+    </a>
   );
 }

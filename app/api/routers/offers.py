@@ -60,6 +60,7 @@ def _parse_expiry(value):
 @router.get("")
 def list_offers(
     brand: str | None = Query(None),
+    email_id: int | None = Query(None),
     category: str | None = Query(None),
     subcategory: str | None = Query(None),
     offer_type: str | None = Query(None),
@@ -70,6 +71,8 @@ def list_offers(
         q = session.query(Offer)
         if brand:
             q = q.filter(Offer.brand == brand)
+        if email_id is not None:
+            q = q.filter(Offer.email_id == email_id)
         if category:
             q = q.filter(Offer.category == category)
         if subcategory:

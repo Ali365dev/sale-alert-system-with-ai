@@ -22,6 +22,10 @@ export function BrandForm({
     categories: initial?.categories.join(", ") ?? "",
     emails: initial?.emails.join("\n") ?? "",
     is_active: initial?.is_active ?? true,
+    facebook: initial?.social_links?.facebook ?? "",
+    instagram: initial?.social_links?.instagram ?? "",
+    twitter: initial?.social_links?.twitter ?? "",
+    youtube: initial?.social_links?.youtube ?? "",
   });
 
   const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -29,6 +33,12 @@ export function BrandForm({
   const handleSubmit = () => {
     if (!form.name.trim()) return;
     const emails = [...new Set(form.emails.replace(/\n/g, ",").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean))].sort();
+    const social_links = {
+      facebook: form.facebook.trim() || null,
+      instagram: form.instagram.trim() || null,
+      twitter: form.twitter.trim() || null,
+      youtube: form.youtube.trim() || null,
+    };
     onSubmit({
       name: form.name.trim(),
       website: form.website.trim() || null,
@@ -36,6 +46,7 @@ export function BrandForm({
       categories: form.categories.split(",").map((c) => c.trim()).filter(Boolean),
       emails,
       is_active: form.is_active,
+      social_links,
     });
   };
 
@@ -78,6 +89,15 @@ export function BrandForm({
       <div>
         <Label>Categories (comma-separated)</Label>
         <TextInput value={form.categories} onChange={(e) => update({ categories: e.target.value })} />
+      </div>
+      <div>
+        <Label>Social links</Label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <TextInput placeholder="Facebook URL" value={form.facebook} onChange={(e) => update({ facebook: e.target.value })} />
+          <TextInput placeholder="Instagram URL" value={form.instagram} onChange={(e) => update({ instagram: e.target.value })} />
+          <TextInput placeholder="Twitter / X URL" value={form.twitter} onChange={(e) => update({ twitter: e.target.value })} />
+          <TextInput placeholder="YouTube URL" value={form.youtube} onChange={(e) => update({ youtube: e.target.value })} />
+        </div>
       </div>
       <div>
         <Label>Sender emails (comma or newline separated)</Label>

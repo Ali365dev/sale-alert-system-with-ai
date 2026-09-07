@@ -11,7 +11,7 @@ from sqlalchemy import case, func, or_
 
 from app.api.dependencies import Pagination, pagination
 from database.db import get_session
-from database.models import Email, Offer
+from database.models import BrandCandidate, Email, Offer
 
 router = APIRouter(prefix="/api/emails", tags=["emails"])
 
@@ -182,6 +182,11 @@ def delete_email(email_id: int):
         e = session.query(Email).filter(Email.id == email_id).first()
         if e is None:
             return JSONResponse({"error": "not found"}, status_code=404)
+        # Offer has cascade="all, delete-orphan" on Email.offers, but
+        # BrandCandidate.email_id is a plain FK with no cascade — deleting an
+        # email that was routed to the unknown-brand review queue would
+        # otherwise fail with a ForeignKeyViolation.
+        session.query(BrandCandidate).filter(BrandCandidate.email_id == email_id).delete()
         session.delete(e)
     return {"status": "deleted"}
 

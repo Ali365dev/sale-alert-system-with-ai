@@ -29,6 +29,7 @@ export interface Offer {
 
 export interface OfferFilters {
   brand?: string;
+  email_id?: number;
   category?: string;
   subcategory?: string;
   offer_type?: string;
@@ -53,7 +54,7 @@ export interface OffersResponse {
 function toParams(filters: OfferFilters): Record<string, string> {
   const params: Record<string, string> = {};
   Object.entries(filters).forEach(([key, value]) => {
-    if (value) params[key] = value;
+    if (value) params[key] = String(value);
   });
   return params;
 }
