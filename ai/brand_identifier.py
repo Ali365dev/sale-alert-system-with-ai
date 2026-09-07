@@ -53,6 +53,8 @@ prose — matching this schema:
 
 Rules:
 - Use the sender email domain, sender display name, subject, and body content together.
+- Identify who the email is FOR (the retailer/brand being promoted), not who technically SENT it. If the sender is an email marketing platform / ESP relaying someone else's campaign (e.g. Klaviyo, Mailchimp, SendGrid, HubSpot, Constant Contact) with no retail brand identity of its own, look at the body/subject for the actual retailer's name; if none is evident, return brand_name null rather than naming the ESP.
+- Likewise, a social/community platform's own notification email (e.g. Reddit, LinkedIn, Facebook alerting you about activity on their site) is not a retail brand with deals — return brand_name null for these.
 - confidence should reflect how certain you are — a well-known brand name explicit in the sender domain is high confidence (0.85+); an ambiguous generic sender is low (below 0.4).
 - If web search results are provided below, prefer their titles/URLs as the authoritative source for the official website.
 - Return ONLY the JSON object.

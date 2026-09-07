@@ -25,6 +25,40 @@ from services.jobs.base import BackgroundJob, WorkItem
 
 FUZZY_NAME_MATCH_THRESHOLD = 0.82
 
+# Sending platforms and non-retail sites that are never themselves a "brand"
+# a shopper would follow for deals — an email from one of these is either an
+# ESP relaying some other retailer's campaign (in which case the retailer,
+# not the ESP, is who should end up in the queue — but we can't recover that
+# from the envelope sender alone) or plain non-commercial mail (a forum/social
+# notification). Either way it doesn't belong in the Unknown Emails review
+# queue. Matched via _domains_match, so a subdomain like hello.klaviyo.com
+# still matches klaviyo.com.
+NON_BRAND_DOMAINS = {
+    # Email service providers (ESPs)
+    "klaviyo.com", "klaviyomail.com",
+    "mailchimp.com", "mailchimpapp.com", "mcsv.net",
+    "sendgrid.net", "sendgrid.com",
+    "constantcontact.com",
+    "hubspotemail.net",
+    "mandrillapp.com",
+    "sparkpostmail.com",
+    "postmarkapp.com",
+    "campaign-archive.com",
+    "getresponse.com",
+    # Social / community platforms whose notification mail isn't a retail deal
+    "redditmail.com", "reddit.com",
+    "linkedin.com",
+    "facebookmail.com",
+    "twitter.com", "x.com",
+}
+
+
+def is_non_brand_domain(sender_domain: str) -> bool:
+    norm = _normalize_domain(sender_domain)
+    if not norm:
+        return False
+    return any(_domains_match(norm, d) for d in NON_BRAND_DOMAINS)
+
 
 def extract_domain(sender: str) -> str:
     """'Fossil <fossil@email.fossil.com>' -> 'email.fossil.com'. Best-effort —
@@ -88,7 +122,14 @@ def find_known_brand_by_domain(sender_domain: str) -> Optional[Brand]:
 
 def route_to_candidate_queue(email_id: int, sender: str, sender_domain: str) -> None:
     """Upsert a pending BrandCandidate row for this email. No AI call here —
-    identification happens later, on-demand, via DiscoverBrandJob."""
+    identification happens later, on-demand, via DiscoverBrandJob.
+
+    Skips known ESP/non-retail sending domains (see NON_BRAND_DOMAINS) —
+    these would otherwise sit in the review queue forever (or, worse, get a
+    confidently-wrong AI brand suggestion, since a well-known ESP like
+    Klaviyo is *easy* for the model to verify, just not a retailer)."""
+    if is_non_brand_domain(sender_domain):
+        return
     with get_session() as session:
         existing = session.query(BrandCandidate).filter(BrandCandidate.email_id == email_id).first()
         if existing is not None:

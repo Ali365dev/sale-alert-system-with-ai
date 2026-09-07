@@ -50,6 +50,7 @@ export const mapApiBrandToBrand = (apiBrand, dealCount) => {
     id: slugify(apiBrand.name) || String(apiBrand.id),
     name: apiBrand.name,
     initials: initialsForName(apiBrand.name),
+    logoUrl: apiBrand.logo_url ?? null,
     color: '#171717',
     category,
     dealCount,
@@ -61,11 +62,13 @@ export const mapApiBrandToBrand = (apiBrand, dealCount) => {
   };
 };
 
-/** Synthesizes an unregistered "brand" placeholder for offers whose brand name has no Brand row. */
+/** Synthesizes an unregistered "brand" placeholder for offers whose brand name has no Brand row —
+ * so it has no logo_url on file either, hence logoUrl is always null here. */
 export const syntheticBrand = (name, category, dealCount, website = null) => ({
   id: slugify(name),
   name,
   initials: initialsForName(name),
+  logoUrl: null,
   color: '#171717',
   category: category ?? 'General',
   dealCount,

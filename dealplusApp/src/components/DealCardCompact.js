@@ -20,7 +20,7 @@ const DealCardCompact = ({ deal, brand, onPress }) => {
     <Animated.View style={[animatedStyle, styles.card]}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
         <View style={styles.topRow}>
-          <BrandLogo initials={brand?.initials ?? '?'} size={32} tone="filled" />
+          <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} size={32} tone="filled" />
           <FavoriteButton active={favorite} onPress={() => toggleFavorite(deal.id)} size={18} />
         </View>
         <Text style={styles.brandName} numberOfLines={1}>

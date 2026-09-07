@@ -26,7 +26,7 @@ function BrandCard({ brand, selected, onPress, styles }) {
   return (
     <Animated.View style={animatedStyle}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={[styles.brandCard, selected && styles.brandCardSelected]}>
-        <BrandLogo initials={brand.initials} size={64} />
+        <BrandLogo initials={brand.initials} logoUrl={brand.logoUrl} size={64} />
         <Text style={[styles.brandName, selected && styles.brandNameSelected]} numberOfLines={1}>
           {brand.name}
         </Text>

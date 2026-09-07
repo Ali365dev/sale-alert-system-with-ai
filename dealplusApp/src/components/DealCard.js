@@ -36,7 +36,7 @@ const DealCard = ({ deal, brand, onPress, style, transitionTag }) => {
     <Animated.View style={[animatedStyle, styles.card, style]} sharedTransitionTag={transitionTag}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
         <View style={styles.header}>
-          <BrandLogo initials={brand?.initials ?? '?'} size={45} tone="filled" />
+          <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} size={45} tone="filled" />
           <View style={styles.headerText}>
             <Text style={styles.brandName} numberOfLines={1}>
               {brand?.name ?? 'Unknown brand'}

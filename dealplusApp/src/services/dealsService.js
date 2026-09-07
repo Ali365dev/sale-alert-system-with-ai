@@ -20,7 +20,13 @@ export const loadDeals = async () => {
 
     const { brands, deals, brandsById } = deriveBrandsAndDeals(apiBrands, apiOffers);
     const categories = deriveCategories(apiOffers);
-    const alerts = deriveAlerts(apiOffers);
+    const derivedAlerts = deriveAlerts(apiOffers);
+
+    // Alerts pushed in via FCM (id-prefixed 'push-') aren't derived from
+    // offers, so a plain overwrite here would silently drop them on the next
+    // app open or pull-to-refresh. Keep them layered on top instead.
+    const pushAlerts = useDataStore.getState().alerts.filter((a) => a.id?.startsWith('push-'));
+    const alerts = [...pushAlerts, ...derivedAlerts];
 
     useDataStore.setState({ brands, deals, brandsById, categories, alerts, loading: false });
 

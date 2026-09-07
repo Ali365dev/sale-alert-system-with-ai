@@ -46,8 +46,16 @@ export const registerDeviceToken = async () => {
 
 /** kind defaults to 'new-brand' (matches NotificationsScreen's known icon
  * set) since a generic admin-composed push has no natural "flash-sale" vs
- * "price-drop" distinction unless the payload says so. */
-const pushToAlertsFeed = (remoteMessage) => {
+ * "price-drop" distinction unless the payload says so.
+ *
+ * Called from every place a message can reach the app — foreground
+ * (onMessage), background/quit tap (onNotificationOpenedApp,
+ * getInitialNotification), and index.js's setBackgroundMessageHandler for a
+ * message received while backgrounded/killed but never tapped — so the same
+ * messageId can legitimately arrive here more than once; dedupe by id keeps
+ * it a single row in the feed. Exported so index.js's background handler
+ * (which runs outside this module's own listeners) can call it directly. */
+export const pushToAlertsFeed = (remoteMessage) => {
   const { notification, data } = remoteMessage;
   if (!notification) return;
 
@@ -62,7 +70,9 @@ const pushToAlertsFeed = (remoteMessage) => {
     read: false,
   };
 
-  useDataStore.setState((state) => ({ alerts: [alert, ...state.alerts] }));
+  useDataStore.setState((state) =>
+    state.alerts.some((a) => a.id === alert.id) ? state : { alerts: [alert, ...state.alerts] },
+  );
 };
 
 // Falls back here — rather than doing nothing — whenever a notification was
@@ -114,13 +124,16 @@ export const setupPushListeners = () => {
   });
 
   const unsubscribeOpened = messaging().onNotificationOpenedApp((remoteMessage) => {
+    pushToAlertsFeed(remoteMessage);
     navigateFromNotification(remoteMessage);
   });
 
   messaging()
     .getInitialNotification()
     .then((remoteMessage) => {
-      if (remoteMessage) navigateFromNotification(remoteMessage);
+      if (!remoteMessage) return;
+      pushToAlertsFeed(remoteMessage);
+      navigateFromNotification(remoteMessage);
     });
 
   return () => {

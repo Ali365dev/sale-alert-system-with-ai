@@ -17,7 +17,7 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge }) => {
     return (
       <Animated.View style={animatedStyle}>
         <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.avatarCard}>
-          <BrandLogo initials={brand.initials} size={64} tone="filled" />
+          <BrandLogo initials={brand.initials} logoUrl={brand.logoUrl} size={64} tone="filled" />
           <Text style={styles.avatarName} numberOfLines={1}>
             {brand.name}
           </Text>
@@ -30,7 +30,7 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge }) => {
     <Animated.View style={animatedStyle}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.card}>
         <View style={styles.logoWrap}>
-          <BrandLogo initials={brand.initials} size={64} tone="filled" />
+          <BrandLogo initials={brand.initials} logoUrl={brand.logoUrl} size={64} tone="filled" />
           {badge && (
             <View style={styles.badgeWrap}>
               <SaleBadge label={badge} tone="red" />

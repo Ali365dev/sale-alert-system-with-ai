@@ -82,7 +82,7 @@ const DealDetailScreen = () => {
 
         <View style={styles.content}>
           <View style={styles.brandRow}>
-            <BrandLogo initials={brand?.initials ?? '?'} size={44} />
+            <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} size={44} />
             <View style={styles.brandText}>
               <View style={styles.brandNameRow}>
                 <Text style={styles.brandName}>{brand?.name ?? 'Unknown brand'}</Text>
