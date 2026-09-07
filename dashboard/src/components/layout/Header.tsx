@@ -1,9 +1,185 @@
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+
 import { useSettingsLogout } from "../../api/settings";
 import { useUiStore } from "../../store/uiStore";
+import { Icon } from "../icons";
 
-export function Header({ title, eyebrow = "Workspace" }: { title: string; eyebrow?: string }) {
+function GlobalSearch() {
+  const navigate = useNavigate();
+  const [value, setValue] = useState("");
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (value.trim()) navigate(`/emails?q=${encodeURIComponent(value.trim())}`);
+      }}
+      style={{ position: "relative", flex: "1 1 auto", maxWidth: 480 }}
+    >
+      <Icon.search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Search emails, brands, or keywords…"
+        aria-label="Search emails, brands, or keywords"
+        style={{
+          width: "100%",
+          height: 40,
+          padding: "0 60px 0 38px",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-pill)",
+          background: "var(--surface-app)",
+          color: "var(--text-strong)",
+          fontSize: 13,
+          boxSizing: "border-box",
+        }}
+      />
+      <span
+        style={{
+          position: "absolute",
+          right: 12,
+          top: "50%",
+          transform: "translateY(-50%)",
+          display: "inline-flex",
+          alignItems: "center",
+          height: 20,
+          padding: "0 6px",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-sm)",
+          font: "600 10.5px/1 var(--font-mono)",
+          color: "var(--text-faint)",
+        }}
+      >
+        ⌘K
+      </span>
+    </form>
+  );
+}
+
+function AvatarMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useUiStore();
   const logout = useSettingsLogout();
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative", flex: "0 0 auto" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          height: 40,
+          padding: "0 6px 0 0",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+        }}
+      >
+        <span
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            background: "var(--text-strong)",
+            color: "var(--surface-app)",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            font: "700 12.5px/1 var(--font-sans)",
+          }}
+        >
+          <Icon.user size={16} />
+        </span>
+        <Icon.chevron size={12} style={{ transform: "rotate(90deg)", color: "var(--text-faint)" }} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 0,
+            zIndex: 20,
+            minWidth: 200,
+            padding: 6,
+            background: "var(--surface-card)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-md)",
+            boxShadow: "var(--shadow-sm)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px" }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--success)" }} />
+            <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Gmail connected</span>
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={toggleTheme}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              padding: "9px 10px",
+              border: "none",
+              borderRadius: "var(--radius-sm)",
+              background: "transparent",
+              color: "var(--text-body)",
+              font: "600 12.5px/1 var(--font-sans)",
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
+            {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => logout.mutate()}
+            disabled={logout.isPending}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              padding: "9px 10px",
+              border: "none",
+              borderRadius: "var(--radius-sm)",
+              background: "transparent",
+              color: "var(--danger)",
+              font: "600 12.5px/1 var(--font-sans)",
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Header() {
+  const navigate = useNavigate();
 
   return (
     <header
@@ -14,105 +190,37 @@ export function Header({ title, eyebrow = "Workspace" }: { title: string; eyebro
         display: "flex",
         alignItems: "center",
         gap: 16,
-        padding: "16px 28px",
+        padding: "14px 28px",
         borderBottom: "1px solid var(--border)",
         background: "var(--surface-app)",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "0 0 auto" }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "var(--ls-wide)",
-            textTransform: "uppercase",
-            color: "var(--text-faint)",
-          }}
-        >
-          {eyebrow}
-        </div>
-        <h1
-          style={{
-            margin: 0,
-            font: "var(--fw-bold) 20px/1.2 var(--font-sans)",
-            letterSpacing: "var(--ls-snug)",
-            color: "var(--text-strong)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {title}
-        </h1>
-      </div>
+      <GlobalSearch />
 
       <div style={{ flex: "1 1 auto" }} />
 
       <button
         type="button"
-        onClick={toggleTheme}
-        title="Toggle theme"
+        onClick={() => navigate("/notifications")}
+        aria-label="Notifications"
         style={{
+          position: "relative",
           display: "inline-flex",
           alignItems: "center",
-          gap: 7,
+          justifyContent: "center",
+          width: 40,
           height: 40,
-          padding: "0 13px",
           border: "1px solid var(--border)",
-          borderRadius: "var(--radius-sm)",
+          borderRadius: "50%",
           background: "var(--surface-card)",
           color: "var(--text-body)",
-          font: "600 12.5px/1 var(--font-sans)",
           cursor: "pointer",
         }}
       >
-        {theme === "dark" ? "Dark" : "Light"}
+        <Icon.bell size={16} />
       </button>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          height: 40,
-          padding: "0 12px",
-          border: "1px solid var(--success-subtle)",
-          background: "var(--success-subtle)",
-          borderRadius: "var(--radius-sm)",
-          whiteSpace: "nowrap",
-          flex: "0 0 auto",
-        }}
-      >
-        <span
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: "var(--success)",
-            boxShadow: "0 0 0 3px var(--success-subtle)",
-          }}
-        />
-        <span style={{ font: "600 12px/1 var(--font-sans)", color: "var(--success)" }}>Gmail connected</span>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => logout.mutate()}
-        disabled={logout.isPending}
-        title="Log out"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          height: 40,
-          padding: "0 13px",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-sm)",
-          background: "var(--surface-card)",
-          color: "var(--text-body)",
-          font: "600 12.5px/1 var(--font-sans)",
-          cursor: "pointer",
-        }}
-      >
-        Log out
-      </button>
+      <AvatarMenu />
     </header>
   );
 }

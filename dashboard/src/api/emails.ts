@@ -41,6 +41,7 @@ export interface EmailsSummary {
   processed: number;
   unprocessed: number;
   failed: number;
+  offers_found: number;
 }
 
 export interface EmailsResponse {
@@ -56,6 +57,7 @@ export type EmailSortField = "received_date" | "sender" | "subject" | "processin
 export interface EmailsQuery {
   status?: string;
   processing_status?: ProcessingStatus;
+  brand?: string;
   q?: string;
   page?: number;
   page_size?: number;

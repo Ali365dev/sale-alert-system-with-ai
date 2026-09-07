@@ -3,6 +3,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Declared to match the "uses advertising ID" answer in Play Console's
+         Data Safety form — Microsoft Clarity (session-replay analytics) uses
+         the advertising ID to distinguish sessions across app installs. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <application
       android:name=".MainApplication"

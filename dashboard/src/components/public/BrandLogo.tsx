@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useBrandLogoCandidates } from "../../hooks/useBrandLogoCandidates";
 import { TONE_BG, TONE_FG, toneForName } from "../../lib/publicOffers";
 
-export function BrandLogo({ name, size = 44 }: { name: string; size?: number }) {
+export function BrandLogo({ name, size = 44, circle = false }: { name: string; size?: number; circle?: boolean }) {
   const tone = toneForName(name);
   const candidates = useBrandLogoCandidates(name);
   const [attempt, setAttempt] = useState(0);
@@ -15,7 +15,7 @@ export function BrandLogo({ name, size = 44 }: { name: string; size?: number }) 
     .map((w) => w[0]?.toUpperCase())
     .join("");
 
-  const radius = size > 32 ? "var(--radius-md)" : "var(--radius-sm)";
+  const radius = circle ? "50%" : size > 32 ? "var(--radius-md)" : "var(--radius-sm)";
 
   if (src) {
     return (

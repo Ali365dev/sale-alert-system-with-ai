@@ -42,8 +42,13 @@ function AuthedShell({ title, children }: { title: string; children: ReactNode }
         fetching={startEmailSync.isPending || isJobActive(activeEmailSync.data?.status)}
       />
       <main style={{ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column" }}>
-        <Header title={title} />
+        <Header />
         <div style={{ display: "flex", flexDirection: "column", gap: 24, padding: "24px 28px 44px" }}>
+          {/* Pages that render their own in-page header (e.g. Email Manager)
+             pass an empty title to skip this generic one and avoid a duplicate. */}
+          {title && (
+            <h1 style={{ margin: 0, font: "var(--fw-bold) 22px/1.2 var(--font-sans)", color: "var(--text-strong)" }}>{title}</h1>
+          )}
           {children}
         </div>
       </main>

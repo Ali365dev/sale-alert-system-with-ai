@@ -2,17 +2,29 @@ import { NavLink } from "react-router";
 
 import { Icon } from "../icons";
 
-const NAV_ITEMS = [
-  { to: "/dashboard", label: "Overview", icon: Icon.house },
+interface NavItem {
+  to: string;
+  label: string;
+  icon: (typeof Icon)[keyof typeof Icon];
+}
+
+const MAIN_ITEMS: NavItem[] = [
+  { to: "/dashboard", label: "Home", icon: Icon.house },
   { to: "/analytics", label: "Analytics", icon: Icon.trendUp },
   { to: "/search", label: "Search", icon: Icon.search },
-  { to: "/offers", label: "Offers manager", icon: Icon.offer },
-  { to: "/brands", label: "Brands manager", icon: Icon.home },
-  { to: "/emails", label: "Email manager", icon: Icon.mail },
-  { to: "/unknown-emails", label: "Unknown emails", icon: Icon.inbox },
-  { to: "/brand-requests", label: "Brand requests", icon: Icon.store },
+  { to: "/offers", label: "Offers Manager", icon: Icon.offer },
+  { to: "/brands", label: "Brands Manager", icon: Icon.home },
+];
+
+const EMAIL_ITEMS: NavItem[] = [
+  { to: "/emails", label: "Email Manager", icon: Icon.mail },
+  { to: "/unknown-emails", label: "Unknown Emails", icon: Icon.inbox },
+  { to: "/brand-requests", label: "Brand Requests", icon: Icon.store },
   { to: "/notifications", label: "Notifications", icon: Icon.bell },
-  { to: "/insights", label: "AI insights", icon: Icon.sparkle, badge: 18 },
+  { to: "/insights", label: "AI Insights", icon: Icon.sparkle },
+];
+
+const SETTINGS_ITEMS: NavItem[] = [
   { to: "/pipeline", label: "Pipeline Center", icon: Icon.activity },
   { to: "/settings", label: "Settings", icon: Icon.target },
 ];
@@ -26,13 +38,38 @@ function navStyle(active: boolean): React.CSSProperties {
     textAlign: "left",
     border: 0,
     cursor: "pointer",
-    padding: "10px 10px",
+    padding: "9px 10px",
     borderRadius: "var(--radius-sm)",
-    font: "600 13.5px/1 var(--font-sans)",
+    font: "600 13px/1 var(--font-sans)",
     background: active ? "var(--brand-subtle)" : "transparent",
     color: active ? "var(--brand)" : "var(--text-body)",
     textDecoration: "none",
   };
+}
+
+function NavSection({ label, items }: { label: string; items: NavItem[] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <div
+        style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: "var(--ls-wide)",
+          textTransform: "uppercase",
+          color: "var(--text-faint)",
+          padding: "10px 10px 4px",
+        }}
+      >
+        {label}
+      </div>
+      {items.map(({ to, label: itemLabel, icon: ItemIcon }) => (
+        <NavLink key={to} to={to} style={({ isActive }) => navStyle(isActive)}>
+          <ItemIcon size={17} />
+          {itemLabel}
+        </NavLink>
+      ))}
+    </div>
+  );
 }
 
 export function Sidebar({ onRunFetch, fetching }: { onRunFetch: () => void; fetching: boolean }) {
@@ -45,102 +82,72 @@ export function Sidebar({ onRunFetch, fetching }: { onRunFetch: () => void; fetc
         background: "var(--surface-card)",
         display: "flex",
         flexDirection: "column",
-        gap: 20,
-        padding: "20px 16px",
+        gap: 4,
+        padding: "18px 14px",
         position: "sticky",
         top: 0,
         height: "100vh",
         boxSizing: "border-box",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "0 4px" }}>
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 12,
-            background: "linear-gradient(140deg, var(--brand), var(--brand-active))",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "var(--shadow-brand)",
-            flex: "0 0 38px",
-          }}
-        >
-          <Icon.offer size={20} stroke="#fff" />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--text-strong)", letterSpacing: "-0.01em" }}>
-            Sales Offers AI
-          </div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-            gmail · gemini
-          </div>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 8px 16px" }}>
+        <Icon.pulse size={22} strokeWidth={2.5} style={{ color: "var(--brand)" }} />
+        <span style={{ font: "800 18px/1 var(--font-sans)", letterSpacing: "var(--ls-snug)", color: "var(--text-strong)" }}>
+          Deal<span style={{ color: "var(--brand)" }}>Pulse</span>
+        </span>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <button
-          type="button"
-          onClick={onRunFetch}
-          disabled={fetching}
+      <nav style={{ display: "flex", flexDirection: "column", gap: 10, flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+        <NavSection label="Main" items={MAIN_ITEMS} />
+        <NavSection label="Email Manager" items={EMAIL_ITEMS} />
+        <NavSection label="Settings" items={SETTINGS_ITEMS} />
+      </nav>
+
+      <button
+        type="button"
+        onClick={onRunFetch}
+        disabled={fetching}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: 10,
+          width: "100%",
+          padding: 14,
+          border: "1px solid var(--brand-subtle-2)",
+          borderRadius: "var(--radius-lg)",
+          background: "var(--brand-subtle)",
+          textAlign: "left",
+          cursor: fetching ? "not-allowed" : "pointer",
+          opacity: fetching ? 0.75 : 1,
+        }}
+      >
+        <Icon.sparkle size={18} style={{ color: "var(--brand)" }} />
+        <div>
+          <div style={{ font: "var(--fw-semibold) 13px/1.35 var(--font-sans)", color: "var(--text-strong)" }}>
+            Let AI find the best offers for you
+          </div>
+          <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
+            Fetch new emails and never miss a deal.
+          </div>
+        </div>
+        <span
           style={{
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
-            justifyContent: "center",
             gap: 6,
-            width: "100%",
-            height: 48,
-            border: "none",
+            height: 32,
+            padding: "0 12px",
             borderRadius: "var(--radius-sm)",
             background: "var(--brand)",
             color: "var(--on-brand)",
-            fontWeight: 600,
-            fontSize: 13.5,
-            cursor: fetching ? "not-allowed" : "pointer",
-            opacity: fetching ? 0.7 : 1,
-            boxShadow: "var(--shadow-brand)",
+            font: "700 12.5px/1 var(--font-sans)",
           }}
         >
-          {fetching ? "Fetching…" : "Run fetch & analyse now"}
-        </button>
-      </div>
-
-      <nav style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "var(--ls-wide)",
-            textTransform: "uppercase",
-            color: "var(--text-faint)",
-            padding: "6px 8px 8px",
-          }}
-        >
-          Workspace
-        </div>
-
-        {NAV_ITEMS.map(({ to, label, icon: ItemIcon, badge }) => (
-          <NavLink key={to} to={to} end={to === "/"} style={({ isActive }) => navStyle(isActive)}>
-            <ItemIcon size={17} />
-            {label}
-            {badge !== undefined && (
-              <span
-                style={{
-                  marginLeft: "auto",
-                  font: "700 10.5px/1 var(--font-mono)",
-                  color: "var(--ai)",
-                  background: "var(--ai-subtle)",
-                  padding: "4px 7px",
-                  borderRadius: "var(--radius-pill)",
-                }}
-              >
-                {badge}
-              </span>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+          {fetching ? "Fetching…" : "Run Fetch Now"}
+          {!fetching && <Icon.arrowRight size={13} />}
+        </span>
+      </button>
     </aside>
   );
 }

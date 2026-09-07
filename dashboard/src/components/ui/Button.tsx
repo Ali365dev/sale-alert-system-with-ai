@@ -82,11 +82,21 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   variant?: Variant;
   size?: Size;
   loading?: boolean;
+  /** Perfect circle + flat neutral fill instead of the default rounded-square button — for avatar-style action rows (e.g. the Email Manager table). */
+  circle?: boolean;
   style?: CSSProperties;
 }
 
+const circleStyle: CSSProperties = {
+  borderRadius: "50%",
+  border: "none",
+  background: "var(--surface-sunken)",
+  color: "var(--text-muted)",
+  boxShadow: "none",
+};
+
 /** Compact square icon-only button for dense action rows (table rows, toolbars) — always carries a hover tooltip + `aria-label` since there's no visible text. */
-export function IconButton({ icon, label, variant = "ghost", size = "sm", loading, disabled, style, className, ...rest }: IconButtonProps) {
+export function IconButton({ icon, label, variant = "ghost", size = "sm", loading, circle, disabled, style, className, ...rest }: IconButtonProps) {
   const dim = iconButtonSize(size);
   return (
     <button
@@ -107,6 +117,7 @@ export function IconButton({ icon, label, variant = "ghost", size = "sm", loadin
         cursor: disabled || loading ? "not-allowed" : "pointer",
         opacity: disabled ? 0.45 : loading ? 0.7 : 1,
         ...variantStyles[variant],
+        ...(circle ? circleStyle : null),
         ...style,
       }}
       {...rest}
@@ -122,11 +133,12 @@ interface IconLinkButtonProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElemen
   variant?: Variant;
   size?: Size;
   disabled?: boolean;
+  circle?: boolean;
   style?: CSSProperties;
 }
 
 /** Anchor-tag counterpart to IconButton, for actions that open a link (Gmail, a brand's site, a filtered page) rather than firing a handler. */
-export function IconLinkButton({ icon, label, variant = "ghost", size = "sm", disabled, style, ...rest }: IconLinkButtonProps) {
+export function IconLinkButton({ icon, label, variant = "ghost", size = "sm", circle, disabled, style, ...rest }: IconLinkButtonProps) {
   const dim = iconButtonSize(size);
   if (disabled) {
     return (
@@ -145,6 +157,7 @@ export function IconLinkButton({ icon, label, variant = "ghost", size = "sm", di
           opacity: 0.45,
           cursor: "not-allowed",
           ...variantStyles[variant],
+          ...(circle ? circleStyle : null),
         }}
       >
         {icon}
@@ -166,6 +179,7 @@ export function IconLinkButton({ icon, label, variant = "ghost", size = "sm", di
         borderRadius: "var(--radius-sm)",
         textDecoration: "none",
         ...variantStyles[variant],
+        ...(circle ? circleStyle : null),
         ...style,
       }}
       {...rest}

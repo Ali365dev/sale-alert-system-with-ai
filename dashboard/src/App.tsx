@@ -93,7 +93,7 @@ function App() {
         <Route
           path="/emails"
           element={
-            <AppShell title="Email manager">
+            <AppShell title="">
               <EmailManager />
             </AppShell>
           }

@@ -80,6 +80,7 @@ def _email_detail(e: Email, offers_count: int, brand: str | None = None) -> dict
 def list_emails(
     status: str | None = Query(None),
     processing_status: str | None = Query(None),
+    brand: str | None = Query(None),
     q: str | None = Query(None),
     sort: str = Query("received_date"),
     sort_dir: str = Query("desc"),
@@ -94,14 +95,14 @@ def list_emails(
     with get_session() as session:
         counts: dict[int, int] = {}
         brand_by_email: dict[int, str] = {}
-        for email_id, offer_count, brand in (
+        for email_id, offer_count, offer_brand in (
             session.query(Offer.email_id, func.count(Offer.id), func.min(Offer.brand))
             .filter(Offer.email_id.isnot(None))
             .group_by(Offer.email_id)
         ):
             counts[email_id] = offer_count
-            if brand:
-                brand_by_email[email_id] = brand
+            if offer_brand:
+                brand_by_email[email_id] = offer_brand
 
         eq = session.query(Email)
 
@@ -112,6 +113,10 @@ def list_emails(
 
         if processing_status in _PROCESSING_STATUSES:
             eq = eq.filter(Email.processing_status == processing_status)
+
+        if brand:
+            brand_email_ids = session.query(Offer.email_id).filter(Offer.email_id.isnot(None), Offer.brand == brand)
+            eq = eq.filter(Email.id.in_(brand_email_ids))
 
         if search:
             like = f"%{search}%"
@@ -141,6 +146,7 @@ def list_emails(
             func.count(case((Email.processing_status == "failed", 1))),
         ).one()
         unverified = max(grand_total - legitimate - suspicious - spam, 0)
+        offers_found = session.query(func.count(Offer.id)).scalar() or 0
 
     return {
         "emails": rows,
@@ -156,6 +162,7 @@ def list_emails(
             "processed": processed,
             "unprocessed": unprocessed,
             "failed": failed,
+            "offers_found": offers_found,
         },
     }
 
