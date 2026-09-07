@@ -242,7 +242,9 @@ def add_brand_from_candidate(candidate_id: int, body: dict = Body(...)):
         c.resolved_at = now
         c.resolved_by = body.get("actor") or "admin"
 
-    reprocess_result = reprocess_email(email_id)
+    # Admin just deliberately resolved this candidate to a brand — bypass the
+    # sale-content filter, same reasoning as the manual Process/Reprocess button.
+    reprocess_result = reprocess_email(email_id, apply_sale_filter=False)
 
     with get_session() as session:
         row = (

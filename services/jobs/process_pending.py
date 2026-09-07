@@ -74,6 +74,29 @@ class ProcessPendingJob(BackgroundJob):
                 e.ocr_text_clean = ocr_result["ocr_clean"] or None
                 e.ocr_processed_at = datetime.utcnow()
 
+        from ai.sale_filter import NOT_SALE_RELATED, evaluate as evaluate_sale_relevance
+
+        relevance = evaluate_sale_relevance(subject, body, ocr_result["ocr_clean"])
+        with get_session() as session:
+            e = session.query(Email).filter(Email.id == item.id).first()
+            if e is not None:
+                e.sale_relevance_score = relevance.score
+                e.filter_status = relevance.status
+                e.filter_reason = relevance.reason
+
+        if relevance.status == NOT_SALE_RELATED:
+            job_service.append_log(
+                job_id, f"↷ \"{item.label[:60]}\" filtered out before AI (score={relevance.score}: {relevance.reason})",
+                severity="info", category="ai",
+            )
+            with get_session() as session:
+                e = session.query(Email).filter(Email.id == item.id).first()
+                if e is not None:
+                    e.processing_status = "failed"
+                    e.processing_error = "Not sale-related — filtered before AI analysis"
+                    e.processing_attempted_at = datetime.utcnow()
+            return "skipped"
+
         job_service.set_stage(job_id, "ai_analysis")
         from ai._llm import describe_active_provider
         from ai.analyzer import get_last_failure_info

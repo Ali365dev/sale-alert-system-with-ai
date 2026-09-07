@@ -317,6 +317,54 @@ export function useUpdateEmailProcessing() {
   });
 }
 
+// ── Sale filter ──────────────────────────────────────────────────────────────
+
+export interface SaleFilterSettings {
+  weak_keywords: string[];
+  default_weak_keywords: string[];
+  strong_keywords: string[];
+  default_strong_keywords: string[];
+}
+
+export function useSaleFilter() {
+  return useQuery({
+    queryKey: ["settings", "sale-filter"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<SaleFilterSettings>("/settings/sale-filter");
+      return data;
+    },
+  });
+}
+
+export function useUpdateSaleFilter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { weak_keywords?: string[]; strong_keywords?: string[] }) => {
+      const { data } = await apiClient.put<Partial<SaleFilterSettings>>("/settings/sale-filter", body);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "sale-filter"] });
+      toast.success("Sale filter keywords saved.");
+    },
+  });
+}
+
+export interface SaleFilterTestResult {
+  score: number;
+  status: "eligible_for_analysis" | "needs_review" | "not_sale_related";
+  reason: string;
+}
+
+export function useTestSaleFilter() {
+  return useMutation({
+    mutationFn: async (input: { subject: string; body: string; ocr_text?: string }) => {
+      const { data } = await apiClient.post<SaleFilterTestResult>("/settings/sale-filter/test", input);
+      return data;
+    },
+  });
+}
+
 // ── Prompts ──────────────────────────────────────────────────────────────────
 
 export interface Prompt {

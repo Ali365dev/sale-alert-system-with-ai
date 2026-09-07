@@ -213,7 +213,9 @@ def process_email_endpoint(email_id: int):
         if e is None:
             return JSONResponse({"error": "not found"}, status_code=404)
 
-    return reprocess_email(email_id)
+    # A human explicitly asked for this one email — bypass the sale-content
+    # filter rather than let it silently decline a deliberate manual request.
+    return reprocess_email(email_id, apply_sale_filter=False)
 
 
 @router.post("/{email_id}/verify")

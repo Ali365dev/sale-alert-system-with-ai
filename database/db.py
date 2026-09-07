@@ -58,6 +58,9 @@ def _migrate() -> None:
         ("emails", "failure_key_identifier",       "VARCHAR(120)"),
         ("emails", "failure_attempt_count",        "INTEGER"),
         ("users", "firebase_uid",                  "VARCHAR(255)"),
+        ("emails", "sale_relevance_score",          "FLOAT"),
+        ("emails", "filter_status",                 "VARCHAR(20)"),
+        ("emails", "filter_reason",                 "TEXT"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -284,6 +287,11 @@ def _seed_settings() -> None:
             ("gmail_last_history_id", "", "gmail"),
             ("gmail_watch_expiration", "", "gmail"),
         ]
+
+        from ai.sale_filter import DEFAULT_STRONG_KEYWORDS, DEFAULT_WEAK_KEYWORDS
+
+        defaults_kv.append(("sale_filter_weak_keywords", DEFAULT_WEAK_KEYWORDS, "sale_filter"))
+        defaults_kv.append(("sale_filter_strong_keywords", DEFAULT_STRONG_KEYWORDS, "sale_filter"))
         seeded = 0
         for key, value, category in defaults_kv:
             if settings_service.get_setting(key) is None:

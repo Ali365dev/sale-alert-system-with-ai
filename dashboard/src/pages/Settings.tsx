@@ -4,6 +4,7 @@ import { ApiConfigTab } from "../components/settings/ApiConfigTab";
 import { EmailProcessingTab } from "../components/settings/EmailProcessingTab";
 import { GoogleAccountTab } from "../components/settings/GoogleAccountTab";
 import { PromptLibraryTab } from "../components/settings/PromptLibraryTab";
+import { SaleFilterTab } from "../components/settings/SaleFilterTab";
 import { SystemTab } from "../components/settings/SystemTab";
 import { Tabs } from "../components/ui/Tabs";
 
@@ -12,6 +13,7 @@ const TABS = [
   { id: "api", label: "API Configuration" },
   { id: "prompts", label: "AI Prompt Library" },
   { id: "email", label: "Email Processing" },
+  { id: "sale_filter", label: "Sale Filter" },
   { id: "system", label: "System" },
 ];
 
@@ -32,6 +34,7 @@ export function Settings() {
       {tab === "api" && <ApiConfigTab />}
       {tab === "prompts" && <PromptLibraryTab />}
       {tab === "email" && <EmailProcessingTab />}
+      {tab === "sale_filter" && <SaleFilterTab />}
       {tab === "system" && <SystemTab />}
     </>
   );

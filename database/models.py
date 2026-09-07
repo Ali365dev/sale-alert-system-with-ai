@@ -56,6 +56,15 @@ class Email(Base):
     failure_key_identifier = Column(String(120), nullable=True)  # e.g. "Gemini Key 1" — never the raw API key
     failure_attempt_count = Column(Integer, nullable=True)
 
+    # Pre-AI sale-content relevance filter (ai/sale_filter.py) — scored from
+    # subject + body + ocr_text_clean right after OCR, before the AI offer-
+    # extraction call. Only "not_sale_related" actually skips that call;
+    # "needs_review" still goes to full analysis (safer against missing a
+    # real deal worded ambiguously) and is tagged here purely for visibility.
+    sale_relevance_score = Column(Float, nullable=True)
+    filter_status = Column(String(20), nullable=True)  # "eligible_for_analysis" | "needs_review" | "not_sale_related"
+    filter_reason = Column(Text, nullable=True)
+
     offers = relationship("Offer", back_populates="email", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:

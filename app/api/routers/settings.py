@@ -331,6 +331,68 @@ def update_email_processing(body: dict = Body(default={})):
     return {"status": "ok"}
 
 
+# ── Sale filter (admin) ──────────────────────────────────────────────────────
+# Admin-editable weak-keyword list for ai/sale_filter.py's pre-AI relevance
+# scoring — the regex-based patterns (% off, BOGO, was/now price pairs,
+# etc.) stay code-only, not exposed here, since a malformed regex from the
+# admin UI could break the filter for every incoming email; both keyword
+# lists below are plain strings/phrases (substring matches, no regex), safe
+# to edit freely and cheap to test against pasted content below.
+
+@admin_router.get("/sale-filter")
+def get_sale_filter():
+    from ai.sale_filter import DEFAULT_STRONG_KEYWORDS, DEFAULT_WEAK_KEYWORDS
+
+    weak = settings_service.get_setting("sale_filter_weak_keywords", default=DEFAULT_WEAK_KEYWORDS)
+    strong = settings_service.get_setting("sale_filter_strong_keywords", default=DEFAULT_STRONG_KEYWORDS)
+    return {
+        "weak_keywords": weak if isinstance(weak, list) else DEFAULT_WEAK_KEYWORDS,
+        "default_weak_keywords": DEFAULT_WEAK_KEYWORDS,
+        "strong_keywords": strong if isinstance(strong, list) else DEFAULT_STRONG_KEYWORDS,
+        "default_strong_keywords": DEFAULT_STRONG_KEYWORDS,
+    }
+
+
+def _clean_keyword_list(keywords) -> list[str] | None:
+    if not isinstance(keywords, list) or not all(isinstance(k, str) for k in keywords):
+        return None
+    return sorted({k.strip().lower() for k in keywords if k.strip()})
+
+
+@admin_router.put("/sale-filter")
+def update_sale_filter(body: dict = Body(default={})):
+    body = body or {}
+    result = {}
+
+    if "weak_keywords" in body:
+        cleaned = _clean_keyword_list(body["weak_keywords"])
+        if cleaned is None:
+            return JSONResponse({"error": "weak_keywords must be a list of strings"}, status_code=400)
+        settings_service.set_setting("sale_filter_weak_keywords", cleaned, category="sale_filter", actor=_actor())
+        result["weak_keywords"] = cleaned
+
+    if "strong_keywords" in body:
+        cleaned = _clean_keyword_list(body["strong_keywords"])
+        if cleaned is None:
+            return JSONResponse({"error": "strong_keywords must be a list of strings"}, status_code=400)
+        settings_service.set_setting("sale_filter_strong_keywords", cleaned, category="sale_filter", actor=_actor())
+        result["strong_keywords"] = cleaned
+
+    return result
+
+
+@admin_router.post("/sale-filter/test")
+def test_sale_filter(body: dict = Body(default={})):
+    """Runs the real evaluate() (same code path every incoming email goes
+    through) against admin-pasted sample content — no LLM call involved, so
+    unlike POST /prompts/{key}/test this is instant and free."""
+    from ai.sale_filter import evaluate
+
+    body = body or {}
+    result = evaluate(body.get("subject") or "", body.get("body") or "", body.get("ocr_text") or "")
+    return {"score": result.score, "status": result.status, "reason": result.reason}
+
+
 # ── Prompts (admin) ──────────────────────────────────────────────────────────
 
 @admin_router.get("/prompts")

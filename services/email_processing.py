@@ -15,13 +15,25 @@ from database.models import Email, Offer
 from services.jobs.discover_brand import extract_domain, find_known_brand_by_domain, route_to_candidate_queue
 
 
-def reprocess_email(email_id: int, on_event: Optional[Callable[[dict], None]] = None) -> dict:
+def reprocess_email(
+    email_id: int,
+    on_event: Optional[Callable[[dict], None]] = None,
+    apply_sale_filter: bool = True,
+) -> dict:
     """Returns {"processing_status": "processed"|"failed", "processing_error":
     str|None, "offer_id": int|None}. `on_event`, if given, is forwarded to
     ai.analyzer.analyze_email() for AI-provider-fallback logging (e.g. via
     services.ai_job_logging.make_provider_event_logger) — optional and
     unused by the manual Process/Reprocess and Create Brand callers, which
-    don't run inside a Job with logs to write to."""
+    don't run inside a Job with logs to write to.
+
+    `apply_sale_filter` gates the pre-AI sale-content relevance filter
+    (ai/sale_filter.py) — on by default for services/jobs/email_automation.py's
+    automatic pipeline, where it's meant to save API budget across many
+    unattended emails. The manual Process/Reprocess button and the
+    Create-Brand flow (app/api/routers/emails.py, app/api/routers/
+    unknown_emails.py) pass False: a human already deliberately chose this
+    one email, so the filter shouldn't second-guess that."""
     from ai.analyzer import analyze_email, build_offer
     from ai.ocr import extract_and_merge
 
@@ -61,6 +73,27 @@ def reprocess_email(email_id: int, on_event: Optional[Callable[[dict], None]] = 
             e.ocr_text_raw = ocr_result["ocr_raw"] or None
             e.ocr_text_clean = ocr_result["ocr_clean"] or None
             e.ocr_processed_at = now
+
+    if apply_sale_filter:
+        from ai.sale_filter import NOT_SALE_RELATED, evaluate as evaluate_sale_relevance
+
+        relevance = evaluate_sale_relevance(subject, body, ocr_result["ocr_clean"])
+        with get_session() as session:
+            e = session.query(Email).filter(Email.id == email_id).first()
+            if e is not None:
+                e.sale_relevance_score = relevance.score
+                e.filter_status = relevance.status
+                e.filter_reason = relevance.reason
+
+        if relevance.status == NOT_SALE_RELATED:
+            error = "Not sale-related — filtered before AI analysis"
+            with get_session() as session:
+                e = session.query(Email).filter(Email.id == email_id).first()
+                if e is not None:
+                    e.processing_status = "failed"
+                    e.processing_error = error
+                    e.processing_attempted_at = now
+            return {"processing_status": "failed", "processing_error": error, "offer_id": None}
 
     result = analyze_email(subject, ocr_result["merged"], sender, received_at=received_at, on_event=on_event)
     if result is None:

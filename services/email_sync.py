@@ -107,6 +107,24 @@ def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sende
             e.ocr_text_clean = ocr_result["ocr_clean"] or None
             e.ocr_processed_at = datetime.utcnow()
 
+    from ai.sale_filter import NOT_SALE_RELATED, evaluate as evaluate_sale_relevance
+
+    relevance = evaluate_sale_relevance(subject, body, ocr_result["ocr_clean"])
+    with get_session() as db:
+        e = db.query(Email).filter(Email.id == email_id).first()
+        if e is not None:
+            e.sale_relevance_score = relevance.score
+            e.filter_status = relevance.status
+            e.filter_reason = relevance.reason
+
+    if relevance.status == NOT_SALE_RELATED:
+        job_service.append_log(
+            job_id, f"↷ \"{subject[:60]}\" filtered out before AI (score={relevance.score}: {relevance.reason})",
+            severity="info", category="ai",
+        )
+        _mark_processing_result(email_id, "failed", "Not sale-related — filtered before AI analysis")
+        return "skipped"
+
     active = describe_active_provider()
     job_service.append_log(job_id, f"→ Analysing \"{subject[:60]}\"\n{provider_key_lines(active)}", category="ai")
 
