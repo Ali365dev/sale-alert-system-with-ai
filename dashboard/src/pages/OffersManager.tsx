@@ -11,7 +11,7 @@ import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button, IconButton } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { Label, Select, TextInput } from "../components/ui/Field";
+import { Select, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
@@ -125,6 +125,12 @@ function OffersTable() {
     email_id: emailIdParam ? Number(emailIdParam) : undefined,
   });
   const [search, setSearch] = useState("");
+  const hasFilters = !!(search || filters.verification_status || filters.active);
+
+  function clearFilters() {
+    setSearch("");
+    setFilters((f) => ({ ...f, verification_status: undefined, active: undefined }));
+  }
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || "table");
   const { data, isLoading } = useOffers(filters);
   const summary = data?.summary;
@@ -207,146 +213,150 @@ function OffersTable() {
         </div>
       )}
 
-      <Card>
-        {(filters.brand || filters.email_id) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {filters.brand && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "5px 10px",
-                  borderRadius: "var(--radius-pill)",
-                  background: "var(--brand-subtle)",
-                  color: "var(--brand)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                }}
-              >
-                Brand: {filters.brand}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilters((f) => ({ ...f, brand: undefined }));
-                    setSearchParams((p) => {
-                      p.delete("brand");
-                      return p;
-                    });
-                  }}
-                  aria-label="Clear brand filter"
-                  style={{ display: "flex", border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0 }}
-                >
-                  <Icon.x size={12} />
-                </button>
-              </span>
-            )}
-            {filters.email_id && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "5px 10px",
-                  borderRadius: "var(--radius-pill)",
-                  background: "var(--brand-subtle)",
-                  color: "var(--brand)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                }}
-              >
-                From email #{filters.email_id}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilters((f) => ({ ...f, email_id: undefined }));
-                    setSearchParams((p) => {
-                      p.delete("email_id");
-                      return p;
-                    });
-                  }}
-                  aria-label="Clear email filter"
-                  style={{ display: "flex", border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0 }}
-                >
-                  <Icon.x size={12} />
-                </button>
-              </span>
-            )}
-          </div>
-        )}
-        <div style={{ position: "relative" }}>
-          <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
-          <TextInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search title, brand, category, type, coupon code, or summary…"
-            aria-label="Search offers"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore
-            data-form-type="other"
-            style={{ height: 44, padding: "0 36px", borderRadius: "var(--radius-md)" }}
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              aria-label="Clear search"
+      {(filters.brand || filters.email_id) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {filters.brand && (
+            <span
               style={{
-                position: "absolute",
-                right: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 22,
-                border: "none",
+                gap: 6,
+                padding: "5px 10px",
                 borderRadius: "var(--radius-pill)",
-                background: "transparent",
-                color: "var(--text-faint)",
-                cursor: "pointer",
+                background: "var(--brand-subtle)",
+                color: "var(--brand)",
+                fontSize: 12.5,
+                fontWeight: 600,
               }}
             >
-              <Icon.x size={13} />
-            </button>
+              Brand: {filters.brand}
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, brand: undefined }));
+                  setSearchParams((p) => {
+                    p.delete("brand");
+                    return p;
+                  });
+                }}
+                aria-label="Clear brand filter"
+                style={{ display: "flex", border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0 }}
+              >
+                <Icon.x size={12} />
+              </button>
+            </span>
+          )}
+          {filters.email_id && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 10px",
+                borderRadius: "var(--radius-pill)",
+                background: "var(--brand-subtle)",
+                color: "var(--brand)",
+                fontSize: 12.5,
+                fontWeight: 600,
+              }}
+            >
+              From email #{filters.email_id}
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, email_id: undefined }));
+                  setSearchParams((p) => {
+                    p.delete("email_id");
+                    return p;
+                  });
+                }}
+                aria-label="Clear email filter"
+                style={{ display: "flex", border: "none", background: "transparent", color: "inherit", cursor: "pointer", padding: 0 }}
+              >
+                <Icon.x size={12} />
+              </button>
+            </span>
           )}
         </div>
+      )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
-          <div>
-            <Label>Verification status</Label>
-            <Select
-              value={filters.verification_status ?? ""}
-              onChange={(e) => setFilters((f) => ({ ...f, verification_status: e.target.value || undefined }))}
-            >
-              <option value="">All</option>
-              <option value="verified">Verified</option>
-              <option value="suspicious">Suspicious</option>
-              <option value="invalid">Invalid</option>
-              <option value="unverified">Unverified</option>
-            </Select>
+      <Tabs
+        tabs={[
+          { id: "", label: "All Offers" },
+          { id: "verified", label: "Verified" },
+          { id: "unverified", label: "Unverified" },
+          { id: "suspicious", label: "Suspicious" },
+          { id: "invalid", label: "Invalid" },
+        ]}
+        active={filters.verification_status ?? ""}
+        onChange={(id) => setFilters((f) => ({ ...f, verification_status: id || undefined }))}
+      />
+
+      <Card>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ position: "relative", flex: "1 1 260px", minWidth: 220 }}>
+            <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
+            <TextInput
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search title, brand, category, type, coupon code, or summary…"
+              aria-label="Search offers"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-1p-ignore
+              data-lpignore="true"
+              data-bwignore
+              data-form-type="other"
+              style={{ height: 42, padding: "0 36px", borderRadius: "var(--radius-md)" }}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 22,
+                  height: 22,
+                  border: "none",
+                  borderRadius: "var(--radius-pill)",
+                  background: "transparent",
+                  color: "var(--text-faint)",
+                  cursor: "pointer",
+                }}
+              >
+                <Icon.x size={13} />
+              </button>
+            )}
           </div>
-          <div>
-            <Label>Active</Label>
-            <Select
-              value={filters.active ?? ""}
-              onChange={(e) => setFilters((f) => ({ ...f, active: (e.target.value || undefined) as "true" | "false" | undefined }))}
-            >
-              <option value="">All</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
-            </Select>
-          </div>
+
+          <Select
+            aria-label="Filter by active status"
+            value={filters.active ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, active: (e.target.value || undefined) as "true" | "false" | undefined }))}
+            style={{ width: 150 }}
+          >
+            <option value="">All Status</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </Select>
+
+          <IconButton icon={<Icon.filter size={14} />} label="Clear all filters" variant="secondary" disabled={!hasFilters} onClick={clearFilters} />
         </div>
+      </Card>
 
+      <Card>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <Button
+            size="sm"
             loading={verifyAll.isPending || bulkRunning}
             disabled={verifyAll.isPending || bulkRunning}
             onClick={() => verifyAll.mutate(undefined, { onSuccess: (data) => setVisibleJobId(data.jobId) })}
@@ -354,14 +364,26 @@ function OffersTable() {
             Verify all unverified offers
           </Button>
           <Button
+            size="sm"
             variant="secondary"
             loading={verifyAll.isPending || bulkRunning}
             disabled={verifyAll.isPending || bulkRunning}
             onClick={() =>
-              verifyAll.mutate({ statuses: ["suspicious", "invalid"] }, { onSuccess: (data) => setVisibleJobId(data.jobId) })
+              verifyAll.mutate({ statuses: ["suspicious"] }, { onSuccess: (data) => setVisibleJobId(data.jobId) })
             }
           >
-            Re-verify suspicious/invalid
+            Re-verify suspicious
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={verifyAll.isPending || bulkRunning}
+            disabled={verifyAll.isPending || bulkRunning}
+            onClick={() =>
+              verifyAll.mutate({ statuses: ["invalid"] }, { onSuccess: (data) => setVisibleJobId(data.jobId) })
+            }
+          >
+            Re-verify invalid
           </Button>
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
             {watchedJob.data?.status === "cancelling"

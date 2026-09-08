@@ -17,7 +17,7 @@ import {
 import { BrandForm } from "../components/brands/BrandForm";
 import { BrandLogo } from "../components/public/BrandLogo";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
+import { Button, IconButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
 import { Label, Select, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
@@ -191,6 +191,10 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
   const updateBrand = useUpdateBrand();
   const [editing, setEditing] = useState<Brand | null>(null);
   const [query, setQuery] = useState("");
+  const [statusTab, setStatusTab] = useState<"" | "active" | "inactive">("");
+  const bulkSearch = useBulkSearchBrands();
+  const bulkStatus = useBulkSearchStatus(bulkSearch.isPending || !!bulkSearch.data);
+  const bulkRunning = bulkStatus.data?.running ?? false;
 
   if (brands.length === 0) {
     return (
@@ -200,15 +204,18 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
     );
   }
 
+  const byStatus = statusTab ? brands.filter((b) => (statusTab === "active" ? b.is_active : !b.is_active)) : brands;
   const q = query.trim().toLowerCase();
   const filtered = q
-    ? brands.filter(
+    ? byStatus.filter(
         (b) =>
           b.name.toLowerCase().includes(q) ||
           (b.website ?? "").toLowerCase().includes(q) ||
           b.emails.some((e) => e.toLowerCase().includes(q)),
       )
-    : brands;
+    : byStatus;
+  const hasFilters = !!(query || statusTab);
+  const activeBrands = brands.filter((b) => b.is_active);
 
   return (
     <>
@@ -219,78 +226,100 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
         <StatCard icon={<Icon.sparkle size={17} />} iconColor="var(--ai)" iconBg="var(--ai-subtle)" label="Known sender emails" value={summary.known_sender_emails} />
       </div>
 
+      <Tabs
+        tabs={[
+          { id: "", label: "All Brands" },
+          { id: "active", label: "Active" },
+          { id: "inactive", label: "Inactive" },
+        ]}
+        active={statusTab}
+        onChange={(id) => setStatusTab(id as "" | "active" | "inactive")}
+      />
+
       <Card>
-        <CardHeader
-          title="Search brands"
-          aside={
-            <div style={{ display: "flex", gap: 8 }}>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={filtered.length === 0}
-                onClick={() => exportBrandsToCsv(filtered, `brands-${new Date().toISOString().slice(0, 10)}.csv`)}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ position: "relative", flex: "1 1 260px", minWidth: 220 }}>
+            <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
+            <TextInput
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by brand name, website, or sender email…"
+              aria-label="Search brands"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              data-1p-ignore
+              data-lpignore="true"
+              data-bwignore
+              data-form-type="other"
+              style={{ height: 42, padding: "0 36px", borderRadius: "var(--radius-md)" }}
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 22,
+                  height: 22,
+                  border: "none",
+                  borderRadius: "var(--radius-pill)",
+                  background: "transparent",
+                  color: "var(--text-faint)",
+                  cursor: "pointer",
+                }}
               >
-                <Icon.download size={14} /> CSV
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={filtered.length === 0}
-                onClick={() => exportBrandsToPdf(filtered, `brands-${new Date().toISOString().slice(0, 10)}.pdf`)}
-              >
-                <Icon.download size={14} /> PDF
-              </Button>
-            </div>
-          }
-        />
-        <div style={{ position: "relative" }}>
-          <Icon.search size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
-          <TextInput
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by brand name, website, or sender email…"
-            aria-label="Search brands"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            data-1p-ignore
-            data-lpignore="true"
-            data-bwignore
-            data-form-type="other"
-            style={{ height: 44, padding: "0 36px", borderRadius: "var(--radius-md)" }}
+                <Icon.x size={13} />
+              </button>
+            )}
+          </div>
+
+          <IconButton
+            icon={<Icon.filter size={14} />}
+            label="Clear all filters"
+            variant="secondary"
+            disabled={!hasFilters}
+            onClick={() => {
+              setQuery("");
+              setStatusTab("");
+            }}
           />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              style={{
-                position: "absolute",
-                right: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 22,
-                border: "none",
-                borderRadius: "var(--radius-pill)",
-                background: "transparent",
-                color: "var(--text-faint)",
-                cursor: "pointer",
-              }}
-            >
-              <Icon.x size={13} />
-            </button>
-          )}
+
+          <div style={{ flex: "1 1 auto" }} />
+
+          <Button size="sm" variant="secondary" disabled={filtered.length === 0} onClick={() => exportBrandsToCsv(filtered, `brands-${new Date().toISOString().slice(0, 10)}.csv`)}>
+            <Icon.download size={14} /> CSV
+          </Button>
+          <Button size="sm" variant="secondary" disabled={filtered.length === 0} onClick={() => exportBrandsToPdf(filtered, `brands-${new Date().toISOString().slice(0, 10)}.pdf`)}>
+            <Icon.download size={14} /> PDF
+          </Button>
         </div>
-        {q && (
+        {(q || statusTab) && (
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-            {filtered.length} of {brands.length} brand(s) match “{query.trim()}”
+            {filtered.length} of {brands.length} brand(s) match{q ? ` “${query.trim()}”` : ""}
           </span>
         )}
+      </Card>
+
+      <Card>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <Button size="sm" loading={bulkSearch.isPending || bulkRunning} disabled={bulkSearch.isPending || bulkRunning} onClick={() => bulkSearch.mutate(false)}>
+            Search all active brands
+          </Button>
+          <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+            {bulkRunning
+              ? `Searching ${bulkStatus.data?.done}/${bulkStatus.data?.total}… `
+              : `${activeBrands.length} active · ${summary.ever_searched} ever searched · ${summary.total} total `}
+          </span>
+        </div>
       </Card>
 
       <Card padded={false} style={{ overflow: "hidden" }}>

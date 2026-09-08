@@ -9,9 +9,11 @@ import { DiscoverBrand } from "./pages/DiscoverBrand";
 import { EmailManager } from "./pages/EmailManager";
 import { Insights } from "./pages/Insights";
 import { NotificationManager } from "./pages/NotificationManager";
+import { OfferDiscovery } from "./pages/OfferDiscovery";
 import { OffersManager } from "./pages/OffersManager";
 import { Overview } from "./pages/Overview";
 import { PipelineCenter } from "./pages/PipelineCenter";
+import { SocialScraperTest } from "./pages/SocialScraperTest";
 import { AccountPage } from "./pages/public/AccountPage";
 import { BrandDetailPage } from "./pages/public/BrandDetailPage";
 import { BrandsPage } from "./pages/public/BrandsPage";
@@ -96,6 +98,22 @@ function App() {
           element={
             <AppShell title="Discover brand">
               <DiscoverBrand />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/offer-discovery"
+          element={
+            <AppShell title="Offer discovery">
+              <OfferDiscovery />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/social-scraper-test"
+          element={
+            <AppShell title="Social media scraper test">
+              <SocialScraperTest />
             </AppShell>
           }
         />

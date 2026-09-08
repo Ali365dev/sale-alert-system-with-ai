@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 def _utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, DateTime, ForeignKey, Boolean
+    Column, Integer, String, Text, Float, DateTime, ForeignKey, Boolean, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -62,7 +62,7 @@ class Email(Base):
     # "needs_review" still goes to full analysis (safer against missing a
     # real deal worded ambiguously) and is tagged here purely for visibility.
     sale_relevance_score = Column(Float, nullable=True)
-    filter_status = Column(String(20), nullable=True)  # "eligible_for_analysis" | "needs_review" | "not_sale_related"
+    filter_status = Column(String(30), nullable=True)  # "eligible_for_analysis" | "needs_review" | "not_sale_related"
     filter_reason = Column(Text, nullable=True)
 
     offers = relationship("Offer", back_populates="email", cascade="all, delete-orphan")
@@ -239,7 +239,7 @@ class Offer(Base):
     key_highlights = Column(Text, nullable=True)   # JSON list stored as text
     website = Column(String(500), nullable=True)   # offer/brand URL
     is_active = Column(Boolean, default=True, nullable=False, index=True)
-    source = Column(String(20), nullable=True)     # "email" | "ai"
+    source = Column(String(20), nullable=True)     # "email" | "ai" | "social"
     created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
 
     # AI verification fields
@@ -252,6 +252,79 @@ class Offer(Base):
 
     def __repr__(self) -> str:
         return f"<Offer id={self.id} brand={self.brand!r} discount={self.discount_percentage}%>"
+
+
+class SocialPost(Base):
+    """One Facebook/Instagram post submitted to the Social Media Offer
+    Discovery pipeline (services/social_scraper/content_pipeline.py) —
+    either tied to a Brand (submitted from the Offer Discovery page) or
+    ad-hoc (submitted from the Social Scraper Test page, brand_id null).
+
+    No automated fetch happens for this feature — see services/social_scraper/
+    post_metadata_fetcher.py's docstring for why (Meta ToS: there's no way to
+    list a profile's posts without either login, which isn't built, or an
+    official API grant, which needs the brand's own cooperation). caption/
+    image_url/post_date are admin-supplied (optionally best-effort auto-filled
+    from the post's own public og: preview tags for a *specific* URL, same
+    mechanism a chat app's link-unfurl uses — not profile scraping)."""
+    __tablename__ = "social_posts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
+
+    platform = Column(String(20), nullable=False)  # "facebook" | "instagram"
+    post_url = Column(String(500), unique=True, nullable=False, index=True)  # dedup key
+    caption = Column(Text, nullable=True)
+    image_url = Column(String(500), nullable=True)
+    post_date = Column(DateTime, nullable=True)  # as supplied/detected — not always known
+
+    ocr_text = Column(Text, nullable=True)
+
+    # Keyword-based scoring (ai/sale_filter.py, reused verbatim) — cheap
+    # first pass so the AI call below is skipped for clear non-offers.
+    keyword_score = Column(Float, nullable=True)
+    keyword_status = Column(String(30), nullable=True)  # eligible_for_analysis | needs_review | not_sale_related
+    keyword_reason = Column(Text, nullable=True)
+
+    ai_result = Column(Text, nullable=True)  # JSON — full ai/social_offer_analyzer.py response, for review/debug
+
+    offer_id = Column(Integer, ForeignKey("offers.id"), nullable=True)
+
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    # "pending" | "processing" | "processed" | "failed"
+    error = Column(Text, nullable=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=True)
+
+    scraped_at = Column(DateTime, default=_utcnow, nullable=False)  # when submitted/discovered
+    created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
+
+    def __repr__(self) -> str:
+        return f"<SocialPost id={self.id} platform={self.platform!r} status={self.status!r}>"
+
+
+class SocialScrapeLog(Base):
+    """Per (brand, platform) scrape history — one row per pair, updated on
+    every submission through that brand's Facebook/Instagram source (Offer
+    Discovery page). Never touched by ad-hoc Social Scraper Test submissions
+    (those have no brand_id)."""
+    __tablename__ = "social_scrape_logs"
+    __table_args__ = (UniqueConstraint("brand_id", "platform", name="uq_social_scrape_log_brand_platform"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=False, index=True)
+    platform = Column(String(20), nullable=False)  # "facebook" | "instagram"
+
+    last_scraped_at = Column(DateTime, nullable=True)
+    last_post_url = Column(String(500), nullable=True)
+    status = Column(String(20), nullable=False, default="never_run")  # "success" | "failed" | "never_run"
+    error_message = Column(Text, nullable=True)
+    posts_checked = Column(Integer, nullable=False, default=0)
+    offers_created = Column(Integer, nullable=False, default=0)
+
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<SocialScrapeLog brand_id={self.brand_id} platform={self.platform!r} status={self.status!r}>"
 
 
 class Job(Base):

@@ -50,6 +50,11 @@ const STAGE_LABELS: Record<string, string> = {
   discovering_social_accounts: "Discovering social media accounts",
   verifying_results: "Verifying results",
   checking_duplicates: "Checking for duplicates",
+  downloading_image: "Downloading image",
+  running_ocr: "Reading image (OCR)",
+  detecting_keywords: "Detecting sale keywords",
+  checking_duplicate: "Checking for duplicates",
+  creating_offer: "Creating offer",
 };
 
 export function getStageLabel(stage: string | null): string | null {

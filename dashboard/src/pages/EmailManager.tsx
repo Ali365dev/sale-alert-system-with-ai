@@ -811,9 +811,18 @@ export function EmailManager() {
             variant="secondary"
             loading={verifyAll.isPending || running}
             disabled={verifyAll.isPending || running}
-            onClick={() => verifyAll.mutate(["suspicious", "spam"])}
+            onClick={() => verifyAll.mutate(["suspicious"])}
           >
-            Re-verify suspicious/spam
+            Re-verify suspicious
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={verifyAll.isPending || running}
+            disabled={verifyAll.isPending || running}
+            onClick={() => verifyAll.mutate(["spam"])}
+          >
+            Re-verify spam
           </Button>
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
             {running

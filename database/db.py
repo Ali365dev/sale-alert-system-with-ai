@@ -112,6 +112,16 @@ def _migrate() -> None:
         except Exception:
             conn.rollback()
 
+        # Widen emails.filter_status — VARCHAR(20) was too narrow for
+        # ai/sale_filter.py's "eligible_for_analysis" (22 chars), which
+        # crashed every write with StringDataRightTruncation.
+        try:
+            conn.execute(text("ALTER TABLE emails ALTER COLUMN filter_status TYPE VARCHAR(30)"))
+            conn.commit()
+            logger.info("Migration: widened emails.filter_status to VARCHAR(30)")
+        except Exception:
+            conn.rollback()  # already widened — safe to skip
+
         # Add website column for offer/brand URL
         try:
             conn.execute(text("ALTER TABLE offers ADD COLUMN website VARCHAR(500)"))
@@ -239,6 +249,7 @@ def _seed_settings() -> None:
         from research.prompts import _PROMPT as brand_research_tavily_default, PROMPT_KEY as brand_research_tavily_key
         from app.api.routers.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
         from ai.brand_identifier import _PROMPT_TEMPLATE as brand_identification_default, PROMPT_KEY as brand_identification_key
+        from ai.social_offer_analyzer import _PROMPT_TEMPLATE as social_offer_analysis_default, PROMPT_KEY as social_offer_analysis_key
 
         defaults = [
             (email_analysis_key, "Email Analysis", "Extracts structured offer data from a fetched email.", "email", email_analysis_default),
@@ -248,6 +259,7 @@ def _seed_settings() -> None:
             (brand_research_tavily_key, "Brand Research (Tavily)", "Extracts active promotions from Tavily search results for a brand.", "research", brand_research_tavily_default),
             (dashboard_digest_key, "Dashboard Insights", "Generates the AI daily digest shown on the Insights page.", "insights", dashboard_digest_default),
             (brand_identification_key, "Brand Identification", "Identifies the brand behind an email that couldn't be auto-matched to a known brand's sender domain.", "email", brand_identification_default),
+            (social_offer_analysis_key, "Social Offer Analysis", "Determines whether a scraped Facebook/Instagram post is a genuine offer and extracts its details.", "social", social_offer_analysis_default),
         ]
         for key, name, description, category, default_content in defaults:
             settings_service.seed_prompt_if_missing(key, name, description, category, default_content)

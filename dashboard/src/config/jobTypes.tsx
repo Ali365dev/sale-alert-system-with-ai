@@ -78,6 +78,13 @@ export const JOB_TYPES: JobTypeConfig[] = [
     itemNoun: "brand",
     description: "Crawl a brand's website (or a picked search result) to extract its logo, description, category, and social media links. Started from the Discover Brand page.",
   },
+  {
+    jobType: "social_offer_scrape",
+    title: "Social Media Offer Scrape",
+    icon: <Icon.instagram size={17} />,
+    itemNoun: "post",
+    description: "OCR + keyword + AI analysis on a submitted Facebook/Instagram post, creating an Offer if it's genuine. Started from Offer Discovery or the Social Scraper Test page.",
+  },
 ];
 
 export const JOB_TYPE_BY_ID: Record<string, JobTypeConfig> = Object.fromEntries(
