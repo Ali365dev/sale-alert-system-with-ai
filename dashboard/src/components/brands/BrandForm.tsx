@@ -26,6 +26,12 @@ export function BrandForm({
     instagram: initial?.social_links?.instagram ?? "",
     twitter: initial?.social_links?.twitter ?? "",
     youtube: initial?.social_links?.youtube ?? "",
+    homepage_url: initial?.homepage_url ?? "",
+    sale_page_url: initial?.sale_page_url ?? "",
+    offers_page_url: initial?.offers_page_url ?? "",
+    promotions_page_url: initial?.promotions_page_url ?? "",
+    custom_scrape_urls: initial?.custom_scrape_urls?.join("\n") ?? "",
+    website_scraping_enabled: initial?.website_scraping_enabled ?? true,
   });
 
   const update = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -39,6 +45,7 @@ export function BrandForm({
       twitter: form.twitter.trim() || null,
       youtube: form.youtube.trim() || null,
     };
+    const custom_scrape_urls = [...new Set(form.custom_scrape_urls.split("\n").map((u) => u.trim()).filter(Boolean))];
     onSubmit({
       name: form.name.trim(),
       website: form.website.trim() || null,
@@ -47,6 +54,12 @@ export function BrandForm({
       emails,
       is_active: form.is_active,
       social_links,
+      homepage_url: form.homepage_url.trim() || null,
+      sale_page_url: form.sale_page_url.trim() || null,
+      offers_page_url: form.offers_page_url.trim() || null,
+      promotions_page_url: form.promotions_page_url.trim() || null,
+      custom_scrape_urls,
+      website_scraping_enabled: form.website_scraping_enabled,
     });
   };
 
@@ -97,6 +110,31 @@ export function BrandForm({
           <TextInput placeholder="Instagram URL" value={form.instagram} onChange={(e) => update({ instagram: e.target.value })} />
           <TextInput placeholder="Twitter / X URL" value={form.twitter} onChange={(e) => update({ twitter: e.target.value })} />
           <TextInput placeholder="YouTube URL" value={form.youtube} onChange={(e) => update({ youtube: e.target.value })} />
+        </div>
+      </div>
+      <div>
+        <Label>Website Scraper URLs</Label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <TextInput placeholder="Homepage URL (falls back to Website URL above)" value={form.homepage_url} onChange={(e) => update({ homepage_url: e.target.value })} />
+          <TextInput placeholder="Sale page URL" value={form.sale_page_url} onChange={(e) => update({ sale_page_url: e.target.value })} />
+          <TextInput placeholder="Offers page URL" value={form.offers_page_url} onChange={(e) => update({ offers_page_url: e.target.value })} />
+          <TextInput placeholder="Promotions page URL" value={form.promotions_page_url} onChange={(e) => update({ promotions_page_url: e.target.value })} />
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <TextArea
+            placeholder="Extra URLs to always check, one per line"
+            value={form.custom_scrape_urls}
+            onChange={(e) => update({ custom_scrape_urls: e.target.value })}
+          />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+          <input
+            type="checkbox"
+            checked={form.website_scraping_enabled}
+            onChange={(e) => update({ website_scraping_enabled: e.target.checked })}
+            style={{ width: 18, height: 18 }}
+          />
+          <span style={{ fontSize: 13, color: "var(--text-body)" }}>Website scraping enabled</span>
         </div>
       </div>
       <div>

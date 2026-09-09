@@ -4,6 +4,8 @@ import type { Offer } from "../../api/offers";
 import { Icon } from "../icons";
 import { useFavoritesStore } from "../../store/favoritesStore";
 import { discountLabel, expiryLabel, humanize, imageForOffer, isExpired, isExpiringSoon } from "../../lib/publicOffers";
+import { sourceLabel, sourceTone } from "../../lib/offerSource";
+import { Badge } from "../ui/Badge";
 import { BrandLogo } from "./BrandLogo";
 
 function offerTitle(offer: Offer): string {
@@ -95,7 +97,8 @@ export function OfferCard({ offer }: { offer: Offer }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <BrandLogo name={brandName} size={32} />
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-strong)" }}>{brandName}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-strong)", flex: "1 1 auto" }}>{brandName}</div>
+          {sourceLabel(offer.source) && <Badge tone={sourceTone(offer.source)}>{sourceLabel(offer.source)}</Badge>}
         </div>
 
         <Link

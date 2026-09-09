@@ -22,6 +22,17 @@ firebase-admin>=6.5.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 
+# Website Sale Scraper (services/website_scraper/)
+selectolax>=0.3.27
+extruct>=0.18.0
+# Headless-browser fallback for sites whose WAF/bot-mitigation blocks plain
+# HTTP requests (see services/website_scraper/crawler.py::fetch_html_browser).
+# Requires `playwright install chromium` once after `pip install`.
+playwright>=1.49.0
+# Akamai Bot Manager (adidas.com and similar) still 403s Playwright Chromium;
+# Camoufox is the Firefox-fingerprint fallback used after that.
+camoufox[geoip]>=0.4.0
+
 # Testing (tests/) — httpx is what fastapi.testclient.TestClient uses internally
 pytest>=8.0.0
 pytest-mock>=3.14.0

@@ -85,6 +85,13 @@ export const JOB_TYPES: JobTypeConfig[] = [
     itemNoun: "post",
     description: "OCR + keyword + AI analysis on a submitted Facebook/Instagram post, creating an Offer if it's genuine. Started from Offer Discovery or the Social Scraper Test page.",
   },
+  {
+    jobType: "website_scrape_brand",
+    title: "Website Sale Scrape",
+    icon: <Icon.globe size={17} />,
+    itemNoun: "page",
+    description: "Discovers and scrapes a brand's sale/offers/promotions pages (or one ad-hoc URL), rule-scores content, and creates an Offer via AI confirmation when it's a genuine active sale.",
+  },
 ];
 
 export const JOB_TYPE_BY_ID: Record<string, JobTypeConfig> = Object.fromEntries(

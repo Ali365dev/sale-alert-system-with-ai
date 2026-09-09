@@ -16,6 +16,12 @@ export interface Brand {
   description: string | null;
   country: string | null;
   social_links: Record<string, string | null> | null;
+  homepage_url: string | null;
+  sale_page_url: string | null;
+  offers_page_url: string | null;
+  promotions_page_url: string | null;
+  custom_scrape_urls: string[] | null;
+  website_scraping_enabled: boolean;
 }
 
 export interface BrandsResponse {

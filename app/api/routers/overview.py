@@ -86,6 +86,7 @@ def _build_overview_payload() -> dict:
                 "expiry_date": o.expiry_date.isoformat() if o.expiry_date else None,
                 "verification_status": o.verification_status or "unverified",
                 "summary": o.summary,
+                "source": o.source,
             }
             for o in latest
         ]

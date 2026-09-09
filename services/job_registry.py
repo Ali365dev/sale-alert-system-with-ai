@@ -17,6 +17,7 @@ def register_all() -> None:
     from services.jobs.send_push_notification import SendPushNotificationJob
     from services.jobs.social_offer_scrape import SocialOfferScrapeJob
     from services.jobs.verify_offers import VerifyOffersJob
+    from services.jobs.website_scrape_brand import WebsiteScrapeBrandJob
 
     job_runner.register(EmailSyncJob())
     job_runner.register(VerifyOffersJob())
@@ -27,6 +28,7 @@ def register_all() -> None:
     job_runner.register(DiscoverBrandJob())
     job_runner.register(BrandDiscoveryJob())
     job_runner.register(SocialOfferScrapeJob())
+    job_runner.register(WebsiteScrapeBrandJob())
     job_runner.register(CleanupExpiredOffersJob())
     job_runner.register(SendPushNotificationJob())
     job_runner.register(EmailAutomationJob())

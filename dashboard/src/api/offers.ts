@@ -25,6 +25,9 @@ export interface Offer {
   verification_reason: string | null;
   verification_confidence: number | null;
   verified_at: string | null;
+  source: string | null;
+  source_url: string | null;
+  closure_status: string | null;
 }
 
 export interface OfferFilters {

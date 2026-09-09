@@ -88,6 +88,16 @@ class Brand(Base):
     country      = Column(String(100), nullable=True)
     social_links = Column(Text, nullable=True)        # JSON object stored as text, e.g. {"instagram": "..."}
 
+    # Website Sale Scraper config (services/website_scraper/) — every field is
+    # optional; the crawler falls back to discovering sale/offer pages from
+    # `homepage_url` (or Brand.website) when the specific ones are blank.
+    homepage_url            = Column(String(500), nullable=True)
+    sale_page_url           = Column(String(500), nullable=True)
+    offers_page_url         = Column(String(500), nullable=True)
+    promotions_page_url     = Column(String(500), nullable=True)
+    custom_scrape_urls      = Column(Text, nullable=True)  # JSON array of extra URLs to always check
+    website_scraping_enabled = Column(Boolean, default=True, nullable=False)
+
     def __repr__(self) -> str:
         return f"<Brand id={self.id} name={self.name!r}>"
 
@@ -239,7 +249,7 @@ class Offer(Base):
     key_highlights = Column(Text, nullable=True)   # JSON list stored as text
     website = Column(String(500), nullable=True)   # offer/brand URL
     is_active = Column(Boolean, default=True, nullable=False, index=True)
-    source = Column(String(20), nullable=True)     # "email" | "ai" | "social"
+    source = Column(String(20), nullable=True)     # "email" | "ai" | "social" | "website"
     created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
 
     # AI verification fields
@@ -247,6 +257,18 @@ class Offer(Base):
     verification_reason = Column(Text, nullable=True)
     verification_confidence = Column(Float, nullable=True)
     verified_at = Column(DateTime, nullable=True)
+
+    # Website Sale Scraper lifecycle fields (services/website_scraper/) — only
+    # populated for source="website"; every other source leaves these null.
+    # `website` above already carries the offer/brand link for every source;
+    # `source_url` is kept separate so the exact scraped page is never
+    # ambiguous with a generic brand link.
+    source_url = Column(String(500), nullable=True)
+    closure_status = Column(String(20), nullable=True)  # "ACTIVE" | "POSSIBLY_ENDED" | "EXPIRED" | "MANUALLY_CLOSED"
+    missing_count = Column(Integer, nullable=False, default=0)
+    first_seen_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    last_verified_at = Column(DateTime, nullable=True)
 
     email = relationship("Email", back_populates="offers")
 
@@ -325,6 +347,86 @@ class SocialScrapeLog(Base):
 
     def __repr__(self) -> str:
         return f"<SocialScrapeLog brand_id={self.brand_id} platform={self.platform!r} status={self.status!r}>"
+
+
+class WebsiteScrapedPage(Base):
+    """One fetch+parse of one URL on a brand's website — the Website Sale
+    Scraper's "raw item" row (services/website_scraper/), mirroring
+    SocialPost's shape for social media. Every attempted fetch gets a row,
+    including pages that turned out not to be sale-related, so admins can
+    inspect the full scrape history (see spec's "Website Scrape Storage")."""
+    __tablename__ = "website_scraped_pages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
+
+    url = Column(String(1000), nullable=False, index=True)
+    final_url = Column(String(1000), nullable=True)
+    page_type = Column(String(20), nullable=True)  # homepage|sale|offers|promotions|custom|discovered
+
+    page_title = Column(String(500), nullable=True)
+    meta_description = Column(Text, nullable=True)
+    canonical_url = Column(String(1000), nullable=True)
+
+    headline_text = Column(Text, nullable=True)
+    body_text = Column(Text, nullable=True)
+    important_text = Column(Text, nullable=True)     # JSON list of short sale-signal snippets
+
+    images = Column(Text, nullable=True)             # JSON list of image URLs
+    image_alt_text = Column(Text, nullable=True)      # JSON list of alt-text strings
+    detected_prices = Column(Text, nullable=True)     # JSON list of {original, current}
+    discount_percentages = Column(Text, nullable=True)  # JSON list of numbers
+    coupon_codes = Column(Text, nullable=True)        # JSON list of strings
+    links = Column(Text, nullable=True)               # JSON list, capped (~50)
+
+    page_content_hash = Column(String(64), nullable=True, index=True)        # sha256 of raw extracted content
+    normalized_content_hash = Column(String(64), nullable=True, index=True)  # sha256 of normalized content — drives §13
+
+    sale_score = Column(Float, nullable=True)
+    scrape_status = Column(String(20), nullable=False, default="NEW", index=True)
+    # "NEW" | "UNCHANGED" | "UPDATED" | "SALE_DETECTED" | "NOT_SALE" | "DUPLICATE" | "ERROR" | "BLOCKED"
+    ai_analyzed = Column(Boolean, nullable=False, default=False)
+    ai_result = Column(Text, nullable=True)  # JSON — full ai/website_offer_analyzer.py response
+
+    offer_id = Column(Integer, ForeignKey("offers.id"), nullable=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=True, index=True)
+
+    http_status = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    scraped_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
+    processing_duration = Column(Float, nullable=True)  # seconds
+    created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
+
+    def __repr__(self) -> str:
+        return f"<WebsiteScrapedPage id={self.id} url={self.url!r} status={self.scrape_status!r}>"
+
+
+class WebsiteScrapeLog(Base):
+    """One row per brand — the Website Sale Scraper's per-brand rollup
+    (mirrors SocialScrapeLog, but a website has one scrape identity, not one
+    per platform)."""
+    __tablename__ = "website_scrape_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), unique=True, nullable=False, index=True)
+
+    first_scraped_at = Column(DateTime, nullable=True)
+    last_scraped_at = Column(DateTime, nullable=True)
+    last_successful_scrape_at = Column(DateTime, nullable=True)
+    last_content_change_at = Column(DateTime, nullable=True)
+    last_detected_sale_at = Column(DateTime, nullable=True)
+
+    total_scrape_count = Column(Integer, nullable=False, default=0)
+    pages_discovered = Column(Integer, nullable=False, default=0)
+
+    status = Column(String(20), nullable=False, default="never_run")  # "success" | "failed" | "never_run"
+    error_message = Column(Text, nullable=True)
+
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<WebsiteScrapeLog brand_id={self.brand_id} status={self.status!r}>"
 
 
 class Job(Base):

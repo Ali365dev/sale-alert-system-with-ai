@@ -19,6 +19,11 @@ const MAIN_ITEMS: NavItem[] = [
   { to: "/social-scraper-test", label: "Social Scraper Test", icon: Icon.instagram },
 ];
 
+const WEBSITE_SCRAPER_ITEMS: NavItem[] = [
+  { to: "/website-scraper", label: "Website Scraper", icon: Icon.globe },
+  { to: "/website-scraper-test", label: "Website Scraper Test", icon: Icon.search },
+];
+
 const EMAIL_ITEMS: NavItem[] = [
   { to: "/emails", label: "Email Manager", icon: Icon.mail },
   { to: "/unknown-emails", label: "Unknown Emails", icon: Icon.inbox },
@@ -102,6 +107,7 @@ export function Sidebar({ onRunFetch, fetching }: { onRunFetch: () => void; fetc
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 10, flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         <NavSection label="Main" items={MAIN_ITEMS} />
+        <NavSection label="Website Scraper" items={WEBSITE_SCRAPER_ITEMS} />
         <NavSection label="Email Manager" items={EMAIL_ITEMS} />
         <NavSection label="Settings" items={SETTINGS_ITEMS} />
       </nav>

@@ -45,6 +45,9 @@ def _offer_to_dict(o: Offer) -> dict:
         "verification_reason": o.verification_reason,
         "verification_confidence": o.verification_confidence,
         "verified_at": o.verified_at.isoformat() if o.verified_at else None,
+        "source": o.source,
+        "source_url": o.source_url,
+        "closure_status": o.closure_status,
     }
 
 

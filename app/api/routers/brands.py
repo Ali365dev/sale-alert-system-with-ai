@@ -33,6 +33,12 @@ def _brand_to_dict(b: Brand) -> dict:
         "description": b.description,
         "country": b.country,
         "social_links": json.loads(b.social_links) if b.social_links else {},
+        "homepage_url": b.homepage_url,
+        "sale_page_url": b.sale_page_url,
+        "offers_page_url": b.offers_page_url,
+        "promotions_page_url": b.promotions_page_url,
+        "custom_scrape_urls": json.loads(b.custom_scrape_urls) if b.custom_scrape_urls else [],
+        "website_scraping_enabled": b.website_scraping_enabled,
     }
 
 
@@ -99,6 +105,12 @@ def create_brand(body: dict = Body(...)):
             description=(body.get("description") or "").strip() or None,
             country=(body.get("country") or "").strip() or None,
             social_links=json.dumps(body.get("social_links")) if body.get("social_links") else None,
+            homepage_url=(body.get("homepage_url") or "").strip() or None,
+            sale_page_url=(body.get("sale_page_url") or "").strip() or None,
+            offers_page_url=(body.get("offers_page_url") or "").strip() or None,
+            promotions_page_url=(body.get("promotions_page_url") or "").strip() or None,
+            custom_scrape_urls=json.dumps(body.get("custom_scrape_urls")) if body.get("custom_scrape_urls") else None,
+            website_scraping_enabled=bool(body.get("website_scraping_enabled", True)),
         )
         session.add(brand)
         session.flush()
@@ -130,6 +142,13 @@ def update_brand(brand_id: int, body: dict = Body(...)):
             b.country = (body["country"] or "").strip() or None
         if "social_links" in body:
             b.social_links = json.dumps(body["social_links"]) if body["social_links"] else None
+        for field in ("homepage_url", "sale_page_url", "offers_page_url", "promotions_page_url"):
+            if field in body:
+                setattr(b, field, (body[field] or "").strip() or None)
+        if "custom_scrape_urls" in body:
+            b.custom_scrape_urls = json.dumps(body["custom_scrape_urls"]) if body["custom_scrape_urls"] else None
+        if "website_scraping_enabled" in body:
+            b.website_scraping_enabled = bool(body["website_scraping_enabled"])
 
         session.flush()
         return _brand_to_dict(b)

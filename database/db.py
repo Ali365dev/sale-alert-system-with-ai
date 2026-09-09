@@ -62,6 +62,20 @@ def _migrate() -> None:
         ("emails", "filter_status",                 "VARCHAR(20)"),
         ("emails", "filter_reason",                 "TEXT"),
         ("brand_discoveries", "brand_request_id",   "INTEGER"),
+        # Website Sale Scraper (services/website_scraper/)
+        ("brands", "homepage_url",                  "VARCHAR(500)"),
+        ("brands", "sale_page_url",                 "VARCHAR(500)"),
+        ("brands", "offers_page_url",               "VARCHAR(500)"),
+        ("brands", "promotions_page_url",           "VARCHAR(500)"),
+        ("brands", "custom_scrape_urls",            "TEXT"),
+        ("brands", "website_scraping_enabled",      "BOOLEAN DEFAULT TRUE"),
+        ("offers", "source_url",                    "VARCHAR(500)"),
+        ("offers", "closure_status",                "VARCHAR(20)"),
+        ("offers", "missing_count",                 "INTEGER DEFAULT 0"),
+        ("offers", "first_seen_at",                 "TIMESTAMP"),
+        ("offers", "last_seen_at",                  "TIMESTAMP"),
+        ("offers", "last_verified_at",               "TIMESTAMP"),
+        ("website_scraped_pages", "job_id",           "INTEGER"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -250,6 +264,7 @@ def _seed_settings() -> None:
         from app.api.routers.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
         from ai.brand_identifier import _PROMPT_TEMPLATE as brand_identification_default, PROMPT_KEY as brand_identification_key
         from ai.social_offer_analyzer import _PROMPT_TEMPLATE as social_offer_analysis_default, PROMPT_KEY as social_offer_analysis_key
+        from ai.website_offer_analyzer import _PROMPT_TEMPLATE as website_offer_analysis_default, PROMPT_KEY as website_offer_analysis_key
 
         defaults = [
             (email_analysis_key, "Email Analysis", "Extracts structured offer data from a fetched email.", "email", email_analysis_default),
@@ -260,6 +275,7 @@ def _seed_settings() -> None:
             (dashboard_digest_key, "Dashboard Insights", "Generates the AI daily digest shown on the Insights page.", "insights", dashboard_digest_default),
             (brand_identification_key, "Brand Identification", "Identifies the brand behind an email that couldn't be auto-matched to a known brand's sender domain.", "email", brand_identification_default),
             (social_offer_analysis_key, "Social Offer Analysis", "Determines whether a scraped Facebook/Instagram post is a genuine offer and extracts its details.", "social", social_offer_analysis_default),
+            (website_offer_analysis_key, "Website Offer Analysis", "Determines whether a scraped website page describes a genuine active offer and extracts its details.", "website", website_offer_analysis_default),
         ]
         for key, name, description, category, default_content in defaults:
             settings_service.seed_prompt_if_missing(key, name, description, category, default_content)

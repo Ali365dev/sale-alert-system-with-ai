@@ -32,6 +32,9 @@ import { TermsConditionsPage } from "./pages/public/TermsConditionsPage";
 import { Settings } from "./pages/Settings";
 import { Search } from "./pages/Search";
 import { UnknownEmailsManager } from "./pages/UnknownEmailsManager";
+import { WebsiteScraper } from "./pages/WebsiteScraper";
+import { WebsiteScraperBrand } from "./pages/WebsiteScraperBrand";
+import { WebsiteScraperTest } from "./pages/WebsiteScraperTest";
 
 function App() {
   return (
@@ -114,6 +117,30 @@ function App() {
           element={
             <AppShell title="Social media scraper test">
               <SocialScraperTest />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/website-scraper"
+          element={
+            <AppShell title="Website scraper">
+              <WebsiteScraper />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/website-scraper/brands/:brandId"
+          element={
+            <AppShell title="Website scraper — brand detail">
+              <WebsiteScraperBrand />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/website-scraper-test"
+          element={
+            <AppShell title="Website scraper test">
+              <WebsiteScraperTest />
             </AppShell>
           }
         />

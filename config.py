@@ -118,6 +118,30 @@ OFFER_RETENTION_NO_EXPIRY_DAYS = int(os.getenv("OFFER_RETENTION_NO_EXPIRY_DAYS",
 # Hour of day (UTC, 0-23) the daily cleanup job runs at.
 OFFER_CLEANUP_HOUR_UTC = int(os.getenv("OFFER_CLEANUP_HOUR_UTC", "3"))
 
+# ── Website Scraper ──────────────────────────────────────────────────────────
+# services/website_scraper/ — HTTPX+Selectolax fetch/parse of a brand's own
+# website (sale/offers/promo pages) to detect and create offers with
+# source="website". See services/website_scraper/services.py for the pipeline.
+WEBSITE_SCRAPER_ENABLED = os.getenv("WEBSITE_SCRAPER_ENABLED", "true").lower() == "true"
+WEBSITE_SCRAPE_TIMEOUT_SECONDS = float(os.getenv("WEBSITE_SCRAPE_TIMEOUT_SECONDS", "30"))
+WEBSITE_SCRAPE_MAX_PAGES = int(os.getenv("WEBSITE_SCRAPE_MAX_PAGES", "8"))
+WEBSITE_SCRAPE_REQUEST_DELAY_SECONDS = float(os.getenv("WEBSITE_SCRAPE_REQUEST_DELAY_SECONDS", "0.4"))
+WEBSITE_SCRAPE_USER_AGENT = os.getenv(
+    "WEBSITE_SCRAPE_USER_AGENT",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+)
+# "needs_review"-tier (weak) signals still get an AI call by default — same
+# reasoning ai/sale_filter.py uses: missing a real offer is worse than one
+# extra AI call. Flip off to save tokens once the rule scorer is trusted.
+WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL = os.getenv("WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL", "true").lower() == "true"
+# Consecutive *successful* scrapes an active website offer can go missing
+# from its source page before its closure_status escalates (see
+# services/website_scraper/closure_detector.py). A failed HTTP request never
+# counts toward these.
+WEBSITE_MISSING_THRESHOLD_POSSIBLY_ENDED = int(os.getenv("WEBSITE_MISSING_THRESHOLD_POSSIBLY_ENDED", "2"))
+WEBSITE_MISSING_THRESHOLD_EXPIRED = int(os.getenv("WEBSITE_MISSING_THRESHOLD_EXPIRED", "3"))
+
 # ── App ───────────────────────────────────────────────────────────────────────
 APP_TITLE = "Gmail Sales Offers AI Dashboard"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

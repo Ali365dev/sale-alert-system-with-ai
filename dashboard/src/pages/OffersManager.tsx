@@ -16,6 +16,7 @@ import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
 import { toast } from "../store/toastStore";
+import { sourceLabel, sourceTone } from "../lib/offerSource";
 
 const VERIFICATION_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   verified: "success",
@@ -70,11 +71,14 @@ function OfferCard({ offer, onView, onEdit }: { offer: Offer; onView: () => void
           <div style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)", marginBottom: 4 }}>#{offer.id}</div>
           <div style={{ fontWeight: 700, color: "var(--text-strong)", fontSize: 14 }}>{offer.brand ?? "—"}</div>
         </div>
-        {offer.verification_status ? (
-          <Badge tone={VERIFICATION_TONE[offer.verification_status] ?? "neutral"}>{offer.verification_status}</Badge>
-        ) : (
-          <Badge tone="neutral">unverified</Badge>
-        )}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          {sourceLabel(offer.source) && <Badge tone={sourceTone(offer.source)}>{sourceLabel(offer.source)}</Badge>}
+          {offer.verification_status ? (
+            <Badge tone={VERIFICATION_TONE[offer.verification_status] ?? "neutral"}>{offer.verification_status}</Badge>
+          ) : (
+            <Badge tone="neutral">unverified</Badge>
+          )}
+        </div>
       </div>
 
       <div
@@ -490,7 +494,7 @@ function OffersTable() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "28px 60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 110px 200px",
+                  gridTemplateColumns: "28px 60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 90px 110px 200px",
                   gap: 12,
                   padding: "11px 20px",
                   background: "var(--surface-sunken)",
@@ -521,6 +525,7 @@ function OffersTable() {
                 <span>Expiry</span>
                 <span>Created</span>
                 <span>Active</span>
+                <span>Source</span>
                 <span>Verification</span>
                 <span>Actions</span>
               </div>
@@ -535,7 +540,7 @@ function OffersTable() {
                   key={offer.id}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "28px 60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 110px 200px",
+                    gridTemplateColumns: "28px 60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 90px 110px 200px",
                     alignItems: "center",
                     gap: 12,
                     padding: "var(--row-pad) 20px",
@@ -571,6 +576,11 @@ function OffersTable() {
                   <span style={{ font: "500 12px/1 var(--font-mono)" }}>{formatDate(offer.expiry_date)}</span>
                   <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDate(offer.created_at)}</span>
                   <span>{offer.is_active ? "Yes" : "No"}</span>
+                  {sourceLabel(offer.source) ? (
+                    <Badge tone={sourceTone(offer.source)}>{sourceLabel(offer.source)}</Badge>
+                  ) : (
+                    <span style={{ color: "var(--text-faint)" }}>—</span>
+                  )}
                   {offer.verification_status ? (
                     <Badge tone={VERIFICATION_TONE[offer.verification_status] ?? "neutral"}>{offer.verification_status}</Badge>
                   ) : (
@@ -599,6 +609,16 @@ function OffersTable() {
         <Modal title={`Offer #${viewing.id} — ${viewing.brand ?? "Unknown brand"}`} onClose={() => setViewing(null)}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: "var(--text-body)" }}>
             <div><strong style={{ color: "var(--text-strong)" }}>Title:</strong> {viewing.title ?? "— (no source email)"}</div>
+            <div>
+              <strong style={{ color: "var(--text-strong)" }}>Source:</strong>{" "}
+              {sourceLabel(viewing.source) ? <Badge tone={sourceTone(viewing.source)}>{sourceLabel(viewing.source)}</Badge> : "—"}
+            </div>
+            {viewing.source_url && (
+              <div>
+                <strong style={{ color: "var(--text-strong)" }}>Original source:</strong>{" "}
+                <a href={viewing.source_url} target="_blank" rel="noreferrer">{viewing.source_url}</a>
+              </div>
+            )}
             <div><strong style={{ color: "var(--text-strong)" }}>Category:</strong> {viewing.category ?? "—"} / {viewing.subcategory ?? "—"}</div>
             <div><strong style={{ color: "var(--text-strong)" }}>Discount:</strong> {viewing.discount_percentage != null ? `${viewing.discount_percentage}%` : "—"}</div>
             <div><strong style={{ color: "var(--text-strong)" }}>Coupon code:</strong> {viewing.coupon_code ?? "—"}</div>

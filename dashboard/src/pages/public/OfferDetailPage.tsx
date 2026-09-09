@@ -18,6 +18,7 @@ import {
   isExpired,
   shareOffer,
 } from "../../lib/publicOffers";
+import { sourceLabel, sourceTone } from "../../lib/offerSource";
 import { useSeo } from "../../lib/seo";
 
 export function OfferDetailPage() {
@@ -161,6 +162,7 @@ export function OfferDetailPage() {
                   </Badge>
                 )}
                 {offer.offer_type && <Badge tone="brand">{humanize(offer.offer_type)}</Badge>}
+                {sourceLabel(offer.source) && <Badge tone={sourceTone(offer.source)}>{sourceLabel(offer.source)}</Badge>}
               </div>
 
               <h1 style={{ margin: 0, font: "var(--fw-bold) 24px/1.3 var(--font-sans)", color: "var(--text-strong)" }}>{title}</h1>

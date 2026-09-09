@@ -76,6 +76,7 @@ def _row_dict(offer: Offer, subject, sender, received_date) -> dict:
         "expiry_date": offer.expiry_date.isoformat() if offer.expiry_date else None,
         "verification_status": offer.verification_status or "unverified",
         "summary": offer.summary,
+        "source": offer.source,
         "subject": subject,
         "sender": sender,
         "received_date": received_date.isoformat() if received_date else None,
