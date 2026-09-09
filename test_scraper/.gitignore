@@ -1,0 +1,7 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.scrapy/
+user-data-dir/
+payloads/

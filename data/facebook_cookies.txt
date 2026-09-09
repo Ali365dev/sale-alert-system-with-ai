@@ -1,0 +1,9 @@
+# Netscape HTTP Cookie File
+# Saved by facebook_login_helper.js
+.facebook.com	TRUE	/	TRUE	1823462757	datr	ZX2gamdqwgtXou3kCkqeVUpT
+.facebook.com	TRUE	/	TRUE	1823462857	sb	ZX2gaux5OzYTDObdH4b9m0nR
+.facebook.com	TRUE	/	TRUE	1789507580	wd	1280x720
+.facebook.com	TRUE	/	TRUE	1789507657	dpr	1
+.facebook.com	TRUE	/	TRUE	1820438857	c_user	61594416113140
+.facebook.com	TRUE	/	TRUE	1820438857	xs	47%3A4jERGu3oKZG1EQ%3A2%3A1788902855%3A-1%3A-1
+.facebook.com	TRUE	/	TRUE	1796678858	fr	028CDmDcXVxdf3Xja.AWfUonFY-xHknKH7jsm4SDZSmVxsnVro4a-uvt_07MkpcWqVzto.BqoH1l..AAA.0.0.BqoH3K.AWc5dsCObZK09xUrTs_WGWJ8S3s
