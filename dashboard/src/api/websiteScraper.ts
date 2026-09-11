@@ -112,6 +112,28 @@ export interface BrandScrapeConfig {
   website_scraping_enabled: boolean;
 }
 
+export function isHttpUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function useBrandScrapeConfig(brandId: number | null) {
+  return useQuery({
+    queryKey: ["website-scraper", "config", brandId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<BrandScrapeConfig>(`/website-scraper/brands/${brandId}/config`);
+      return data;
+    },
+    enabled: brandId != null,
+  });
+}
+
 export function useWebsiteBrandsSummary() {
   return useQuery({
     queryKey: ["website-scraper", "brands"],
@@ -250,6 +272,7 @@ export function useUpdateBrandScrapeConfig(brandId: number) {
     onSuccess: () => {
       toast.success("Website scraper config saved.");
       queryClient.invalidateQueries({ queryKey: ["website-scraper", "brands"] });
+      queryClient.invalidateQueries({ queryKey: ["website-scraper", "config", brandId] });
     },
   });
 }

@@ -20,6 +20,25 @@ export interface BrandPerformance {
   verified: number;
 }
 
+export interface WebsiteScraperStats {
+  brands_monitored: number;
+  pages_scraped: number;
+  sales_detected: number;
+  active_offers: number;
+  success_rate: number | null;
+  last_scraped_at: string | null;
+}
+
+export interface SocialScraperStats {
+  brands_tracked: number;
+  posts_collected: number;
+  posts_checked: number;
+  offers_created: number;
+  active_offers: number;
+  success_rate: number | null;
+  last_scraped_at: string | null;
+}
+
 export interface AnalyticsResponse {
   offers_by_brand: CountItem[];
   offers_by_category: CountItem[];
@@ -30,6 +49,9 @@ export interface AnalyticsResponse {
   monthly_trend: MonthlyPoint[];
   top_discounted_brands: { name: string; avg_discount: number }[];
   brand_performance: BrandPerformance[];
+  offers_by_source: CountItem[];
+  website_scraper_stats: WebsiteScraperStats;
+  social_scraper_stats: SocialScraperStats;
 }
 
 async function fetchAnalytics(): Promise<AnalyticsResponse> {

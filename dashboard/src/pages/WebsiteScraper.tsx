@@ -1,8 +1,10 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { apiClient } from "../api/client";
 import {
+  isHttpUrl,
+  useBrandScrapeConfig,
   useScrapeNow,
   useUpdateBrandScrapeConfig,
   useWebsiteActivity,
@@ -15,14 +17,16 @@ import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button, IconButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
-import { FieldGroup, Label, Select, TextInput } from "../components/ui/Field";
+import { FieldGroup, Label, Select, TextArea, TextInput } from "../components/ui/Field";
 import { LoadingState } from "../components/ui/Spinner";
+import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 
-type RowStatus = "active" | "disabled" | "error";
+type RowStatus = "active" | "idle" | "disabled" | "error";
 
-const STATUS_META: Record<RowStatus, { label: string; tone: "success" | "neutral" | "danger"; color: string }> = {
+const STATUS_META: Record<RowStatus, { label: string; tone: "success" | "warning" | "neutral" | "danger"; color: string }> = {
   active: { label: "Active", tone: "success", color: "var(--success)" },
+  idle: { label: "Not scraped", tone: "warning", color: "var(--warning)" },
   disabled: { label: "Disabled", tone: "neutral", color: "var(--border-strong)" },
   error: { label: "Error", tone: "danger", color: "var(--danger)" },
 };
@@ -37,6 +41,7 @@ const PAGE_SIZE = 8;
 function rowStatus(row: WebsiteBrandSummary): RowStatus {
   if (!row.scraping_enabled) return "disabled";
   if (row.status === "failed") return "error";
+  if (row.status === "never_run") return "idle";
   return "active";
 }
 
@@ -84,47 +89,89 @@ function downloadCsv(rows: WebsiteBrandSummary[]) {
   URL.revokeObjectURL(url);
 }
 
+function optionalUrlError(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!isHttpUrl(trimmed)) return "Enter a full http(s) URL.";
+  return null;
+}
+
 function ConfigureForm({ row, onDone }: { row: WebsiteBrandSummary; onDone: () => void }) {
+  const { data: config, isLoading, isError, refetch } = useBrandScrapeConfig(row.brand_id);
   const [salePage, setSalePage] = useState("");
   const [offersPage, setOffersPage] = useState("");
   const [promoPage, setPromoPage] = useState("");
+  const [customUrls, setCustomUrls] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
   const update = useUpdateBrandScrapeConfig(row.brand_id);
+
+  useEffect(() => {
+    if (!config) return;
+    setSalePage(config.sale_page_url ?? "");
+    setOffersPage(config.offers_page_url ?? "");
+    setPromoPage(config.promotions_page_url ?? "");
+    setCustomUrls((config.custom_scrape_urls ?? []).join("\n"));
+  }, [config]);
+
+  function handleSave() {
+    const fields = [salePage, offersPage, promoPage];
+    if (fields.some((value) => optionalUrlError(value))) {
+      setFormError("Sale, offers, and promotions URLs must be empty or full http(s) links.");
+      return;
+    }
+    const extra = customUrls.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (extra.some((url) => !isHttpUrl(url))) {
+      setFormError("Each extra URL must be a full http(s) link, one per line.");
+      return;
+    }
+    setFormError(null);
+    update.mutate(
+      {
+        sale_page_url: salePage.trim(),
+        offers_page_url: offersPage.trim(),
+        promotions_page_url: promoPage.trim(),
+        custom_scrape_urls: extra,
+      },
+      { onSuccess: onDone },
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "var(--surface-sunken)", borderTop: "1px solid var(--border)" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-        <FieldGroup>
-          <Label>Sale page URL</Label>
-          <TextInput value={salePage} onChange={(e) => setSalePage(e.target.value)} placeholder={`${row.website}sale`} />
-        </FieldGroup>
-        <FieldGroup>
-          <Label>Offers page URL</Label>
-          <TextInput value={offersPage} onChange={(e) => setOffersPage(e.target.value)} />
-        </FieldGroup>
-        <FieldGroup>
-          <Label>Promotions page URL</Label>
-          <TextInput value={promoPage} onChange={(e) => setPromoPage(e.target.value)} />
-        </FieldGroup>
-      </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <Button
-          size="sm"
-          loading={update.isPending}
-          onClick={() =>
-            update.mutate(
-              {
-                sale_page_url: salePage.trim() || undefined,
-                offers_page_url: offersPage.trim() || undefined,
-                promotions_page_url: promoPage.trim() || undefined,
-              },
-              { onSuccess: onDone },
-            )
-          }
-        >
-          Save
-        </Button>
-        <Button size="sm" variant="ghost" onClick={onDone}>Cancel</Button>
-      </div>
+      {isLoading && <LoadingState label="Loading saved URLs…" />}
+      {isError && (
+        <div>
+          <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--danger)" }}>Could not load this brand’s scrape URLs.</p>
+          <Button size="sm" variant="secondary" onClick={() => refetch()}>Try again</Button>
+        </div>
+      )}
+      {!isLoading && !isError && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+            <FieldGroup>
+              <Label>Sale page URL</Label>
+              <TextInput value={salePage} onChange={(e) => setSalePage(e.target.value)} placeholder={`${row.website.replace(/\/$/, "")}/sale`} aria-invalid={!!optionalUrlError(salePage)} />
+            </FieldGroup>
+            <FieldGroup>
+              <Label>Offers page URL</Label>
+              <TextInput value={offersPage} onChange={(e) => setOffersPage(e.target.value)} aria-invalid={!!optionalUrlError(offersPage)} />
+            </FieldGroup>
+            <FieldGroup>
+              <Label>Promotions page URL</Label>
+              <TextInput value={promoPage} onChange={(e) => setPromoPage(e.target.value)} aria-invalid={!!optionalUrlError(promoPage)} />
+            </FieldGroup>
+          </div>
+          <FieldGroup>
+            <Label>Extra URLs (one per line)</Label>
+            <TextArea value={customUrls} onChange={(e) => setCustomUrls(e.target.value)} placeholder="https://brand.com/outlet" />
+          </FieldGroup>
+          {formError && <p style={{ margin: 0, fontSize: 12.5, color: "var(--danger)" }}>{formError}</p>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button size="sm" loading={update.isPending} onClick={handleSave}>Save</Button>
+            <Button size="sm" variant="ghost" onClick={onDone}>Cancel</Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -188,7 +235,7 @@ const menuItemStyle: React.CSSProperties = {
 };
 
 export function WebsiteScraper() {
-  const { data, isLoading, dataUpdatedAt, refetch, isFetching } = useWebsiteBrandsSummary();
+  const { data, isLoading, isError, dataUpdatedAt, refetch, isFetching } = useWebsiteBrandsSummary();
   const { data: activity } = useWebsiteActivity();
   const navigate = useNavigate();
 
@@ -198,6 +245,7 @@ export function WebsiteScraper() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [configuringId, setConfiguringId] = useState<number | null>(null);
   const [scrapingAll, setScrapingAll] = useState(false);
+  const [confirmScrape, setConfirmScrape] = useState<"all" | "selected" | null>(null);
   const [activeJob, setActiveJob] = useState<{ jobId: number; brandName: string } | null>(null);
 
   const rows = data ?? [];
@@ -205,13 +253,14 @@ export function WebsiteScraper() {
   const filtered = useMemo(() => {
     return rows.filter((r) => {
       if (statusFilter !== "all" && rowStatus(r) !== statusFilter) return false;
-      if (search.trim() && !r.brand_name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+      if (search.trim() && !`${r.brand_name} ${r.website}`.toLowerCase().includes(search.trim().toLowerCase())) return false;
       return true;
     });
   }, [rows, search, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const stats = useMemo(() => {
     const enabled = rows.filter((r) => r.scraping_enabled).length;
@@ -222,14 +271,14 @@ export function WebsiteScraper() {
   }, [rows]);
 
   const statusCounts = useMemo(() => {
-    const counts: Record<RowStatus, number> = { active: 0, disabled: 0, error: 0 };
+    const counts: Record<RowStatus, number> = { active: 0, idle: 0, disabled: 0, error: 0 };
     for (const r of rows) counts[rowStatus(r)] += 1;
     return counts;
   }, [rows]);
 
   const totalForDonut = rows.length || 1;
   let cumulative = 0;
-  const conicStops = (["active", "disabled", "error"] as RowStatus[])
+  const conicStops = (["active", "idle", "disabled", "error"] as RowStatus[])
     .filter((s) => statusCounts[s] > 0)
     .map((s) => {
       const start = (cumulative / totalForDonut) * 100;
@@ -239,9 +288,12 @@ export function WebsiteScraper() {
     })
     .join(", ");
 
-  async function handleScrapeAll() {
-    const eligible = rows.filter((r) => r.scraping_enabled && r.website);
-    if (eligible.length === 0) return;
+  async function startScrapes(targets: WebsiteBrandSummary[]) {
+    const eligible = targets.filter((r) => r.scraping_enabled && r.website);
+    if (eligible.length === 0) {
+      toast.error("No enabled brands with a website URL in this selection.");
+      return;
+    }
     setScrapingAll(true);
     let started = 0;
     for (const row of eligible) {
@@ -254,7 +306,8 @@ export function WebsiteScraper() {
       await new Promise((r) => setTimeout(r, 250));
     }
     setScrapingAll(false);
-    toast.success(`Started scraping ${started} of ${eligible.length} brand(s).`);
+    if (started === 0) toast.error(`Could not start any scrapes (${eligible.length} attempted).`);
+    else toast.success(`Started scraping ${started} of ${eligible.length} brand(s).`);
     refetch();
   }
 
@@ -267,7 +320,18 @@ export function WebsiteScraper() {
     });
   }
 
-  if (isLoading) return <LoadingState />;
+  const selectedRows = rows.filter((r) => selected.has(r.brand_id));
+
+  if (isLoading) return <LoadingState label="Loading website brands…" />;
+
+  if (isError) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ margin: 0, color: "var(--danger)", fontSize: 13 }}>Unable to load website scraper brands.</p>
+        <div><Button size="sm" variant="secondary" onClick={() => refetch()}>Try again</Button></div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -289,9 +353,14 @@ export function WebsiteScraper() {
             <span style={{ color: "var(--text-muted)" }}>{new Date(dataUpdatedAt).toLocaleString()}</span>
           </span>
           <IconButton icon={<Icon.retry size={15} />} label="Refresh" loading={isFetching} onClick={() => refetch()} />
-          <Button variant="secondary" loading={scrapingAll} onClick={handleScrapeAll}>
+          <Button variant="secondary" loading={scrapingAll} onClick={() => setConfirmScrape("all")}>
             <Icon.play size={14} /> Scrape All Brands
           </Button>
+          {selected.size > 0 && (
+            <Button variant="secondary" loading={scrapingAll} onClick={() => setConfirmScrape("selected")}>
+              Scrape selected ({selected.size})
+            </Button>
+          )}
           <Button onClick={() => navigate("/brands")}>
             <Icon.store size={14} /> Add Brand Website
           </Button>
@@ -319,7 +388,9 @@ export function WebsiteScraper() {
         <Card>
           <CardHeader icon={<Icon.activity size={16} style={{ color: "var(--brand)" }} />} title="Recent Scraping Activity" />
           {!activity || activity.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-muted)" }}>No scraping activity yet.</p>
+            <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-muted)" }}>
+              No scraping jobs have run yet. Use Scrape now on a brand, or open Website Scraper Test for a single URL.
+            </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {activity.slice(0, 8).map((a) => (
@@ -343,7 +414,7 @@ export function WebsiteScraper() {
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: "1 1 160px", minWidth: 150 }}>
-              {(["active", "disabled", "error"] as RowStatus[]).map((s) => (
+              {(["active", "idle", "disabled", "error"] as RowStatus[]).map((s) => (
                 <div key={s} style={{ display: "flex", alignItems: "center", gap: 9 }}>
                   <span style={{ width: 9, height: 9, borderRadius: 3, background: STATUS_META[s].color }} />
                   <span style={{ fontSize: 12.5, color: "var(--text-body)", flex: "1 1 auto" }}>{STATUS_META[s].label}</span>
@@ -364,7 +435,7 @@ export function WebsiteScraper() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <div style={{ position: "relative", width: 200 }}>
               <TextInput
-                placeholder="Search brands…"
+                placeholder="Search brand or URL…"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 style={{ paddingLeft: 32 }}
@@ -374,6 +445,7 @@ export function WebsiteScraper() {
             <Select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setPage(1); }} style={{ width: 150 }}>
               <option value="all">All Statuses</option>
               <option value="active">Active</option>
+              <option value="idle">Not scraped</option>
               <option value="disabled">Disabled</option>
               <option value="error">Error</option>
             </Select>
@@ -451,7 +523,9 @@ export function WebsiteScraper() {
               })}
               {pageRows.length === 0 && (
                 <tr><td colSpan={9} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
-                  No brands match this search/filter.
+                  {rows.length === 0
+                    ? "No brands have a website URL yet. Add a website in Brands Manager, then return here to scrape."
+                    : "No brands match this search or filter. Clear the search or choose All Statuses."}
                 </td></tr>
               )}
             </tbody>
@@ -459,14 +533,37 @@ export function WebsiteScraper() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px 18px", fontSize: 12, color: "var(--text-muted)" }}>
-          <span>Showing {pageRows.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} brands</span>
+          <span>Showing {pageRows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} brands</span>
           <div style={{ display: "flex", gap: 6 }}>
-            <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
-            <span style={{ display: "flex", alignItems: "center", padding: "0 8px" }}>{page} / {totalPages}</span>
-            <Button size="sm" variant="ghost" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Button size="sm" variant="ghost" disabled={currentPage <= 1} onClick={() => setPage((p) => p - 1)}>Prev</Button>
+            <span style={{ display: "flex", alignItems: "center", padding: "0 8px" }}>{currentPage} / {totalPages}</span>
+            <Button size="sm" variant="ghost" disabled={currentPage >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
           </div>
         </div>
       </Card>
+
+      {confirmScrape && (
+        <Modal
+          title={confirmScrape === "all" ? "Scrape all enabled brands?" : `Scrape ${selectedRows.length} selected brand(s)?`}
+          onClose={() => setConfirmScrape(null)}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-body)", lineHeight: 1.5 }}>
+            This starts a website scrape job for each enabled brand. Adidas-like sites can take 15+ seconds each. You can follow progress in Pipeline Center.
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <Button variant="ghost" onClick={() => setConfirmScrape(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                const targets = confirmScrape === "all" ? rows : selectedRows;
+                setConfirmScrape(null);
+                void startScrapes(targets);
+              }}
+            >
+              Start scraping
+            </Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

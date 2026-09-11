@@ -62,7 +62,7 @@ export function ScrapeDetailPanel({ page, onClose }: { page: WebsiteScrapedPage;
           <Button size="sm" variant="secondary" loading={reprocess.isPending} onClick={() => reprocess.mutate(page.id)}>
             Reprocess (refetch)
           </Button>
-          <Button size="sm" variant="ghost" loading={reanalyze.isPending} onClick={() => reanalyze.mutate(page.id)}>
+          <Button size="sm" variant="ghost" loading={reanalyze.isPending} disabled={!page.body_text && !page.headline_text} onClick={() => reanalyze.mutate(page.id)}>
             Reanalyze (AI only)
           </Button>
           {onClose && <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>}
@@ -99,7 +99,7 @@ export function ScrapeDetailPanel({ page, onClose }: { page: WebsiteScrapedPage;
         {page.images.length > 0 && (
           <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
             {page.images.slice(0, 6).map((src, i) => (
-              <img key={i} src={src} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+              <img key={i} src={src} alt={page.image_alt_text[i] || `Image ${i + 1} from scraped page`} style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
             ))}
           </div>
         )}

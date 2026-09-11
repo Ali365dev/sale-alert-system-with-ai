@@ -1,9 +1,25 @@
+import type { ReactNode } from "react";
+
 import { useAnalytics } from "../api/analytics";
+import type { SocialScraperStats, WebsiteScraperStats } from "../api/analytics";
 import { Icon } from "../components/icons";
 import { BarList } from "../components/ui/BarList";
 import { Card, CardHeader } from "../components/ui/Card";
 import { LineChart } from "../components/ui/LineChart";
+import { StatCard } from "../components/ui/StatCard";
 import { VerticalBars } from "../components/ui/VerticalBars";
+
+function formatRelative(iso: string | null) {
+  if (!iso) return "Never run";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
 
 const VERIFICATION_COLOR: Record<string, string> = {
   verified: "var(--success)",
@@ -28,6 +44,9 @@ export function Analytics() {
     monthly_trend,
     top_discounted_brands,
     brand_performance,
+    offers_by_source,
+    website_scraper_stats,
+    social_scraper_stats,
   } = data;
 
   return (
@@ -52,7 +71,18 @@ export function Analytics() {
           <CardHeader icon={<Icon.offer size={16} style={{ color: "var(--brand)" }} />} title="Offer types breakdown" />
           {offer_types.length ? <BarList items={offer_types} color="var(--iris-400)" /> : <Empty />}
         </Card>
+
+        <Card>
+          <CardHeader icon={<Icon.grid size={16} style={{ color: "var(--brand)" }} />} title="Offers by source" />
+          {offers_by_source.length ? <BarList items={offers_by_source} color="var(--success)" /> : <Empty />}
+        </Card>
       </div>
+
+      <SectionTitle>Website scraper</SectionTitle>
+      <ScraperStats kind="website" stats={website_scraper_stats} />
+
+      <SectionTitle>Social scraper</SectionTitle>
+      <ScraperStats kind="social" stats={social_scraper_stats} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))", gap: 16 }}>
         <Card>
@@ -165,4 +195,68 @@ export function Analytics() {
 
 function Empty() {
   return <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>No data available.</div>;
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2 style={{ margin: "4px 0 0", fontSize: 15, fontWeight: 700, color: "var(--text-strong)" }}>{children}</h2>
+  );
+}
+
+function ScraperStats({
+  kind,
+  stats,
+}: {
+  kind: "website" | "social";
+  stats: WebsiteScraperStats | SocialScraperStats;
+}) {
+  const icon = kind === "website" ? <Icon.globe size={17} /> : <Icon.instagram size={17} />;
+  const brandsLabel = kind === "website" ? "Brands monitored" : "Brands tracked";
+  const brandsValue = kind === "website" ? (stats as WebsiteScraperStats).brands_monitored : (stats as SocialScraperStats).brands_tracked;
+  const middleLabel = kind === "website" ? "Pages scraped" : "Posts collected";
+  const middleValue = kind === "website" ? (stats as WebsiteScraperStats).pages_scraped : (stats as SocialScraperStats).posts_collected;
+  const offersLabel = kind === "website" ? "Sales detected" : "Offers created";
+  const offersValue = kind === "website" ? (stats as WebsiteScraperStats).sales_detected : (stats as SocialScraperStats).offers_created;
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+      <StatCard
+        icon={icon}
+        iconColor="var(--brand)"
+        iconBg="var(--brand-subtle)"
+        label={brandsLabel}
+        value={brandsValue}
+        caption={`Last run ${formatRelative(stats.last_scraped_at)}`}
+      />
+      <StatCard
+        icon={<Icon.list size={17} />}
+        iconColor="var(--primary-400)"
+        iconBg="var(--brand-subtle)"
+        label={middleLabel}
+        value={middleValue}
+      />
+      <StatCard
+        icon={<Icon.tag size={17} />}
+        iconColor="var(--ai)"
+        iconBg="var(--ai-subtle)"
+        label={offersLabel}
+        value={offersValue}
+      />
+      <StatCard
+        icon={<Icon.percent size={17} />}
+        iconColor="var(--success)"
+        iconBg="var(--success-subtle)"
+        label="Active offers"
+        value={stats.active_offers}
+      />
+      <StatCard
+        icon={<Icon.check size={17} />}
+        iconColor={stats.success_rate != null && stats.success_rate < 60 ? "var(--danger)" : "var(--success)"}
+        iconBg={stats.success_rate != null && stats.success_rate < 60 ? "var(--danger-subtle)" : "var(--success-subtle)"}
+        label="Success rate"
+        value={stats.success_rate != null ? `${stats.success_rate}%` : "—"}
+        valueColor={stats.success_rate != null && stats.success_rate < 60 ? "var(--danger)" : undefined}
+      />
+    </div>
+  );
 }

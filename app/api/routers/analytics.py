@@ -6,9 +6,18 @@ from fastapi import APIRouter
 from sqlalchemy import case, func
 
 from database.db import get_session
-from database.models import Email, Offer
+from database.models import (
+    Email,
+    Offer,
+    SocialPost,
+    SocialScrapeLog,
+    WebsiteScrapedPage,
+    WebsiteScrapeLog,
+)
 
 router = APIRouter(prefix="/api", tags=["analytics"])
+
+_SOURCE_LABEL = {"email": "Email", "ai": "AI Search", "social": "Social", "website": "Website"}
 
 
 def _counts(session, column, limit=None):
@@ -101,6 +110,63 @@ def analytics():
             reverse=True,
         )[:10]
 
+        source_counts = dict(
+            session.query(Offer.source, func.count(Offer.id)).filter(Offer.source.isnot(None)).group_by(Offer.source).all()
+        )
+        offers_by_source = [
+            {"name": _SOURCE_LABEL.get(source, source), "count": count} for source, count in source_counts.items()
+        ]
+
+        # Website Sale Scraper rollup (services/website_scraper/) — per-brand
+        # status in website_scrape_logs, per-fetch rows in website_scraped_pages.
+        # Two separate queries (not a join) since website_scrape_logs is
+        # one-row-per-brand while website_scraped_pages is one-row-per-fetch —
+        # joining them would multiply the per-brand sums by page count.
+        website_total_logs, website_success_logs, website_pages_scraped, website_last_scraped = session.query(
+            func.count(WebsiteScrapeLog.id),
+            func.count(case((WebsiteScrapeLog.status == "success", 1))),
+            func.coalesce(func.sum(WebsiteScrapeLog.pages_discovered), 0),
+            func.max(WebsiteScrapeLog.last_scraped_at),
+        ).one()
+        website_sales_detected = session.query(func.count(WebsiteScrapedPage.id)).filter(
+            WebsiteScrapedPage.scrape_status == "SALE_DETECTED"
+        ).scalar() or 0
+        website_active_offers = session.query(func.count(Offer.id)).filter(
+            Offer.source == "website", Offer.is_active == True  # noqa: E712
+        ).scalar() or 0
+        website_scraper_stats = {
+            "brands_monitored": website_total_logs,
+            "pages_scraped": website_pages_scraped,
+            "sales_detected": website_sales_detected,
+            "active_offers": website_active_offers,
+            "success_rate": round((website_success_logs / website_total_logs) * 100, 1) if website_total_logs else None,
+            "last_scraped_at": website_last_scraped.isoformat() if website_last_scraped else None,
+        }
+
+        # Social Media Offer Discovery rollup (services/social_scraper/).
+        social_total_logs, social_success_logs, social_posts_checked, social_offers_created, social_last_scraped = (
+            session.query(
+                func.count(SocialScrapeLog.id),
+                func.count(case((SocialScrapeLog.status == "success", 1))),
+                func.coalesce(func.sum(SocialScrapeLog.posts_checked), 0),
+                func.coalesce(func.sum(SocialScrapeLog.offers_created), 0),
+                func.max(SocialScrapeLog.last_scraped_at),
+            ).one()
+        )
+        social_posts_total = session.query(func.count(SocialPost.id)).scalar() or 0
+        social_active_offers = session.query(func.count(Offer.id)).filter(
+            Offer.source == "social", Offer.is_active == True  # noqa: E712
+        ).scalar() or 0
+        social_scraper_stats = {
+            "brands_tracked": social_total_logs,
+            "posts_collected": social_posts_total,
+            "posts_checked": social_posts_checked,
+            "offers_created": social_offers_created,
+            "active_offers": social_active_offers,
+            "success_rate": round((social_success_logs / social_total_logs) * 100, 1) if social_total_logs else None,
+            "last_scraped_at": social_last_scraped.isoformat() if social_last_scraped else None,
+        }
+
     return {
         "offers_by_brand": offers_by_brand,
         "offers_by_category": offers_by_category,
@@ -111,4 +177,7 @@ def analytics():
         "monthly_trend": monthly_trend,
         "top_discounted_brands": [{"name": b["brand"], "avg_discount": b["avg_discount"]} for b in top_discounted_brands],
         "brand_performance": brand_performance,
+        "offers_by_source": offers_by_source,
+        "website_scraper_stats": website_scraper_stats,
+        "social_scraper_stats": social_scraper_stats,
     }

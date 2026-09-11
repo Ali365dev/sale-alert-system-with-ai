@@ -123,7 +123,7 @@ function App() {
         <Route
           path="/website-scraper"
           element={
-            <AppShell title="Website scraper">
+            <AppShell title="">
               <WebsiteScraper />
             </AppShell>
           }
@@ -131,7 +131,7 @@ function App() {
         <Route
           path="/website-scraper/brands/:brandId"
           element={
-            <AppShell title="Website scraper — brand detail">
+            <AppShell title="">
               <WebsiteScraperBrand />
             </AppShell>
           }

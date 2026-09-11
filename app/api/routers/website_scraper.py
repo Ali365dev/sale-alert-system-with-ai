@@ -8,16 +8,17 @@ import json
 import threading
 from datetime import datetime
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import func
 
+from app.core.security import require_admin
 from database.db import get_session
 from database.models import Brand, Offer, WebsiteScrapeLog
 from services import job_runner, job_service
 from services.website_scraper import services as website_scraper_services
 
-router = APIRouter(prefix="/api/website-scraper", tags=["website_scraper"])
+router = APIRouter(prefix="/api/website-scraper", tags=["website_scraper"], dependencies=[Depends(require_admin)])
 
 
 def _start_job(job_type: str, payload: dict) -> dict:
@@ -103,6 +104,23 @@ def list_brands():
 @router.get("/activity")
 def recent_activity():
     return {"activity": website_scraper_services.get_recent_activity()}
+
+
+@router.get("/brands/{brand_id}/config")
+def get_brand_config(brand_id: int):
+    with get_session() as session:
+        brand = session.query(Brand).filter(Brand.id == brand_id).first()
+        if brand is None:
+            return JSONResponse({"error": "brand not found"}, status_code=404)
+        return {
+            "brand_id": brand.id,
+            "homepage_url": brand.homepage_url,
+            "sale_page_url": brand.sale_page_url,
+            "offers_page_url": brand.offers_page_url,
+            "promotions_page_url": brand.promotions_page_url,
+            "custom_scrape_urls": json.loads(brand.custom_scrape_urls) if brand.custom_scrape_urls else [],
+            "website_scraping_enabled": brand.website_scraping_enabled,
+        }
 
 
 @router.get("/brands/{brand_id}/pages")

@@ -27,8 +27,14 @@ function OfferCard({ offer, rank }: { offer: InsightOffer; rank: number }) {
         <Badge tone={rank === 0 ? "success" : "brand"}>Priority {rank + 1}</Badge>
         <Badge tone="ai">AI picked</Badge>
         {offer.expiry_date && (
-          <span style={{ marginLeft: "auto", font: "500 11.5px/1 var(--font-mono)", color: "var(--warning)" }}>
-            {daysLeft(offer.expiry_date)} days left
+          <span
+            style={{
+              marginLeft: "auto",
+              font: "500 11.5px/1 var(--font-mono)",
+              color: (daysLeft(offer.expiry_date) ?? 0) < 0 ? "var(--danger)" : "var(--warning)",
+            }}
+          >
+            {(daysLeft(offer.expiry_date) ?? 0) < 0 ? "Expired" : `${daysLeft(offer.expiry_date)} days left`}
           </span>
         )}
       </div>
@@ -96,7 +102,7 @@ function ExpiringRow({ offer }: { offer: InsightOffer }) {
           padding: "5px 9px",
         }}
       >
-        {left} {left === 1 ? "day" : "days"}
+        {left !== null && left < 0 ? "Expired" : `${left} ${left === 1 ? "day" : "days"}`}
       </span>
     </div>
   );
