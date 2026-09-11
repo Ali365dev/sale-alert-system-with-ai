@@ -19,14 +19,28 @@ PATCH /offers/{id}/close), never by this module."""
 from __future__ import annotations
 
 from datetime import datetime
+from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
 from config import WEBSITE_MISSING_THRESHOLD_EXPIRED, WEBSITE_MISSING_THRESHOLD_POSSIBLY_ENDED
 from database.models import Offer
 from database.offer_retention import utcnow
+from services.website_scraper.extractor import clean_url
 
 _OPEN_STATUSES = ("ACTIVE", "POSSIBLY_ENDED")
+
+
+def _normalize(url: str | None) -> str | None:
+    """Same canonicalization crawler discovery already applies to every link
+    it queues (extractor.clean_url — strips trailing slash/query/fragment,
+    lowercases nothing else) so an offer's stored source_url compares equal
+    to this run's fetched-URL sets even when a redirect or a stray trailing
+    slash would otherwise make them differ as raw strings. Reused rather than
+    reimplemented — see extractor.py's own definition."""
+    if not url:
+        return None
+    return clean_url(url, urlparse(url).netloc)
 
 
 def apply(
@@ -43,6 +57,9 @@ def apply(
     now = utcnow()
     counts = {"expired": 0, "possibly_ended": 0, "reactivated": 0}
 
+    fetched_ok_norm = {_normalize(u) for u in fetched_ok_urls}
+    fetched_gone_norm = {_normalize(u) for u in fetched_gone_urls}
+
     offers = (
         session.query(Offer)
         .filter(Offer.source == "website", Offer.brand == brand_name, Offer.closure_status.in_(_OPEN_STATUSES))
@@ -52,14 +69,14 @@ def apply(
         if offer.id in matched_offer_ids:
             continue  # already confirmed + reset by offer_processor this run
 
-        source_url = offer.source_url or offer.website
-        if source_url in fetched_gone_urls or (offer.expiry_date and offer.expiry_date < now):
+        source_url = _normalize(offer.source_url or offer.website)
+        if source_url in fetched_gone_norm or (offer.expiry_date and offer.expiry_date < now):
             offer.closure_status = "EXPIRED"
             offer.is_active = False
             counts["expired"] += 1
             continue
 
-        if source_url not in fetched_ok_urls:
+        if source_url not in fetched_ok_norm:
             continue  # not visited this run — can't conclude anything
 
         offer.missing_count = (offer.missing_count or 0) + 1
