@@ -19,7 +19,7 @@ MAX_WORKERS = 10
 # job type is an internal pipeline action (fine unauthenticated); this one
 # fans a message out to every real device, so it must not be startable or
 # re-triggerable via retry/bulk-retry by an arbitrary caller.
-_ADMIN_ONLY_JOB_TYPES = {"send_push_notification"}
+_ADMIN_ONLY_JOB_TYPES = {"send_push_notification", "notify_matching_offer"}
 
 
 def _require_admin_for(job_type: str, request: Request):

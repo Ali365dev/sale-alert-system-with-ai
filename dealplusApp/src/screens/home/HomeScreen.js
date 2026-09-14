@@ -41,8 +41,8 @@ const HomeScreen = () => {
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
 
-  // Empty when the user has no saved preferences yet — the section just
-  // doesn't render, "Latest Offers" below still shows everything.
+  // Backend already returns preference-matched offers when the app sends
+  // device_id. filterForYou applies the same AND rule as a client safety net.
   const forYouDeals = useMemo(
     () => filterForYou(deals, followedBrands, favoriteCategories),
     [deals, followedBrands, favoriteCategories],

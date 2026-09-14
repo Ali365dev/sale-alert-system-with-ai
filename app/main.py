@@ -25,6 +25,9 @@ async def lifespan(app: FastAPI):
     from services.job_registry import register_all
     register_all()
 
+    from services.offer_notifications import register_hooks
+    register_hooks()
+
     from services.scheduler import start_scheduler
     start_scheduler()
 

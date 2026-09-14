@@ -3,6 +3,7 @@ import messaging from '@react-native-firebase/messaging';
 import { appAxios } from './apiInterceptors';
 import { showToast } from '../utils/CustomToast';
 import { navigate } from '../utils/NavigationUtil';
+import { getDeviceId } from '../utils/deviceId';
 import useDataStore from '../state/dataStore';
 
 /** Android 13+ requires the runtime POST_NOTIFICATIONS permission; iOS asks
@@ -24,7 +25,11 @@ export const requestNotificationPermission = async () => {
 
 const registerToken = async (token) => {
   try {
-    await appAxios.post('/notifications/devices/register', { token, platform: Platform.OS });
+    await appAxios.post('/notifications/devices/register', {
+      token,
+      platform: Platform.OS,
+      device_id: getDeviceId(),
+    });
   } catch (error) {
     console.log('Failed to register device token:', error?.message);
   }
@@ -98,7 +103,7 @@ export const parseNotificationTarget = (remoteMessage) => {
   if (!remoteMessage) return null;
 
   const data = remoteMessage.data ?? {};
-  const dealId = asNonEmptyString(data.dealId);
+  const dealId = asNonEmptyString(data.dealId) || asNonEmptyString(data.offerId);
   const brandId = asNonEmptyString(data.brandId);
 
   if (dealId) return { screen: 'DealDetailScreen', params: { id: dealId } };

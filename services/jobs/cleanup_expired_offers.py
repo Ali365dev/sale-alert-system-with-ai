@@ -9,6 +9,7 @@ touched, never the source Email/Gmail record.
 """
 from database.db import get_session
 from database.models import Offer
+from services.offer_delete import delete_offer_row
 from services.cleanup import find_expired_offer_ids
 from services.jobs.base import BackgroundJob, WorkItem
 
@@ -36,7 +37,7 @@ class CleanupExpiredOffersJob(BackgroundJob):
             o = session.query(Offer).filter(Offer.id == item.id).first()
             if o is None:
                 return "skipped"
-            session.delete(o)
+            delete_offer_row(session, o)
 
         job_service.append_log(job_id, f"🗑 Deleted \"{item.label}\"", severity="success", category="offer")
         return "successful"

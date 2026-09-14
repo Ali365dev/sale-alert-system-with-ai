@@ -45,6 +45,7 @@ export function Button({
   disabled,
   children,
   style,
+  type = "button",
   ...rest
 }: ButtonProps) {
   return (
@@ -66,6 +67,7 @@ export function Button({
         ...style,
       }}
       {...rest}
+      type={type}
     >
       {loading ? "Working…" : children}
     </button>

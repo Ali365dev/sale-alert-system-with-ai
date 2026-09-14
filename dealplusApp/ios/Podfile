@@ -35,5 +35,19 @@ target 'dealplusApp' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Firebase 11.11.x/11.15.x's FirebaseCore/FirebaseInstallations/
+    # FirebaseCoreExtension podspecs are missing DEFINES_MODULE = YES, so
+    # CocoaPods never generates their module.modulemap — which is what lets
+    # a Swift pod's generated -Swift.h header (FirebaseAuth-Swift.h) be
+    # imported from Objective-C in a static-library build. Fixed upstream in
+    # firebase-ios-sdk PR #15506, not yet in the version range
+    # @react-native-firebase/auth pins here. Remove once that's upgraded.
+    installer.pods_project.targets.each do |target|
+      next unless ['FirebaseCore', 'FirebaseInstallations', 'FirebaseCoreExtension'].include?(target.name)
+      target.build_configurations.each do |config|
+        config.build_settings['DEFINES_MODULE'] = 'YES'
+      end
+    end
   end
 end

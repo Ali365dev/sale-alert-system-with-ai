@@ -38,10 +38,12 @@ const ForYouScreen = () => {
       {forYouDeals.length === 0 ? (
         <EmptyState
           icon="heart-outline"
-          title="Nothing here yet"
-          body="Follow some brands or categories and matching deals will show up here."
-          ctaLabel="Follow brands"
-          onPressCta={() => navigation.navigate('FollowedBrandsScreen')}
+          title="Choose your interests"
+          body="Select brands and categories to see personalized deals. Empty selections show nothing — we never treat that as “all offers”."
+          ctaLabel={favoriteCategories.length === 0 ? 'Select categories' : 'Follow brands'}
+          onPressCta={() =>
+            navigation.navigate(favoriteCategories.length === 0 ? 'FavoriteCategoriesScreen' : 'FollowedBrandsScreen')
+          }
         />
       ) : (
         <ScrollView

@@ -22,10 +22,10 @@ describe('parseNotificationTarget (notification payload parsing)', () => {
     expect(parseNotificationTarget(undefined)).toBeNull();
   });
 
-  test('a valid dealId resolves to DealDetailScreen', () => {
-    expect(parseNotificationTarget({ data: { dealId: '42' } })).toEqual({
+  test('offerId is accepted as an alias for dealId', () => {
+    expect(parseNotificationTarget({ data: { offerId: '9' } })).toEqual({
       screen: 'DealDetailScreen',
-      params: { id: '42' },
+      params: { id: '9' },
     });
   });
 

@@ -1,5 +1,6 @@
 jest.mock('../apiInterceptors', () => ({ appAxios: { get: jest.fn() } }));
 jest.mock('../../utils/handleApiError', () => ({ handleApiError: jest.fn() }));
+jest.mock('../../utils/deviceId', () => ({ getDeviceId: () => 'device-123' }));
 
 import { appAxios } from '../apiInterceptors';
 import { handleApiError } from '../../utils/handleApiError';
@@ -44,7 +45,7 @@ describe('loadDeals', () => {
     expect(state.brands).toHaveLength(1);
     expect(state.deals).toHaveLength(1);
     expect(state.categories).toEqual([{ name: 'Fashion', dealCount: 1, icon: expect.any(String) }]);
-    expect(result.brands).toHaveLength(1);
+    expect(appAxios.get).toHaveBeenCalledWith('/offers', { params: { device_id: 'device-123' } });
   });
 
   test('sets loading true immediately, before the API calls resolve', () => {

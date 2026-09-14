@@ -584,14 +584,15 @@ class Prompt(Base):
 
 
 class DeviceToken(Base):
-    """A single mobile device's FCM registration token — the push audience
-    for services/jobs/send_push_notification.py. Broadcast-only for now (no
-    user/account model exists yet): every active row gets every send."""
+    """A single mobile device's FCM registration token. Admin broadcasts
+    (send_push_notification) still fan out to every active token; personalized
+    offer alerts join this row to UserProfile via device_id."""
     __tablename__ = "device_tokens"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     token = Column(String(500), unique=True, nullable=False, index=True)
     platform = Column(String(10), nullable=False)  # "ios" | "android"
+    device_id = Column(String(255), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     created_at = Column(DateTime, default=_utcnow, nullable=False)
     last_seen_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
@@ -621,6 +622,22 @@ class UserProfile(Base):
 
     def __repr__(self) -> str:
         return f"<UserProfile id={self.id} device_id={self.device_id!r}>"
+
+
+class OfferNotification(Base):
+    """One FCM send of one offer to one device — unique (device_id, offer_id)
+    so the same user never gets the same offer alert twice."""
+    __tablename__ = "offer_notifications"
+    __table_args__ = (UniqueConstraint("device_id", "offer_id", name="uq_offer_notifications_device_offer"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    device_id = Column(String(255), nullable=False, index=True)
+    offer_id = Column(Integer, ForeignKey("offers.id"), nullable=False, index=True)
+    user_id = Column(String(255), nullable=True, index=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<OfferNotification device_id={self.device_id!r} offer_id={self.offer_id}>"
 
 
 class User(Base):

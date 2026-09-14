@@ -103,6 +103,7 @@ export const mapApiOfferToDeal = (offer, brandId) => {
     discountLabel,
     image: imageForCategory(offer.category),
     category: offer.category ?? 'General',
+    subcategory: offer.subcategory ?? null,
     expiresAt: offer.expiry_date ?? '',
     promoCode: offer.coupon_code,
     isFlashSale: (offer.discount_percentage ?? 0) >= 30,
@@ -159,15 +160,18 @@ export const deriveCategories = (apiOffers) => {
     .sort((a, b) => b.dealCount - a.dealCount);
 };
 
-/** Any-overlap match of deals against a device's saved brands/categories,
- * newest first. Empty when there are no saved preferences yet — shared by
- * HomeScreen's "For You" preview and ForYouScreen's full list so the two
- * never drift out of sync. */
+/** Brand AND category match against saved preferences, newest first.
+ * Empty brands or empty categories yield no matches in the default AND mode
+ * (same rule as the backend). Shared by HomeScreen and ForYouScreen. */
 export const filterForYou = (deals, followedBrands, favoriteCategories) => {
-  if (followedBrands.length === 0 && favoriteCategories.length === 0) return [];
+  if (followedBrands.length === 0 || favoriteCategories.length === 0) return [];
   const brandSlugs = new Set(followedBrands.map(slugify));
-  const categorySet = new Set(favoriteCategories);
-  const matched = deals.filter((d) => brandSlugs.has(d.brandId) || categorySet.has(d.category));
+  const categorySet = new Set(favoriteCategories.map((c) => c.toLowerCase()));
+  const matched = deals.filter((d) => {
+    if (!brandSlugs.has(d.brandId)) return false;
+    const cats = [d.category, d.subcategory].filter(Boolean).map((c) => String(c).toLowerCase());
+    return cats.some((c) => categorySet.has(c));
+  });
   return [...matched].sort((a, b) => {
     const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;

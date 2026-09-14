@@ -3,7 +3,7 @@ import { Image, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
-import BootSplash from 'react-native-bootsplash';
+import { shouldLoadNativePackage } from '../utils/turboModules';
 import useDataStore from '../state/dataStore';
 import useOnboardingGateStore from '../state/onboardingGateStore';
 import { resetAndNavigate } from '../utils/NavigationUtil';
@@ -69,8 +69,19 @@ const SplashScreen = () => {
     // is still covering the screen at this point — it was shown instantly at
     // OS launch, before the JS bundle even finished loading. Hiding it now
     // that this screen has its first frame ready hands off seamlessly, with
-    // no gap or flash back to a blank window.
-    BootSplash.hide({ fade: true });
+    // no gap or flash back to a blank window. Skip the import when RNBootSplash
+    // is not in this binary (JS reload against a stale native build).
+    if (shouldLoadNativePackage('RNBootSplash')) {
+      try {
+        const pkg = require('react-native-bootsplash');
+        const BootSplash = pkg.default ?? pkg;
+        BootSplash?.hide({ fade: true });
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('RNBootSplash is not in this native binary; rebuild the app to hide the native splash.', error?.message);
+        }
+      }
+    }
 
     bgScale.value = withRepeat(
       withSequence(withTiming(1.04, { duration: 4200, easing: Easing.inOut(Easing.sin) }), withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.sin) })),

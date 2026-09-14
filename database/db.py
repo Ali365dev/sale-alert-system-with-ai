@@ -58,6 +58,7 @@ def _migrate() -> None:
         ("emails", "failure_key_identifier",       "VARCHAR(120)"),
         ("emails", "failure_attempt_count",        "INTEGER"),
         ("users", "firebase_uid",                  "VARCHAR(255)"),
+        ("device_tokens", "device_id",             "VARCHAR(255)"),
         ("emails", "sale_relevance_score",          "FLOAT"),
         ("emails", "filter_status",                 "VARCHAR(20)"),
         ("emails", "filter_reason",                 "TEXT"),
@@ -122,6 +123,43 @@ def _migrate() -> None:
 
         try:
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_firebase_uid ON users (firebase_uid)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_device_tokens_device_id ON device_tokens (device_id)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        try:
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_offer_notifications_device_offer "
+                "ON offer_notifications (device_id, offer_id)"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_offer_notifications_offer_id ON offer_notifications (offer_id)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        try:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_user_profiles_brands_gin ON user_profiles USING gin ((brands::jsonb))"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        try:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_user_profiles_categories_gin ON user_profiles USING gin ((categories::jsonb))"
+            ))
             conn.commit()
         except Exception:
             conn.rollback()

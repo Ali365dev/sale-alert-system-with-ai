@@ -190,16 +190,16 @@ describe('filterForYou', () => {
     { id: '3', brandId: 'other', category: 'Tech', createdAt: '2026-02-01T00:00:00Z' },
   ];
 
-  test('returns empty when the user has no followed brands or favorite categories', () => {
+  test('returns empty when brands or categories are missing (AND, not all-offers)', () => {
     expect(filterForYou(deals, [], [])).toEqual([]);
+    expect(filterForYou(deals, ['Nike'], [])).toEqual([]);
+    expect(filterForYou(deals, [], ['Footwear'])).toEqual([]);
   });
 
-  test('matches a deal via followed brand OR favorite category (any-overlap, not requiring both)', () => {
-    const byBrand = filterForYou(deals, ['Nike'], []);
-    expect(byBrand.map((d) => d.id)).toEqual(['1']);
-
-    const byCategory = filterForYou(deals, [], ['Tech']);
-    expect(byCategory.map((d) => d.id)).toEqual(['3']);
+  test('requires brand AND category to match', () => {
+    expect(filterForYou(deals, ['Nike'], ['Footwear']).map((d) => d.id)).toEqual(['1']);
+    expect(filterForYou(deals, ['Nike'], ['Tech'])).toEqual([]);
+    expect(filterForYou(deals, ['Acme'], ['Footwear'])).toEqual([]);
   });
 
   test('a deal matching both a followed brand and a favorite category is not duplicated', () => {
@@ -208,14 +208,14 @@ describe('filterForYou', () => {
   });
 
   test('followed brand names are matched via the same slugify used for brandId', () => {
-    // "Nike" -> slug "nike", matching deals[0].brandId exactly.
-    const result = filterForYou(deals, ['Nike'], []);
+    const result = filterForYou(deals, ['Nike'], ['Footwear']);
     expect(result).toHaveLength(1);
   });
 
   test('results are sorted newest first', () => {
-    const result = filterForYou(deals, ['Nike', 'Acme'], []);
-    expect(result.map((d) => d.id)).toEqual(['2', '1']);
+    const extra = { id: '4', brandId: 'nike', category: 'Footwear', createdAt: '2026-04-01T00:00:00Z' };
+    const result = filterForYou([...deals, extra], ['Nike'], ['Footwear']);
+    expect(result.map((d) => d.id)).toEqual(['4', '1']);
   });
 
   test('a deal with no matching brand or category is excluded', () => {

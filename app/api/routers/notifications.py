@@ -30,6 +30,7 @@ def register_device(body: dict = Body(default={})):
     body = body or {}
     token = (body.get("token") or "").strip()
     platform = (body.get("platform") or "").strip().lower()
+    device_id = (body.get("device_id") or "").strip() or None
     if not token or platform not in ("ios", "android"):
         return JSONResponse({"error": "token and platform ('ios' or 'android') are required"}, status_code=400)
 
@@ -38,8 +39,10 @@ def register_device(body: dict = Body(default={})):
         if row:
             row.platform = platform
             row.is_active = True
+            if device_id:
+                row.device_id = device_id
         else:
-            session.add(DeviceToken(token=token, platform=platform))
+            session.add(DeviceToken(token=token, platform=platform, device_id=device_id))
 
     return {"status": "registered"}
 

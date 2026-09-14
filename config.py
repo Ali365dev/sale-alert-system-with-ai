@@ -118,6 +118,14 @@ OFFER_RETENTION_NO_EXPIRY_DAYS = int(os.getenv("OFFER_RETENTION_NO_EXPIRY_DAYS",
 # Hour of day (UTC, 0-23) the daily cleanup job runs at.
 OFFER_CLEANUP_HOUR_UTC = int(os.getenv("OFFER_CLEANUP_HOUR_UTC", "3"))
 
+# Personalized feed + FCM matching (services/offer_matching.py).
+# "and" = brand AND at least one category must match (default, recommended).
+# "or"  = brand match OR category match is enough.
+# Empty brand/category selections never mean "all".
+OFFER_MATCH_MODE = os.getenv("OFFER_MATCH_MODE", "and").strip().lower()
+if OFFER_MATCH_MODE not in ("and", "or"):
+    OFFER_MATCH_MODE = "and"
+
 # ── Website Scraper ──────────────────────────────────────────────────────────
 # services/website_scraper/ — HTTPX+Selectolax fetch/parse of a brand's own
 # website (sale/offers/promo pages) to detect and create offers with

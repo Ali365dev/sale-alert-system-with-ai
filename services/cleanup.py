@@ -19,6 +19,7 @@ value means "not ready to be evaluated yet", not "safe to delete".
 from config import logger
 from database.db import get_session
 from database.models import Offer
+from services.offer_delete import delete_offer_row
 from database.offer_retention import utcnow
 
 
@@ -45,7 +46,7 @@ def cleanup_expired_offers() -> int:
         )
         count = len(to_delete)
         for offer in to_delete:
-            session.delete(offer)
+            delete_offer_row(session, offer)
 
     if count:
         logger.info("Cleanup: deleted %d expired offer(s)", count)

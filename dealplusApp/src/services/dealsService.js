@@ -1,6 +1,7 @@
 import { appAxios } from './apiInterceptors';
 import { handleApiError } from '../utils/handleApiError';
 import { deriveAlerts, deriveBrandsAndDeals, deriveCategories } from '../utils/dealAdapters';
+import { getDeviceId } from '../utils/deviceId';
 import useDataStore from '../state/dataStore';
 import usePreferencesStore from '../state/preferencesStore';
 import { fetchInterests } from './preferencesApi';
@@ -13,7 +14,7 @@ export const loadDeals = async () => {
   try {
     const [brandsRes, offersRes] = await Promise.all([
       appAxios.get('/brands'),
-      appAxios.get('/offers'),
+      appAxios.get('/offers', { params: { device_id: getDeviceId() } }),
     ]);
     const apiBrands = brandsRes?.data?.brands || [];
     const apiOffers = offersRes?.data?.offers || [];

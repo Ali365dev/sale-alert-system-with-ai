@@ -294,17 +294,20 @@ function OffersTable() {
   }
 
   async function bulkDelete() {
-    const ids = [...selected];
+    const ids = [...selected].map(Number).filter((id) => Number.isInteger(id) && id > 0);
     if (ids.length === 0) return;
     if (!window.confirm(`Delete ${ids.length} selected offer(s)?`)) return;
     setSelectionBulkRunning(true);
-    const results = await Promise.allSettled(ids.map((id) => apiClient.delete(`/offers/${id}`)));
-    setSelectionBulkRunning(false);
-    const failed = results.filter((r) => r.status === "rejected").length;
-    queryClient.invalidateQueries({ queryKey: ["offers"] });
-    if (failed === 0) toast.success(`${ids.length} offer(s) deleted.`);
-    else toast.error(`Deleted ${ids.length - failed} offer(s), ${failed} failed.`);
-    setSelected(new Set());
+    try {
+      const { data } = await apiClient.post<{ deleted: number }>("/offers/bulk-delete", { ids });
+      queryClient.invalidateQueries({ queryKey: ["offers"] });
+      toast.success(`${data.deleted} offer(s) deleted.`);
+      setSelected(new Set());
+    } catch {
+      // apiClient interceptor already toasted the error
+    } finally {
+      setSelectionBulkRunning(false);
+    }
   }
 
   async function bulkReverify() {
@@ -702,6 +705,7 @@ function OffersTable() {
                   type="checkbox"
                   aria-label="Select all loaded offers"
                   checked={!!offers?.length && offers.every((o) => selected.has(o.id))}
+                  onClick={(e) => e.stopPropagation()}
                   onChange={(e) => {
                     if (e.target.checked) setSelected(new Set(offers?.map((o) => o.id) ?? []));
                     else setSelected(new Set());
@@ -744,6 +748,7 @@ function OffersTable() {
                     type="checkbox"
                     aria-label={`Select offer #${offer.id}`}
                     checked={selected.has(offer.id)}
+                    onClick={(e) => e.stopPropagation()}
                     onChange={() => toggleSelected(offer.id)}
                     style={{ width: 14, height: 14 }}
                   />

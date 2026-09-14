@@ -12,8 +12,10 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import case, func
 
 from database.db import get_session
-from database.models import Offer
+from database.models import Offer, UserProfile
+from services.offer_delete import delete_offer_row
 from database.offer_retention import compute_offer_status
+from services.offer_matching import apply_personalized_offer_filter
 
 router = APIRouter(prefix="/api/offers", tags=["offers"])
 
@@ -70,9 +72,27 @@ def list_offers(
     verification_status: str | None = Query(None),
     active: str | None = Query(None),
     source: str | None = Query(None),
+    device_id: str | None = Query(None),
 ):
     with get_session() as session:
         q = session.query(Offer)
+        personalized = False
+        device_id = (device_id or "").strip() or None
+        if device_id:
+            personalized = True
+            profile = session.query(UserProfile).filter(UserProfile.device_id == device_id).first()
+            brands = []
+            categories = []
+            if profile:
+                try:
+                    brands = json.loads(profile.brands) if profile.brands else []
+                except (json.JSONDecodeError, TypeError):
+                    brands = []
+                try:
+                    categories = json.loads(profile.categories) if profile.categories else []
+                except (json.JSONDecodeError, TypeError):
+                    categories = []
+            q = apply_personalized_offer_filter(q, brands, categories)
         if brand:
             q = q.filter(Offer.brand == brand)
         if source:
@@ -109,6 +129,7 @@ def list_offers(
 
     return {
         "offers": offer_dicts,
+        "personalized": personalized,
         "summary": {
             "total": total,
             "verified": verified,
@@ -184,13 +205,36 @@ def update_offer(offer_id: int, body: dict = Body(...)):
         return _offer_to_dict(o)
 
 
+@router.post("/bulk-delete")
+def bulk_delete_offers(body: dict = Body(default={})):
+    raw_ids = body.get("ids") or []
+    if not isinstance(raw_ids, list) or not raw_ids:
+        return JSONResponse({"error": "ids required"}, status_code=400)
+    ids: list[int] = []
+    for value in raw_ids:
+        try:
+            ids.append(int(value))
+        except (TypeError, ValueError):
+            continue
+    if not ids:
+        return JSONResponse({"error": "ids required"}, status_code=400)
+
+    with get_session() as session:
+        offers = session.query(Offer).filter(Offer.id.in_(ids)).all()
+        deleted = 0
+        for offer in offers:
+            delete_offer_row(session, offer)
+            deleted += 1
+    return {"status": "deleted", "deleted": deleted}
+
+
 @router.delete("/{offer_id}")
 def delete_offer(offer_id: int):
     with get_session() as session:
         o = session.query(Offer).filter(Offer.id == offer_id).first()
         if o is None:
             return JSONResponse({"error": "not found"}, status_code=404)
-        session.delete(o)
+        delete_offer_row(session, o)
     return {"status": "deleted"}
 
 
