@@ -185,11 +185,13 @@ function SearchBrandTab({
 function ScanWebsiteTab({
   onStarted,
   brandRequestId,
+  initialWebsite,
 }: {
   onStarted: (discoveryId: number, jobId: number) => void;
   brandRequestId?: number;
+  initialWebsite?: string;
 }) {
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialWebsite ?? "");
   const start = useStartDiscovery();
 
   function handleScan() {
@@ -199,6 +201,21 @@ function ScanWebsiteTab({
       { onSuccess: (data) => onStarted(data.discoveryId, data.jobId) },
     );
   }
+
+  // Landed here from an existing brand's "Re-discover" row action — run the
+  // scan immediately against that brand's own website instead of making the
+  // admin retype/paste the URL. The duplicate detector (services/brand_discovery/
+  // duplicate_detector.py) matches this scan back to the same brand by domain,
+  // so the review screen's "Merge into existing brand" surfaces automatically.
+  useEffect(() => {
+    if (initialWebsite) {
+      start.mutate(
+        { mode: "scan_website", website: initialWebsite, brand_request_id: brandRequestId },
+        { onSuccess: (data) => onStarted(data.discoveryId, data.jobId) },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialWebsite]);
 
   return (
     <div style={{ display: "flex", gap: 10, maxWidth: 480 }}>
@@ -514,8 +531,9 @@ export function DiscoverBrand() {
   const requestIdParam = searchParams.get("requestId");
   const brandRequestId = requestIdParam ? Number(requestIdParam) : undefined;
   const requestedName = searchParams.get("name") ?? undefined;
+  const requestedWebsite = searchParams.get("website") ?? undefined;
 
-  const [tab, setTab] = useState("search");
+  const [tab, setTab] = useState(requestedWebsite ? "scan" : "search");
   const [activeDiscoveryId, setActiveDiscoveryId] = useState<number | null>(null);
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const { data: activeDiscovery } = useBrandDiscovery(activeDiscoveryId);
@@ -546,6 +564,13 @@ export function DiscoverBrand() {
         </div>
       )}
 
+      {requestedWebsite && brandRequestId === undefined && (
+        <div style={{ padding: "10px 14px", borderRadius: "var(--radius-sm)", background: "var(--brand-subtle)", color: "var(--brand)", fontSize: 12.5, fontWeight: 600 }}>
+          Re-discovering {requestedWebsite} — this brand already exists, so once the scan finds it again you'll get a
+          "Merge into existing brand" option instead of a duplicate.
+        </div>
+      )}
+
       {activeDiscoveryId === null && (
         <>
           <Tabs
@@ -557,7 +582,7 @@ export function DiscoverBrand() {
             onChange={setTab}
           />
           {tab === "search" && <SearchBrandTab onStarted={handleStarted} initialName={requestedName} brandRequestId={brandRequestId} />}
-          {tab === "scan" && <ScanWebsiteTab onStarted={handleStarted} brandRequestId={brandRequestId} />}
+          {tab === "scan" && <ScanWebsiteTab onStarted={handleStarted} brandRequestId={brandRequestId} initialWebsite={requestedWebsite} />}
           <RecentDiscoveries onOpen={setActiveDiscoveryId} />
         </>
       )}

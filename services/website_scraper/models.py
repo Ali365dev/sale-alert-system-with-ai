@@ -9,7 +9,7 @@ from datetime import datetime
 @dataclass
 class DiscoveredUrl:
     url: str
-    page_type: str  # "homepage" | "sale" | "offers" | "promotions" | "custom" | "discovered"
+    page_type: str  # "homepage" | "sale" | "offers" | "promotions" | "custom" | "discovered" | "product"
     score: int = 0
 
 

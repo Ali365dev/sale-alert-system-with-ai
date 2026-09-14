@@ -39,6 +39,8 @@ def create_or_update_offer(session, page: WebsiteScrapedPage, ai_result: dict, b
     if existing is not None:
         existing.title = (ai_result.get("title") or existing.title or "")[:500] or None
         existing.summary = ai_result.get("description") or existing.summary
+        existing.category = ai_result.get("category") or existing.category
+        existing.subcategory = ai_result.get("subcategory") or existing.subcategory
         existing.discount_percentage = ai_result.get("discount_percentage") if ai_result.get("discount_percentage") is not None else existing.discount_percentage
         existing.coupon_code = ai_result.get("coupon_code") or existing.coupon_code
         existing.offer_type = ai_result.get("offer_type") or existing.offer_type
@@ -57,8 +59,8 @@ def create_or_update_offer(session, page: WebsiteScrapedPage, ai_result: dict, b
         title=(ai_result.get("title") or "")[:500] or None,
         brand=brand_name,
         company=None,
-        category=None,
-        subcategory=None,
+        category=ai_result.get("category"),
+        subcategory=ai_result.get("subcategory"),
         offer_type=ai_result.get("offer_type"),
         discount_percentage=ai_result.get("discount_percentage"),
         coupon_code=ai_result.get("coupon_code"),

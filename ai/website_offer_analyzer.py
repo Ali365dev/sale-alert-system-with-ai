@@ -17,6 +17,8 @@ Returned dict schema
     "is_offer": bool,
     "title": str | null,
     "description": str | null,
+    "category": str | null,
+    "subcategory": str | null,
     "discount_percentage": float | null,
     "coupon_code": str | null,
     "offer_type": str | null,
@@ -49,6 +51,8 @@ no markdown fences, no prose, matching this schema:
   "is_offer": <true or false>,
   "title": "<short offer title, or null if is_offer is false>",
   "description": "<one or two sentence plain-language summary of the offer, or null>",
+  "category": "<top-level category, e.g. Fashion, Electronics, Beauty, Food, Travel, Sport, Home, Gaming, General>",
+  "subcategory": "<more specific category, or null>",
   "discount_percentage": <number, or null if not a percentage discount>,
   "coupon_code": "<code if one is mentioned, or null>",
   "offer_type": "<e.g. Percentage Off, BOGO, Flat Sale, Clearance, Free Shipping, Bundle, or null>",
@@ -61,6 +65,8 @@ no markdown fences, no prose, matching this schema:
 
 Rules:
 - is_offer must be false for a normal product/category page with no discount, an expired-sounding "sale ended" message, or vague marketing copy with no concrete discount/price drop.
+- This page is a sale/collection/promotions hub, not a single product page — report the OVERALL promotion, not one item's price. Prefer an explicitly stated storewide/collection figure (e.g. "Up to 70% Off", "Flat 30% Off Everything") if the text states one. If no such figure is stated, use the highest discount_percentage among the given discounts/prices (a hub page advertises its best markdown, e.g. "Up to X% Off"), not an arbitrary single item's percentage.
+- category: use a broad top-level category (e.g. Fashion, Electronics, Travel, Food & Dining). subcategory: a specific sub-type within it (e.g. Men's Clothing, Laptops, Hotels), or null if unclear.
 - Base discount_percentage only on what's explicitly stated or computable from the given prices. Leave null if only vague language like "great savings" is present.
 - confidence reflects how clearly the page states a real, current offer — an explicit percentage/coupon code plus a real price drop is high confidence (0.8+); vague language with no specifics is low (below 0.4).
 - Return ONLY the JSON object.
@@ -113,6 +119,8 @@ def _normalize(data: dict) -> dict:
         "is_offer": bool(data.get("is_offer")),
         "title": data.get("title") or None,
         "description": data.get("description") or None,
+        "category": data.get("category") or None,
+        "subcategory": data.get("subcategory") or None,
         "discount_percentage": _safe_discount(data.get("discount_percentage")),
         "coupon_code": data.get("coupon_code") or None,
         "offer_type": data.get("offer_type") or None,

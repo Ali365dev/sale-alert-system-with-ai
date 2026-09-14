@@ -38,6 +38,7 @@ export interface OfferFilters {
   offer_type?: string;
   verification_status?: string;
   active?: "true" | "false";
+  source?: string;
 }
 
 export interface OffersSummary {

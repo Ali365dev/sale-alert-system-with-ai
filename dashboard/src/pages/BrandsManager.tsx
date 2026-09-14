@@ -414,6 +414,13 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                 <span>{b.is_active ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Inactive</Badge>}</span>
                 <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(b.last_searched)}</span>
                 <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                  <IconButton
+                    icon={<Icon.globe size={14} />}
+                    label="Re-discover this brand"
+                    variant="secondary"
+                    disabled={!b.website}
+                    onClick={() => navigate(`/discover-brand?website=${encodeURIComponent(b.website ?? "")}`)}
+                  />
                   <Button size="sm" variant="secondary" onClick={() => setEditing(b)}>
                     Edit
                   </Button>

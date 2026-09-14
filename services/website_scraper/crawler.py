@@ -222,7 +222,7 @@ def discover_pages(
         if url in seen:
             continue
         seen.add(url)
-        page_type = "custom" if is_product_url(url) else "discovered"
+        page_type = "product" if is_product_url(url) else "discovered"
         result.append(DiscoveredUrl(url=url, page_type=page_type, score=score_url(url)))
         slots_left -= 1
 

@@ -128,10 +128,19 @@ def process_page(
     offer_id = None
     scrape_status = "UPDATED" if previous_exists else "NEW"
 
-    should_call_ai = relevance.status == detectors.STRONG or (
-        relevance.status == detectors.WEAK and WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL
+    # Offers must reflect a genuine site-wide/collection promotion (a sale,
+    # offers, promotions, or collection hub page), never one individual
+    # product's own markdown — an admin wants "up to X% off Fragrance", not
+    # "84% off this one perfume mist". Individual product pages are still
+    # fetched/stored for visibility, just never sent to AI or turned into
+    # an offer.
+    is_individual_product_page = page_type == "product"
+
+    should_call_ai = not is_individual_product_page and (
+        relevance.status == detectors.STRONG
+        or (relevance.status == detectors.WEAK and WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL)
     )
-    if relevance.status == detectors.NOT_SALE:
+    if is_individual_product_page or relevance.status == detectors.NOT_SALE:
         scrape_status = "NOT_SALE"
     elif should_call_ai:
         candidate = ExtractedSaleCandidate(

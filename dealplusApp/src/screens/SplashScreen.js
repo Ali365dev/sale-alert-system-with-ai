@@ -3,6 +3,7 @@ import { Image, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import BootSplash from 'react-native-bootsplash';
 import useDataStore from '../state/dataStore';
 import useOnboardingGateStore from '../state/onboardingGateStore';
 import { resetAndNavigate } from '../utils/NavigationUtil';
@@ -15,11 +16,13 @@ const RED_BRIGHT = '#E7000B';
 
 
 
-/** Keeps the choreographed intro on screen even if data loads instantly. */
-const MIN_VISIBLE_MS = 1800;
+/** Keeps the choreographed intro on screen even if data loads instantly. Shorter than before —
+ * the native splash (react-native-bootsplash) now covers the actual cold-boot/bundle-load time,
+ * so this only needs to hold long enough for its own brand animation to read as intentional. */
+const MIN_VISIBLE_MS = 1200;
 /** Hard ceiling so the splash can never block the app forever — e.g. a cold-starting
  * backend or a hung request with no axios timeout configured. */
-const MAX_WAIT_MS = 6000;
+const MAX_WAIT_MS = 4000;
 
 function PulseRing({ delay }) {
   const t = useSharedValue(0);
@@ -61,6 +64,13 @@ const SplashScreen = () => {
   useEffect(() => {
     startTimeRef.current = Date.now();
     setStarted(true);
+
+    // The native splash (react-native-bootsplash, same dark background + mark)
+    // is still covering the screen at this point — it was shown instantly at
+    // OS launch, before the JS bundle even finished loading. Hiding it now
+    // that this screen has its first frame ready hands off seamlessly, with
+    // no gap or flash back to a blank window.
+    BootSplash.hide({ fade: true });
 
     bgScale.value = withRepeat(
       withSequence(withTiming(1.04, { duration: 4200, easing: Easing.inOut(Easing.sin) }), withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.sin) })),

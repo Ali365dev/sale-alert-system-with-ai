@@ -69,11 +69,14 @@ def list_offers(
     offer_type: str | None = Query(None),
     verification_status: str | None = Query(None),
     active: str | None = Query(None),
+    source: str | None = Query(None),
 ):
     with get_session() as session:
         q = session.query(Offer)
         if brand:
             q = q.filter(Offer.brand == brand)
+        if source:
+            q = q.filter(Offer.source == source)
         if email_id is not None:
             q = q.filter(Offer.email_id == email_id)
         if category:

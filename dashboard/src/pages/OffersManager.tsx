@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 
@@ -16,7 +16,7 @@ import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
 import { toast } from "../store/toastStore";
-import { sourceLabel, sourceTone } from "../lib/offerSource";
+import { SOURCE_LABEL, sourceLabel, sourceTone } from "../lib/offerSource";
 
 const VERIFICATION_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   verified: "success",
@@ -27,6 +27,90 @@ const VERIFICATION_TONE: Record<string, "success" | "warning" | "danger" | "neut
 function formatDate(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
+}
+
+type SortColumn =
+  | "id"
+  | "title"
+  | "brand"
+  | "category"
+  | "offer_type"
+  | "discount_percentage"
+  | "expiry_date"
+  | "created_at"
+  | "is_active"
+  | "source"
+  | "verification_status";
+type SortDirection = "asc" | "desc";
+
+/** Client-side sort — the table always has the full filtered result set in
+ * memory already (see useOffers above), so there's no need for a server-side
+ * ORDER BY round-trip just to reorder what's already loaded. Nulls always
+ * sort last regardless of direction, so switching direction never buries
+ * real values under a wall of "—" rows. */
+function sortOffers(offers: Offer[] | undefined, sort: { column: SortColumn; direction: SortDirection }): Offer[] | undefined {
+  if (!offers) return offers;
+  const dir = sort.direction === "asc" ? 1 : -1;
+  return [...offers].sort((a, b) => {
+    const av = a[sort.column];
+    const bv = b[sort.column];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+    if (typeof av === "boolean" && typeof bv === "boolean") return (Number(av) - Number(bv)) * dir;
+    return String(av).localeCompare(String(bv)) * dir;
+  });
+}
+
+function SortableHeader({
+  column,
+  label,
+  sort,
+  onSort,
+  align,
+}: {
+  column: SortColumn;
+  label: string;
+  sort: { column: SortColumn; direction: SortDirection };
+  onSort: (column: SortColumn) => void;
+  align?: "right";
+}) {
+  const active = sort.column === column;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(column)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: align === "right" ? "flex-end" : "flex-start",
+        gap: 4,
+        width: "100%",
+        border: "none",
+        background: "transparent",
+        padding: 0,
+        font: "inherit",
+        letterSpacing: "inherit",
+        textTransform: "inherit",
+        color: active ? "var(--text-strong)" : "inherit",
+        cursor: "pointer",
+      }}
+      aria-label={`Sort by ${label}${active ? (sort.direction === "asc" ? ", ascending" : ", descending") : ""}`}
+    >
+      {label}
+      <Icon.chevron
+        size={10}
+        style={{
+          // chevron points right by default — rotated 90deg it points down
+          // (descending, the more common table-sort default) or -90deg up.
+          transform: `rotate(${active && sort.direction === "asc" ? -90 : 90}deg)`,
+          opacity: active ? 1 : 0.25,
+          flex: "0 0 auto",
+        }}
+      />
+    </button>
+  );
 }
 
 function VerifyButton({ offer }: { offer: Offer }) {
@@ -129,23 +213,67 @@ function OffersTable() {
     email_id: emailIdParam ? Number(emailIdParam) : undefined,
   });
   const [search, setSearch] = useState("");
-  const hasFilters = !!(search || filters.verification_status || filters.active);
+  const hasFilters = !!(
+    search ||
+    filters.verification_status ||
+    filters.active ||
+    filters.source ||
+    filters.brand ||
+    filters.category ||
+    filters.offer_type
+  );
 
   function clearFilters() {
     setSearch("");
-    setFilters((f) => ({ ...f, verification_status: undefined, active: undefined }));
+    setFilters((f) => ({
+      ...f,
+      verification_status: undefined,
+      active: undefined,
+      source: undefined,
+      brand: undefined,
+      category: undefined,
+      offer_type: undefined,
+    }));
+    setSearchParams((p) => {
+      p.delete("brand");
+      return p;
+    });
   }
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || "table");
   const { data, isLoading } = useOffers(filters);
   const summary = data?.summary;
+
+  // Full, unfiltered offer set purely to harvest the distinct brand/category/
+  // type values below — so narrowing by one filter doesn't shrink the options
+  // available in the others (same "options come from the full set, not the
+  // filtered result" pattern PublicOffers.tsx uses for its brand/category counts).
+  const { data: allOffersData } = useOffers({});
+  const brandOptions = useMemo(
+    () => Array.from(new Set((allOffersData?.offers ?? []).map((o) => o.brand).filter((v): v is string => !!v))).sort(),
+    [allOffersData],
+  );
+  const categoryOptions = useMemo(
+    () => Array.from(new Set((allOffersData?.offers ?? []).map((o) => o.category).filter((v): v is string => !!v))).sort(),
+    [allOffersData],
+  );
+  const typeOptions = useMemo(
+    () => Array.from(new Set((allOffersData?.offers ?? []).map((o) => o.offer_type).filter((v): v is string => !!v))).sort(),
+    [allOffersData],
+  );
   const q = search.trim().toLowerCase();
-  const offers = q
+  const searchedOffers = q
     ? data?.offers.filter((o) =>
         [o.title, o.brand, o.company, o.category, o.subcategory, o.offer_type, o.coupon_code, o.summary, o.website]
           .filter((v): v is string => !!v)
           .some((v) => v.toLowerCase().includes(q)),
       )
     : data?.offers;
+
+  const [sort, setSort] = useState<{ column: SortColumn; direction: SortDirection }>({ column: "id", direction: "desc" });
+  function toggleSort(column: SortColumn) {
+    setSort((s) => (s.column === column ? { column, direction: s.direction === "asc" ? "desc" : "asc" } : { column, direction: "asc" }));
+  }
+  const offers = useMemo(() => sortOffers(searchedOffers, sort), [searchedOffers, sort]);
   const updateOffer = useUpdateOffer();
   const verifyAll = useStartJob("verify_offers");
   const activeVerifyAll = useActiveJob("verify_offers");
@@ -343,6 +471,56 @@ function OffersTable() {
           </div>
 
           <Select
+            aria-label="Filter by brand"
+            value={filters.brand ?? ""}
+            onChange={(e) => {
+              const value = e.target.value || undefined;
+              setFilters((f) => ({ ...f, brand: value }));
+              setSearchParams((p) => {
+                if (value) p.set("brand", value);
+                else p.delete("brand");
+                return p;
+              });
+            }}
+            style={{ width: 170 }}
+          >
+            <option value="">All Brands</option>
+            {brandOptions.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            aria-label="Filter by category"
+            value={filters.category ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, category: e.target.value || undefined }))}
+            style={{ width: 160 }}
+          >
+            <option value="">All Categories</option>
+            {categoryOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            aria-label="Filter by offer type"
+            value={filters.offer_type ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, offer_type: e.target.value || undefined }))}
+            style={{ width: 160 }}
+          >
+            <option value="">All Types</option>
+            {typeOptions.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </Select>
+
+          <Select
             aria-label="Filter by active status"
             value={filters.active ?? ""}
             onChange={(e) => setFilters((f) => ({ ...f, active: (e.target.value || undefined) as "true" | "false" | undefined }))}
@@ -351,6 +529,20 @@ function OffersTable() {
             <option value="">All Status</option>
             <option value="true">Active</option>
             <option value="false">Inactive</option>
+          </Select>
+
+          <Select
+            aria-label="Filter by source"
+            value={filters.source ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value || undefined }))}
+            style={{ width: 160 }}
+          >
+            <option value="">All Sources</option>
+            {Object.entries(SOURCE_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </Select>
 
           <IconButton icon={<Icon.filter size={14} />} label="Clear all filters" variant="secondary" disabled={!hasFilters} onClick={clearFilters} />
@@ -516,17 +708,17 @@ function OffersTable() {
                   }}
                   style={{ width: 14, height: 14 }}
                 />
-                <span>ID</span>
-                <span>Title</span>
-                <span>Brand</span>
-                <span>Category</span>
-                <span>Type</span>
-                <span style={{ textAlign: "right" }}>Disc %</span>
-                <span>Expiry</span>
-                <span>Created</span>
-                <span>Active</span>
-                <span>Source</span>
-                <span>Verification</span>
+                <SortableHeader column="id" label="ID" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="title" label="Title" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="brand" label="Brand" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="category" label="Category" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="offer_type" label="Type" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="discount_percentage" label="Disc %" sort={sort} onSort={toggleSort} align="right" />
+                <SortableHeader column="expiry_date" label="Expiry" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="created_at" label="Created" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="is_active" label="Active" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="source" label="Source" sort={sort} onSort={toggleSort} />
+                <SortableHeader column="verification_status" label="Verification" sort={sort} onSort={toggleSort} />
                 <span>Actions</span>
               </div>
 
