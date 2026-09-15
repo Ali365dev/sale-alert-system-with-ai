@@ -225,7 +225,13 @@ def _resolve_expiry(result: dict, received_at: datetime) -> tuple[Optional[datet
     return None, "none"
 
 
-def build_offer(email_id: int, result: dict, received_at: Optional[datetime] = None, subject: Optional[str] = None) -> Offer:
+def build_offer(
+    email_id: int,
+    result: dict,
+    received_at: Optional[datetime] = None,
+    subject: Optional[str] = None,
+    image_url: Optional[str] = None,
+) -> Offer:
     """Turn an analyze_email() result dict into an unsaved Offer row.
 
     received_at should be the email's Email.received_date (falls back to "now"
@@ -265,4 +271,5 @@ def build_offer(email_id: int, result: dict, received_at: Optional[datetime] = N
         key_highlights=json.dumps(result.get("key_highlights", [])),
         is_active=True,
         source="email",
+        image_url=(image_url or "").strip() or None,
     )

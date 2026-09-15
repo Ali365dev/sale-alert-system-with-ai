@@ -36,6 +36,7 @@ def reprocess_email(
     one email, so the filter shouldn't second-guess that."""
     from ai.analyzer import analyze_email, build_offer
     from ai.ocr import extract_and_merge
+    from ai.sale_image import select_sale_image
 
     with get_session() as session:
         e = session.query(Email).filter(Email.id == email_id).first()
@@ -109,7 +110,13 @@ def reprocess_email(
         # Reprocessing replaces this email's offer(s) rather than piling up
         # duplicates alongside a stale/wrong one from a previous attempt.
         session.query(Offer).filter(Offer.email_id == email_id).delete()
-        offer = build_offer(email_id, result, received_at=received_at, subject=subject)
+        offer = build_offer(
+            email_id,
+            result,
+            received_at=received_at,
+            subject=subject,
+            image_url=select_sale_image(ocr_result.get("items")),
+        )
         session.add(offer)
         session.flush()
         offer_id = offer.id

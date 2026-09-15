@@ -250,6 +250,7 @@ class Offer(Base):
     website = Column(String(500), nullable=True)   # offer/brand URL
     is_active = Column(Boolean, default=True, nullable=False, index=True)
     source = Column(String(20), nullable=True)     # "email" | "ai" | "social" | "website"
+    image_url = Column(Text, nullable=True)        # one sale-creative URL from the source email (OCR)
     created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
 
     # AI verification fields

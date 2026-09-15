@@ -8,17 +8,12 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
-
 target 'dealplusApp' do
-  # Firebase's iOS SDK ships Swift pods (e.g. FirebaseCoreInternal) that
-  # require modular headers to be importable from Swift when linked as
-  # static libraries, which is this project's default (no use_frameworks!).
-  use_modular_headers!
+  # React Native Firebase resolves the Firebase Apple SDK via Swift Package
+  # Manager by default (RN 0.75+), which requires dynamic frameworks instead
+  # of this project's previous static-library linkage.
+  # See: https://rnfirebase.io/ (iOS SPM Support / "Altering CocoaPods to use frameworks")
+  use_frameworks! :linkage => :dynamic
 
   config = use_native_modules!
 
@@ -36,17 +31,18 @@ target 'dealplusApp' do
       # :ccache_enabled => true
     )
 
-    # Firebase 11.11.x/11.15.x's FirebaseCore/FirebaseInstallations/
-    # FirebaseCoreExtension podspecs are missing DEFINES_MODULE = YES, so
-    # CocoaPods never generates their module.modulemap — which is what lets
-    # a Swift pod's generated -Swift.h header (FirebaseAuth-Swift.h) be
-    # imported from Objective-C in a static-library build. Fixed upstream in
-    # firebase-ios-sdk PR #15506, not yet in the version range
-    # @react-native-firebase/auth pins here. Remove once that's upgraded.
+    # RNCClipboard's use of the legacy MobileCoreServices API triggers a
+    # bogus 'UIUtilities' auto-link on current Xcode/SDKs, which then blocks
+    # MobileCoreServices itself from being linked and leaves UTTypeConformsTo
+    # undefined. Disable module auto-linking for that pod and link it manually.
     installer.pods_project.targets.each do |target|
-      next unless ['FirebaseCore', 'FirebaseInstallations', 'FirebaseCoreExtension'].include?(target.name)
+      next unless target.name == 'RNCClipboard'
+
       target.build_configurations.each do |config|
-        config.build_settings['DEFINES_MODULE'] = 'YES'
+        config.build_settings['CLANG_MODULES_AUTOLINK'] = 'NO'
+        ldflags = Array(config.build_settings['OTHER_LDFLAGS'] || ['$(inherited)'])
+        ldflags += ['-framework', 'MobileCoreServices']
+        config.build_settings['OTHER_LDFLAGS'] = ldflags
       end
     end
   end

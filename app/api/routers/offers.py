@@ -49,6 +49,7 @@ def _offer_to_dict(o: Offer) -> dict:
         "verified_at": o.verified_at.isoformat() if o.verified_at else None,
         "source": o.source,
         "source_url": o.source_url,
+        "image_url": o.image_url,
         "closure_status": o.closure_status,
     }
 
@@ -169,6 +170,7 @@ def create_offer(body: dict = Body(...)):
             key_highlights=json.dumps(body.get("key_highlights", [])),
             is_active=bool(body.get("is_active", True)),
             source="manual",
+            image_url=(body.get("image_url") or "").strip() or None,
         )
         session.add(offer)
         session.flush()
@@ -183,7 +185,7 @@ def update_offer(offer_id: int, body: dict = Body(...)):
             return JSONResponse({"error": "not found"}, status_code=404)
 
         for field in ("brand", "company", "category", "subcategory", "offer_type",
-                      "discount_percentage", "coupon_code", "offer_value", "website", "summary"):
+                      "discount_percentage", "coupon_code", "offer_value", "website", "summary", "image_url"):
             if field in body:
                 setattr(o, field, body[field] or None)
         if "expiry_date" in body:

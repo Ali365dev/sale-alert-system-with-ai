@@ -44,7 +44,7 @@ export function OfferCard({ offer }: { offer: Offer }) {
     >
       <div style={{ position: "relative", aspectRatio: "16 / 9", background: "var(--surface-sunken)" }}>
         <img
-          src={imageForOffer(offer.category, brandName)}
+          src={offer.image_url || imageForOffer(offer.category, brandName)}
           alt=""
           aria-hidden
           loading="lazy"

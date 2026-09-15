@@ -71,6 +71,7 @@ def _migrate() -> None:
         ("brands", "custom_scrape_urls",            "TEXT"),
         ("brands", "website_scraping_enabled",      "BOOLEAN DEFAULT TRUE"),
         ("offers", "source_url",                    "VARCHAR(500)"),
+        ("offers", "image_url",                     "TEXT"),
         ("offers", "closure_status",                "VARCHAR(20)"),
         ("offers", "missing_count",                 "INTEGER DEFAULT 0"),
         ("offers", "first_seen_at",                 "TIMESTAMP"),

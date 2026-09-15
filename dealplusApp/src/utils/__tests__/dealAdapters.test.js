@@ -8,6 +8,8 @@ import {
   initialsForName,
   mapApiBrandToBrand,
   mapApiOfferToDeal,
+  normalizeBrandKey,
+  resolveRegisteredBrandId,
   slugify,
   syntheticBrand,
 } from '../dealAdapters';
@@ -101,6 +103,19 @@ describe('mapApiOfferToDeal', () => {
     expect(deal.title).toBe('Original Subject Line');
   });
 
+  test('uses the offer image_url when the email pipeline saved a sale image', () => {
+    const deal = mapApiOfferToDeal(
+      { id: 1, brand: 'Acme', category: 'Fashion', image_url: 'https://cdn.example/sale.png' },
+      'acme',
+    );
+    expect(deal.image).toBe('https://cdn.example/sale.png');
+  });
+
+  test('falls back to the category placeholder when image_url is missing', () => {
+    const deal = mapApiOfferToDeal({ id: 1, brand: 'Acme', category: 'Fashion' }, 'acme');
+    expect(deal.image).toMatch(/^https:\/\/images\.unsplash\.com\//);
+  });
+
   test('falls back to the first sentence of the summary when there is no title', () => {
     const deal = mapApiOfferToDeal({ id: 1, title: null, summary: 'First sentence. Second sentence.', brand: 'Acme' }, 'acme');
     expect(deal.title).toBe('First sentence.');
@@ -166,6 +181,34 @@ describe('deriveBrandsAndDeals', () => {
     expect(result.brands).toEqual([]);
     expect(result.deals).toEqual([]);
     expect(result.brandsById).toEqual({});
+  });
+
+  test('offer brand "Hush Puppies" attaches to registered "Hush Puppies Pakistan" (and its logo)', () => {
+    const { brandsById, deals, brands } = deriveBrandsAndDeals(
+      [
+        {
+          id: 23,
+          name: 'Hush Puppies Pakistan',
+          categories: ['Fashion'],
+          website: 'https://hushpuppies.com.pk',
+          logo_url: 'https://cdn.example/hp.png',
+        },
+      ],
+      [{ id: 1, brand: 'Hush Puppies', category: 'Fashion', summary: 'Sale' }],
+    );
+    expect(deals[0].brandId).toBe('hush-puppies-pakistan');
+    expect(brandsById['hush-puppies-pakistan'].logoUrl).toBe('https://cdn.example/hp.png');
+    expect(brandsById['hush-puppies']).toBeUndefined();
+    expect(brands).toHaveLength(1);
+  });
+});
+
+describe('normalizeBrandKey / resolveRegisteredBrandId', () => {
+  test('strips Pakistan/PK suffixes so regional DB names match offer brands', () => {
+    expect(normalizeBrandKey('Hush Puppies Pakistan')).toBe('hush-puppies');
+    expect(normalizeBrandKey('Hush Puppies')).toBe('hush-puppies');
+    const brands = [{ id: 'hush-puppies-pakistan', name: 'Hush Puppies Pakistan' }];
+    expect(resolveRegisteredBrandId('Hush Puppies', brands)).toBe('hush-puppies-pakistan');
   });
 });
 

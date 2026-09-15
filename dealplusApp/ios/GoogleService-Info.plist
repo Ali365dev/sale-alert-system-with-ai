@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>254426897331-1jnk5399j8nqf96f6pifr3qvs26po2dv.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.254426897331-1jnk5399j8nqf96f6pifr3qvs26po2dv</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>254426897331-dlbk8bmdvoecosrhllvegql7q46gg5ko.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyDSWWTXH92jwqnW6vuIzuM9m_S2VGTQYaI</string>
+	<key>GCM_SENDER_ID</key>
+	<string>254426897331</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.kloudstack.bilingo</string>
+	<key>PROJECT_ID</key>
+	<string>sale-alert-sys</string>
+	<key>STORAGE_BUCKET</key>
+	<string>sale-alert-sys.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:254426897331:ios:2d2be1076cce7ea174c9c6</string>
+</dict>
+</plist>

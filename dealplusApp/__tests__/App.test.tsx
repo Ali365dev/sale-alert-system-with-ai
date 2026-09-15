@@ -30,21 +30,7 @@ import ReactTestRenderer from 'react-test-renderer';
 import App from '../App';
 
 test('renders correctly', async () => {
-  // SplashScreen holds real setTimeouts (up to MIN_VISIBLE_MS + a 6s ceiling)
-  // that fire a navigation dispatch once it decides to hand off — with real
-  // timers those fire after this test (and Jest's environment teardown),
-  // producing "update not wrapped in act" noise and a stray post-teardown
-  // import error. Fake timers let that whole chain resolve deterministically
-  // inside the test instead of leaking past it.
-  jest.useFakeTimers();
-  try {
-    await ReactTestRenderer.act(async () => {
-      ReactTestRenderer.create(<App />);
-    });
-    await ReactTestRenderer.act(async () => {
-      jest.advanceTimersByTime(8000);
-    });
-  } finally {
-    jest.useRealTimers();
-  }
+  await ReactTestRenderer.act(async () => {
+    ReactTestRenderer.create(<App />);
+  });
 });

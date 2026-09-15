@@ -267,12 +267,12 @@ def process_image_url(url: str, cache: dict) -> Optional[dict]:
 
 def run_ocr_for_urls(image_urls: list[str]) -> dict:
     """Concurrently OCR every (deduped) image URL. Returns
-    {"image_texts": [...], "gif_texts": [...]} — non-GIF and GIF results
-    kept separate for the merged-document format."""
+    {"image_texts": [...], "gif_texts": [...], "items": [{url, text, confidence, is_gif}, ...]}.
+    `items` keeps URL↔text so the pipeline can pick one sale image."""
     if not OCR_ENABLED or not image_urls:
-        return {"image_texts": [], "gif_texts": []}
+        return {"image_texts": [], "gif_texts": [], "items": []}
     if _get_engine() is None:
-        return {"image_texts": [], "gif_texts": []}
+        return {"image_texts": [], "gif_texts": [], "items": []}
 
     # Dedupe by URL, cap how many images one email can trigger OCR for.
     # Read fresh from Settings each call (see services/settings_service.py's
@@ -283,24 +283,27 @@ def run_ocr_for_urls(image_urls: list[str]) -> dict:
     deduped = list(dict.fromkeys(image_urls))[:max_images]
 
     cache = ocr_cache.load()
-    image_texts: list[str] = []
-    gif_texts: list[str] = []
 
     t_start = time.monotonic()
     with ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS) as pool:
         futures = {pool.submit(process_image_url, url, cache): url for url in deduped}
+        by_url: dict[str, dict] = {}
         for future in as_completed(futures):
             result = future.result()  # process_image_url never raises
             if result is None:
                 continue
-            (gif_texts if result["is_gif"] else image_texts).append(result["text"])
+            by_url[result["url"]] = result
+
+    items = [by_url[url] for url in deduped if url in by_url]
+    image_texts = [item["text"] for item in items if not item["is_gif"]]
+    gif_texts = [item["text"] for item in items if item["is_gif"]]
 
     ocr_cache.save(cache)
     logger.info(
         "OCR batch done — %d image(s), %d with text (%.2fs)",
-        len(deduped), len(image_texts) + len(gif_texts), time.monotonic() - t_start,
+        len(deduped), len(items), time.monotonic() - t_start,
     )
-    return {"image_texts": image_texts, "gif_texts": gif_texts}
+    return {"image_texts": image_texts, "gif_texts": gif_texts, "items": items}
 
 
 def merge_email_content(subject: str, body: str, image_texts: list[str], gif_texts: list[str]) -> dict:
@@ -329,4 +332,6 @@ def extract_and_merge(subject: str, body: str, image_urls: list[str]) -> dict:
     document ready to send to ai.analyzer.analyze_email, plus raw/clean OCR
     text to persist on the Email row for debugging."""
     ocr_result = run_ocr_for_urls(image_urls)
-    return merge_email_content(subject, body, ocr_result["image_texts"], ocr_result["gif_texts"])
+    merged = merge_email_content(subject, body, ocr_result["image_texts"], ocr_result["gif_texts"])
+    merged["items"] = ocr_result["items"]
+    return merged

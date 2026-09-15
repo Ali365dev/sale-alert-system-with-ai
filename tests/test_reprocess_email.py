@@ -52,13 +52,14 @@ def test_reprocess_email_success_includes_offer_id(mocker, mock_get_session, moc
     mocker.patch("services.email_processing.find_known_brand_by_domain", return_value=object())
     mocker.patch("ai.ocr.extract_and_merge", return_value={"ocr_raw": "", "ocr_clean": "", "merged": "body"})
     mocker.patch("ai.analyzer.analyze_email", return_value={"brand": "Nike", "discount_percentage": 40})
+    mocker.patch("ai.sale_image.select_sale_image", return_value="https://cdn.example/sale.png")
 
     offer_stub = types.SimpleNamespace(id=None)
 
     def build_offer_side_effect(*args, **kwargs):
         offer_stub.id = 555  # simulates the id SQLAlchemy would assign on flush
         return offer_stub
-    mocker.patch("ai.analyzer.build_offer", side_effect=build_offer_side_effect)
+    build = mocker.patch("ai.analyzer.build_offer", side_effect=build_offer_side_effect)
 
     def flush_side_effect():
         pass  # the real flush is what would populate offer.id against a real DB
@@ -71,6 +72,7 @@ def test_reprocess_email_success_includes_offer_id(mocker, mock_get_session, moc
 
     assert result["processing_status"] == "processed"
     assert result["offer_id"] == 555
+    assert build.call_args.kwargs["image_url"] == "https://cdn.example/sale.png"
 
 
 def test_apply_sale_filter_defaults_to_true_and_skips_ai_for_non_sale_content(mocker, mock_get_session, mock_session):

@@ -11,11 +11,29 @@ import { registerDeviceToken, requestNotificationPermission, setupPushListeners 
 import { configureGoogleSignIn } from './src/services/googleAuth';
 import { CLARITY_PROJECT_ID } from './src/services/config';
 import useTheme from './src/hooks/useTheme';
+import { shouldLoadNativePackage } from './src/utils/turboModules';
+
+function hideNativeSplash() {
+  // OS splash covers cold start only — hide as soon as JS mounts so we don't
+  // wait on the old animated SplashScreen (min 1.2s + data load).
+  if (!shouldLoadNativePackage('RNBootSplash')) return;
+  try {
+    const pkg = require('react-native-bootsplash');
+    const BootSplash = pkg.default ?? pkg;
+    BootSplash?.hide({ fade: true });
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('RNBootSplash is not in this native binary; rebuild the app to hide the native splash.', error?.message);
+    }
+  }
+}
 
 const App = () => {
   const { isDark } = useTheme();
 
   useEffect(() => {
+    hideNativeSplash();
+
     // Session-replay/analytics — inert until a real project ID replaces the
     // placeholder in src/services/config.js (see that file for how to get one).
     if (CLARITY_PROJECT_ID && CLARITY_PROJECT_ID !== 'YOUR_CLARITY_PROJECT_ID') {

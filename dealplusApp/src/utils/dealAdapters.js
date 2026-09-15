@@ -44,6 +44,27 @@ export const slugify = (name) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
 
+/** Strip regional suffixes so offer brand "Hush Puppies" matches DB
+ * "Hush Puppies Pakistan" (same logo / brand row). */
+export const normalizeBrandKey = (name) =>
+  slugify(name || '')
+    .replace(/-pakistan$/g, '')
+    .replace(/-pak$/g, '')
+    .replace(/-pk$/g, '')
+    .replace(/-official$/g, '');
+
+/** Map an offer's brand name to a registered Brand row id when the names
+ * only differ by a regional suffix (or exact slug match). */
+export const resolveRegisteredBrandId = (offerBrandName, registeredBrands) => {
+  const offerSlug = slugify(offerBrandName || '');
+  if (!offerSlug) return null;
+  const exact = registeredBrands.find((b) => b.id === offerSlug);
+  if (exact) return exact.id;
+  const offerKey = normalizeBrandKey(offerBrandName);
+  const fuzzy = registeredBrands.find((b) => normalizeBrandKey(b.name) === offerKey);
+  return fuzzy?.id ?? null;
+};
+
 export const mapApiBrandToBrand = (apiBrand, dealCount) => {
   const category = apiBrand.categories?.[0] ?? 'General';
   return {
@@ -101,7 +122,7 @@ export const mapApiOfferToDeal = (offer, brandId) => {
     terms:
       'Offer valid while supplies last. The brand reserves the right to modify or cancel this promotion at any time without notice. Standard return policy applies. Discount applied at checkout.',
     discountLabel,
-    image: imageForCategory(offer.category),
+    image: offer.image_url || imageForCategory(offer.category),
     category: offer.category ?? 'General',
     subcategory: offer.subcategory ?? null,
     expiresAt: offer.expiry_date ?? '',
@@ -129,21 +150,41 @@ export const deriveBrandsAndDeals = (apiBrands, apiOffers) => {
   }
 
   const registered = apiBrands.map((b) => mapApiBrandToBrand(b, offerCountByBrandId.get(slugify(b.name)) ?? 0));
-  const registeredIds = new Set(registered.map((b) => b.id));
+  // Recount with fuzzy keys so "Hush Puppies" offers attach to "Hush Puppies Pakistan".
+  const dealCountByRegisteredId = new Map(registered.map((b) => [b.id, 0]));
+  for (const offer of apiOffers) {
+    if (!offer.brand) continue;
+    const resolved = resolveRegisteredBrandId(offer.brand, registered) || slugify(offer.brand);
+    if (dealCountByRegisteredId.has(resolved)) {
+      dealCountByRegisteredId.set(resolved, (dealCountByRegisteredId.get(resolved) ?? 0) + 1);
+    }
+  }
+  const registeredWithCounts = registered.map((b) => ({
+    ...b,
+    dealCount: dealCountByRegisteredId.get(b.id) ?? b.dealCount,
+  }));
+  const registeredIds = new Set(registeredWithCounts.map((b) => b.id));
 
   const synthetic = [];
   const seenSynthetic = new Set();
   for (const offer of apiOffers) {
     if (!offer.brand) continue;
+    const resolvedId = resolveRegisteredBrandId(offer.brand, registeredWithCounts);
+    if (resolvedId) continue;
     const id = slugify(offer.brand);
     if (registeredIds.has(id) || seenSynthetic.has(id)) continue;
     seenSynthetic.add(id);
     synthetic.push(syntheticBrand(offer.brand, offer.category, offerCountByBrandId.get(id) ?? 0, offer.website));
   }
 
-  const brands = [...registered, ...synthetic];
+  const brands = [...registeredWithCounts, ...synthetic];
   const brandsById = Object.fromEntries(brands.map((b) => [b.id, b]));
-  const deals = apiOffers.filter((o) => o.brand).map((o) => mapApiOfferToDeal(o, slugify(o.brand)));
+  const deals = apiOffers
+    .filter((o) => o.brand)
+    .map((o) => {
+      const brandId = resolveRegisteredBrandId(o.brand, brands) || slugify(o.brand);
+      return mapApiOfferToDeal(o, brandId);
+    });
 
   return { brands, deals, brandsById };
 };

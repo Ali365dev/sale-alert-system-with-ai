@@ -29,7 +29,11 @@ def extract_logo(page: ParsedPage) -> dict:
 
     icon_link = page.soup.find("link", rel=lambda v: v and "icon" in v)
     if icon_link and icon_link.get("href"):
-        return {"value": _resolve(page.url, icon_link["href"]), "source": SOURCE}
+        href = icon_link["href"]
+        # Prefer apple-touch / PNG icons over tiny .ico favicons — React Native
+        # (and many browsers) render ICO poorly as a brand mark.
+        if not str(href).lower().split("?")[0].endswith(".ico"):
+            return {"value": _resolve(page.url, href), "source": SOURCE}
 
     for img in page.soup.find_all("img", limit=40):
         haystack = " ".join(
@@ -37,5 +41,9 @@ def extract_logo(page: ParsedPage) -> dict:
         ).lower()
         if "logo" in haystack and img.get("src"):
             return {"value": _resolve(page.url, img["src"]), "source": SOURCE}
+
+    # Last resort: non-ico icon link, then favicon.ico.
+    if icon_link and icon_link.get("href"):
+        return {"value": _resolve(page.url, icon_link["href"]), "source": SOURCE}
 
     return {"value": _resolve(page.url, "/favicon.ico"), "source": "website_metadata"}

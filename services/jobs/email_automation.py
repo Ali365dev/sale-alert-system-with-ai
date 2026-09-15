@@ -15,7 +15,7 @@ import json
 from datetime import datetime
 
 from database.db import get_session
-from database.models import DeviceToken, Email, EmailAutomationRun, Offer
+from database.models import Email, EmailAutomationRun, Offer
 from services.jobs.base import BackgroundJob, WorkItem
 from services.retry import retry_with_backoff
 
@@ -216,37 +216,26 @@ class EmailAutomationJob(BackgroundJob):
         return "successful"
 
     def _send_offer_notification(self, job_id: int, offer_id: int) -> None:
+        """Queue personalized FCM for users whose brands AND categories match.
+
+        Do not broadcast to every DeviceToken — that ignores preferences.
+        Duplicate sends for the same offer are skipped inside notify_matching_offer
+        (offer_notifications unique on device_id + offer_id). Offer-insert hooks
+        may already have queued this job; a second queue is still safe.
+        """
         from services import job_service
+        from services.offer_notifications import schedule_for_new_offer
         from services.push import fcm_client
 
-        with get_session() as db:
-            offer = db.query(Offer).filter(Offer.id == offer_id).first()
-            if offer is None:
-                return
-            discount = f"{int(offer.discount_percentage)}% off" if offer.discount_percentage else (offer.offer_value or "")
-            brand_fallback = f"{offer.brand} — {discount}" if offer.brand and discount else (offer.brand or "New offer")
-            # Offer.title is the source email's own subject line, preserved
-            # as-is (see database/models.py) — that's the offer's real
-            # title, not a synthesized one, so it's what the notification
-            # leads with whenever it's actually present.
-            title = offer.title or brand_fallback
-            body = offer.summary or brand_fallback
-            tokens = [
-                row.token for row in
-                db.query(DeviceToken.token).filter(DeviceToken.is_active.is_(True)).all()
-            ]
-
-        if not tokens:
-            job_service.append_log(job_id, "→ No registered devices — notification skipped", category="push")
-            return
         if not fcm_client.is_configured():
             job_service.append_log(job_id, "→ Firebase not configured — notification skipped", severity="warning", category="push")
             return
 
-        response = fcm_client.send_multicast(tokens[:500], title, body, {"dealId": str(offer_id)})
+        schedule_for_new_offer(offer_id)
         job_service.append_log(
-            job_id, f"✓ Push notification sent ({response.success_count}/{len(tokens[:500])} device(s))",
-            severity="success", category="push",
+            job_id,
+            f"→ Queued personalized notifications for offer #{offer_id} (matching brands AND categories only)",
+            category="push",
         )
 
     def after_run(self, job_id: int, job: dict) -> None:

@@ -81,6 +81,7 @@ def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sende
     """Shared gate + OCR + AI-analysis + offer-save tail, used by both the
     just-fetched and already-stored-but-pending paths below."""
     from ai.ocr import extract_and_merge
+    from ai.sale_image import select_sale_image
     from services.jobs.discover_brand import extract_domain, find_known_brand_by_domain, route_to_candidate_queue
 
     # Same deterministic sender-domain gate as the other pipelines
@@ -142,7 +143,13 @@ def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sende
         return "failed"
 
     with get_session() as db:
-        db.add(build_offer(email_id, result, received_at=received_at, subject=subject))
+        db.add(build_offer(
+            email_id,
+            result,
+            received_at=received_at,
+            subject=subject,
+            image_url=select_sale_image(ocr_result.get("items")),
+        ))
     _mark_processing_result(email_id, "processed", None)
     return "success"
 

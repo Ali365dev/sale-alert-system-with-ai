@@ -27,6 +27,7 @@ export interface Offer {
   verified_at: string | null;
   source: string | null;
   source_url: string | null;
+  image_url: string | null;
   closure_status: string | null;
 }
 

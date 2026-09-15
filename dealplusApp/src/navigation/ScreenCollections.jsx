@@ -13,7 +13,6 @@ import NotificationPreferencesScreen from '../screens/profile/NotificationPrefer
 import RequestBrandScreen from '../screens/profile/RequestBrandScreen';
 import SignInScreen from '../screens/auth/SignInScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
-import SplashScreen from '../screens/SplashScreen';
 import OnboardingWelcomeScreen from '../screens/onboarding/OnboardingWelcomeScreen';
 import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen';
 import OnboardingCategoriesScreen from '../screens/onboarding/OnboardingCategoriesScreen';
@@ -117,13 +116,6 @@ export const homeStack = [
   },
 ];
 
-export const splashStack = [
-  {
-    name: 'SplashScreen',
-    component: SplashScreen,
-  },
-];
-
 export const onboardingStack = [
   {
     options: { ...stackoptions, headerShown: false },
@@ -147,4 +139,4 @@ export const onboardingStack = [
   },
 ];
 
-export const mergedStacks = [...splashStack, ...onboardingStack, ...homeStack];
+export const mergedStacks = [...onboardingStack, ...homeStack];

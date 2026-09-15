@@ -35,6 +35,7 @@ class ProcessPendingJob(BackgroundJob):
     def process_item(self, job_id: int, item: WorkItem) -> str:
         from ai.analyzer import analyze_email, build_offer
         from ai.ocr import extract_and_merge
+        from ai.sale_image import select_sale_image
         from services import job_service
         from services.jobs.discover_brand import extract_domain, find_known_brand_by_domain, route_to_candidate_queue
 
@@ -130,7 +131,13 @@ class ProcessPendingJob(BackgroundJob):
 
         job_service.set_stage(job_id, "saving_data")
         with get_session() as session:
-            session.add(build_offer(item.id, result, received_at=received_at, subject=subject))
+            session.add(build_offer(
+                item.id,
+                result,
+                received_at=received_at,
+                subject=subject,
+                image_url=select_sale_image(ocr_result.get("items")),
+            ))
             e = session.query(Email).filter(Email.id == item.id).first()
             if e is not None:
                 e.processing_status = "processed"

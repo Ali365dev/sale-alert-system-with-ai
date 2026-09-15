@@ -107,7 +107,7 @@ export function OfferDetailPage() {
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 28 }} className="offer-detail-grid">
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ position: "relative", aspectRatio: "16 / 9", borderRadius: "var(--radius-lg)", overflow: "hidden", opacity: expired ? 0.7 : 1 }}>
-              <img src={imageForOffer(offer.category, brandName)} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <img src={offer.image_url || imageForOffer(offer.category, brandName)} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               {discount && (
                 <span
                   style={{

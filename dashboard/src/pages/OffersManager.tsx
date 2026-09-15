@@ -806,6 +806,13 @@ function OffersTable() {
         <Modal title={`Offer #${viewing.id} — ${viewing.brand ?? "Unknown brand"}`} onClose={() => setViewing(null)}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: "var(--text-body)" }}>
             <div><strong style={{ color: "var(--text-strong)" }}>Title:</strong> {viewing.title ?? "— (no source email)"}</div>
+            {viewing.image_url && (
+              <img
+                src={viewing.image_url}
+                alt=""
+                style={{ width: "100%", maxHeight: 280, objectFit: "contain", borderRadius: "var(--radius-sm)", background: "var(--surface-sunken)" }}
+              />
+            )}
             <div>
               <strong style={{ color: "var(--text-strong)" }}>Source:</strong>{" "}
               {sourceLabel(viewing.source) ? <Badge tone={sourceTone(viewing.source)}>{sourceLabel(viewing.source)}</Badge> : "—"}

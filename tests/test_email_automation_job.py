@@ -155,63 +155,23 @@ def test_process_item_label_failure_does_not_block_offer_creation(mocker, mock_g
     notify.assert_called_once_with(1, 777)
 
 
-def test_send_offer_notification_sends_push_with_offer_details(mocker, mock_get_session, mock_session):
-    """Scenario 9: the notification IS the offer — title is the offer's own
-    title (email subject) and body is the offer's summary, not a generic
-    "New offer detected" — and is only attempted when devices are registered
-    and FCM is configured."""
+def test_send_offer_notification_queues_personalized_job(mocker):
     mocker.patch("services.job_service.append_log")
-    mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
-
-    offer = types.SimpleNamespace(
-        brand="Nike", title="Nike sale email", discount_percentage=40, offer_value=None,
-        summary="Up to 40% off running shoes this weekend only.",
-    )
-    device_rows = [types.SimpleNamespace(token="device-token-1"), types.SimpleNamespace(token="device-token-2")]
-
-    def query_side_effect(model):
-        q = mocker.Mock()
-        if "Offer" in str(model):
-            q.filter.return_value.first.return_value = offer
-        else:
-            q.filter.return_value.all.return_value = device_rows
-        return q
-    mock_session.query.side_effect = query_side_effect
-
     mocker.patch("services.push.fcm_client.is_configured", return_value=True)
-    send = mocker.patch(
-        "services.push.fcm_client.send_multicast",
-        return_value=types.SimpleNamespace(success_count=2, failure_count=0),
-    )
+    schedule = mocker.patch("services.offer_notifications.schedule_for_new_offer")
 
-    job = EmailAutomationJob()
-    job._send_offer_notification(job_id=1, offer_id=555)
+    EmailAutomationJob()._send_offer_notification(job_id=1, offer_id=555)
 
-    send.assert_called_once()
-    args = send.call_args.args
-    assert args[0] == ["device-token-1", "device-token-2"]
-    assert args[1] == "Nike sale email"  # title is the offer's own title (email subject)
-    assert args[2] == "Up to 40% off running shoes this weekend only."  # body is the offer's own summary
+    schedule.assert_called_once_with(555)
 
 
-def test_send_offer_notification_skips_when_no_devices(mocker, mock_get_session, mock_session):
+def test_send_offer_notification_skips_when_fcm_not_configured(mocker):
     mocker.patch("services.job_service.append_log")
-    mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
-
-    offer = types.SimpleNamespace(brand="Nike", title="Nike sale email", discount_percentage=40, offer_value=None, summary=None)
-
-    def query_side_effect(model):
-        q = mocker.Mock()
-        if "Offer" in str(model):
-            q.filter.return_value.first.return_value = offer
-        else:
-            q.filter.return_value.all.return_value = []
-        return q
-    mock_session.query.side_effect = query_side_effect
-
+    mocker.patch("services.push.fcm_client.is_configured", return_value=False)
+    schedule = mocker.patch("services.offer_notifications.schedule_for_new_offer")
     send = mocker.patch("services.push.fcm_client.send_multicast")
 
-    job = EmailAutomationJob()
-    job._send_offer_notification(job_id=1, offer_id=555)
+    EmailAutomationJob()._send_offer_notification(job_id=1, offer_id=555)
 
+    schedule.assert_not_called()
     send.assert_not_called()
