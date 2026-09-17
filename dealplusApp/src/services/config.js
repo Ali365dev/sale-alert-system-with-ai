@@ -2,7 +2,14 @@
 // port of the same product, not a separate service.
 
 // production
-export const BASE_URL = 'https://sale-alert-system-with-ai.onrender.com/api';
+// export const BASE_URL = 'https://sale-alert-system-with-ai.onrender.com/api';
+
+// local dev — Android emulator only. 10.0.2.2 is the emulator's special
+// alias for the host's loopback interface, so this reaches a local
+// `uvicorn app.main:app --reload --port 8000` even when it's bound to plain
+// localhost (127.0.0.1), not 0.0.0.0. Switch back to the LAN-IP line below
+// for a physical device, or production above once done testing locally.
+export const BASE_URL = 'http://10.0.2.2:8000/api';
 
 // local dev — your Mac's LAN IP, reachable from a physical Android or iOS
 // device on the same WiFi network (the backend must also be bound to
@@ -11,9 +18,9 @@ export const BASE_URL = 'https://sale-alert-system-with-ai.onrender.com/api';
 // network), so this one value covers Simulator + physical iOS + physical
 // Android. Re-run `ipconfig getifaddr en0` if this ever changes (a
 // different WiFi network, router reboot, etc.) — it's not stable forever.
-// The one case this does NOT cover: the Android emulator, which needs its
-// own special alias instead — http://10.0.2.2:8000/api — since its virtual
-// network can't resolve the LAN IP the way a real device can.
+// The one case this does NOT cover: the Android emulator, which needs the
+// 10.0.2.2 alias above instead, since its virtual network can't resolve the
+// LAN IP the way a real device can.
 // export const BASE_URL = 'http://192.168.18.38:8000/api';
 
 // Microsoft Clarity project ID (clarity.microsoft.com).

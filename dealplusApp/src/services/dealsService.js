@@ -20,7 +20,7 @@ export const loadDeals = async () => {
     const apiOffers = offersRes?.data?.offers || [];
 
     const { brands, deals, brandsById } = deriveBrandsAndDeals(apiBrands, apiOffers);
-    const categories = deriveCategories(apiOffers);
+    const categories = deriveCategories(apiOffers, apiBrands);
     const derivedAlerts = deriveAlerts(apiOffers);
 
     // Alerts pushed in via FCM (id-prefixed 'push-') aren't derived from

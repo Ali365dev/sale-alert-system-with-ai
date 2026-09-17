@@ -119,12 +119,16 @@ OFFER_RETENTION_NO_EXPIRY_DAYS = int(os.getenv("OFFER_RETENTION_NO_EXPIRY_DAYS",
 OFFER_CLEANUP_HOUR_UTC = int(os.getenv("OFFER_CLEANUP_HOUR_UTC", "3"))
 
 # Personalized feed + FCM matching (services/offer_matching.py).
-# "and" = brand AND at least one category must match (default, recommended).
-# "or"  = brand match OR category match is enough.
+# "and" = brand AND at least one category must match.
+# "or"  = brand match OR category match is enough (default) — with few
+#         offers per brand, "and" tends to produce an empty feed/no
+#         notifications even for users with real saved preferences (e.g. a
+#         followed brand's only current offer falls in an unselected
+#         category). "or" still personalizes, just less strictly.
 # Empty brand/category selections never mean "all".
-OFFER_MATCH_MODE = os.getenv("OFFER_MATCH_MODE", "and").strip().lower()
+OFFER_MATCH_MODE = os.getenv("OFFER_MATCH_MODE", "or").strip().lower()
 if OFFER_MATCH_MODE not in ("and", "or"):
-    OFFER_MATCH_MODE = "and"
+    OFFER_MATCH_MODE = "or"
 
 # ── Website Scraper ──────────────────────────────────────────────────────────
 # services/website_scraper/ — HTTPX+Selectolax fetch/parse of a brand's own

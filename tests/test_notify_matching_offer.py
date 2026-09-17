@@ -32,14 +32,20 @@ def test_collect_work_empty_when_offer_missing(mocker, mock_get_session, mock_se
 
 
 def test_spec_matrix_and_mode():
-    """User: Nike + Adidas brands, Shoes + Clothing categories."""
+    """User: Nike + Adidas brands, Shoes + Clothing categories.
+
+    Explicit mode="and" — OFFER_MATCH_MODE's default is "or" (see config.py:
+    "and" tends to produce an empty feed/no notifications with few offers
+    per brand), so this test pins the mode it actually exercises rather than
+    relying on the global default.
+    """
     brands = ["Nike", "Adidas"]
     cats = ["Shoes", "Clothing"]
-    assert offer_matches_preferences({"brand": "Nike", "category": "Shoes"}, brands, cats) is True
-    assert offer_matches_preferences({"brand": "Nike", "category": "Clothing"}, brands, cats) is True
-    assert offer_matches_preferences({"brand": "Nike", "category": "Watches"}, brands, cats) is False
-    assert offer_matches_preferences({"brand": "Apple", "category": "Shoes"}, brands, cats) is False
-    assert offer_matches_preferences({"brand": "Adidas", "category": "Clothing"}, brands, cats) is True
+    assert offer_matches_preferences({"brand": "Nike", "category": "Shoes"}, brands, cats, mode="and") is True
+    assert offer_matches_preferences({"brand": "Nike", "category": "Clothing"}, brands, cats, mode="and") is True
+    assert offer_matches_preferences({"brand": "Nike", "category": "Watches"}, brands, cats, mode="and") is False
+    assert offer_matches_preferences({"brand": "Apple", "category": "Shoes"}, brands, cats, mode="and") is False
+    assert offer_matches_preferences({"brand": "Adidas", "category": "Clothing"}, brands, cats, mode="and") is True
 
 
 def test_collect_work_only_tokens_for_matching_devices(mocker, mock_get_session, mock_session):

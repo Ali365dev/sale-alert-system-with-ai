@@ -64,3 +64,10 @@ services:
 
       - key: LOG_LEVEL
         value: INFO
+
+      # Personalized feed + FCM matching (services/offer_matching.py) —
+      # "or" (brand OR category) vs "and" (brand AND category). "or" is
+      # recommended with few offers per brand, where "and" can produce an
+      # empty feed/no notifications even for users with real preferences.
+      - key: OFFER_MATCH_MODE
+        value: or

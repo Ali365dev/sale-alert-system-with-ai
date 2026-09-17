@@ -189,9 +189,23 @@ export const deriveBrandsAndDeals = (apiBrands, apiOffers) => {
   return { brands, deals, brandsById };
 };
 
-/** Derives category counts (sorted by deal count desc) from raw API offers. */
-export const deriveCategories = (apiOffers) => {
+/** Derives category counts (sorted by deal count desc) from raw API offers,
+ * and the brand catalog's own tagged categories.
+ *
+ * `apiOffers` alone isn't enough: when device_id is sent, GET /offers is
+ * already personalized (services/offer_matching.py), so building the pickable
+ * category list purely from that response means any category not already
+ * matching the user's current preferences quietly disappears from the very
+ * screen meant to let them add more of them. GET /brands is never filtered,
+ * so brand.categories (Brand.categories on the backend) is the stable source
+ * for "which categories exist at all" — offers just contribute counts on top. */
+export const deriveCategories = (apiOffers, apiBrands = []) => {
   const counts = new Map();
+  for (const brand of apiBrands) {
+    for (const name of brand.categories ?? []) {
+      if (name && !counts.has(name)) counts.set(name, 0);
+    }
+  }
   for (const offer of apiOffers) {
     if (!offer.category) continue;
     counts.set(offer.category, (counts.get(offer.category) ?? 0) + 1);

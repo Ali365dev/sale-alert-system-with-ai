@@ -224,6 +224,17 @@ describe('deriveCategories', () => {
     const categories = deriveCategories([{ category: null }, { category: undefined }, {}]);
     expect(categories).toEqual([]);
   });
+
+  test('includes brand-tagged categories even with zero current offers, so a personalized (filtered) offer list never hides a pickable category', () => {
+    const offers = [{ category: 'Fashion' }];
+    const brands = [{ categories: ['Fashion', 'Food'] }, { categories: ['Technology'] }];
+    const categories = deriveCategories(offers, brands);
+    const names = categories.map((c) => c.name).sort();
+    expect(names).toEqual(['Fashion', 'Food', 'Technology']);
+    expect(categories.find((c) => c.name === 'Fashion')).toMatchObject({ dealCount: 1 });
+    expect(categories.find((c) => c.name === 'Food')).toMatchObject({ dealCount: 0 });
+    expect(categories.find((c) => c.name === 'Technology')).toMatchObject({ dealCount: 0 });
+  });
 });
 
 describe('filterForYou', () => {
