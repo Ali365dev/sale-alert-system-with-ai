@@ -31,10 +31,13 @@ const createStyles = (colors) =>
       marginBottom: SPACING.two,
     },
     title: {
-      ...TYPOGRAPHY.headline,
+      ...TYPOGRAPHY.subtitle,
       color: colors.text,
+      fontSize: 18,
     },
     link: {
       ...TYPOGRAPHY.linkPrimary,
+      fontSize: 13,
+      lineHeight: 18,
     },
   });

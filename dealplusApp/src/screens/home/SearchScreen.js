@@ -101,7 +101,7 @@ const SearchScreen = () => {
 
   const goBack = () => {
     if (navigation.canGoBack()) navigation.goBack();
-    else navigation.navigate('Deals');
+    else navigation.navigate('CategoriesScreen');
   };
 
   return (
@@ -135,7 +135,7 @@ const SearchScreen = () => {
           <>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Categories</Text>
-              <Pressable onPress={() => navigation.navigate('Deals')} hitSlop={8}>
+              <Pressable onPress={() => navigation.navigate('CategoriesScreen')} hitSlop={8}>
                 <Text style={styles.sectionLink}>View All</Text>
               </Pressable>
             </View>

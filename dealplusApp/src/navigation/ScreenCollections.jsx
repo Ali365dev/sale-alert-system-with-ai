@@ -1,10 +1,12 @@
 import BrandDetailScreen from '../screens/deals/BrandDetailScreen';
 import ForYouScreen from '../screens/home/ForYouScreen';
 import CategoryDealsScreen from '../screens/categories/CategoryDealsScreen';
+import CategoriesScreen from '../screens/categories/CategoriesScreen';
 import BrandListScreen from '../screens/deals/BrandListScreen';
 import DealDetailScreen from '../screens/deals/DealDetailScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 import FollowedBrandsScreen from '../screens/profile/FollowedBrandsScreen';
+import DealPreferenceScreen from '../screens/profile/DealPreferenceScreen';
 import FavoriteCategoriesScreen from '../screens/profile/FavoriteCategoriesScreen';
 import PrivacyPolicyScreen from '../screens/profile/PrivacyPolicyScreen';
 import HelpSupportScreen from '../screens/profile/HelpSupportScreen';
@@ -13,6 +15,7 @@ import NotificationPreferencesScreen from '../screens/profile/NotificationPrefer
 import RequestBrandScreen from '../screens/profile/RequestBrandScreen';
 import SignInScreen from '../screens/auth/SignInScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
+import SearchScreen from '../screens/home/SearchScreen';
 import OnboardingWelcomeScreen from '../screens/onboarding/OnboardingWelcomeScreen';
 import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen';
 import OnboardingCategoriesScreen from '../screens/onboarding/OnboardingCategoriesScreen';
@@ -38,6 +41,16 @@ export const homeStack = [
   {
     name: 'MainTabs',
     component: RootDrawer,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'SearchScreen',
+    component: SearchScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'CategoriesScreen',
+    component: CategoriesScreen,
   },
   {
     options: { ...stackoptions, headerShown: false },
@@ -78,6 +91,11 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'FavoriteCategoriesScreen',
     component: FavoriteCategoriesScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'DealPreferenceScreen',
+    component: DealPreferenceScreen,
   },
   {
     options: { ...stackoptions, headerShown: false },

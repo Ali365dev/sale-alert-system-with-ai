@@ -4,6 +4,7 @@ import { initialize as initializeClarity } from '@microsoft/react-native-clarity
 import Navigation from './src/navigation/Navigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/utils/CustomToast';
 import { loadDeals } from './src/services/dealsService';
@@ -29,7 +30,7 @@ function hideNativeSplash() {
 }
 
 const App = () => {
-  const { isDark } = useTheme();
+  const { isDark, colors } = useTheme();
 
   useEffect(() => {
     hideNativeSplash();
@@ -71,9 +72,11 @@ const App = () => {
   return (
     <SafeAreaProvider>
       <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
-        <Navigation />
-        <Toast config={toastConfig} position="top" />
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+        <BottomSheetModalProvider>
+          <Navigation />
+          <Toast config={toastConfig} position="top" />
+        </BottomSheetModalProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

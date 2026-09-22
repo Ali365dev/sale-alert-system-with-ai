@@ -1,24 +1,27 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import FastImage from '@d11/react-native-fast-image';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { SCREEN_WIDTH, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
 import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
+import BrandCard from '../../components/BrandCard';
 import EmptyState from '../../components/EmptyState';
 import FilterChip from '../../components/FilterChip';
 import PaginationLoader from '../../components/PaginationLoader';
+import PrimaryButton from '../../components/PrimaryButton';
 import SearchBar from '../../components/SearchBar';
 import Skeleton from '../../components/Skeleton';
 import TopAppBar from '../../components/TopAppBar';
-import PrimaryButton from '../../components/PrimaryButton';
 
-const FILTERS = ['All', 'Trending', 'Newly Added', 'Expiring Soon'];
+const GRID_PAD = 20;
+const GRID_GAP = 12;
+const COLS = 3;
+const TILE = (SCREEN_WIDTH - GRID_PAD * 2 - GRID_GAP * (COLS - 1)) / COLS;
 
 const BrandListScreen = () => {
   const navigation = useNavigation();
@@ -26,38 +29,28 @@ const BrandListScreen = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const brands = useDataStore((state) => state.brands);
-  const deals = useDataStore((state) => state.deals);
+  const categories = useDataStore((state) => state.categories);
   const loading = useDataStore((state) => state.loading);
   const error = useDataStore((state) => state.error);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  const bestDiscountByBrand = useMemo(() => {
-    const map = new Map();
-    for (const d of deals) {
-      if (!d.isPercentageOff) continue;
-      const pct = Math.abs(parseInt(d.discountLabel) || 0);
-      map.set(d.brandId, Math.max(map.get(d.brandId) ?? 0, pct));
-    }
-    return map;
-  }, [deals]);
-
-  const isNewBrand = (brand) => {
-    const brandDeals = deals.filter((d) => d.brandId === brand.id);
-    return brandDeals.some((d) => {
-      if (!d.createdAt) return false;
-      return (Date.now() - new Date(d.createdAt).getTime()) / 86400000 <= 3;
-    });
-  };
-
-  const hasExpiringSoonDeal = (brand) => {
-    const brandDeals = deals.filter((d) => d.brandId === brand.id);
-    return brandDeals.some((d) => {
-      if (!d.expiresAt) return false;
-      const days = (new Date(d.expiresAt).getTime() - Date.now()) / 86400000;
-      return days >= 0 && days <= 7;
-    });
-  };
+  const chips = useMemo(() => {
+    const names = [];
+    const seen = new Set();
+    const add = (raw) => {
+      const name = String(raw || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      names.push(name);
+    };
+    for (const category of categories) add(category.name);
+    for (const brand of brands) add(brand.category);
+    return ['All', ...names];
+  }, [categories, brands]);
 
   const filtered = useMemo(() => {
     let list = [...brands];
@@ -65,122 +58,119 @@ const BrandListScreen = () => {
       const q = query.toLowerCase();
       list = list.filter((b) => b.name.toLowerCase().includes(q));
     }
-    if (filter === 'Trending') {
-      list = list.filter((b) => b.dealCount > 0);
-    } else if (filter === 'Newly Added') {
-      list = list.filter((b) => isNewBrand(b));
-    } else if (filter === 'Expiring Soon') {
-      list = list.filter((b) => hasExpiringSoonDeal(b));
+    if (filter !== 'All') {
+      const key = filter.toLowerCase();
+      list = list.filter((b) => (b.category || '').toLowerCase() === key);
     }
-    // Brands with tracked deals always lead, most deals first; brands with
-    // none fall to the end, alphabetically among themselves either way.
     list.sort((a, b) => b.dealCount - a.dealCount || a.name.localeCompare(b.name));
     return list;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brands, deals, query, filter]);
-  const { visibleItems: visibleBrands, isLoadingMore, loadMore } = usePagination(filtered, 12);
+  }, [brands, query, filter]);
+
+  const { visibleItems: visibleBrands, isLoadingMore, loadMore } = usePagination(filtered, 18);
+
+  const toggleSearch = () => {
+    setSearchOpen((open) => {
+      if (open) setQuery('');
+      return !open;
+    });
+  };
+
+  const renderGrid = () => (
+    <FlatList
+      data={visibleBrands}
+      keyExtractor={(b) => b.id}
+      numColumns={COLS}
+      key={`brand-grid-${COLS}`}
+      columnWrapperStyle={styles.row}
+      contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + SPACING.four }]}
+      showsVerticalScrollIndicator={false}
+      onEndReached={() => loadMore()}
+      onEndReachedThreshold={0.5}
+      ListEmptyComponent={
+        <View style={styles.noResultsWrap}>
+          <Icon name="search-outline" size={32} color={colors.textSecondary} />
+          <Text style={styles.noResultsText}>
+            {query.trim() ? `No brands match "${query}".` : `No brands in ${filter}.`}
+          </Text>
+          {query.trim() ? (
+            <PrimaryButton
+              label={`Request "${query.trim()}"`}
+              icon="add-circle-outline"
+              pill
+              onPress={() => navigation.navigate('RequestBrandScreen', { brandName: query.trim() })}
+            />
+          ) : null}
+        </View>
+      }
+      ListFooterComponent={
+        filtered.length > 0 && (
+          <>
+            {isLoadingMore && <PaginationLoader />}
+            <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>
+              <Icon name="add-circle-outline" size={16} color={colors.primary} />
+              <Text style={styles.requestLinkLabel}>Can't find a brand? Request it</Text>
+            </Pressable>
+          </>
+        )
+      }
+      renderItem={({ item, index }) => (
+        <AnimatedListItem index={index} style={styles.tile}>
+          <BrandCard
+            variant="tile"
+            brand={item}
+            onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })}
+          />
+        </AnimatedListItem>
+      )}
+    />
+  );
 
   return (
     <View style={styles.container}>
-      <TopAppBar showBack hideSearch />
+      <TopAppBar
+        showBack
+        title="Brands"
+        titleAlign="left"
+        hideSearch
+        hideProfile
+        hideBorder
+        style={{ backgroundColor: colors.surface }}
+        rightIcon={searchOpen ? 'close-outline' : 'search-outline'}
+        onPressRight={toggleSearch}
+      />
+
+      {searchOpen && (
+        <View style={styles.searchWrap}>
+          <SearchBar value={query} onChangeText={setQuery} placeholder="Search brands" autoFocus />
+        </View>
+      )}
+
+      {chips.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+          style={styles.chipsScroll}>
+          {chips.map((chip) => (
+            <FilterChip key={chip} label={chip} tone="soft" selected={filter === chip} onPress={() => setFilter(chip)} />
+          ))}
+        </ScrollView>
+      )}
 
       {loading && brands.length === 0 ? (
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Skeleton width={140} height={26} />
-            <Skeleton width="100%" height={44} radius={999} />
-          </View>
-          <View style={styles.skeletonRow}>
-            {[0, 1].map((i) => (
-              <View key={i} style={styles.tileSkeleton}>
-                <Skeleton width="100%" radius={RADIUS.card} style={styles.tileSkeletonImage} />
-                <Skeleton width="80%" height={14} style={styles.gapTop} />
-                <Skeleton width="50%" height={12} style={styles.gapSmall} />
-              </View>
-            ))}
-          </View>
+        <View style={styles.skeletonGrid}>
+          {Array.from({ length: 12 }, (_, i) => (
+            <View key={i} style={styles.tile}>
+              <Skeleton width="100%" radius={18} style={styles.tileSkeleton} />
+            </View>
+          ))}
         </View>
       ) : error && !loading && brands.length === 0 ? (
         <EmptyState variant="error" icon="warning-outline" title="Couldn't load brands" body="Check your connection and try again." ctaLabel="Try again" onPressCta={loadDeals} />
       ) : !loading && brands.length === 0 ? (
         <EmptyState icon="business-outline" title="No brands tracked yet" body="Brands you track in your backend will show up here." ctaLabel="Refresh" onPressCta={loadDeals} />
       ) : (
-        <FlatList
-          data={visibleBrands}
-          keyExtractor={(b) => b.id}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]}
-          onEndReached={() => loadMore()}
-          onEndReachedThreshold={0.5}
-          ListHeaderComponent={
-            <View style={styles.header}>
-              <Text style={styles.pageTitle}>Top Brands</Text>
-              <SearchBar value={query} onChangeText={setQuery} placeholder="Search brands" />
-              <View style={styles.filterRow}>
-                {FILTERS.map((f) => (
-                  <FilterChip key={f} label={f} selected={filter === f} onPress={() => setFilter(f)} />
-                ))}
-              </View>
-            </View>
-          }
-          ListEmptyComponent={
-            <View style={styles.noResultsWrap}>
-              <Icon name="search-outline" size={32} color={colors.textSecondary} />
-              <Text style={styles.noResultsText}>No brands match "{query}".</Text>
-              <PrimaryButton
-                label={`Request "${query.trim()}"`}
-                icon="add-circle-outline"
-                pill
-                onPress={() => navigation.navigate('RequestBrandScreen', { brandName: query.trim() })}
-              />
-            </View>
-          }
-          ListFooterComponent={
-            filtered.length > 0 && (
-              <>
-                {isLoadingMore && <PaginationLoader />}
-                <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>
-                  <Icon name="add-circle-outline" size={16} color={colors.primary} />
-                  <Text style={styles.requestLinkLabel}>Can't find a brand? Request it</Text>
-                </Pressable>
-              </>
-            )
-          }
-          renderItem={({ item, index }) => {
-            const discount = bestDiscountByBrand.get(item.id);
-            return (
-              <AnimatedListItem index={index} style={styles.card}>
-                <Pressable style={styles.cardInner} onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })}>
-                  <View style={styles.imageWrap}>
-                    <FastImage source={{ uri: item.coverImage }} style={styles.image} resizeMode={FastImage.resizeMode.cover} />
-                    {isNewBrand(item) && (
-                      <View style={styles.newBadge}>
-                        <Text style={styles.newBadgeLabel}>NEWEST DEALS</Text>
-                      </View>
-                    )}
-                    <View style={styles.heartButton}>
-                      <Icon name="heart-outline" size={16} color="#171717" />
-                    </View>
-                  </View>
-                  <View style={styles.cardBody}>
-                    <Text style={styles.brandName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.brandCategory} numberOfLines={1}>
-                      {item.category}
-                    </Text>
-                    {discount ? (
-                      <Text style={styles.discountLabel}>UP TO {discount}% OFF</Text>
-                    ) : (
-                      <Text style={styles.dealCount}>{item.dealCount} deals</Text>
-                    )}
-                  </View>
-                </Pressable>
-              </AnimatedListItem>
-            );
-          }}
-        />
+        renderGrid()
       )}
     </View>
   );
@@ -192,110 +182,41 @@ const createStyles = (colors) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
     },
-    header: {
-      gap: SPACING.three,
-      marginBottom: SPACING.three,
+    searchWrap: {
+      paddingHorizontal: GRID_PAD,
+      paddingBottom: SPACING.two,
     },
-    pageTitle: {
-      ...TYPOGRAPHY.title,
-      color: colors.text,
+    chipsScroll: {
+      flexGrow: 0,
+      flexShrink: 0,
     },
-    filterRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
+    chips: {
+      paddingHorizontal: GRID_PAD,
+      paddingBottom: SPACING.three,
       gap: SPACING.two,
     },
-    content: {
-      paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.three,
+    list: {
+      paddingHorizontal: GRID_PAD,
+      paddingTop: 4,
     },
     row: {
-      justifyContent: 'space-between',
-      gap: SPACING.three,
+      gap: GRID_GAP,
+      marginBottom: GRID_GAP,
     },
-    skeletonRow: {
+    tile: {
+      width: TILE,
+    },
+    skeletonGrid: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: SPACING.three,
+      flexWrap: 'wrap',
+      paddingHorizontal: GRID_PAD,
+      gap: GRID_GAP,
     },
     tileSkeleton: {
-      width: '48%',
-    },
-    tileSkeletonImage: {
       aspectRatio: 1,
       height: undefined,
-    },
-    gapTop: {
-      marginTop: SPACING.two,
-    },
-    gapSmall: {
-      marginTop: 4,
-    },
-    card: {
-      width: '48%',
-      marginBottom: SPACING.three,
-    },
-    cardInner: {
-      borderRadius: RADIUS.card,
-      overflow: 'hidden',
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    imageWrap: {
-      width: '100%',
-      aspectRatio: 1,
-    },
-    image: {
-      width: '100%',
-      height: '100%',
-    },
-    newBadge: {
-      position: 'absolute',
-      top: SPACING.two,
-      left: SPACING.two,
-      backgroundColor: '#F5CB1B',
-      paddingHorizontal: SPACING.two,
-      paddingVertical: 3,
-      borderRadius: 4,
-    },
-    newBadgeLabel: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: '#171717',
-    },
-    heartButton: {
-      position: 'absolute',
-      top: SPACING.two,
-      right: SPACING.two,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: 'rgba(255,255,255,0.9)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    cardBody: {
-      padding: SPACING.three,
-      gap: 2,
-    },
-    brandName: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.text,
-    },
-    brandCategory: {
-      ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
-    },
-    dealCount: {
-      ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
-    },
-    discountLabel: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.primary,
     },
     noResultsWrap: {
       alignItems: 'center',

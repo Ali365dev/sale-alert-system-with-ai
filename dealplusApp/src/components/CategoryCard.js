@@ -10,15 +10,15 @@ import { usePressScale } from '../hooks/usePressScale';
 // calendar's category colors), since darkening each pastel individually would
 // need a hand-picked dark variant per tile with little practical benefit.
 const TILE_COLORS = {
-  'shoe-sneaker': { bg: '#FBE2E2', fg: '#B7131A' },
-  'tshirt-crew-outline': { bg: '#FBE2E2', fg: '#B7131A' },
-  laptop: { bg: '#F6EFD8', fg: '#8A6D1F' },
-  'face-woman-outline': { bg: '#DCE6F5', fg: '#1F3A6D' },
-  'silverware-fork-knife': { bg: '#FBE2E2', fg: '#B7131A' },
-  airplane: { bg: '#DDF0EE', fg: '#147D74' },
-  basketball: { bg: '#FCE8D6', fg: '#C2650A' },
-  'sofa-outline': { bg: '#E1F0E1', fg: '#1F6D3A' },
-  'controller-classic-outline': { bg: '#EDE1F5', fg: '#5A1F6D' },
+  'shoe-sneaker': { bg: '#EAF8F1', fg: '#16A36A' },
+  'tshirt-crew-outline': { bg: '#FFF0F3', fg: '#F20D38' },
+  laptop: { bg: '#EEF4FF', fg: '#3478F6' },
+  'face-woman-outline': { bg: '#FDECEF', fg: '#D90832' },
+  'silverware-fork-knife': { bg: '#FFF6DF', fg: '#F5A623' },
+  airplane: { bg: '#EEF4FF', fg: '#4D5F7E' },
+  basketball: { bg: '#FFF6DF', fg: '#F5A623' },
+  'sofa-outline': { bg: '#EAF8F1', fg: '#006670' },
+  'controller-classic-outline': { bg: '#FDECEF', fg: '#F20D38' },
 };
 
 const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
@@ -36,11 +36,8 @@ const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
           <View style={[styles.circleIconWrap, { backgroundColor: tile.bg }]}>
             <Icon name={category.icon} size={26} color={tile.fg} />
           </View>
-          <Text style={styles.circleName} numberOfLines={1}>
+          <Text style={styles.circleName} numberOfLines={2}>
             {category.name}
-          </Text>
-          <Text style={styles.circleCount} numberOfLines={1}>
-            {category.dealCount.toLocaleString()}+ deals
           </Text>
         </Pressable>
       </Animated.View>
@@ -185,7 +182,7 @@ const createStyles = (colors) =>
     },
     circleCount: {
       ...TYPOGRAPHY.small,
-      fontSize: 12,
+      fontSize: 11,
       color: colors.textSecondary,
     },
   });

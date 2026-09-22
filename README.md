@@ -200,10 +200,66 @@ The Gmail OAuth token and `credentials.json` are both handled without needing a 
    ```
    This opens a browser consent flow and writes the resulting token straight into the shared DB — no file to copy, no Shell tab needed. Render picks it up on its next request.
 4. **Free-tier caveats, be aware of both:**
-   - Services spin down after 15 minutes idle and cold-start (~1 min) on the next request. Ping `/api/health` every ~10 min from a free uptime service (UptimeRobot, cron-job.org) to keep it warm — otherwise the daily offer-cleanup scheduler and background sync jobs may not run reliably.
+   - Services spin down after inactivity (see [Keeping a Render Free Web Service awake](#keeping-a-render-free-web-service-awake)).
    - The OCR pipeline (`paddlepaddle`/`paddleocr`) wants real RAM; Free-tier instances are limited. If OCR is slow/fails under load, that's the first thing to check — upgrading to a paid plan (`plan: standard` in `render.yaml`) fixes both this and the spin-down issue.
 
 Once it's live, point the mobile app's `EXPO_PUBLIC_API_URL` and the dashboard's `VITE_API_BASE_URL` (both `<render-url>/api`) at the Render service's `https://*.onrender.com` URL.
+
+### Keeping a Render Free Web Service awake
+
+Render Free Web Services spin down after a period of inactivity (about 15 minutes with no traffic). The next request then pays a cold-start delay (~1 minute), and in-process schedulers (offer cleanup, Gmail automation polling) will not run while the process is asleep.
+
+`GET /api/health` is the keep-alive target. It is intentionally lightweight: unauthenticated, no database access, and it does not start Gmail processing, AI, scraping, notifications, or background jobs. It only returns:
+
+```json
+{"status": "ok"}
+```
+
+Call it periodically from an **external** monitoring or scheduling service. **Do not** add a self-pinging loop inside this backend — if the process has already spun down, it cannot ping itself, and a loop in-process would not prevent idle shutdown.
+
+Keep the ping interval in the external scheduler, not in application code. **Every 10 minutes** is a good default on the Free plan (idle timeout is ~15 minutes). Change it in the scheduler if Render's idle policy changes.
+
+#### Configure an external 10-minute ping
+
+Replace `YOUR-RENDER-SERVICE` with the hostname Render assigned to this web service. Do not put that hostname in application code.
+
+Local check (API running on port 8000):
+
+```bash
+curl -sS -m 30 http://localhost:8000/api/health
+```
+
+Deployed check:
+
+```bash
+curl -sS -m 30 https://YOUR-RENDER-SERVICE.onrender.com/api/health
+```
+
+Expected: HTTP 200 and `{"status":"ok"}`.
+
+**Option A — cron-job.org**
+
+1. Create a free account at [cron-job.org](https://cron-job.org).
+2. **Create cronjob**.
+3. Title: e.g. `gmail-api keep-alive`.
+4. Address: `https://YOUR-RENDER-SERVICE.onrender.com/api/health`.
+5. Schedule: every 10 minutes (or a custom cron expression such as `*/10 * * * *`).
+6. Request method: **GET**.
+7. Timeout: 30–60 seconds (cold starts can be slow if a ping is missed; once keep-alive is working, responses should be fast).
+8. Enable retries on failure if the UI offers them (1–2 retries is enough).
+9. Save and confirm the first run returns 200.
+
+**Option B — UptimeRobot**
+
+1. Create a free account at [UptimeRobot](https://uptimerobot.com).
+2. **Add New Monitor** → monitor type **HTTP(s)**.
+3. URL: `https://YOUR-RENDER-SERVICE.onrender.com/api/health`.
+4. Interval: **10 minutes** (or 5 minutes if 10 is not available on the free plan).
+5. Timeout: 30–60 seconds.
+6. Optional: keyword monitor for `ok`.
+7. Create the monitor. UptimeRobot retries failed checks on its own.
+
+`render.yaml` already sets `healthCheckPath: /api/health` for deploy-time probes. That is separate from keep-alive: Render's health check does not ping often enough to prevent Free-plan spin-down.
 
 ### Cron alternative (for periodic ingestion)
 

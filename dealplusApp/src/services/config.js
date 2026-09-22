@@ -4,12 +4,13 @@
 // production
 // export const BASE_URL = 'https://sale-alert-system-with-ai.onrender.com/api';
 
-// local dev — Android emulator only. 10.0.2.2 is the emulator's special
-// alias for the host's loopback interface, so this reaches a local
-// `uvicorn app.main:app --reload --port 8000` even when it's bound to plain
-// localhost (127.0.0.1), not 0.0.0.0. Switch back to the LAN-IP line below
-// for a physical device, or production above once done testing locally.
-export const BASE_URL = 'http://10.0.2.2:8000/api';
+// local dev — the iOS Simulator reaches the Mac through IPv4 loopback, while the
+// Android emulator uses its special host-loopback alias.
+import { Platform } from 'react-native';
+
+export const BASE_URL = Platform.OS === 'ios'
+	? 'http://127.0.0.1:8000/api'
+	: 'http://10.0.2.2:8000/api';
 
 // local dev — your Mac's LAN IP, reachable from a physical Android or iOS
 // device on the same WiFi network (the backend must also be bound to

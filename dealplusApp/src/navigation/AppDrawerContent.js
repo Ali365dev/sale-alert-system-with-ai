@@ -13,7 +13,7 @@ const SECTIONS = [
     label: 'Personalize',
     items: [
       { icon: 'heart', label: 'Followed Brands', screen: 'FollowedBrandsScreen' },
-      { icon: 'grid', label: 'Favorite Categories', screen: 'FavoriteCategoriesScreen' },
+      { icon: 'options', label: 'Deal Preference', screen: 'DealPreferenceScreen' },
       { icon: 'storefront', label: 'Request a Brand', screen: 'RequestBrandScreen' },
     ],
   },
@@ -94,7 +94,7 @@ const AppDrawerContent = (props) => {
                     <Icon name={item.icon} size={18} color={COLORS.primary} />
                   </View>
                   <Text style={styles.rowLabel}>{item.label}</Text>
-                  <Icon name="chevron-forward" size={18} color="#9CA3AF" />
+                  <Icon name="chevron-forward" size={18} color={COLORS.mutedInk} />
                 </Pressable>
               ))}
             </View>
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.four,
   },
   hero: {
-    backgroundColor: '#171717',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: SPACING.four,
     paddingBottom: SPACING.four,
     borderBottomLeftRadius: RADIUS.card,
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: 'rgba(183,19,26,0.35)',
+    backgroundColor: 'rgba(42,196,156,0.35)',
   },
   glowInner: {
     position: 'absolute',
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(183,19,26,0.45)',
+    backgroundColor: 'rgba(42,196,156,0.45)',
   },
   heroTopRow: {
     flexDirection: 'row',

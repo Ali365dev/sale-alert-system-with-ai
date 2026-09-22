@@ -10,7 +10,7 @@ const FAQS = [
   {
     question: 'How do I follow a brand or category?',
     answer:
-      "Go to Profile → Followed Brands or Favorite Categories to pick what you're interested in. You can also choose them during onboarding, and your \"For You\" feed on Home updates automatically.",
+      "Go to Profile → Followed Brands or Deal Preference to pick what you're interested in. You can also choose them during onboarding, and your \"For You\" feed on Home updates automatically.",
   },
   {
     question: "Why am I not getting notified about a brand's deals?",

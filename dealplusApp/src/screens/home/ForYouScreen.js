@@ -40,9 +40,9 @@ const ForYouScreen = () => {
           icon="heart-outline"
           title="Choose your interests"
           body="Select brands and categories to see personalized deals. Empty selections show nothing — we never treat that as “all offers”."
-          ctaLabel={favoriteCategories.length === 0 ? 'Select categories' : 'Follow brands'}
+          ctaLabel={favoriteCategories.length === 0 ? 'Set deal preference' : 'Follow brands'}
           onPressCta={() =>
-            navigation.navigate(favoriteCategories.length === 0 ? 'FavoriteCategoriesScreen' : 'FollowedBrandsScreen')
+            navigation.navigate(favoriteCategories.length === 0 ? 'DealPreferenceScreen' : 'FollowedBrandsScreen')
           }
         />
       ) : (

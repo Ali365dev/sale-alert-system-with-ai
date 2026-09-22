@@ -1,30 +1,25 @@
 import { useMemo } from 'react';
-import { Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated from 'react-native-reanimated';
-import FastImage from '@d11/react-native-fast-image';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
-import AnimatedListItem from '../../components/AnimatedListItem';
+import useFavoritesStore from '../../state/favoritesStore';
+import { channelTag, formatDiscountDisplay, formatExpiryShort } from '../../utils/dealAdapters';
 import BrandLogo from '../../components/BrandLogo';
 import CouponCodeBlock from '../../components/CouponCodeBlock';
-import DealCardCompact from '../../components/DealCardCompact';
 import EmptyState from '../../components/EmptyState';
+import FavoriteButton from '../../components/FavoriteButton';
 import PrimaryButton from '../../components/PrimaryButton';
-import SectionHeader from '../../components/SectionHeader';
 import TopAppBar from '../../components/TopAppBar';
 
-const expiryLabel = (expiresAt) => {
-  if (!expiresAt) return 'No expiry';
-  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (days < 0) return 'Expired';
-  if (days === 0) return 'Ends today';
-  if (days === 1) return 'Ends in 1 day';
-  return `Ends in ${days} days`;
-};
+const termsToBullets = (terms) =>
+  String(terms || '')
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 5);
 
 const DealDetailScreen = () => {
   const route = useRoute();
@@ -33,24 +28,21 @@ const DealDetailScreen = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const id = route.params?.id;
-  const transitionTag = route.params?.transitionTag;
   const deals = useDataStore((state) => state.deals);
   const brandsById = useDataStore((state) => state.brandsById);
+  const favorite = useFavoritesStore((state) => state.favoriteIds.includes(id));
+  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
   const deal = useMemo(() => deals.find((d) => d.id === id), [deals, id]);
   const brand = deal ? brandsById[deal.brandId] : undefined;
-  const relatedDeals = useMemo(
-    () => (deal ? deals.filter((d) => d.brandId === deal.brandId && d.id !== deal.id).slice(0, 6) : []),
-    [deals, deal],
-  );
 
   if (!deal) {
     return (
       <View style={styles.container}>
-        <TopAppBar showBack title="Deal Details" hideSearch hideProfile />
+        <TopAppBar showBack title="Coupon Details" hideSearch hideProfile hideBorder />
         <EmptyState
           icon="alert-circle-outline"
-          title="Deal not found"
+          title="Coupon not found"
           body="This offer may have expired or been removed."
           ctaLabel="Go Back"
           onPressCta={() => navigation.goBack()}
@@ -60,88 +52,67 @@ const DealDetailScreen = () => {
   }
 
   const linkUrl = deal.website ?? brand?.website ?? null;
+  const tag = channelTag(deal);
+  const bullets = deal.highlights?.length > 0 ? deal.highlights : termsToBullets(deal.terms);
 
   return (
     <View style={styles.container}>
       <TopAppBar
         showBack
-        title="Deal Details"
+        title="Coupon Details"
         hideSearch
         hideProfile
-        rightIcon="share-outline"
-        onPressRight={() => Share.share({ message: `${deal.title} — ${deal.discountLabel}` })}
+        hideBorder
+        rightSlot={<FavoriteButton active={favorite} onPress={() => toggleFavorite(deal.id)} />}
       />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + SPACING.four }} showsVerticalScrollIndicator={false}>
-        <Animated.View style={styles.hero} sharedTransitionTag={transitionTag}>
-          <FastImage source={{ uri: deal.image }} style={styles.heroImage} resizeMode={FastImage.resizeMode.cover} />
-          <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeLabel}>Up to {deal.discountLabel.replace('-', '')} OFF</Text>
-          </View>
-        </Animated.View>
-
-        <View style={styles.content}>
-          <View style={styles.brandRow}>
-            <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} website={brand?.website} size={44} />
-            <View style={styles.brandText}>
-              <View style={styles.brandNameRow}>
-                <Text style={styles.brandName}>{brand?.name ?? 'Unknown brand'}</Text>
-                {deal.isFeatured && <Icon name="checkmark-circle" size={16} color={colors.primary} />}
-              </View>
-              <Text style={styles.dealStatus}>{expiryLabel(deal.expiresAt) === 'Expired' ? 'Expired Deal' : 'Active Deal'}</Text>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.summaryCard}>
+          <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} website={brand?.website} size={56} tone="filled" />
+          <View style={styles.summaryBody}>
+            <Text style={styles.brandName}>{brand?.name ?? 'Unknown brand'}</Text>
+            <Text style={styles.offerTitle} numberOfLines={2}>
+              {deal.title}
+            </Text>
+            <Text style={styles.offerMeta} numberOfLines={1}>
+              {deal.description}
+            </Text>
+            <View style={styles.tag}>
+              <Text style={styles.tagLabel}>{tag}</Text>
             </View>
           </View>
-
-          <Text style={styles.title}>{deal.title}</Text>
-
-          <View style={styles.metaRow}>
-            <Icon name="time-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.metaText}>{expiryLabel(deal.expiresAt)}</Text>
-          </View>
-
-          {deal.promoCode && (
-            <View style={styles.section}>
-              <CouponCodeBlock code={deal.promoCode} />
-            </View>
-          )}
-
-          {deal.highlights.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionHeading}>Deal Highlights</Text>
-              <View style={styles.divider} />
-              <View style={styles.bulletList}>
-                {deal.highlights.map((h, i) => (
-                  <View key={i} style={styles.bulletRow}>
-                    <Text style={styles.bulletDot}>{'•'}</Text>
-                    <Text style={styles.bulletText}>{h}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          <View style={styles.section}>
-            <Text style={styles.termsLabel}>TERMS & CONDITIONS</Text>
-            <Text style={styles.terms}>{deal.terms}</Text>
+          <View style={styles.summaryRight}>
+            <Text style={styles.discount}>{formatDiscountDisplay(deal)}</Text>
+            <Text style={styles.expiry}>{formatExpiryShort(deal.expiresAt)}</Text>
           </View>
         </View>
 
-        {relatedDeals.length > 0 && (
-          <View style={styles.relatedSection}>
-            <SectionHeader title="Similar Offers" />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relatedList}>
-              {relatedDeals.map((related, index) => (
-                <AnimatedListItem key={related.id} index={index}>
-                  <DealCardCompact deal={related} brand={brand} onPress={() => navigation.push('DealDetailScreen', { id: related.id })} />
-                </AnimatedListItem>
-              ))}
-            </ScrollView>
+        {deal.promoCode ? (
+          <View style={styles.section}>
+            <CouponCodeBlock code={deal.promoCode} />
           </View>
-        )}
+        ) : null}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>About this offer</Text>
+          <Text style={styles.about}>{deal.description}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionHeading}>Terms & Conditions</Text>
+          <View style={styles.bulletList}>
+            {bullets.map((item, index) => (
+              <View key={`${index}-${item.slice(0, 12)}`} style={styles.bulletRow}>
+                <Text style={styles.bulletDot}>•</Text>
+                <Text style={styles.bulletText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
-        <PrimaryButton label="Visit Store" icon="open-outline" disabled={!linkUrl} onPress={() => linkUrl && Linking.openURL(linkUrl)} />
+        <PrimaryButton label="Shop Now" pill disabled={!linkUrl} onPress={() => linkUrl && Linking.openURL(linkUrl)} />
       </View>
     </View>
   );
@@ -155,81 +126,84 @@ const createStyles = (colors) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    hero: {
-      width: '100%',
-      aspectRatio: 4 / 3,
-    },
-    heroImage: {
-      width: '100%',
-      height: '100%',
-    },
-    heroBadge: {
-      position: 'absolute',
-      left: SPACING.three,
-      bottom: SPACING.three,
-      backgroundColor: '#F5CB1B',
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
-      borderRadius: 999,
-    },
-    heroBadgeLabel: {
-      ...TYPOGRAPHY.label,
-      color: '#171717',
-    },
-    content: {
+    scroll: {
       paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.four,
-      gap: SPACING.two,
+      paddingTop: SPACING.three,
+      gap: SPACING.four,
     },
-    brandRow: {
+    summaryCard: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: SPACING.three,
+      backgroundColor: colors.surface,
+      borderRadius: RADIUS.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: SPACING.three,
+      ...SHADOWS.card,
     },
-    brandText: {
+    summaryBody: {
+      flex: 1,
       gap: 2,
-    },
-    brandNameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
+      minWidth: 0,
     },
     brandName: {
-      ...TYPOGRAPHY.subtitle,
+      ...TYPOGRAPHY.smallBold,
       color: colors.text,
+      fontSize: 16,
     },
-    dealStatus: {
+    offerTitle: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      fontSize: 14,
+    },
+    offerMeta: {
       ...TYPOGRAPHY.small,
       color: colors.textSecondary,
+      fontSize: 12,
     },
-    title: {
-      ...TYPOGRAPHY.headline,
-      color: colors.text,
-      marginTop: SPACING.two,
+    tag: {
+      alignSelf: 'flex-start',
+      marginTop: 6,
+      backgroundColor: colors.tagBackground,
+      borderRadius: RADIUS.chip,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
     },
-    metaRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    tagLabel: {
+      fontSize: 10,
+      fontWeight: '800',
+      letterSpacing: 0.4,
+      color: colors.primary,
+    },
+    summaryRight: {
+      alignItems: 'flex-end',
       gap: 4,
-      marginTop: SPACING.one,
+      maxWidth: 100,
     },
-    metaText: {
-      ...TYPOGRAPHY.small,
+    discount: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.primary,
+      fontSize: 18,
+      textAlign: 'right',
+    },
+    expiry: {
+      fontSize: 11,
       color: colors.textSecondary,
+      textAlign: 'right',
     },
     section: {
-      marginTop: SPACING.five,
       gap: SPACING.two,
     },
     sectionHeading: {
-      ...TYPOGRAPHY.headline,
+      ...TYPOGRAPHY.subtitle,
       color: colors.text,
-      marginBottom: 0,
+      fontSize: 17,
     },
-    divider: {
-      height: 1,
-      backgroundColor: colors.border,
-      marginBottom: SPACING.two,
+    about: {
+      ...TYPOGRAPHY.default,
+      color: colors.textSecondary,
+      lineHeight: 22,
     },
     bulletList: {
       gap: SPACING.two,
@@ -240,35 +214,19 @@ const createStyles = (colors) =>
     },
     bulletDot: {
       ...TYPOGRAPHY.default,
-      color: colors.text,
+      color: colors.primary,
+      fontWeight: '800',
     },
     bulletText: {
       ...TYPOGRAPHY.default,
       color: colors.textSecondary,
       flex: 1,
-      lineHeight: 20,
-    },
-    termsLabel: {
-      ...TYPOGRAPHY.label,
-      color: colors.textSecondary,
-    },
-    terms: {
-      ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
-      lineHeight: 20,
-    },
-    relatedSection: {
-      marginTop: SPACING.five,
-      gap: SPACING.three,
-    },
-    relatedList: {
-      paddingHorizontal: SPACING.four,
-      gap: SPACING.three,
+      lineHeight: 22,
     },
     footer: {
       paddingHorizontal: SPACING.four,
       paddingTop: SPACING.three,
-      borderTopWidth: 1,
+      borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.border,
       backgroundColor: colors.surface,
     },

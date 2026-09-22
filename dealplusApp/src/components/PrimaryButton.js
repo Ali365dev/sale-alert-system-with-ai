@@ -1,12 +1,16 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import useTheme from '../hooks/useTheme';
 import { usePressScale } from '../hooks/usePressScale';
 
 const PrimaryButton = ({ label, onPress, disabled, style, icon, iconPosition = 'right', pill }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
-  const iconEl = icon && <Icon name={icon} size={18} color="#FFFFFF" />;
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const iconEl = icon && <Icon name={icon} size={18} color={colors.onPrimary} />;
 
   return (
     <Animated.View style={[animatedStyle, style]}>
@@ -26,28 +30,29 @@ const PrimaryButton = ({ label, onPress, disabled, style, icon, iconPosition = '
 
 export default PrimaryButton;
 
-const styles = StyleSheet.create({
-  button: {
-    flexDirection: 'row',
-    gap: SPACING.two,
-    backgroundColor: '#B7131A',
-    paddingVertical: SPACING.three,
-    paddingHorizontal: SPACING.five,
-    borderRadius: RADIUS.button,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.button,
-  },
-  pill: {
-    borderRadius: RADIUS.chip,
-    paddingVertical: SPACING.three - 2,
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  label: {
-    ...TYPOGRAPHY.label,
-    color: '#FFFFFF',
-    fontSize: 15,
-  },
-});
+const createStyles = (colors) =>
+  StyleSheet.create({
+    button: {
+      flexDirection: 'row',
+      gap: SPACING.two,
+      backgroundColor: colors.primary,
+      paddingVertical: SPACING.three + 2,
+      paddingHorizontal: SPACING.five,
+      borderRadius: RADIUS.button,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...SHADOWS.button,
+    },
+    pill: {
+      borderRadius: RADIUS.chip,
+      paddingVertical: SPACING.three,
+    },
+    disabled: {
+      opacity: 0.4,
+    },
+    label: {
+      ...TYPOGRAPHY.label,
+      color: colors.onPrimary,
+      fontSize: 16,
+    },
+  });

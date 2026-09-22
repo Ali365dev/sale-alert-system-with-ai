@@ -1,57 +1,62 @@
 import { useMemo } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import FastImage from '@d11/react-native-fast-image';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
+import { formatDiscountDisplay } from '../utils/dealAdapters';
+import BrandLogo from './BrandLogo';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const SLIDE_WIDTH = SCREEN_WIDTH * 0.85;
+const SLIDE_WIDTH = SCREEN_WIDTH - SPACING.four * 2;
 
-const dealHeadline = (deal) => (deal.isPercentageOff ? `${deal.discountLabel.replace('-', '')} OFF` : deal.discountLabel);
-
+/** Marketplace promo banners — yellow/teal brand feature cards. */
 const HeroCarousel = ({ deals, brandsById, onPressDeal }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const slides = deals.length > 0 ? deals.slice(0, 4) : [null];
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      snapToInterval={SLIDE_WIDTH + SPACING.three}
-      decelerationRate="fast"
-      contentContainerStyle={styles.scrollContent}>
-      {deals.map((deal) => {
-        const brand = brandsById[deal.brandId];
-        return (
-          <View key={deal.id} style={[styles.slideShadow, { width: SLIDE_WIDTH }]}>
-            <Pressable onPress={() => onPressDeal(deal)} style={styles.slide}>
+    <View style={styles.wrap}>
+      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={styles.scrollContent}>
+        {slides.map((deal, index) => {
+          const brand = deal ? brandsById[deal.brandId] : null;
+          const isYellow = index % 2 === 0;
+          return (
+            <Pressable
+              key={deal?.id ?? `promo-${index}`}
+              onPress={() => deal && onPressDeal?.(deal)}
+              style={[styles.slide, { width: SLIDE_WIDTH, backgroundColor: isYellow ? colors.bannerYellow : colors.primary }]}>
               <View style={styles.textCol}>
-                {brand?.name && (
+                {brand?.name ? (
                   <View style={styles.brandBadge}>
-                    <Text style={styles.brandBadgeLabel} numberOfLines={1}>
-                      {brand.name.toUpperCase()}
+                    <BrandLogo initials={brand.initials} logoUrl={brand.logoUrl} website={brand.website} size={28} tone="filled" />
+                    <Text style={[styles.brandName, !isYellow && styles.onPink]} numberOfLines={1}>
+                      {brand.name}
                     </Text>
                   </View>
+                ) : (
+                  <Text style={[styles.brandName, !isYellow && styles.onPink]}>Weekend deals</Text>
                 )}
-                <Text style={styles.headline} numberOfLines={2}>
-                  {dealHeadline(deal)}
+                <Text style={[styles.headline, !isYellow && styles.onPink]} numberOfLines={2}>
+                  {deal ? formatDiscountDisplay(deal) : 'Up to 60% OFF'}
                 </Text>
-                <Text style={styles.description} numberOfLines={3}>
-                  {deal.description}
+                <Text style={[styles.description, !isYellow && styles.onPinkMuted]} numberOfLines={2}>
+                  {deal?.title || 'Exclusive coupons for top brands — shop now & save.'}
                 </Text>
-                <View style={styles.ctaButton}>
-                  <Text style={styles.ctaLabel}>View Deal</Text>
-                  <Icon name="chevron-forward-circle" size={18} color="#FFFFFF" />
-                </View>
               </View>
-
-              <FastImage source={{ uri: deal.image }} style={styles.image} resizeMode={FastImage.resizeMode.cover} />
+              <View style={[styles.art, isYellow ? styles.artOnYellow : styles.artOnPink]}>
+                <Icon name="pricetag" size={32} color={isYellow ? colors.primary : '#FFFFFF'} />
+              </View>
             </Pressable>
-          </View>
-        );
-      })}
-    </ScrollView>
+          );
+        })}
+      </ScrollView>
+      <View style={styles.dots}>
+        {slides.map((deal, index) => (
+          <View key={deal?.id ?? `dot-${index}`} style={[styles.dot, index === 0 && styles.dotActive]} />
+        ))}
+      </View>
+    </View>
   );
 };
 
@@ -59,69 +64,78 @@ export default HeroCarousel;
 
 const createStyles = (colors) =>
   StyleSheet.create({
+    wrap: {
+      gap: SPACING.two,
+    },
     scrollContent: {
       paddingHorizontal: SPACING.four,
       gap: SPACING.three,
     },
-    slideShadow: {
-      borderRadius: RADIUS.card,
-      ...SHADOWS.raised,
-    },
     slide: {
       flexDirection: 'row',
-      aspectRatio: 16 / 10,
-      borderRadius: RADIUS.card,
-      overflow: 'hidden',
-      backgroundColor: colors.inverseSurface,
+      alignItems: 'center',
+      minHeight: 140,
+      borderRadius: 18,
+      paddingHorizontal: SPACING.four,
+      paddingVertical: SPACING.three,
+      ...SHADOWS.card,
     },
     textCol: {
       flex: 1,
-      padding: SPACING.three,
-      justifyContent: 'center',
-      gap: SPACING.one,
+      gap: 6,
+      paddingRight: SPACING.two,
     },
     brandBadge: {
-      alignSelf: 'flex-start',
-      backgroundColor: colors.accent,
-      paddingHorizontal: SPACING.two,
-      paddingVertical: 4,
-      borderRadius: 4,
-      marginBottom: SPACING.one,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
-    brandBadgeLabel: {
-      ...TYPOGRAPHY.label,
-      color: '#171717',
-      fontSize: 11,
+    brandName: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.text,
+      flex: 1,
     },
     headline: {
-      ...TYPOGRAPHY.title,
-      color: '#FFFFFF',
+      ...TYPOGRAPHY.headline,
+      color: colors.text,
       fontSize: 26,
-      lineHeight: 28,
     },
     description: {
       ...TYPOGRAPHY.small,
-      color: '#D1D5DB',
-      marginTop: 2,
+      color: colors.textSecondary,
     },
-    ctaButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      alignSelf: 'flex-start',
-      gap: 6,
-      backgroundColor: colors.primary,
-      borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
-      marginTop: SPACING.two,
-    },
-    ctaLabel: {
-      ...TYPOGRAPHY.label,
+    onPink: {
       color: '#FFFFFF',
-      fontSize: 13,
     },
-    image: {
-      width: '42%',
-      height: '100%',
+    onPinkMuted: {
+      color: 'rgba(255,255,255,0.85)',
+    },
+    art: {
+      width: 72,
+      height: 72,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    artOnYellow: {
+      backgroundColor: 'rgba(42,196,156,0.14)',
+    },
+    artOnPink: {
+      backgroundColor: 'rgba(255,255,255,0.2)',
+    },
+    dots: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.border,
+    },
+    dotActive: {
+      width: 16,
+      backgroundColor: colors.primary,
     },
   });

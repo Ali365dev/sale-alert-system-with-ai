@@ -8,7 +8,6 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import useAuthStore from '../../state/authStore';
-import { saveInterests } from '../../services/preferencesApi';
 import { deleteAccount } from '../../services/authApi';
 import { getGuestName } from '../../utils/guestName';
 import { showErrorToast, showSuccessToast } from '../../utils/CustomToast';
@@ -21,9 +20,7 @@ const ProfileScreen = () => {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const brands = useDataStore((state) => state.brands);
   const deals = useDataStore((state) => state.deals);
-  const categories = useDataStore((state) => state.categories);
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
-  const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
   const guestName = useMemo(() => getGuestName(), []);
   const user = useAuthStore((state) => state.user);
@@ -33,7 +30,7 @@ const ProfileScreen = () => {
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
-      "This permanently deletes your account and saved preferences (followed brands, favorite categories). This can't be undone. Favorites and offers you've browsed as a guest on this device aren't affected.",
+      "This permanently deletes your account and saved preferences (followed brands, deal preference). This can't be undone. Favorites and offers you've browsed as a guest on this device aren't affected.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -55,13 +52,6 @@ const ProfileScreen = () => {
     );
   };
 
-  const handleToggleCategory = (name) => {
-    toggleCategory(name);
-    saveInterests({ categories: usePreferencesStore.getState().favoriteCategories });
-  };
-
-  const otherCategories = useMemo(() => categories.filter((c) => !favoriteCategories.includes(c.name)).slice(0, 4), [categories, favoriteCategories]);
-
   const rows = [
     {
       icon: 'notifications-outline',
@@ -76,6 +66,15 @@ const ProfileScreen = () => {
       subtitle: `${followedBrands.length} of ${brands.length} brands followed`,
       kind: 'link',
       onPress: () => navigation.navigate('FollowedBrandsScreen'),
+    },
+    {
+      icon: 'options-outline',
+      label: 'Deal Preference',
+      subtitle: favoriteCategories.length
+        ? `${favoriteCategories.length} interest${favoriteCategories.length === 1 ? '' : 's'} selected`
+        : 'Pick at least 5 interests',
+      kind: 'link',
+      onPress: () => navigation.navigate('DealPreferenceScreen'),
     },
     {
       icon: 'storefront-outline',
@@ -110,7 +109,7 @@ const ProfileScreen = () => {
 
   return (
     <View style={styles.container}>
-      <TopAppBar hideProfile />
+      <TopAppBar title="Profile" hideProfile hideBorder />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.avatarCard}>
           <View style={styles.avatarWrap}>
@@ -126,41 +125,6 @@ const ProfileScreen = () => {
           <View style={styles.premiumPill}>
             <Icon name="pricetags-outline" size={13} color={colors.text} />
             <Text style={styles.premiumPillLabel}>{deals.length} offers tracked</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Deal Preferences</Text>
-          <View style={styles.prefCard}>
-            <View style={styles.prefHeader}>
-              <View style={styles.prefTitleRow}>
-                <Icon name="pricetags" size={16} color={colors.primary} />
-                <Text style={styles.prefTitle}>Favorite Categories</Text>
-              </View>
-              <Pressable onPress={() => navigation.navigate('FavoriteCategoriesScreen')} hitSlop={8}>
-                <Text style={styles.editLink}>EDIT</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.prefBody}>Tailor your feed by selecting what you want to see most.</Text>
-            <View style={styles.chipRow}>
-              {favoriteCategories.map((c) => (
-                <Pressable key={c} onPress={() => handleToggleCategory(c)} style={styles.selectedChip}>
-                  <Text style={styles.selectedChipLabel}>{c}</Text>
-                  <Icon name="close" size={13} color="#FFFFFF" />
-                </Pressable>
-              ))}
-              {otherCategories.map((c) => (
-                <Pressable key={c.name} onPress={() => handleToggleCategory(c.name)} style={styles.addableChip}>
-                  <Text style={styles.addableChipLabel}>{c.name}</Text>
-                  <Icon name="add" size={13} color={colors.text} />
-                </Pressable>
-              ))}
-              {categories.length > favoriteCategories.length + otherCategories.length && (
-                <Pressable onPress={() => navigation.navigate('FavoriteCategoriesScreen')} style={styles.moreChip}>
-                  <Text style={styles.moreChipLabel}>More...</Text>
-                </Pressable>
-              )}
-            </View>
           </View>
         </View>
 
@@ -224,14 +188,16 @@ const createStyles = (colors) =>
     },
     content: {
       paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.four,
-      gap: SPACING.five,
+      paddingTop: SPACING.three,
+      gap: SPACING.four,
     },
     avatarCard: {
       alignItems: 'center',
       gap: SPACING.two,
-      backgroundColor: colors.errorTint,
+      backgroundColor: colors.surface,
       borderRadius: RADIUS.card,
+      borderWidth: 1,
+      borderColor: colors.border,
       paddingVertical: SPACING.five,
     },
     avatarWrap: {
@@ -280,84 +246,6 @@ const createStyles = (colors) =>
     premiumPillLabel: {
       ...TYPOGRAPHY.small,
       color: colors.text,
-    },
-    section: {
-      gap: SPACING.three,
-    },
-    sectionTitle: {
-      ...TYPOGRAPHY.headline,
-      color: colors.text,
-    },
-    prefCard: {
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.card,
-      padding: SPACING.three,
-      gap: SPACING.two,
-    },
-    prefHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    prefTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.two,
-    },
-    prefTitle: {
-      ...TYPOGRAPHY.subtitle,
-      color: colors.text,
-    },
-    editLink: {
-      ...TYPOGRAPHY.linkPrimary,
-    },
-    prefBody: {
-      ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
-    },
-    chipRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: SPACING.two,
-      marginTop: SPACING.one,
-    },
-    selectedChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: colors.primary,
-      borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
-    },
-    selectedChipLabel: {
-      ...TYPOGRAPHY.smallBold,
-      color: '#FFFFFF',
-    },
-    addableChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: colors.backgroundElement,
-      borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
-    },
-    addableChipLabel: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.text,
-    },
-    moreChip: {
-      backgroundColor: colors.backgroundElement,
-      borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
-    },
-    moreChipLabel: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.textSecondary,
     },
     settingsCard: {
       backgroundColor: colors.surface,

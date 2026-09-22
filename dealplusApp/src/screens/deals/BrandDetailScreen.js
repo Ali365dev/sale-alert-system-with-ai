@@ -61,7 +61,7 @@ const BrandDetailScreen = () => {
               <FastImage source={{ uri: brand.coverImage }} style={styles.coverImage} resizeMode={FastImage.resizeMode.cover} />
               <View style={[styles.topBar, { paddingTop: insets.top + SPACING.two }]}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.circleButton}>
-                  <Icon name="chevron-back" size={22} color="#171717" />
+                  <Icon name="chevron-back" size={22} color={colors.text} />
                 </Pressable>
               </View>
             </View>

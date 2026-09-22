@@ -1,6 +1,6 @@
 module.exports = {
   preset: '@react-native/jest-preset',
-  setupFiles: ['react-native-gesture-handler/jestSetup'],
+  setupFiles: ['react-native-gesture-handler/jestSetup', '<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     '^@react-native-community/netinfo$': '@react-native-community/netinfo/jest/netinfo-mock.js',
     '^@react-native-clipboard/clipboard$': '@react-native-clipboard/clipboard/jest/clipboard-mock.js',

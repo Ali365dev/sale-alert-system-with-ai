@@ -1,78 +1,74 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import Clipboard from '@react-native-clipboard/clipboard';
+import FastImage from '@d11/react-native-fast-image';
+import { SHADOWS, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
-import useFavoritesStore from '../state/favoritesStore';
-import BrandLogo from './BrandLogo';
-import FavoriteButton from './FavoriteButton';
-import SaleBadge from './SaleBadge';
+import { logoCandidateUris } from './BrandLogo';
 import { usePressScale } from '../hooks/usePressScale';
+import { showSuccessToast } from '../utils/CustomToast';
+import { useEffect, useState } from 'react';
 
-const expiryLabel = (expiresAt) => {
-  if (!expiresAt) return 'No expiry';
-  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (days < 0) return 'Expired';
-  if (days === 0) return 'Ends today';
-  if (days === 1) return 'Ends in 1 day';
-  return `Ends in ${days} days`;
+const TILE_COLORS = ['#FFF6DF', '#FFF0F3', '#EEF4FF', '#FDECEF', '#EAF8F1', '#F3F5F8'];
+
+const tileColorFor = (name = '') => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) hash = (hash + name.charCodeAt(i) * (i + 1)) % TILE_COLORS.length;
+  return TILE_COLORS[hash];
 };
 
-const isNew = (createdAt) => {
-  if (!createdAt) return false;
-  const days = (Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24);
-  return days <= 3;
-};
-
+/** Figma offer row (3:81) — 48px square mark, title, Use code, Copy. */
 const DealCard = ({ deal, brand, onPress, style, transitionTag }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const favorite = useFavoritesStore((state) => state.favoriteIds.includes(deal.id));
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
+  const code = deal.promoCode;
+  const name = brand?.name ?? 'Store';
+  const letter = (brand?.initials || name).slice(0, 1).toUpperCase();
+  const candidates = useMemo(() => logoCandidateUris(brand?.logoUrl, brand?.website), [brand?.logoUrl, brand?.website]);
+  const [logoIndex, setLogoIndex] = useState(0);
+  useEffect(() => setLogoIndex(0), [brand?.logoUrl, brand?.website]);
+  const logoUri = candidates[logoIndex] ?? null;
+
+  const onCopy = () => {
+    if (!code) return;
+    Clipboard.setString(code);
+    showSuccessToast('Code copied');
+  };
 
   return (
     <Animated.View style={[animatedStyle, styles.card, style]} sharedTransitionTag={transitionTag}>
-      <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
-        <View style={styles.header}>
-          <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} website={brand?.website} size={45} tone="filled" />
-          <View style={styles.headerText}>
-            <Text style={styles.brandName} numberOfLines={1}>
-              {brand?.name ?? 'Unknown brand'}
-            </Text>
-            <Text style={styles.category} numberOfLines={1}>
-              {deal.category}
-            </Text>
-          </View>
-          <FavoriteButton active={favorite} onPress={() => toggleFavorite(deal.id)} />
-        </View>
-
-        <View style={styles.badgeRow}>
-          <SaleBadge label={deal.discountLabel} tone={deal.isPercentageOff ? 'yellow' : 'red'} />
-          {deal.isFeatured ? (
-            <SaleBadge label="Verified" tone="green" icon="checkmark-circle" />
+      <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.row}>
+        <View style={[styles.mark, { backgroundColor: tileColorFor(name) }]}>
+          {logoUri ? (
+            <FastImage
+              source={{ uri: logoUri }}
+              onError={() => setLogoIndex((i) => i + 1)}
+              style={styles.markImage}
+              resizeMode={FastImage.resizeMode.contain}
+            />
           ) : (
-            isNew(deal.createdAt) && <SaleBadge label="New" tone="gray" />
+            <Text style={styles.markLetter}>{letter}</Text>
           )}
         </View>
 
-        <Text style={styles.title} numberOfLines={2}>
-          {deal.title}
-        </Text>
-        <Text style={styles.description} numberOfLines={2}>
-          {deal.description}
-        </Text>
-
-        <View style={styles.metaRow}>
-          <Icon name="time-outline" size={14} color={colors.textSecondary} />
-          <Text style={styles.metaText}>{expiryLabel(deal.expiresAt)}</Text>
+        <View style={styles.body}>
+          <Text style={styles.title} numberOfLines={1}>
+            {name} Promo
+          </Text>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {code ? `Use code: ${code}` : deal.title}
+          </Text>
         </View>
 
-        <View style={styles.ctaButton}>
-          <Text style={styles.ctaLabel}>View Deal</Text>
-          <Icon name="open-outline" size={15} color="#FFFFFF" />
-        </View>
+        <Pressable
+          onPress={code ? onCopy : onPress}
+          style={styles.copyBtn}
+          accessibilityRole="button"
+          accessibilityLabel={code ? 'Copy coupon code' : 'View deal'}>
+          <Text style={styles.copyLabel}>{code ? 'Copy' : 'View'}</Text>
+        </Pressable>
       </Pressable>
     </Animated.View>
   );
@@ -83,67 +79,68 @@ export default DealCard;
 const createStyles = (colors) =>
   StyleSheet.create({
     card: {
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.card,
+      backgroundColor: '#FFFFFF',
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: colors.border,
-      padding: SPACING.three,
-      gap: SPACING.two,
+      borderColor: '#EEF1F4',
       ...SHADOWS.card,
     },
-    header: {
+    row: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.two,
+      paddingHorizontal: 17,
+      paddingVertical: 17,
+      minHeight: 82,
     },
-    headerText: {
+    mark: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    markImage: {
+      width: 32,
+      height: 32,
+    },
+    markLetter: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: '#0F172A',
+    },
+    body: {
       flex: 1,
-    },
-    brandName: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.text,
-    },
-    category: {
-      fontSize: 12,
-      color: colors.textSecondary,
-    },
-    badgeRow: {
-      marginVertical: SPACING.two,
-      flexDirection: 'row',
-      gap: SPACING.two,
+      marginLeft: 14,
+      marginRight: 14,
+      gap: 2,
+      minWidth: 0,
     },
     title: {
       ...TYPOGRAPHY.smallBold,
-      color: colors.text,
-      marginVertical: SPACING.one,
+      color: '#0F172A',
+      fontSize: 15,
+      lineHeight: 20,
     },
-    description: {
+    subtitle: {
       ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
-      lineHeight: 18,
+      color: '#8E9AA8',
+      fontSize: 13,
+      lineHeight: 16,
     },
-    metaRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginVertical: SPACING.one,
-    },
-    metaText: {
-      ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
-    },
-    ctaButton: {
-      flexDirection: 'row',
-      gap: SPACING.two,
-      backgroundColor: colors.inverseSurface,
-      borderRadius: RADIUS.button,
-      paddingVertical: SPACING.three,
+    copyBtn: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      minWidth: 54,
+      height: 28,
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: SPACING.one,
     },
-    ctaLabel: {
-      ...TYPOGRAPHY.label,
+    copyLabel: {
       color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '700',
     },
   });

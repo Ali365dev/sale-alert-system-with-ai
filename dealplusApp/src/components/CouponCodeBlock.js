@@ -23,7 +23,7 @@ const CouponCodeBlock = ({ code }) => {
   return (
     <View style={styles.container}>
       <View style={styles.codeSide}>
-        <Text style={styles.promoLabel}>PROMO CODE</Text>
+        <Text style={styles.promoLabel}>COUPON CODE</Text>
         <Text style={styles.code}>{code}</Text>
       </View>
       <Animated.View style={animatedStyle}>
@@ -44,25 +44,30 @@ const createStyles = (colors) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: colors.backgroundElement,
+      backgroundColor: colors.surface,
       borderRadius: RADIUS.card,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: colors.border,
       borderStyle: 'dashed',
       padding: SPACING.three,
+      ...SHADOWS.card,
     },
     codeSide: {
       gap: 2,
+      flex: 1,
+      paddingRight: SPACING.two,
     },
     promoLabel: {
       ...TYPOGRAPHY.label,
       color: colors.textSecondary,
-      letterSpacing: 0.5,
+      letterSpacing: 0.8,
+      fontSize: 11,
     },
     code: {
       ...TYPOGRAPHY.headline,
       color: colors.text,
       letterSpacing: 1,
+      fontSize: 22,
     },
     copyButton: {
       flexDirection: 'row',
@@ -71,7 +76,7 @@ const createStyles = (colors) =>
       backgroundColor: colors.primary,
       borderRadius: RADIUS.chip,
       paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
+      paddingVertical: SPACING.two + 2,
       ...SHADOWS.button,
     },
     copyLabel: {

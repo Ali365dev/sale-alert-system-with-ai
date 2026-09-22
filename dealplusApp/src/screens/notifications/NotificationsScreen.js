@@ -23,15 +23,15 @@ const ICON_BY_KIND = {
 };
 
 const CIRCLE_BG = {
-  'price-drop': '#DCEAFB',
-  'new-brand': '#8A7A00',
-  'flash-sale': '#FBDCDC',
+  'price-drop': '#EEF4FF',
+  'new-brand': '#FFF0F3',
+  'flash-sale': '#FDECEF',
 };
 
 const ICON_COLOR = {
-  'price-drop': '#171717',
-  'new-brand': '#FFFFFF',
-  'flash-sale': '#B7131A',
+  'price-drop': '#3478F6',
+  'new-brand': '#F20D38',
+  'flash-sale': '#D90832',
 };
 
 const FILTERS = ['All Alerts', 'New Deals', 'Flash Sales'];
@@ -200,7 +200,7 @@ const createStyles = (colors) =>
       color: colors.textSecondary,
     },
     timeBadge: {
-      backgroundColor: '#DB322F',
+      backgroundColor: colors.primary,
       paddingHorizontal: SPACING.two,
       paddingVertical: 2,
       borderRadius: RADIUS.chip,

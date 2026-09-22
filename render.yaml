@@ -21,10 +21,11 @@ services:
     # writes the token straight into the shared DB this service reads from.
     # No file to copy, no Shell tab needed.
     #
-    # Free-tier services spin down after 15 min idle and cold-start on the
-    # next request (~1 min) — ping /api/health every ~10 min from a free
-    # service like UptimeRobot or cron-job.org to keep it warm and so the
-    # daily offer-cleanup scheduler actually fires.
+    # Free-tier services spin down after ~15 min idle and cold-start on the
+    # next request (~1 min). Keep-alive must be an *external* GET to
+    # /api/health every ~10 min (UptimeRobot, cron-job.org, etc.) — see
+    # README.md "Keeping a Render Free Web Service awake". Do not add a
+    # self-ping inside this process.
 
     envVars:
       - key: GMAIL_CREDENTIALS_JSON

@@ -7,7 +7,7 @@ apply plugin: "com.google.gms.google-services"
 // get bundled — fonts.gradle defaults to "*.ttf", which pulls in all 18 font
 // families (~3.8MB) regardless of usage.
 project.ext.vectoricons = [
-    iconFontNames: ["Ionicons.ttf", "MaterialCommunityIcons.ttf"]
+    iconFontNames: ["Ionicons.ttf", "MaterialCommunityIcons.ttf", "FontAwesome5_Solid.ttf"]
 ]
 apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 

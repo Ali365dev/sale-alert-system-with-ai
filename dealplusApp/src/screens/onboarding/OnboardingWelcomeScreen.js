@@ -97,7 +97,7 @@ const createStyles = (colors) =>
     },
     offBadgeLabel: {
       ...TYPOGRAPHY.smallBold,
-      color: '#171717',
+      color: colors.onPrimary,
     },
     flashBadge: {
       position: 'absolute',

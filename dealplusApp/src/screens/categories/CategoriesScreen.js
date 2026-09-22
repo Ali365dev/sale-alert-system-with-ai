@@ -117,7 +117,7 @@ const CategoriesScreen = () => {
           </AnimatedListItem>
         )}
         ListFooterComponent={
-          <Pressable style={styles.banner} onPress={() => navigation.navigate('Search')}>
+          <Pressable style={styles.banner} onPress={() => navigation.navigate('SearchScreen')}>
             <Text style={styles.bannerTitle}>Flash Sale Frenzy</Text>
             <Text style={styles.bannerBody}>{bestDiscount > 0 ? `Up to ${bestDiscount}% off across all categories.` : 'Fresh deals land here as your backend tracks them.'}</Text>
             <View style={styles.bannerCta}>
@@ -182,11 +182,11 @@ const createStyles = (colors) =>
     },
     bannerBody: {
       ...TYPOGRAPHY.small,
-      color: '#F5D9D9',
+      color: '#FFDAD8',
       textAlign: 'center',
     },
     bannerCta: {
-      backgroundColor: colors.accent,
+      backgroundColor: colors.surface,
       borderRadius: RADIUS.chip,
       paddingHorizontal: SPACING.four,
       paddingVertical: SPACING.two,
@@ -194,6 +194,6 @@ const createStyles = (colors) =>
     },
     bannerCtaLabel: {
       ...TYPOGRAPHY.label,
-      color: '#171717',
+      color: colors.primary,
     },
   });

@@ -6,18 +6,19 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { SPACING, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import useDataStore from '../state/dataStore';
-import Logo from './Logo';
+import MenuIcon from './MenuIcon';
 
-const TopAppBar = ({ title, showBack, onBack, hideSearch, hideProfile, rightIcon, onPressRight }) => {
+const TopAppBar = ({ title, showBack, onBack, hideSearch, hideProfile, hideBorder, rightIcon, onPressRight, rightSlot, titleAlign = 'center', style }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const unreadCount = useDataStore((state) => state.alerts.filter((a) => !a.read).length);
+  const titleStart = titleAlign === 'left' || titleAlign === 'start';
 
   return (
-    <View style={[styles.bar, { paddingTop: insets.top + SPACING.two }]}>
-      <View style={styles.side}>
+    <View style={[styles.bar, { paddingTop: insets.top + SPACING.two }, hideBorder && styles.barNoBorder, style]}>
+      <View style={[styles.side, titleStart && styles.sideHug]}>
         {showBack ? (
           <Pressable hitSlop={8} onPress={onBack ?? (() => navigation.goBack())}>
             <Icon name="chevron-back" size={24} color={colors.text} />
@@ -25,16 +26,18 @@ const TopAppBar = ({ title, showBack, onBack, hideSearch, hideProfile, rightIcon
         ) : (
           !hideSearch && (
             <Pressable hitSlop={8} onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
-              <Icon name="menu-outline" size={26} color={colors.text} />
+              <MenuIcon size={36} color={colors.text} />
             </Pressable>
           )
         )}
       </View>
 
-      {title ? <Text style={styles.title}>{title}</Text> : <Logo size={20} />}
+      {title ? <Text style={[styles.title, titleStart && styles.titleStart]}>{title}</Text> : <View style={styles.titleSpacer} />}
 
       <View style={[styles.side, styles.sideRight]}>
-        {rightIcon ? (
+        {rightSlot ? (
+          rightSlot
+        ) : rightIcon ? (
           <Pressable hitSlop={8} onPress={onPressRight}>
             <Icon name={rightIcon} size={22} color={colors.text} />
           </Pressable>
@@ -42,11 +45,7 @@ const TopAppBar = ({ title, showBack, onBack, hideSearch, hideProfile, rightIcon
           !hideProfile && (
             <Pressable hitSlop={8} onPress={() => navigation.navigate('NotificationsScreen')} style={styles.bellWrap}>
               <Icon name="notifications-outline" size={23} color={colors.text} />
-              {unreadCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeLabel}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-                </View>
-              )}
+              {unreadCount > 0 && <View style={styles.badgeDot} />}
             </Pressable>
           )
         )}
@@ -66,43 +65,54 @@ const createStyles = (colors) =>
       paddingHorizontal: SPACING.four,
       paddingBottom: SPACING.two,
       backgroundColor: colors.background,
-      borderBottomWidth: 1,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
+    barNoBorder: {
+      borderBottomWidth: 0,
+    },
     side: {
-      width: 60,
+      width: 44,
       flexDirection: 'row',
+      alignItems: 'center',
       gap: SPACING.three,
+    },
+    sideHug: {
+      width: 28,
     },
     sideRight: {
       justifyContent: 'flex-end',
     },
     title: {
-      ...TYPOGRAPHY.headline,
+      ...TYPOGRAPHY.subtitle,
       flex: 1,
       textAlign: 'center',
-      color: colors.primary,
+      color: colors.text,
+      fontSize: 18,
+    },
+    titleStart: {
+      textAlign: 'left',
+      fontSize: 22,
+      fontWeight: '800',
+      letterSpacing: -0.3,
+      paddingLeft: 4,
+    },
+    titleSpacer: {
+      flex: 1,
     },
     bellWrap: {
       position: 'relative',
+      padding: 2,
     },
-    badge: {
+    badgeDot: {
       position: 'absolute',
-      top: -5,
-      right: -7,
-      minWidth: 17,
-      height: 17,
-      borderRadius: 9,
-      paddingHorizontal: 3,
+      top: 2,
+      right: 2,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
       backgroundColor: colors.primary,
       borderWidth: 1.5,
       borderColor: colors.background,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    badgeLabel: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: '#FFFFFF',
     },
   });

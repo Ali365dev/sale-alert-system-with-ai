@@ -10,7 +10,6 @@ export { SCREEN_WIDTH, SCREEN_HEIGHT };
 export const WP = widthPercentageToDP;
 export const HP = heightPercentageToDP;
 
-// Base design reference (matches mobile's original design frame).
 const guidelineBaseWidth = 375;
 const guidelineBaseHeight = 812;
 
@@ -28,58 +27,71 @@ export const FONT_SIZES = {
   xxl: RFValue(28),
 };
 
-// Matched against the DealPulse Expo app's design tokens (mobile/src/constants/theme.ts).
-// `surface` is an elevated card/sheet background, distinct from `background`
-// (the screen backdrop) — the two are identical in light mode but diverge in
-// dark mode (see DARK_COLORS), so use `surface` for cards and `background`
-// for the screen itself.
+/** DealPulse refined system — primary red, cool neutrals. */
 export const LIGHT_COLORS = {
-  text: '#171717',
-  background: '#FFFFFF',
+  text: '#10233F',
+  background: '#FAF8F9',
   surface: '#FFFFFF',
-  backgroundElement: '#F8F9FB',
-  backgroundSelected: '#B7131A',
-  textSecondary: '#6B7280',
-  border: '#F0DADA',
-  primary: '#B7131A',
-  sale: '#DB322F',
-  accent: '#F5CB1B',
-  success: '#16A34A',
+  backgroundElement: '#F3F5F8',
+  backgroundSelected: '#F20D38',
+  textSecondary: '#6B7C93',
+  border: '#E8EDF3',
+  primary: '#F20D38',
+  primaryDark: '#D90832',
+  primarySoft: '#FFF0F3',
+  accentPink: '#FDECEF',
+  sale: '#F20D38',
+  accent: '#D90832',
+  success: '#16A36A',
+  successBg: '#EAF8F1',
+  warning: '#F5A623',
+  warningBg: '#FFF6DF',
+  info: '#3478F6',
+  infoBg: '#EEF4FF',
   onPrimary: '#FFFFFF',
   white: '#FFFFFF',
   black: '#000000',
-  skeletonBase: '#E8E8E8',
-  errorTint: '#FBDCDC',
-  // A deliberately-dark accent surface (hero slides, image placeholders,
-  // dark CTA buttons) — near-black in light mode for contrast; needs to
-  // lighten a touch in dark mode so it still reads as a distinct surface
-  // against the (also near-black) page background.
-  inverseSurface: '#171717',
+  skeletonBase: '#E4E2E3',
+  error: '#BA1A1A',
+  errorTint: '#FDECEF',
+  inverseSurface: '#303031',
+  tagBackground: '#FFF0F3',
+  bannerYellow: '#F5A623',
+  mutedInk: '#9AA7B8',
 };
 
 export const DARK_COLORS = {
-  text: '#F2F2F3',
-  background: '#121212',
-  surface: '#1E1E1E',
-  backgroundElement: '#242424',
-  backgroundSelected: '#B7131A',
-  textSecondary: '#9CA3AF',
-  border: '#2E2E2E',
-  primary: '#B7131A',
-  sale: '#E14A42',
-  accent: '#F5CB1B',
-  success: '#22C55E',
+  text: '#F2F0F1',
+  background: '#1B1C1D',
+  surface: '#303031',
+  backgroundElement: '#3A3B3C',
+  backgroundSelected: '#F20D38',
+  textSecondary: '#9AA7B8',
+  border: '#4A4B4C',
+  primary: '#F20D38',
+  primaryDark: '#D90832',
+  primarySoft: '#3A151C',
+  accentPink: '#4A2024',
+  sale: '#F20D38',
+  accent: '#FFB3B1',
+  success: '#16A36A',
+  successBg: '#163024',
+  warning: '#F5A623',
+  warningBg: '#3A2E14',
+  info: '#3478F6',
+  infoBg: '#1A2840',
   onPrimary: '#FFFFFF',
   white: '#FFFFFF',
   black: '#000000',
-  skeletonBase: '#2C2C2E',
-  errorTint: '#3A1F1F',
-  inverseSurface: '#2A2A2C',
+  skeletonBase: '#3A3B3C',
+  error: '#FFB4AB',
+  errorTint: '#3A1518',
+  inverseSurface: '#F2F0F1',
+  tagBackground: '#3A151C',
+  bannerYellow: '#F5A623',
+  mutedInk: '#9AA7B8',
 };
 
-// Static default (light) — kept for any code that hasn't been migrated to
-// useTheme() yet, so nothing breaks mid-refactor. New/updated code should
-// read colors from useTheme() instead of importing COLORS directly.
 export const COLORS = LIGHT_COLORS;
 
 export const SPACING = {
@@ -95,42 +107,39 @@ export const SPACING = {
 export const RADIUS = {
   chip: 999,
   card: 16,
-  button: 14,
-  sheet: 24,
+  button: 13,
+  sheet: 22,
 };
 
 export const SHADOWS = isIOS
   ? {
       card: {
-        shadowColor: '#1A1A1A',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.07,
-        shadowRadius: 10,
+        shadowColor: '#10233F',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 18,
       },
       raised: {
-        shadowColor: '#1A1A1A',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 20,
+        shadowColor: '#10233F',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 16,
       },
       button: {
-        shadowColor: '#B7131A',
-        shadowOffset: { width: 0, height: 5 },
+        shadowColor: '#F20D38',
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.22,
-        shadowRadius: 12,
+        shadowRadius: 10,
       },
     }
   : {
-      card: { elevation: 3 },
-      raised: { elevation: 8 },
-      button: { elevation: 5 },
+      card: { elevation: 2 },
+      raised: { elevation: 6 },
+      button: { elevation: 4 },
     };
 
-// Local require'd assets — populate as real assets are dropped into src/assets/images.
 export const IMAGES = {};
 
-// Text-style building blocks (ported from mobile's ThemedText type variants,
-// with fontFamily swapped for fontWeight since Montserrat isn't linked yet).
 export const TYPOGRAPHY = {
   small: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
   smallBold: { fontSize: 14, lineHeight: 20, fontWeight: '700' },

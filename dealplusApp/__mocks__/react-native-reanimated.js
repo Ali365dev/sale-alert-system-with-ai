@@ -109,6 +109,20 @@ function useSharedValue(initial) {
   return ref.current;
 }
 
+function interpolate(value, input, output) {
+  if (input.length === 0) return output[0];
+  if (value <= input[0]) return output[0];
+  if (value >= input[input.length - 1]) return output[output.length - 1];
+  for (let i = 1; i < input.length; i += 1) {
+    if (value <= input[i]) {
+      const span = input[i] - input[i - 1] || 1;
+      const t = (value - input[i - 1]) / span;
+      return output[i - 1] + t * (output[i] - output[i - 1]);
+    }
+  }
+  return output[output.length - 1];
+}
+
 function useAnimatedStyle(styleFactory) {
   // Real reanimated re-derives this reactively as shared values change on
   // the UI thread; under this mock, shared values don't trigger re-renders,
@@ -181,6 +195,7 @@ module.exports = {
   useAnimatedRef,
   useAnimatedScrollHandler,
   useDerivedValue,
+  interpolate,
   withTiming,
   withSpring,
   withDelay,

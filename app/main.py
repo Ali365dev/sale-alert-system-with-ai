@@ -63,11 +63,9 @@ def user_auth_error_handler(request: Request, exc: UserAuthError):
     return JSONResponse({"error": "not authenticated"}, status_code=401)
 
 
-@app.get("/health")
-@app.get("/api/health")
-def health():
-    return {"status": "ok"}
+from app.api.routers.health import router as health_router  # noqa: E402
 
+app.include_router(health_router)
 
 from app.api.routers import (  # noqa: E402
     analytics, auth, automation, brand_discovery, brand_requests, brands, emails, insights, jobs, notifications,

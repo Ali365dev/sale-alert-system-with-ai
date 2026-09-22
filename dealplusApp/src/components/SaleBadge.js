@@ -7,7 +7,7 @@ const SaleBadge = ({ label, tone = 'red', icon }) => {
   const isDarkText = DARK_TEXT_TONES.includes(tone);
   return (
     <View style={[styles.badge, styles[tone]]}>
-      {icon && <Icon name={icon} size={10} color={isDarkText ? '#171717' : '#FFFFFF'} />}
+      {icon && <Icon name={icon} size={10} color={isDarkText ? '#10233F' : '#FFFFFF'} />}
       <Text style={[styles.text, isDarkText ? styles.textDark : styles.textLight]}>{label}</Text>
     </View>
   );
@@ -26,16 +26,16 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   red: {
-    backgroundColor: '#DB322F',
+    backgroundColor: '#F20D38',
   },
   yellow: {
-    backgroundColor: '#F5CB1B',
+    backgroundColor: '#F5A623',
   },
   gray: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#F3F5F8',
   },
   green: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#16A36A',
   },
   text: {
     fontSize: 9,
@@ -47,6 +47,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   textDark: {
-    color: '#171717',
+    color: '#10233F',
   },
 });

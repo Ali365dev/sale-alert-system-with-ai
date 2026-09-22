@@ -38,6 +38,57 @@ export const initialsForName = (name) => {
   return (words[0][0] + words[1][0]).toUpperCase();
 };
 
+/** Display form for list/detail cards — "40% OFF" or raw offer type. */
+export const formatDiscountDisplay = (deal) => {
+  if (!deal) return 'DEAL';
+  if (deal.isPercentageOff && deal.discountLabel) {
+    return `${String(deal.discountLabel).replace('-', '')} OFF`;
+  }
+  return deal.discountLabel || 'DEAL';
+};
+
+/** Short percent for coupon tickets — "25%" (no OFF suffix). */
+export const formatDiscountPercent = (deal) => {
+  if (!deal) return 'Deal';
+  const raw = String(deal.discountLabel || '').replace(/[^0-9.]/g, '');
+  if (deal.isPercentageOff && raw) return `${raw}%`;
+  if (raw && String(deal.discountLabel || '').includes('%')) return `${raw}%`;
+  if (deal.discountLabel) return String(deal.discountLabel).replace(/^-/, '');
+  return 'Deal';
+};
+
+/** Short expiry line matching the coupon mock: "Exp: 25 May 2025". */
+export const formatExpiryShort = (expiresAt) => {
+  if (!expiresAt) return 'No expiry';
+  const date = new Date(expiresAt);
+  if (Number.isNaN(date.getTime())) return 'No expiry';
+  if (date.getTime() < Date.now()) return 'Expired';
+  return `Exp: ${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+};
+
+/** Relative time for coupon tickets — "3 minutes ago". */
+export const formatRelativeTime = (iso) => {
+  if (!iso) return 'Just now';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 'Just now';
+  const diff = Math.max(0, Date.now() - then);
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+  return formatExpiryShort(iso);
+};
+
+/** ONLINE vs IN-STORE tag — link/code ⇒ online; otherwise treat as in-store. */
+export const channelTag = (deal) => {
+  if (!deal) return 'ONLINE';
+  if (deal.website || deal.promoCode) return 'ONLINE';
+  return 'IN-STORE';
+};
+
 export const slugify = (name) =>
   name
     .toLowerCase()
@@ -72,7 +123,7 @@ export const mapApiBrandToBrand = (apiBrand, dealCount) => {
     name: apiBrand.name,
     initials: initialsForName(apiBrand.name),
     logoUrl: apiBrand.logo_url ?? null,
-    color: '#171717',
+    color: '#10233F',
     category,
     dealCount,
     description: apiBrand.website
@@ -90,7 +141,7 @@ export const syntheticBrand = (name, category, dealCount, website = null) => ({
   name,
   initials: initialsForName(name),
   logoUrl: null,
-  color: '#171717',
+    color: '#10233F',
   category: category ?? 'General',
   dealCount,
   description: `Tracked offers from ${name}.`,

@@ -26,6 +26,43 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge }) => {
     );
   }
 
+  if (variant === 'store') {
+    return (
+      <Animated.View style={animatedStyle}>
+        <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.storeCard}>
+          <BrandLogo
+            initials={brand.initials}
+            logoUrl={brand.logoUrl}
+            website={brand.website}
+            size={56}
+            fit="contain"
+            shape="plain"
+          />
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
+  if (variant === 'tile') {
+    return (
+      <Animated.View style={[animatedStyle, styles.tileWrap]}>
+        <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.tileCard}>
+          <BrandLogo
+            initials={brand.initials}
+            logoUrl={brand.logoUrl}
+            website={brand.website}
+            size={56}
+            fit="contain"
+            shape="plain"
+          />
+          <Text style={styles.tileName} numberOfLines={1}>
+            {brand.name}
+          </Text>
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
   return (
     <Animated.View style={animatedStyle}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.card}>
@@ -72,6 +109,39 @@ const createStyles = (colors) =>
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    storeCard: {
+      width: 88,
+      height: 88,
+      borderRadius: 20,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...SHADOWS.card,
+    },
+    tileWrap: {
+      width: '100%',
+    },
+    tileCard: {
+      width: '100%',
+      aspectRatio: 1,
+      borderRadius: 18,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: SPACING.two,
+      paddingVertical: SPACING.three,
+      gap: SPACING.two,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      ...SHADOWS.card,
+    },
+    tileName: {
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: '600',
+      color: colors.text,
+      textAlign: 'center',
     },
     logoWrap: {
       position: 'relative',

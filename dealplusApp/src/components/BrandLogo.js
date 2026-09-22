@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import useTheme from '../hooks/useTheme';
 
@@ -52,51 +52,85 @@ export const logoCandidateUris = (logoUrl, website) => {
 /** @deprecated use logoCandidateUris — kept for older tests/call sites */
 export const resolvableLogoUri = (logoUrl, website) => logoCandidateUris(logoUrl, website)[0] ?? null;
 
-/** Real logo when available, otherwise website favicon, otherwise initials. */
-const BrandLogo = ({ initials, logoUrl, website, size = 56, tone = 'outline' }) => {
+/** Real logo when available, otherwise website favicon, otherwise initials.
+ * `shape="plain"` skips the circular crop — used for directory / grid tiles. */
+const BrandLogo = ({ initials, logoUrl, website, size = 56, tone = 'outline', fit = 'contain', elevated = false, shape = 'circle' }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isFilled = tone === 'filled';
+  const cover = fit === 'cover';
+  const plain = shape === 'plain';
   const candidates = useMemo(() => logoCandidateUris(logoUrl, website), [logoUrl, website]);
   const [index, setIndex] = useState(0);
+  const [gaveUp, setGaveUp] = useState(false);
+  const settledRef = useRef(false);
 
   useEffect(() => {
     setIndex(0);
+    setGaveUp(false);
+    settledRef.current = false;
   }, [logoUrl, website]);
 
-  const uri = candidates[index] ?? null;
+  const uri = !gaveUp ? candidates[index] ?? null : null;
+  const source = useMemo(
+    () => (uri ? { uri, priority: FastImage.priority.normal, cache: FastImage.cacheControl.web } : null),
+    [uri],
+  );
 
-  if (uri) {
+  useEffect(() => {
+    settledRef.current = false;
+    if (!uri) return undefined;
+    const timer = setTimeout(() => {
+      settledRef.current = true;
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [uri]);
+
+  const disk = { width: size, height: size, borderRadius: plain ? 0 : size / 2 };
+
+  const mark = (() => {
+    if (source) {
+      const imageSize = plain || cover ? size : size * 0.72;
+      return (
+        <View style={[styles.circle, !plain && (cover ? styles.coverWrap : styles.imageWrap), disk]}>
+          <FastImage
+            source={source}
+            onLoad={() => {
+              settledRef.current = true;
+            }}
+            onError={() => {
+              if (settledRef.current) return;
+              if (index >= candidates.length - 1) {
+                setGaveUp(true);
+                return;
+              }
+              setIndex((i) => i + 1);
+            }}
+            style={{ width: imageSize, height: imageSize }}
+            resizeMode={cover ? FastImage.resizeMode.cover : FastImage.resizeMode.contain}
+          />
+        </View>
+      );
+    }
+
     return (
-      <View style={[styles.circle, styles.imageWrap, { width: size, height: size, borderRadius: size / 2 }]}>
-        <FastImage
-          source={{ uri, priority: FastImage.priority.normal }}
-          onError={() => setIndex((i) => i + 1)}
-          style={{ width: size * 0.72, height: size * 0.72 }}
-          resizeMode={FastImage.resizeMode.contain}
-        />
+      <View style={[styles.circle, !plain && (isFilled ? styles.filled : styles.outline), disk]}>
+        <Text
+          style={{
+            fontSize: size * 0.32,
+            lineHeight: size * 0.32 * 1.2,
+            fontWeight: '700',
+            color: isFilled && !plain ? '#FFFFFF' : colors.text,
+          }}>
+          {initials || '?'}
+        </Text>
       </View>
     );
-  }
+  })();
 
-  return (
-    <View
-      style={[
-        styles.circle,
-        isFilled ? styles.filled : styles.outline,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}>
-      <Text
-        style={{
-          fontSize: size * 0.32,
-          lineHeight: size * 0.32 * 1.2,
-          fontWeight: '700',
-          color: isFilled ? '#FFFFFF' : colors.text,
-        }}>
-        {initials || '?'}
-      </Text>
-    </View>
-  );
+  if (!elevated) return mark;
+
+  return <View style={[styles.lift, disk]}>{mark}</View>;
 };
 
 export default BrandLogo;
@@ -114,11 +148,28 @@ const createStyles = (colors) =>
       borderColor: colors.border,
     },
     filled: {
-      backgroundColor: '#171717',
+      backgroundColor: '#10233F',
     },
     imageWrap: {
       backgroundColor: '#F3F4F6',
       borderWidth: 1,
       borderColor: colors.border,
     },
+    coverWrap: {
+      backgroundColor: '#F3F4F6',
+    },
+    lift: Platform.select({
+      ios: {
+        shadowColor: '#10233F',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        backgroundColor: '#FFFFFF',
+      },
+      default: {
+        elevation: 8,
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#10233F',
+      },
+    }),
   });

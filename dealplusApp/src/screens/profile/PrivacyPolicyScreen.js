@@ -139,7 +139,7 @@ const PrivacyPolicyScreen = () => {
 
         <PolicySection icon="trash-outline" title="Your Rights & Account Deletion" colors={colors} styles={styles}>
           <Text style={styles.sectionBody}>
-            You can permanently delete your account and its saved preferences (followed brands, favorite categories) at
+            You can permanently delete your account and its saved preferences (followed brands, deal preference) at
             any time from Profile → Delete Account, or from your Account page on the DealPulse website — no app install
             required.
           </Text>
