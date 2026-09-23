@@ -195,6 +195,7 @@ const createStyles = (colors) =>
     },
     chips: {
       paddingHorizontal: GRID_PAD,
+      paddingTop: SPACING.three,
       paddingBottom: SPACING.three,
       gap: SPACING.two,
     },

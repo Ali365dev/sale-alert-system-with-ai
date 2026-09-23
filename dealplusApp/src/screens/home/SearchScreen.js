@@ -284,7 +284,7 @@ const createStyles = (colors) =>
     },
     content: {
       paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.two,
+      paddingTop: SPACING.three,
       gap: SPACING.four,
     },
     section: {
