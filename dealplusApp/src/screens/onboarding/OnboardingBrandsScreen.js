@@ -2,38 +2,25 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS, SCREEN_WIDTH, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import useOnboardingStore from '../../state/onboardingStore';
 import useOnboardingGateStore from '../../state/onboardingGateStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { saveInterests } from '../../services/preferencesApi';
-import { usePressScale } from '../../hooks/usePressScale';
 import AnimatedListItem from '../../components/AnimatedListItem';
-import BrandLogo from '../../components/BrandLogo';
+import BrandCard from '../../components/BrandCard';
 import EmptyState from '../../components/EmptyState';
 import OnboardingProgress from '../../components/OnboardingProgress';
-import PrimaryButton from '../../components/PrimaryButton';
+import OnboardingFooter from '../../components/OnboardingFooter';
 import Logo from '../../components/Logo';
 import Skeleton from '../../components/Skeleton';
 
-function BrandCard({ brand, selected, onPress, styles }) {
-  const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
-
-  return (
-    <Animated.View style={animatedStyle}>
-      <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={[styles.brandCard, selected && styles.brandCardSelected]}>
-        <BrandLogo initials={brand.initials} logoUrl={brand.logoUrl} website={brand.website} size={64} />
-        <Text style={[styles.brandName, selected && styles.brandNameSelected]} numberOfLines={1}>
-          {brand.name}
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
+const GRID_GAP = 12;
+const COLS = 3;
+const TILE = (SCREEN_WIDTH - SPACING.four * 2 - GRID_GAP * (COLS - 1)) / COLS;
 
 const OnboardingBrandsScreen = () => {
   const navigation = useNavigation();
@@ -64,6 +51,30 @@ const OnboardingBrandsScreen = () => {
     navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
   };
 
+  const renderRows = (items) => {
+    const rows = [];
+    for (let i = 0; i < items.length; i += COLS) {
+      rows.push(items.slice(i, i + COLS));
+    }
+    return rows.map((row, rowIndex) => (
+      <View key={`row-${rowIndex}`} style={styles.row}>
+        {row.map((b, colIndex) => (
+          <AnimatedListItem key={b.id} index={rowIndex * COLS + colIndex} style={styles.tile}>
+            <BrandCard
+              variant="tile"
+              brand={b}
+              selected={brandIds.includes(b.id)}
+              onPress={() => toggleBrand(b.id)}
+            />
+          </AnimatedListItem>
+        ))}
+        {row.length < COLS
+          ? Array.from({ length: COLS - row.length }, (_, i) => <View key={`pad-${i}`} style={styles.tile} />)
+          : null}
+      </View>
+    ));
+  };
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
@@ -74,7 +85,9 @@ const OnboardingBrandsScreen = () => {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
+        showsVerticalScrollIndicator={false}>
         <OnboardingProgress step={2} total={3} />
         <Text style={styles.title}>Follow brands you love</Text>
         <Text style={styles.subtitle}>Get instant alerts when they drop a new deal.</Text>
@@ -93,13 +106,10 @@ const OnboardingBrandsScreen = () => {
         </View>
 
         {loading && brands.length === 0 ? (
-          <View style={styles.grid}>
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <View key={i} style={styles.brandCardWrap}>
-                <View style={styles.brandCard}>
-                  <Skeleton width={64} height={64} radius={32} />
-                  <Skeleton width={56} height={14} style={styles.gapTop} />
-                </View>
+          <View style={styles.skeletonGrid}>
+            {Array.from({ length: 9 }, (_, i) => (
+              <View key={i} style={styles.tile}>
+                <Skeleton width="100%" radius={18} style={styles.tileSkeleton} />
               </View>
             ))}
           </View>
@@ -108,19 +118,16 @@ const OnboardingBrandsScreen = () => {
         ) : filteredBrands.length === 0 ? (
           <Text style={styles.noResults}>No brands match "{query}".</Text>
         ) : (
-          <View style={styles.grid}>
-            {filteredBrands.map((b, index) => (
-              <AnimatedListItem key={b.id} index={index} style={styles.brandCardWrap}>
-                <BrandCard brand={b} selected={brandIds.includes(b.id)} onPress={() => toggleBrand(b.id)} styles={styles} />
-              </AnimatedListItem>
-            ))}
-          </View>
+          <View style={styles.grid}>{renderRows(filteredBrands)}</View>
         )}
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
-        <PrimaryButton label="Get Started" icon="arrow-forward" pill onPress={finish} />
-      </View>
+      <OnboardingFooter
+        onSkip={finish}
+        onContinue={finish}
+        continueLabel="Get Started"
+        selectedCount={brandIds.length}
+      />
     </View>
   );
 };
@@ -131,7 +138,7 @@ const createStyles = (colors) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
     },
     header: {
       flexDirection: 'row',
@@ -147,6 +154,7 @@ const createStyles = (colors) =>
       paddingHorizontal: SPACING.four,
       gap: SPACING.two,
       paddingTop: SPACING.three,
+      paddingBottom: SPACING.four,
     },
     title: {
       ...TYPOGRAPHY.title,
@@ -174,48 +182,30 @@ const createStyles = (colors) =>
       padding: 0,
     },
     grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
       marginTop: SPACING.four,
     },
-    brandCardWrap: {
-      width: '48%',
-      marginBottom: SPACING.three,
+    row: {
+      flexDirection: 'row',
+      gap: GRID_GAP,
+      marginBottom: GRID_GAP + 4,
     },
-    brandCard: {
-      alignItems: 'center',
-      gap: SPACING.two,
-      padding: SPACING.three,
-      borderRadius: RADIUS.card,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
+    tile: {
+      width: TILE,
     },
-    brandCardSelected: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+    skeletonGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: GRID_GAP,
+      marginTop: SPACING.four,
     },
-    brandName: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.text,
-    },
-    brandNameSelected: {
-      color: '#FFFFFF',
-    },
-    gapTop: {
-      marginTop: SPACING.two,
+    tileSkeleton: {
+      aspectRatio: 1,
+      height: undefined,
     },
     noResults: {
       ...TYPOGRAPHY.default,
       color: colors.textSecondary,
       textAlign: 'center',
       marginTop: SPACING.six,
-    },
-    footer: {
-      paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.three,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
     },
   });

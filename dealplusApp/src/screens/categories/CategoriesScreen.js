@@ -49,7 +49,7 @@ const CategoriesScreen = () => {
   if (loading && categories.length === 0) {
     return (
       <View style={styles.container}>
-        <TopAppBar />
+        <TopAppBar showBack title="Categories" hideProfile hideBorder />
         <View style={styles.content}>
           <Skeleton width="100%" height={44} radius={999} />
           <View style={styles.skeletonRow}>
@@ -76,7 +76,7 @@ const CategoriesScreen = () => {
   if (error && !loading && categories.length === 0) {
     return (
       <View style={styles.container}>
-        <TopAppBar />
+        <TopAppBar showBack title="Categories" hideProfile hideBorder />
         <EmptyState variant="error" icon="warning-outline" title="Couldn't load categories" body="Check your connection and try again." ctaLabel="Try again" onPressCta={loadDeals} />
       </View>
     );
@@ -85,7 +85,7 @@ const CategoriesScreen = () => {
   if (!loading && categories.length === 0) {
     return (
       <View style={styles.container}>
-        <TopAppBar />
+        <TopAppBar showBack title="Categories" hideProfile hideBorder />
         <EmptyState icon="grid-outline" title="No categories yet" body="Categories appear here once your backend has tracked offers with a category." ctaLabel="Refresh" onPressCta={loadDeals} />
       </View>
     );
@@ -93,7 +93,7 @@ const CategoriesScreen = () => {
 
   return (
     <View style={styles.container}>
-      <TopAppBar />
+      <TopAppBar showBack title="Categories" hideProfile hideBorder />
       <FlatList
         data={visible}
         keyExtractor={(c) => c.name}
@@ -102,7 +102,6 @@ const CategoriesScreen = () => {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.pageTitle}>Categories</Text>
             <SearchBar value={query} onChangeText={setQuery} placeholder="Search categories..." />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
               {FILTERS.map((f) => (
@@ -159,10 +158,6 @@ const createStyles = (colors) =>
     header: {
       gap: SPACING.three,
       marginBottom: SPACING.two,
-    },
-    pageTitle: {
-      ...TYPOGRAPHY.title,
-      color: colors.text,
     },
     filterRow: {
       flexDirection: 'row',

@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/
 import MainNavigator from './MainNavigator';
 import { flushPendingNavigation, navigationRef } from '../utils/NavigationUtil';
 import useTheme from '../hooks/useTheme';
+import LoginPromptSheet from '../components/LoginPromptSheet';
 
 const Navigation = () => {
   const { colors, isDark } = useTheme();
@@ -30,6 +31,7 @@ const Navigation = () => {
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingNavigation}>
       <MainNavigator />
+      <LoginPromptSheet />
     </NavigationContainer>
   );
 };

@@ -5,7 +5,11 @@ const mockCanGoBack = jest.fn(() => true);
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate, goBack: mockGoBack, canGoBack: mockCanGoBack }),
 }));
-jest.mock('../../../services/authApi', () => ({ signup: jest.fn(), loginWithGoogle: jest.fn() }));
+jest.mock('../../../services/authApi', () => ({
+  signup: jest.fn(),
+  login: jest.fn(),
+  loginWithGoogle: jest.fn(),
+}));
 jest.mock('../../../services/googleAuth', () => ({ signInWithGoogle: jest.fn() }));
 
 import React from 'react';
@@ -30,6 +34,11 @@ const fillValidForm = async (getByPlaceholderText, getByText, password = 'passwo
   await fireEvent.press(getByText(/I agree to the/));
 };
 
+const pressCreateAccount = async (utils) => {
+  const buttons = utils.getAllByText('Create Account');
+  await fireEvent.press(buttons[buttons.length - 1]);
+};
+
 test('renders the Create Your Account headline and tagline', async () => {
   const { getByText } = await render(<SignUpScreen />);
   expect(getByText('Your Account')).toBeTruthy();
@@ -37,32 +46,32 @@ test('renders the Create Your Account headline and tagline', async () => {
 });
 
 test('a password shorter than 8 characters shows a validation error and does not submit', async () => {
-  const { getByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  const { getByText, getByPlaceholderText, getAllByText } = await render(<SignUpScreen />);
   await fillValidForm(getByPlaceholderText, getByText, 'short');
-  await fireEvent.press(getByText('Create Account'));
+  await pressCreateAccount({ getAllByText });
 
   expect(getByText('Password must be at least 8 characters.')).toBeTruthy();
   expect(signup).not.toHaveBeenCalled();
 });
 
 test('a mismatched confirm-password shows an error and does not submit', async () => {
-  const { getByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  const { getByText, getByPlaceholderText, getAllByText } = await render(<SignUpScreen />);
   await fireEvent.changeText(getByPlaceholderText('Email address'), 'a@b.com');
   await fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
   await fireEvent.changeText(getByPlaceholderText('Confirm password'), 'different123');
   await fireEvent.press(getByText(/I agree to the/));
-  await fireEvent.press(getByText('Create Account'));
+  await pressCreateAccount({ getAllByText });
 
   expect(getByText('Passwords do not match.')).toBeTruthy();
   expect(signup).not.toHaveBeenCalled();
 });
 
 test('submitting without agreeing to the terms shows an error and does not submit', async () => {
-  const { getByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  const { getByText, getByPlaceholderText, getAllByText } = await render(<SignUpScreen />);
   await fireEvent.changeText(getByPlaceholderText('Email address'), 'a@b.com');
   await fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
   await fireEvent.changeText(getByPlaceholderText('Confirm password'), 'password123');
-  await fireEvent.press(getByText('Create Account'));
+  await pressCreateAccount({ getAllByText });
 
   expect(getByText('You must agree to the Terms & Conditions and Privacy Policy.')).toBeTruthy();
   expect(signup).not.toHaveBeenCalled();
@@ -78,12 +87,12 @@ test('tapping "Terms & Conditions" / "Privacy Policy" navigates to those screens
 });
 
 test('an invalid email shows a validation error and does not submit', async () => {
-  const { getByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  const { getByText, getByPlaceholderText, getAllByText } = await render(<SignUpScreen />);
   await fireEvent.changeText(getByPlaceholderText('Email address'), 'nope');
   await fireEvent.changeText(getByPlaceholderText('Password'), 'password123');
   await fireEvent.changeText(getByPlaceholderText('Confirm password'), 'password123');
   await fireEvent.press(getByText(/I agree to the/));
-  await fireEvent.press(getByText('Create Account'));
+  await pressCreateAccount({ getAllByText });
 
   expect(getByText('Enter a valid email address.')).toBeTruthy();
   expect(signup).not.toHaveBeenCalled();
@@ -91,9 +100,9 @@ test('an invalid email shows a validation error and does not submit', async () =
 
 test('the name field is optional — omitted entirely when blank', async () => {
   signup.mockResolvedValue({ ok: true, token: 't', user: { id: 1, email: 'a@b.com' }, brands: [], categories: [] });
-  const { getByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  const { getByText, getByPlaceholderText, getAllByText } = await render(<SignUpScreen />);
   await fillValidForm(getByPlaceholderText, getByText);
-  await fireEvent.press(getByText('Create Account'));
+  await pressCreateAccount({ getAllByText });
 
   await waitFor(() => expect(signup).toHaveBeenCalledTimes(1));
   expect(signup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'password123', name: undefined });
@@ -101,10 +110,10 @@ test('the name field is optional — omitted entirely when blank', async () => {
 
 test('a provided name is trimmed and included', async () => {
   signup.mockResolvedValue({ ok: true, token: 't', user: { id: 1, email: 'a@b.com' }, brands: [], categories: [] });
-  const { getByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  const { getByText, getByPlaceholderText, getAllByText } = await render(<SignUpScreen />);
   await fireEvent.changeText(getByPlaceholderText('Full name'), '  Alex  ');
   await fillValidForm(getByPlaceholderText, getByText);
-  await fireEvent.press(getByText('Create Account'));
+  await pressCreateAccount({ getAllByText });
 
   await waitFor(() => expect(signup).toHaveBeenCalledWith({ email: 'a@b.com', password: 'password123', name: 'Alex' }));
 });
@@ -118,9 +127,9 @@ test('on success: stores the token/user, hydrates any adopted guest preferences,
     categories: [],
   });
 
-  const { getByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  const { getByText, getByPlaceholderText, getAllByText } = await render(<SignUpScreen />);
   await fillValidForm(getByPlaceholderText, getByText);
-  await fireEvent.press(getByText('Create Account'));
+  await pressCreateAccount({ getAllByText });
 
   await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
   expect(useAuthStore.getState().token).toBe('tok-1');
@@ -130,19 +139,24 @@ test('on success: stores the token/user, hydrates any adopted guest preferences,
 test('on failure (e.g. duplicate email): shows the error and does not store a token', async () => {
   signup.mockResolvedValue({ ok: false, error: 'An account with this email already exists.' });
 
-  const { getByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  const { getByText, getByPlaceholderText, getAllByText } = await render(<SignUpScreen />);
   await fillValidForm(getByPlaceholderText, getByText);
-  await fireEvent.press(getByText('Create Account'));
+  await pressCreateAccount({ getAllByText });
 
   await waitFor(() => expect(getByText('An account with this email already exists.')).toBeTruthy());
   expect(useAuthStore.getState().token).toBeNull();
   expect(mockGoBack).not.toHaveBeenCalled();
 });
 
-test('the "Sign In" link navigates to SignInScreen', async () => {
-  const { getByText } = await render(<SignUpScreen />);
+test('the "Sign In" link / Login tab slides to login fields in place', async () => {
+  const { getByText, queryByPlaceholderText } = await render(<SignUpScreen />);
+  expect(queryByPlaceholderText('Full name')).toBeTruthy();
+
   await fireEvent.press(getByText('Sign In'));
-  expect(mockNavigate).toHaveBeenCalledWith('SignInScreen');
+  expect(mockNavigate).not.toHaveBeenCalledWith('SignInScreen');
+  expect(queryByPlaceholderText('Full name')).toBeNull();
+  expect(queryByPlaceholderText('Confirm password')).toBeNull();
+  expect(getByText('Sign In')).toBeTruthy();
 });
 
 test('"Skip" returns to the previous screen without signing up', async () => {

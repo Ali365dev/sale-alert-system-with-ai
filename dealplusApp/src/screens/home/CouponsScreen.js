@@ -18,6 +18,7 @@ import FilterChip from '../../components/FilterChip';
 import PaginationLoader from '../../components/PaginationLoader';
 import TopAppBar from '../../components/TopAppBar';
 import ViewSwitcher from '../../components/ViewSwitcher';
+import useViewMode from '../../hooks/useViewMode';
 
 const GRID_PAD = 20;
 const GRID_GAP = 12;
@@ -42,7 +43,7 @@ const CouponsScreen = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [filter, setFilter] = useState('all');
-  const [gridView, setGridView] = useState(false);
+  const [gridView, setGridView] = useViewMode(false);
   const deals = useDataStore((state) => state.deals);
   const brands = useDataStore((state) => state.brands);
   const brandsById = useDataStore((state) => state.brandsById);
@@ -69,30 +70,29 @@ const CouponsScreen = () => {
   const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(filteredDeals);
   const { openCoupon, couponSheet } = useCouponSheet();
 
-  const brandsHeader =
-    popularBrands.length > 0 ? (
-      <View style={styles.popular}>
-        <View style={styles.popularHead}>
-          <Text style={styles.popularTitle}>Popular Brands</Text>
-          <Pressable onPress={() => navigation.navigate('BrandListScreen')} hitSlop={8}>
-            <Text style={styles.seeAll}>See All →</Text>
-          </Pressable>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.brandRow}>
-          {popularBrands.map((brand) => (
-            <BrandCard
-              key={brand.id}
-              brand={brand}
-              variant="store"
-              onPress={() => navigation.navigate('BrandDetailScreen', { id: brand.id })}
-            />
-          ))}
-        </ScrollView>
+  const listHeader = popularBrands.length > 0 ? (
+    <View style={styles.popular}>
+      <View style={styles.popularHead}>
+        <Text style={styles.popularTitle}>Popular Brands</Text>
+        <Pressable onPress={() => navigation.navigate('BrandListScreen')} hitSlop={8}>
+          <Text style={styles.seeAll}>See All →</Text>
+        </Pressable>
       </View>
-    ) : null;
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.brandRow}>
+        {popularBrands.map((brand) => (
+          <BrandCard
+            key={brand.id}
+            brand={brand}
+            variant="store"
+            onPress={() => navigation.navigate('BrandDetailScreen', { id: brand.id })}
+          />
+        ))}
+      </ScrollView>
+    </View>
+  ) : null;
 
   return (
     <View style={styles.container}>
@@ -119,7 +119,6 @@ const CouponsScreen = () => {
             />
           ))}
         </ScrollView>
-        <ViewSwitcher gridView={gridView} onChange={setGridView} />
       </View>
 
       {filteredDeals.length === 0 && popularBrands.length === 0 ? (
@@ -131,39 +130,44 @@ const CouponsScreen = () => {
           onPressCta={deals.length === 0 ? loadDeals : () => setFilter('all')}
         />
       ) : (
-        <FlatList
-          key={gridView ? 'coupons-grid' : 'coupons-list'}
-          data={visibleDeals}
-          keyExtractor={(item) => item.id}
-          numColumns={gridView ? 2 : 1}
-          columnWrapperStyle={gridView ? styles.row : undefined}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 88 }]}
-          showsVerticalScrollIndicator={false}
-          onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
-          scrollEventThrottle={200}
-          refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor={colors.primary} />}
-          ListHeaderComponent={brandsHeader}
-          ListEmptyComponent={
-            <EmptyState
-              icon="pricetag-outline"
-              title={deals.length === 0 ? 'No coupons yet' : 'No matches'}
-              body={deals.length === 0 ? 'New brand offers will show up here as coupons.' : 'Try another filter to see more coupons.'}
-              ctaLabel={deals.length === 0 ? 'Refresh' : 'Show all'}
-              onPressCta={deals.length === 0 ? loadDeals : () => setFilter('all')}
-            />
-          }
-          renderItem={({ item, index }) => (
-            <AnimatedListItem index={index} style={gridView ? styles.gridItem : styles.listItem}>
-              <CouponCard
-                deal={item}
-                brand={brandsById[item.brandId]}
-                variant={gridView ? 'vertical' : 'horizontal'}
-                onPress={() => openCoupon(item)}
+        <>
+          <View style={styles.switcherRow}>
+            <ViewSwitcher gridView={gridView} onChange={setGridView} />
+          </View>
+          <FlatList
+            key={gridView ? 'coupons-grid' : 'coupons-list'}
+            data={visibleDeals}
+            keyExtractor={(item) => item.id}
+            numColumns={gridView ? 2 : 1}
+            columnWrapperStyle={gridView ? styles.row : undefined}
+            contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 88 }]}
+            showsVerticalScrollIndicator={false}
+            onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
+            scrollEventThrottle={200}
+            refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor={colors.primary} />}
+            ListHeaderComponent={listHeader}
+            ListEmptyComponent={
+              <EmptyState
+                icon="pricetag-outline"
+                title={deals.length === 0 ? 'No coupons yet' : 'No matches'}
+                body={deals.length === 0 ? 'New brand offers will show up here as coupons.' : 'Try another filter to see more coupons.'}
+                ctaLabel={deals.length === 0 ? 'Refresh' : 'Show all'}
+                onPressCta={deals.length === 0 ? loadDeals : () => setFilter('all')}
               />
-            </AnimatedListItem>
-          )}
-          ListFooterComponent={isLoadingMore ? <PaginationLoader /> : null}
-        />
+            }
+            renderItem={({ item, index }) => (
+              <AnimatedListItem index={index} style={gridView ? styles.gridItem : styles.listItem}>
+                <CouponCard
+                  deal={item}
+                  brand={brandsById[item.brandId]}
+                  variant={gridView ? 'vertical' : 'horizontal'}
+                  onPress={() => openCoupon(item)}
+                />
+              </AnimatedListItem>
+            )}
+            ListFooterComponent={isLoadingMore ? <PaginationLoader /> : null}
+          />
+        </>
       )}
       {couponSheet}
     </View>
@@ -183,10 +187,16 @@ const createStyles = (colors) =>
       alignItems: 'center',
       gap: 10,
       paddingLeft: GRID_PAD,
-      paddingRight: 12,
+      paddingRight: GRID_PAD,
       paddingVertical: SPACING.two,
       flexGrow: 0,
       flexShrink: 0,
+    },
+    switcherRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: GRID_PAD,
+      paddingBottom: SPACING.two,
     },
     filtersScroll: {
       flex: 1,

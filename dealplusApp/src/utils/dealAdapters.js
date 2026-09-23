@@ -38,6 +38,18 @@ export const initialsForName = (name) => {
   return (words[0][0] + words[1][0]).toUpperCase();
 };
 
+/** Discount headline matching the Figma deals list — "Flat 40% Off". */
+export const formatFlatOffer = (deal) => {
+  if (!deal) return 'Deal';
+  if (deal.isPercentageOff) {
+    const n = String(deal.discountLabel || '').replace(/[^0-9.]/g, '');
+    return n ? `Flat ${n}% Off` : deal.title || 'Deal';
+  }
+  const raw = String(deal.discountLabel || '').replace(/^-/, '').trim();
+  if (raw) return `Flat ${raw} Off`;
+  return deal.title || 'Deal';
+};
+
 /** Display form for list/detail cards — "40% OFF" or raw offer type. */
 export const formatDiscountDisplay = (deal) => {
   if (!deal) return 'DEAL';
@@ -286,8 +298,8 @@ export const filterForYou = (deals, followedBrands, favoriteCategories) => {
 };
 
 /** Derives the notification feed (newest 15 offers) from raw API offers.
- * Mirrors mobile/src/state/data.tsx's alerts useMemo. */
-export const deriveAlerts = (apiOffers) => {
+ * Pass derived `brands` so brandId matches brandsById (incl. regional-name fuzzy match). */
+export const deriveAlerts = (apiOffers, brands = []) => {
   const sorted = [...apiOffers].sort((a, b) => {
     const aT = a.created_at ? new Date(a.created_at).getTime() : 0;
     const bT = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -295,7 +307,9 @@ export const deriveAlerts = (apiOffers) => {
   });
   return sorted.slice(0, 15).map((offer, index) => {
     const isFlash = (offer.discount_percentage ?? 0) >= 30;
-    const brandId = offer.brand ? slugify(offer.brand) : null;
+    const brandId = offer.brand
+      ? resolveRegisteredBrandId(offer.brand, brands) || slugify(offer.brand)
+      : null;
     return {
       id: `offer-alert-${offer.id}`,
       kind: isFlash ? 'flash-sale' : 'new-brand',
@@ -303,6 +317,7 @@ export const deriveAlerts = (apiOffers) => {
       body: offer.summary?.slice(0, 100) ?? (offer.discount_percentage ? `${offer.discount_percentage}% off` : 'New offer tracked'),
       time: offer.created_at ? new Date(offer.created_at).toLocaleDateString() : '',
       brandId,
+      dealId: offer.id != null ? String(offer.id) : null,
       read: index >= 5,
     };
   });

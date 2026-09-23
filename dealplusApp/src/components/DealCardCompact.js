@@ -8,20 +8,20 @@ import BrandLogo from './BrandLogo';
 import FavoriteButton from './FavoriteButton';
 import SaleBadge from './SaleBadge';
 import { usePressScale } from '../hooks/usePressScale';
+import { toggleFavoriteDeal } from '../utils/authGate';
 
 const DealCardCompact = ({ deal, brand, onPress }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.97);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const favorite = useFavoritesStore((state) => state.favoriteIds.includes(deal.id));
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
   return (
     <Animated.View style={[animatedStyle, styles.card]}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
         <View style={styles.topRow}>
           <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} website={brand?.website} size={32} tone="filled" />
-          <FavoriteButton active={favorite} onPress={() => toggleFavorite(deal.id)} size={18} />
+          <FavoriteButton active={favorite} onPress={() => toggleFavoriteDeal(deal.id)} size={18} />
         </View>
         <Text style={styles.brandName} numberOfLines={1}>
           {brand?.name ?? 'Unknown brand'}

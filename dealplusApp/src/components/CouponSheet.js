@@ -17,6 +17,8 @@ import BrandLogo from './BrandLogo';
 import FavoriteButton from './FavoriteButton';
 import { channelTag } from '../utils/dealAdapters';
 import { showSuccessToast } from '../utils/CustomToast';
+import { isLoggedIn, toggleFavoriteDeal } from '../utils/authGate';
+import useLoginPromptStore from '../state/loginPromptStore';
 
 const howToSteps = (brandName, code) => [
   `Visit the ${brandName} website or app.`,
@@ -48,7 +50,6 @@ const CouponSheet = ({ deal, brand, onClose }) => {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [copied, setCopied] = useState(false);
   const favorite = useFavoritesStore((state) => (deal ? state.favoriteIds.includes(deal.id) : false));
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
   useEffect(() => {
     if (!deal) return undefined;
@@ -139,7 +140,19 @@ const CouponSheet = ({ deal, brand, onClose }) => {
                 accessibilityLabel="Share coupon">
                 <Icon name="share-outline" size={20} color={colors.text} />
               </Pressable>
-              <FavoriteButton active={favorite} onPress={() => toggleFavorite(deal.id)} size={20} />
+              <FavoriteButton
+                active={favorite}
+                onPress={() => {
+                  if (favorite || isLoggedIn()) {
+                    toggleFavoriteDeal(deal.id);
+                    return;
+                  }
+                  // Close coupon overlay first so the login sheet is not trapped behind it.
+                  sheetRef.current?.dismiss();
+                  setTimeout(() => useLoginPromptStore.getState().show('deal'), 280);
+                }}
+                size={20}
+              />
             </View>
           </View>
 

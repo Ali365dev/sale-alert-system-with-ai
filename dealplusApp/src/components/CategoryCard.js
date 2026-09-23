@@ -28,6 +28,9 @@ const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
   const compact = variant === 'compact';
   const circle = variant === 'circle';
   const tile = TILE_COLORS[category.icon] ?? { bg: colors.backgroundElement, fg: colors.textSecondary };
+  const count = Number(category.dealCount) || 0;
+  const dealLabel =
+    count <= 0 ? 'Coming soon' : `${count.toLocaleString()} ${count === 1 ? 'deal' : 'deals'}`;
 
   if (circle) {
     return (
@@ -44,45 +47,39 @@ const CategoryCard = ({ category, onPress, variant = 'default', style }) => {
     );
   }
 
-  return (
-    <Animated.View style={[animatedStyle, styles.wrapper, style]}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        style={[styles.card, compact ? styles.cardCompact : styles.cardDefault]}>
-        {compact && (
+  if (compact) {
+    return (
+      <Animated.View style={[animatedStyle, styles.wrapper, style]}>
+        <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={[styles.card, styles.cardCompact]}>
           <Icon
             name={category.icon}
             size={110}
             color={isDark ? 'rgba(255,255,255,0.06)' : 'rgba(23,23,23,0.05)'}
             style={styles.watermark}
           />
-        )}
-
-        {compact ? (
           <View style={[styles.iconBadge, { backgroundColor: tile.bg }]}>
             <Icon name={category.icon} size={20} color={tile.fg} />
           </View>
-        ) : (
-          <View style={styles.iconCircle}>
-            <Icon name={category.icon} size={24} color={colors.primary} />
-          </View>
-        )}
+          <Text style={styles.name}>{category.name}</Text>
+          <Text style={[styles.compactCount, { color: tile.fg }]}>{dealLabel}</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  }
 
-        <Text style={styles.name}>{category.name}</Text>
-
-        {compact ? (
-          <Text style={[styles.compactCount, { color: tile.fg }]}>
-            {category.dealCount.toLocaleString()} {category.dealCount === 1 ? 'Deal' : 'Deals'}
-          </Text>
-        ) : (
-          <View style={styles.countChip}>
-            <Text style={styles.countText}>
-              {category.dealCount.toLocaleString()} {category.dealCount === 1 ? 'deal' : 'deals'}
-            </Text>
-          </View>
-        )}
+  // Default — centered icon tile matching Categories screen mock
+  return (
+    <Animated.View style={[animatedStyle, styles.wrapper, style]}>
+      <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={[styles.card, styles.cardDefault]}>
+        <View style={styles.iconCircle}>
+          <Icon name={category.icon || 'tag-outline'} size={28} color={colors.primary} />
+        </View>
+        <Text style={styles.name} numberOfLines={1}>
+          {category.name}
+        </Text>
+        <View style={[styles.countChip, count <= 0 && styles.countChipMuted]}>
+          <Text style={[styles.countText, count <= 0 && styles.countTextMuted]}>{dealLabel}</Text>
+        </View>
       </Pressable>
     </Animated.View>
   );
@@ -94,16 +91,16 @@ const createStyles = (colors) =>
   StyleSheet.create({
     wrapper: {
       flexBasis: '47%',
-      borderRadius: RADIUS.card,
+      borderRadius: 20,
       ...SHADOWS.card,
     },
     card: {
-      borderRadius: RADIUS.card,
+      borderRadius: 20,
       padding: SPACING.three,
       gap: 4,
+      backgroundColor: colors.surface,
     },
     cardCompact: {
-      backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
       paddingVertical: SPACING.four,
@@ -114,11 +111,14 @@ const createStyles = (colors) =>
       minHeight: 148,
     },
     cardDefault: {
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
       alignItems: 'center',
-      paddingVertical: SPACING.four,
+      justifyContent: 'center',
+      paddingVertical: 22,
+      paddingHorizontal: 14,
+      gap: 10,
+      minHeight: 168,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
     },
     watermark: {
       position: 'absolute',
@@ -134,33 +134,45 @@ const createStyles = (colors) =>
       marginBottom: SPACING.four,
     },
     iconCircle: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      backgroundColor: colors.backgroundElement,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: SPACING.one,
     },
     name: {
       ...TYPOGRAPHY.smallBold,
       color: colors.text,
-      fontSize: 16,
+      fontSize: 15,
+      fontWeight: '800',
+      textAlign: 'center',
+      alignSelf: 'stretch',
+      paddingHorizontal: 4,
     },
     compactCount: {
       ...TYPOGRAPHY.small,
       fontSize: 13,
     },
     countChip: {
-      backgroundColor: colors.backgroundElement,
+      backgroundColor: colors.primarySoft,
       borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.two,
-      paddingVertical: 2,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
       marginTop: 2,
+    },
+    countChipMuted: {
+      backgroundColor: colors.backgroundElement,
     },
     countText: {
       ...TYPOGRAPHY.small,
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    countTextMuted: {
       color: colors.textSecondary,
+      fontWeight: '600',
     },
     circleCard: {
       alignItems: 'center',

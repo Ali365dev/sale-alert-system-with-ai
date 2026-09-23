@@ -1967,6 +1967,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNImageColors (1.5.2):
+    - React-Core
   - RNReanimated (4.6.0):
     - hermes-engine
     - RCTRequired
@@ -2364,6 +2366,7 @@ DEPENDENCIES:
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - "RNGoogleSignin (from `../node_modules/@react-native-google-signin/google-signin`)"
+  - RNImageColors (from `../node_modules/react-native-image-colors`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
@@ -2595,6 +2598,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-gesture-handler"
   RNGoogleSignin:
     :path: "../node_modules/@react-native-google-signin/google-signin"
+  RNImageColors:
+    :path: "../node_modules/react-native-image-colors"
   RNReanimated:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
@@ -2730,6 +2735,7 @@ SPEC CHECKSUMS:
   RNFBMessaging: 6857871d9dff8f26b0c325fc7d97ba69cb77d213
   RNGestureHandler: f44dcd75caaa19ae9141b546bc928ce77dd6a23b
   RNGoogleSignin: 7c00cebab84425e482f131b1b16b4ec2956c8107
+  RNImageColors: 977420bca17290f111104bcfcbfb698982cbfbba
   RNReanimated: 7e68cf425d1c4a54c2dc4baee0ac9d8d347fd289
   RNScreens: 9964f9126ccea33c2c18cfe3dc0398ff7c917056
   RNSVG: 4da2e0a724c48a841e0dbfbdc7db39286c050b61

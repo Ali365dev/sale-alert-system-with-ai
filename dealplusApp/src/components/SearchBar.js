@@ -1,15 +1,25 @@
 import { useMemo } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 
-const SearchBar = ({ value, onChangeText, placeholder = 'Search brands, deals, categories', onSubmitEditing, autoFocus, showMic }) => {
+const SearchBar = ({
+  value,
+  onChangeText,
+  placeholder = 'Search brands, deals, categories',
+  onSubmitEditing,
+  autoFocus,
+  showMic,
+  showCamera,
+  onPressCamera,
+  style,
+}) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <Icon name="search" size={18} color={colors.textSecondary} />
       <TextInput
         value={value}
@@ -21,7 +31,12 @@ const SearchBar = ({ value, onChangeText, placeholder = 'Search brands, deals, c
         autoFocus={autoFocus}
         returnKeyType="search"
       />
-      {showMic && <Icon name="mic-outline" size={18} color={colors.textSecondary} />}
+      {showCamera ? (
+        <Pressable onPress={onPressCamera} hitSlop={8} accessibilityRole="button" accessibilityLabel="Visual search">
+          <Icon name="camera-outline" size={20} color={colors.textSecondary} />
+        </Pressable>
+      ) : null}
+      {showMic ? <Icon name="mic-outline" size={18} color={colors.textSecondary} /> : null}
     </View>
   );
 };
@@ -37,12 +52,13 @@ const createStyles = (colors) =>
       backgroundColor: colors.backgroundElement,
       borderRadius: RADIUS.chip,
       paddingHorizontal: SPACING.three,
-      height: 48,
+      height: 44,
     },
     input: {
       flex: 1,
       fontSize: 15,
       fontWeight: '500',
       color: colors.text,
+      paddingVertical: 0,
     },
   });

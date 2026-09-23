@@ -10,12 +10,14 @@ import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
 import { usePressScale } from '../../hooks/usePressScale';
 import AnimatedListItem from '../../components/AnimatedListItem';
+import BrandLogo from '../../components/BrandLogo';
 import EmptyState from '../../components/EmptyState';
 import FilterChip from '../../components/FilterChip';
 import TopAppBar from '../../components/TopAppBar';
 
 // Small per-kind decorative accents — deliberately theme-invariant (same
-// reasoning as SaleBadge/CategoryCard's tile colors).
+// reasoning as SaleBadge/CategoryCard's tile colors). Used only when there is
+// no brand to show a logo for (e.g. generic push alerts).
 const ICON_BY_KIND = {
   'price-drop': 'heart',
   'new-brand': 'pricetag',
@@ -36,16 +38,31 @@ const ICON_COLOR = {
 
 const FILTERS = ['All Alerts', 'New Deals', 'Flash Sales'];
 
-function AlertRow({ item, onPress, colors, styles }) {
+function AlertRow({ item, brand, onPress, colors, styles }) {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
   const urgent = item.kind === 'flash-sale' && !item.read;
 
   return (
     <Animated.View style={animatedStyle}>
       <Pressable style={[styles.card, urgent && styles.cardUrgent]} onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
-        <View style={[styles.iconCircle, { backgroundColor: item.read ? colors.backgroundElement : CIRCLE_BG[item.kind] }]}>
-          <Icon name={item.read ? 'notifications' : ICON_BY_KIND[item.kind]} size={20} color={item.read ? colors.textSecondary : ICON_COLOR[item.kind]} />
-        </View>
+        {brand ? (
+          <BrandLogo
+            initials={brand.initials}
+            logoUrl={brand.logoUrl}
+            website={brand.website}
+            size={52}
+            tone="filled"
+            fit="cover"
+          />
+        ) : (
+          <View style={[styles.iconCircle, { backgroundColor: item.read ? colors.backgroundElement : CIRCLE_BG[item.kind] }]}>
+            <Icon
+              name={item.read ? 'notifications' : ICON_BY_KIND[item.kind] ?? 'notifications'}
+              size={20}
+              color={item.read ? colors.textSecondary : ICON_COLOR[item.kind] ?? colors.primary}
+            />
+          </View>
+        )}
         <View style={styles.textBlock}>
           <View style={styles.titleRow}>
             <Text style={[styles.title, item.read && styles.titleRead]} numberOfLines={1}>
@@ -75,6 +92,7 @@ const NotificationsScreen = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const alerts = useDataStore((state) => state.alerts);
+  const brandsById = useDataStore((state) => state.brandsById);
   const error = useDataStore((state) => state.error);
   const [filter, setFilter] = useState('All Alerts');
 
@@ -86,7 +104,7 @@ const NotificationsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <TopAppBar showBack title="Notifications" hideSearch hideProfile />
+      <TopAppBar showBack title="Notifications" hideProfile />
       {error && alerts.length === 0 ? (
         <EmptyState variant="error" icon="warning-outline" title="Couldn't load alerts" body="Check your connection and try again." ctaLabel="Try again" onPressCta={loadDeals} />
       ) : alerts.length === 0 ? (
@@ -115,6 +133,7 @@ const NotificationsScreen = () => {
             <AnimatedListItem index={index}>
               <AlertRow
                 item={item}
+                brand={item.brandId ? brandsById[item.brandId] : null}
                 onPress={() => {
                   if (item.dealId) navigation.navigate('DealDetailScreen', { id: item.dealId });
                   else if (item.brandId) navigation.navigate('BrandDetailScreen', { id: item.brandId });
@@ -141,7 +160,7 @@ const createStyles = (colors) =>
     content: {
       paddingHorizontal: SPACING.four,
       paddingTop: SPACING.three,
-      gap: SPACING.three,
+      gap: 5,
     },
     header: {
       gap: SPACING.three,
@@ -159,7 +178,7 @@ const createStyles = (colors) =>
       borderWidth: 1,
       borderColor: colors.border,
       padding: SPACING.three,
-      marginBottom: SPACING.three,
+      marginBottom: 0,
       ...SHADOWS.card,
     },
     cardUrgent: {

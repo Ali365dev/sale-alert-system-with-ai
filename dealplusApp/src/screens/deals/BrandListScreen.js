@@ -131,7 +131,6 @@ const BrandListScreen = () => {
         showBack
         title="Brands"
         titleAlign="left"
-        hideSearch
         hideProfile
         hideBorder
         style={{ backgroundColor: colors.surface }}
@@ -182,15 +181,17 @@ const createStyles = (colors) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.background,
     },
     searchWrap: {
       paddingHorizontal: GRID_PAD,
       paddingBottom: SPACING.two,
+      backgroundColor: colors.surface,
     },
     chipsScroll: {
       flexGrow: 0,
       flexShrink: 0,
+      backgroundColor: colors.surface,
     },
     chips: {
       paddingHorizontal: GRID_PAD,
@@ -199,11 +200,11 @@ const createStyles = (colors) =>
     },
     list: {
       paddingHorizontal: GRID_PAD,
-      paddingTop: 4,
+      paddingTop: SPACING.three,
     },
     row: {
       gap: GRID_GAP,
-      marginBottom: GRID_GAP,
+      marginBottom: GRID_GAP + 4,
     },
     tile: {
       width: TILE,

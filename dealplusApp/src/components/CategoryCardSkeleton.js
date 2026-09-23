@@ -1,19 +1,19 @@
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { RADIUS, SHADOWS, SPACING } from '../styles/theme';
+import { SHADOWS, SPACING } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import Skeleton from './Skeleton';
 
-/** Placeholder matching CategoryCard's compact footprint. */
+/** Placeholder matching CategoryCard's default centered footprint. */
 const CategoryCardSkeleton = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.card}>
-      <Skeleton width={44} height={44} radius={22} />
-      <Skeleton width="70%" height={14} style={styles.gapTop} />
-      <Skeleton width="45%" height={11} style={styles.gapSmall} />
+      <Skeleton width={64} height={64} radius={32} />
+      <Skeleton width="65%" height={14} style={styles.gapTop} />
+      <Skeleton width={72} height={22} radius={999} style={styles.gapSmall} />
     </View>
   );
 };
@@ -23,19 +23,21 @@ export default CategoryCardSkeleton;
 const createStyles = (colors) =>
   StyleSheet.create({
     card: {
-      minHeight: 148,
+      minHeight: 168,
       backgroundColor: colors.surface,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
-      borderRadius: RADIUS.card,
-      paddingVertical: SPACING.four,
-      paddingHorizontal: SPACING.three,
+      borderRadius: 20,
+      paddingVertical: 22,
+      paddingHorizontal: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
       ...SHADOWS.card,
     },
     gapTop: {
-      marginTop: SPACING.four,
+      marginTop: 10,
     },
     gapSmall: {
-      marginTop: 6,
+      marginTop: 10,
     },
   });

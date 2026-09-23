@@ -120,7 +120,7 @@ test('"Back to Home" from the success screen navigates into the home tab', async
   await waitFor(() => expect(getByText('Request Received!')).toBeTruthy());
 
   await fireEvent.press(getByText('Back to Home'));
-  expect(mockNavigate).toHaveBeenCalledWith('MainTabs', { screen: 'Tabs', params: { screen: 'Home' } });
+  expect(mockNavigate).toHaveBeenCalledWith('MainTabs', { screen: 'Home' });
 });
 
 test('"Request Another Brand" resets the form back to empty', async () => {
@@ -132,4 +132,26 @@ test('"Request Another Brand" resets the form back to empty', async () => {
 
   await fireEvent.press(getByText('Request Another Brand'));
   expect(getByPlaceholderText('e.g., Acme Corp').props.value).toBe('');
+});
+
+test('tapping Category opens the picker sheet and selecting a category fills the field', async () => {
+  useDataStore.setState({
+    categories: [
+      { name: 'Fashion', dealCount: 5, icon: 'tag' },
+      { name: 'Beauty', dealCount: 2, icon: 'sparkles' },
+    ],
+  });
+  requestBrand.mockResolvedValue(true);
+  const { getByText, getByLabelText, getByPlaceholderText } = await render(<RequestBrandScreen />);
+
+  await fireEvent.press(getByLabelText('Select a category'));
+  expect(getByText('Choose where this brand fits best')).toBeTruthy();
+
+  await fireEvent.press(getByLabelText('Category Fashion'));
+
+  await fireEvent.changeText(getByPlaceholderText('e.g., Acme Corp'), 'Acme');
+  await fireEvent.press(getByText('Submit Request'));
+  await waitFor(() =>
+    expect(requestBrand).toHaveBeenCalledWith(expect.objectContaining({ brandName: 'Acme', category: 'Fashion' })),
+  );
 });

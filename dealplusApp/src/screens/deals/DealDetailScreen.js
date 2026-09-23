@@ -7,6 +7,7 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import useFavoritesStore from '../../state/favoritesStore';
 import { channelTag, formatDiscountDisplay, formatExpiryShort } from '../../utils/dealAdapters';
+import { toggleFavoriteDeal } from '../../utils/authGate';
 import BrandLogo from '../../components/BrandLogo';
 import CouponCodeBlock from '../../components/CouponCodeBlock';
 import EmptyState from '../../components/EmptyState';
@@ -31,7 +32,6 @@ const DealDetailScreen = () => {
   const deals = useDataStore((state) => state.deals);
   const brandsById = useDataStore((state) => state.brandsById);
   const favorite = useFavoritesStore((state) => state.favoriteIds.includes(id));
-  const toggleFavorite = useFavoritesStore((state) => state.toggleFavorite);
 
   const deal = useMemo(() => deals.find((d) => d.id === id), [deals, id]);
   const brand = deal ? brandsById[deal.brandId] : undefined;
@@ -39,7 +39,7 @@ const DealDetailScreen = () => {
   if (!deal) {
     return (
       <View style={styles.container}>
-        <TopAppBar showBack title="Coupon Details" hideSearch hideProfile hideBorder />
+        <TopAppBar showBack title="Coupon Details" hideProfile hideBorder />
         <EmptyState
           icon="alert-circle-outline"
           title="Coupon not found"
@@ -60,10 +60,9 @@ const DealDetailScreen = () => {
       <TopAppBar
         showBack
         title="Coupon Details"
-        hideSearch
         hideProfile
         hideBorder
-        rightSlot={<FavoriteButton active={favorite} onPress={() => toggleFavorite(deal.id)} />}
+        rightSlot={<FavoriteButton active={favorite} onPress={() => toggleFavoriteDeal(deal.id)} />}
       />
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>

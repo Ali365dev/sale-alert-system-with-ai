@@ -1,68 +1,65 @@
 import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SPACING, TYPOGRAPHY } from '../../styles/theme';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { SPACING } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
-import useOnboardingStore from '../../state/onboardingStore';
+import useDataStore from '../../state/dataStore';
+import usePreferencesStore from '../../state/preferencesStore';
+import { buildDealPreferenceOptions } from '../../utils/dealPreferences';
 import OnboardingProgress from '../../components/OnboardingProgress';
-import PrimaryButton from '../../components/PrimaryButton';
-import SelectableCard from '../../components/SelectableCard';
-import Logo from '../../components/Logo';
+import OnboardingFooter from '../../components/OnboardingFooter';
+import TipCard from '../../components/TipCard';
 
-const TOPICS = [
-  { label: 'Tech & Gadgets', icon: 'hardware-chip-outline' },
-  { label: 'Outdoor Gear', icon: 'walk-outline' },
-  { label: 'Home Decor', icon: 'bed-outline' },
-  { label: 'Sustainable Living', icon: 'leaf-outline' },
-  { label: 'Luxury Deals', icon: 'diamond-outline' },
-];
+const MIN_SELECTED = 1;
 
 const OnboardingTopicsScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const topics = useOnboardingStore((state) => state.topics);
-  const toggleTopic = useOnboardingStore((state) => state.toggleTopic);
+  const apiCategories = useDataStore((state) => state.categories);
+  const selected = usePreferencesStore((state) => state.favoriteCategories);
+  const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
+
+  const options = useMemo(() => buildDealPreferenceOptions(apiCategories), [apiCategories]);
+  const count = selected.length;
+  const goNext = () => navigation.navigate('OnboardingCategoriesScreen');
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.three }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.three, paddingBottom: insets.bottom + 120 }]}
+        showsVerticalScrollIndicator={false}>
         <OnboardingProgress step={0} total={3} />
 
-        <Logo size={26} style={styles.wordmark} />
-        <Text style={styles.title}>What are you interested in?</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Deal Preference</Text>
+          <Icon name="sparkles" size={22} color="#F5CB1B" />
+        </View>
         <Text style={styles.subtitle}>Select topics to personalize your deal feed.</Text>
 
-        <View style={styles.grid}>
-          {TOPICS.map((t, i) => (
-            <SelectableCard
-              key={t.label}
-              index={i}
-              label={t.label}
-              icon={t.icon}
-              selected={topics.includes(t.label)}
-              onPress={() => toggleTopic(t.label)}
-              fullWidth={i === TOPICS.length - 1}
+        <View style={styles.chipWrap}>
+          {options.map((item) => (
+            <TipCard
+              key={item.name}
+              label={item.name}
+              icon={item.icon}
+              selected={selected.includes(item.name)}
+              onPress={() => toggleCategory(item.name)}
             />
           ))}
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
-        <Pressable onPress={() => navigation.navigate('OnboardingCategoriesScreen')} hitSlop={8}>
-          <Text style={styles.skip}>Skip</Text>
-        </Pressable>
-        <PrimaryButton
-          label="Continue"
-          icon="arrow-forward"
-          pill
-          disabled={topics.length === 0}
-          style={styles.continueButton}
-          onPress={() => navigation.navigate('OnboardingCategoriesScreen')}
-        />
-      </View>
+      <OnboardingFooter
+        onSkip={goNext}
+        onContinue={goNext}
+        continueLabel="Continue"
+        disabled={count < MIN_SELECTED}
+        selectedCount={count}
+      />
     </View>
   );
 };
@@ -73,47 +70,37 @@ const createStyles = (colors) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
     },
     content: {
       paddingHorizontal: SPACING.four,
-      gap: SPACING.two,
     },
-    wordmark: {
-      alignSelf: 'center',
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
       marginTop: SPACING.four,
     },
     title: {
-      ...TYPOGRAPHY.headline,
+      flex: 1,
+      fontSize: 32,
+      lineHeight: 38,
+      fontWeight: '800',
+      letterSpacing: -0.6,
       color: colors.text,
-      textAlign: 'center',
-      marginTop: SPACING.two,
     },
     subtitle: {
-      ...TYPOGRAPHY.default,
+      marginTop: 12,
+      fontSize: 15,
+      lineHeight: 22,
       color: colors.textSecondary,
-      textAlign: 'center',
+      fontWeight: '500',
     },
-    grid: {
+    chipWrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      justifyContent: 'space-between',
-      marginTop: SPACING.four,
-    },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.three,
-      paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.three,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    skip: {
-      ...TYPOGRAPHY.default,
-      color: colors.textSecondary,
-    },
-    continueButton: {
-      flex: 1,
+      gap: 10,
+      marginTop: 28,
     },
   });

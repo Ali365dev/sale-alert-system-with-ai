@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Dimensions,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -18,18 +19,35 @@ import useTheme from '../../hooks/useTheme';
 import useAuthStore from '../../state/authStore';
 import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
-import { getGuestName } from '../../utils/guestName';
-import { formatDiscountDisplay } from '../../utils/dealAdapters';
 import { showSuccessToast } from '../../utils/CustomToast';
 import CouponCard from '../../components/CouponCard';
 import { useCouponSheet } from '../../components/CouponSheet';
 import EmptyState from '../../components/EmptyState';
 import Skeleton from '../../components/Skeleton';
 import ViewSwitcher from '../../components/ViewSwitcher';
+import useViewMode from '../../hooks/useViewMode';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PAD = 20;
 const BANNER_W = SCREEN_W - PAD * 2;
+const BANNER_GAP = 12;
+// Tallest slide (1024×395) sets carousel height so neither image is cropped.
+const BANNER_H = Math.round(BANNER_W * (395 / 1024));
+
+const PROMO_BANNERS = [
+  {
+    id: 'top-brands',
+    source: require('../../assets/images/home-promo-banner.png'),
+    label: 'Explore deals up to 70 percent off',
+    backgroundColor: '#E60023',
+  },
+  {
+    id: 'cat-fall',
+    source: require('../../assets/images/home-promo-banner-cat.jpg'),
+    label: 'CAT Footwear Fall Haul, up to 25 percent off',
+    backgroundColor: '#111111',
+  },
+];
 
 const CATEGORY_ITEMS = [
   { id: 'all', label: 'All', icon: 'view-grid-outline', lib: 'mci' },
@@ -43,8 +61,7 @@ const CATEGORY_ITEMS = [
 const firstName = (raw) => {
   const value = (raw || '').trim();
   if (!value) return 'there';
-  const cleaned = value.replace(/^Guest\s+/i, '');
-  return cleaned.split(/\s+/)[0] || 'there';
+  return value.split(/\s+/)[0] || 'there';
 };
 
 /** Exact home UI from provided screenshot. */
@@ -59,44 +76,14 @@ const HomeScreen = () => {
   const loading = useDataStore((state) => state.loading);
   const error = useDataStore((state) => state.error);
   const user = useAuthStore((state) => state.user);
-  const greetingName = firstName(user?.name || user?.displayName || getGuestName());
+  const greeting = user
+    ? `Hi, ${firstName(user.name || user.displayName)} 👋`
+    : 'Hi there! 👋';
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [bannerIndex, setBannerIndex] = useState(0);
-  const [gridView, setGridView] = useState(false);
-  const bannerRef = useRef(null);
+  const [gridView, setGridView] = useViewMode(false);
   const { openCoupon, couponSheet } = useCouponSheet();
-
-  const banners = useMemo(() => {
-    const featured = deals.filter((d) => d.promoCode || d.isPercentageOff).slice(0, 4);
-    if (featured.length > 0) {
-      return featured.map((deal) => {
-        const brand = brandsById[deal.brandId];
-        return {
-          id: deal.id,
-          badge: `${(brand?.name || 'DEAL').toUpperCase()} EXCLUSIVE`,
-          headlinePrefix: deal.isPercentageOff ? 'Up to ' : '',
-          headlineAccent: formatDiscountDisplay(deal),
-          subtitle: deal.title,
-          code: deal.promoCode || 'SAVE',
-          image: deal.image,
-          deal,
-        };
-      });
-    }
-    return [
-      {
-        id: 'fallback',
-        badge: 'NOON EXCLUSIVE',
-        headlinePrefix: 'Up to ',
-        headlineAccent: '60% OFF',
-        subtitle: 'On all Noon catalog deals',
-        code: 'AD60',
-        image: null,
-        deal: null,
-      },
-    ];
-  }, [deals, brandsById]);
 
   const couponList = useMemo(() => {
     let list = [...deals];
@@ -117,8 +104,10 @@ const HomeScreen = () => {
 
   const onBannerScroll = (event) => {
     const x = event.nativeEvent.contentOffset.x;
-    const next = Math.round(x / (BANNER_W + 12));
-    if (next !== bannerIndex) setBannerIndex(next);
+    const next = Math.round(x / (BANNER_W + BANNER_GAP));
+    if (next !== bannerIndex && next >= 0 && next < PROMO_BANNERS.length) {
+      setBannerIndex(next);
+    }
   };
 
   if (error && deals.length === 0 && brands.length === 0) {
@@ -145,7 +134,7 @@ const HomeScreen = () => {
         {/* Top: Hi greeting + bell */}
         <View style={styles.topBar}>
           <View style={styles.greetingBlock}>
-            <Text style={styles.greeting}>Hi, {greetingName} 👋</Text>
+            <Text style={styles.greeting}>{greeting}</Text>
             <Text style={styles.greetingSub}>Save more on things you love.</Text>
           </View>
           <Pressable hitSlop={10} onPress={() => navigation.navigate('NotificationsScreen')} style={styles.bellWrap}>
@@ -160,64 +149,35 @@ const HomeScreen = () => {
           <Text style={styles.searchPlaceholder}>Search for stores, categories, deals...</Text>
         </Pressable>
 
-        {/* Yellow promo carousel */}
-        {loading && banners.length === 0 ? (
-          <Skeleton width={BANNER_W} height={168} radius={22} style={{ marginHorizontal: PAD }} />
-        ) : (
-          <View>
-            <ScrollView
-              ref={bannerRef}
-              horizontal
-              pagingEnabled={false}
-              snapToInterval={BANNER_W + 12}
-              decelerationRate="fast"
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.bannerRow}
-              onScroll={onBannerScroll}
-              scrollEventThrottle={16}>
-              {banners.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={[styles.banner, { width: BANNER_W }]}
-                  onPress={() => item.deal && openCoupon(item.deal)}>
-                  <View style={styles.bannerLeft}>
-                    <View style={styles.bannerBadge}>
-                      <View style={styles.bannerBadgeDot} />
-                      <Text style={styles.bannerBadgeText} numberOfLines={1}>
-                        {item.badge}
-                      </Text>
-                    </View>
-                    <Text style={styles.bannerHeadline}>
-                      {item.headlinePrefix}
-                      <Text style={styles.bannerAccent}>{item.headlineAccent}</Text>
-                    </Text>
-                    <Text style={styles.bannerSub} numberOfLines={2}>
-                      {item.subtitle}
-                    </Text>
-                    <View style={styles.codeBox}>
-                      <Text style={styles.codeText}>{item.code}</Text>
-                      <Pressable style={styles.copyBtn} onPress={() => onCopy(item.code)}>
-                        <Icon name="copy-outline" size={12} color="#FFFFFF" />
-                        <Text style={styles.copyLabel}>Copy</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                  <View style={styles.bannerArt}>
-                    <View style={styles.hotBadge}>
-                      <Text style={styles.hotLabel}>HOT</Text>
-                    </View>
-                    <Icon name="pricetag" size={36} color={colors.sale} />
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <View style={styles.dots}>
-              {banners.map((b, i) => (
-                <View key={b.id} style={[styles.dot, i === bannerIndex && styles.dotActive]} />
-              ))}
-            </View>
+        {/* Promo banners */}
+        <View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToInterval={BANNER_W + BANNER_GAP}
+            snapToAlignment="start"
+            disableIntervalMomentum
+            contentContainerStyle={styles.bannerRow}
+            onScroll={onBannerScroll}
+            scrollEventThrottle={16}>
+            {PROMO_BANNERS.map((banner) => (
+              <Pressable
+                key={banner.id}
+                style={[styles.bannerWrap, { width: BANNER_W, height: BANNER_H, backgroundColor: banner.backgroundColor }]}
+                onPress={() => navigation.navigate('Explore')}
+                accessibilityRole="button"
+                accessibilityLabel={banner.label}>
+                <Image source={banner.source} style={styles.bannerImage} resizeMode="contain" />
+              </Pressable>
+            ))}
+          </ScrollView>
+          <View style={styles.dots}>
+            {PROMO_BANNERS.map((banner, i) => (
+              <View key={banner.id} style={[styles.dot, i === bannerIndex && styles.dotActive]} />
+            ))}
           </View>
-        )}
+        </View>
 
         {/* Categories */}
         <View style={styles.sectionHeader}>
@@ -372,112 +332,16 @@ const createStyles = (colors) =>
     },
     bannerRow: {
       paddingHorizontal: PAD,
-      gap: 12,
+      gap: BANNER_GAP,
     },
-    banner: {
-      minHeight: 168,
+    bannerWrap: {
       borderRadius: 22,
-      backgroundColor: colors.bannerYellow,
-      padding: 16,
-      flexDirection: 'row',
       overflow: 'hidden',
+      ...SHADOWS.card,
     },
-    bannerLeft: {
-      flex: 1,
-      paddingRight: 8,
-      gap: 8,
-      justifyContent: 'center',
-    },
-    bannerBadge: {
-      alignSelf: 'flex-start',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: 'rgba(255,255,255,0.55)',
-      borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-    },
-    bannerBadgeDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: colors.sale,
-    },
-    bannerBadgeText: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: '#374151',
-      letterSpacing: 0.3,
-    },
-    bannerHeadline: {
-      fontSize: 26,
-      lineHeight: 30,
-      fontWeight: '800',
-      color: colors.text,
-    },
-    bannerAccent: {
-      color: colors.sale,
-    },
-    bannerSub: {
-      fontSize: 13,
-      color: '#1F2937',
-      fontWeight: '500',
-    },
-    codeBox: {
-      alignSelf: 'flex-start',
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.surface,
-      borderRadius: 999,
-      paddingLeft: 12,
-      paddingRight: 4,
-      paddingVertical: 4,
-      gap: 8,
-      marginTop: 4,
-    },
-    codeText: {
-      fontSize: 13,
-      fontWeight: '800',
-      color: colors.text,
-      letterSpacing: 0.4,
-    },
-    copyBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      backgroundColor: colors.sale,
-      borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-    },
-    copyLabel: {
-      color: '#FFFFFF',
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    bannerArt: {
-      width: 96,
-      height: 96,
-      borderRadius: 18,
-      backgroundColor: 'rgba(255,255,255,0.45)',
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'center',
-    },
-    hotBadge: {
-      position: 'absolute',
-      top: -6,
-      right: -6,
-      backgroundColor: colors.sale,
-      borderRadius: 6,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-    },
-    hotLabel: {
-      color: '#FFFFFF',
-      fontSize: 9,
-      fontWeight: '800',
+    bannerImage: {
+      width: '100%',
+      height: '100%',
     },
     dots: {
       flexDirection: 'row',
@@ -501,6 +365,7 @@ const createStyles = (colors) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: PAD,
+      marginBottom: 4,
     },
     sectionTitle: {
       fontSize: 18,

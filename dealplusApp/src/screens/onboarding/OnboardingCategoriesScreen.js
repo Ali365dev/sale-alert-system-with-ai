@@ -8,7 +8,7 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import OnboardingProgress from '../../components/OnboardingProgress';
-import PrimaryButton from '../../components/PrimaryButton';
+import OnboardingFooter from '../../components/OnboardingFooter';
 import SelectableCard from '../../components/SelectableCard';
 import Logo from '../../components/Logo';
 
@@ -48,6 +48,8 @@ const OnboardingCategoriesScreen = () => {
   const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
 
   const options = realCategories.length > 0 ? realCategories.map((c) => c.name) : FALLBACK_CATEGORIES;
+  const count = favoriteCategories.length;
+  const goNext = () => navigation.navigate('OnboardingBrandsScreen');
 
   return (
     <View style={styles.container}>
@@ -59,26 +61,35 @@ const OnboardingCategoriesScreen = () => {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
+        showsVerticalScrollIndicator={false}>
         <OnboardingProgress step={1} total={3} />
         <Text style={styles.title}>Choose your favorites</Text>
         <Text style={styles.subtitle}>Select the categories you want to see deals for.</Text>
 
         <View style={styles.grid}>
           {options.map((c, index) => (
-            <SelectableCard key={c} index={index} label={c} icon={iconFor(c)} iconVariant="circle" selected={favoriteCategories.includes(c)} onPress={() => toggleCategory(c)} />
+            <SelectableCard
+              key={c}
+              index={index}
+              label={c}
+              icon={iconFor(c)}
+              iconVariant="circle"
+              selected={favoriteCategories.includes(c)}
+              onPress={() => toggleCategory(c)}
+            />
           ))}
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
-        <PrimaryButton
-          label="Next"
-          icon="arrow-forward"
-          disabled={favoriteCategories.length === 0}
-          onPress={() => navigation.navigate('OnboardingBrandsScreen')}
-        />
-      </View>
+      <OnboardingFooter
+        onSkip={goNext}
+        onContinue={goNext}
+        continueLabel="Continue"
+        disabled={count === 0}
+        selectedCount={count}
+      />
     </View>
   );
 };
@@ -89,7 +100,7 @@ const createStyles = (colors) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
     },
     header: {
       flexDirection: 'row',
@@ -120,11 +131,5 @@ const createStyles = (colors) =>
       flexWrap: 'wrap',
       justifyContent: 'space-between',
       marginTop: SPACING.four,
-    },
-    footer: {
-      paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.three,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
     },
   });

@@ -21,7 +21,7 @@ export const loadDeals = async () => {
 
     const { brands, deals, brandsById } = deriveBrandsAndDeals(apiBrands, apiOffers);
     const categories = deriveCategories(apiOffers, apiBrands);
-    const derivedAlerts = deriveAlerts(apiOffers);
+    const derivedAlerts = deriveAlerts(apiOffers, brands);
 
     // Alerts pushed in via FCM (id-prefixed 'push-') aren't derived from
     // offers, so a plain overwrite here would silently drop them on the next

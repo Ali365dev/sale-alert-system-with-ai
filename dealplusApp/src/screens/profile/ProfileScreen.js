@@ -9,7 +9,6 @@ import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import useAuthStore from '../../state/authStore';
 import { deleteAccount } from '../../services/authApi';
-import { getGuestName } from '../../utils/guestName';
 import { showErrorToast, showSuccessToast } from '../../utils/CustomToast';
 import TopAppBar from '../../components/TopAppBar';
 
@@ -22,7 +21,6 @@ const ProfileScreen = () => {
   const deals = useDataStore((state) => state.deals);
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
-  const guestName = useMemo(() => getGuestName(), []);
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const [deleting, setDeleting] = useState(false);
@@ -61,8 +59,8 @@ const ProfileScreen = () => {
       onPress: () => navigation.navigate('NotificationPreferencesScreen'),
     },
     {
-      icon: 'business-outline',
-      label: 'Followed Brands',
+      icon: 'heart-outline',
+      label: 'Favorites',
       subtitle: `${followedBrands.length} of ${brands.length} brands followed`,
       kind: 'link',
       onPress: () => navigation.navigate('FollowedBrandsScreen'),
@@ -120,7 +118,7 @@ const ProfileScreen = () => {
               <Icon name="pencil" size={11} color="#FFFFFF" />
             </View>
           </View>
-          <Text style={styles.accountTitle}>{user ? user.name || user.email : guestName}</Text>
+          <Text style={styles.accountTitle}>{user ? user.name || user.email : 'Guest'}</Text>
           <Text style={styles.accountSubtitle}>{user ? (user.name ? user.email : 'Signed in') : 'Browsing as a guest'}</Text>
           <View style={styles.premiumPill}>
             <Icon name="pricetags-outline" size={13} color={colors.text} />

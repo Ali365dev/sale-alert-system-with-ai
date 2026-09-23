@@ -5,8 +5,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import useTheme from '../hooks/useTheme';
 
 /** Heart toggle with a spring "pop" whenever it's saved, matching the bounce iOS favorite controls use. */
-const FavoriteButton = ({ active, onPress, size = 20, hitSlop = 8, testID }) => {
+const FavoriteButton = ({ active, onPress, size = 20, hitSlop = 8, testID, tint }) => {
   const { colors } = useTheme();
+  const color = tint || (active ? colors.primary : colors.text);
   const scale = useSharedValue(1);
   const mounted = useRef(false);
 
@@ -31,7 +32,7 @@ const FavoriteButton = ({ active, onPress, size = 20, hitSlop = 8, testID }) => 
       accessibilityState={{ selected: active }}
       accessibilityLabel={active ? 'Remove from favorites' : 'Add to favorites'}>
       <Animated.View style={animatedStyle}>
-        <Icon name={active ? 'heart' : 'heart-outline'} size={size} color={active ? colors.primary : colors.text} />
+        <Icon name={active ? 'heart' : 'heart-outline'} size={size} color={color} />
       </Animated.View>
     </Pressable>
   );

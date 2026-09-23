@@ -21,7 +21,7 @@ import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen
 import OnboardingCategoriesScreen from '../screens/onboarding/OnboardingCategoriesScreen';
 import OnboardingBrandsScreen from '../screens/onboarding/OnboardingBrandsScreen';
 import { COLORS } from '../styles/theme';
-import RootDrawer from './RootDrawer';
+import HomeNavigator from './HomeNavigator';
 
 const stackoptions = {
   headerShown: true,
@@ -40,7 +40,7 @@ const stackoptions = {
 export const homeStack = [
   {
     name: 'MainTabs',
-    component: RootDrawer,
+    component: HomeNavigator,
   },
   {
     options: { ...stackoptions, headerShown: false },

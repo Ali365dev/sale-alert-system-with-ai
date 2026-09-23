@@ -5,18 +5,24 @@ import { SHADOWS } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import { GridViewIcon, ListViewIcon } from './ViewSwitcherIcons';
 
-const BTN_W = 32;
-const BTN_H = 28;
-const PAD = 3;
-const GAP = 2;
+const BTN_W = 38;
+const BTN_H = 34;
+const PAD = 4;
+const GAP = 3;
+const ICON = 18;
 const SPRING = { damping: 16, stiffness: 280, mass: 0.65 };
 
-/** List / grid control with a sliding highlight and press-scale, used on Home and Coupons. */
+/**
+ * Shared list/grid switcher with a sliding highlight + spring scale.
+ * Used on Home, Coupons, Brand Detail, Category Deals, and Favorites.
+ */
 const ViewSwitcher = ({ gridView, onChange }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const progress = useSharedValue(gridView ? 1 : 0);
   const press = useSharedValue(1);
+  const active = colors.accent || colors.primary;
+  const idle = colors.mutedInk;
 
   useEffect(() => {
     progress.value = withSpring(gridView ? 1 : 0, SPRING);
@@ -31,11 +37,13 @@ const ViewSwitcher = ({ gridView, onChange }) => {
   }));
 
   const listIconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(progress.value, [0, 1], [1.08, 0.92]) }],
+    transform: [{ scale: interpolate(progress.value, [0, 1], [1.12, 0.88]) }],
+    opacity: interpolate(progress.value, [0, 1], [1, 0.45]),
   }));
 
   const gridIconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(progress.value, [0, 1], [0.92, 1.08]) }],
+    transform: [{ scale: interpolate(progress.value, [0, 1], [0.88, 1.12]) }],
+    opacity: interpolate(progress.value, [0, 1], [0.45, 1]),
   }));
 
   const onPressIn = () => {
@@ -57,7 +65,7 @@ const ViewSwitcher = ({ gridView, onChange }) => {
         accessibilityState={{ selected: !gridView }}
         accessibilityLabel="List view">
         <Animated.View style={[styles.iconBox, listIconStyle]}>
-          <ListViewIcon color={!gridView ? colors.accent : colors.mutedInk} size={16} />
+          <ListViewIcon color={!gridView ? active : idle} size={ICON} />
         </Animated.View>
       </Pressable>
       <Pressable
@@ -69,7 +77,7 @@ const ViewSwitcher = ({ gridView, onChange }) => {
         accessibilityState={{ selected: gridView }}
         accessibilityLabel="Grid view">
         <Animated.View style={[styles.iconBox, gridIconStyle]}>
-          <GridViewIcon color={gridView ? colors.accent : colors.mutedInk} size={16} />
+          <GridViewIcon color={gridView ? active : idle} size={ICON} />
         </Animated.View>
       </Pressable>
     </Animated.View>
@@ -110,8 +118,8 @@ const createStyles = (colors) =>
       overflow: 'hidden',
     },
     iconBox: {
-      width: 16,
-      height: 16,
+      width: ICON,
+      height: ICON,
       alignItems: 'center',
       justifyContent: 'center',
     },

@@ -4,8 +4,8 @@ import FastImage from '@d11/react-native-fast-image';
 import useTheme from '../hooks/useTheme';
 
 /** RN paints these without a proxy. SVG/ICO need another source. */
-const RASTER_LOGO = /\.(png|jpe?g|webp|gif)(\?|$)/i;
 const UNRELIABLE_LOGO = /\.(svg|ico)(\?|$)/i;
+const HTTP_URL = /^https?:\/\//i;
 
 /** Hostname for favicon fallback — ignores bad/relative website values. */
 export const hostnameFromWebsite = (website) => {
@@ -19,33 +19,45 @@ export const hostnameFromWebsite = (website) => {
   }
 };
 
+const encodeLogoUrl = (logo) => {
+  try {
+    return encodeURIComponent(decodeURI(logo));
+  } catch {
+    return encodeURIComponent(logo);
+  }
+};
+
 /**
  * Ordered candidate URIs for a brand mark.
- * 1. Raster logo_url (png/jpg/webp/gif) as stored
- * 2. Google favicon for the brand website (works when logo is SVG/ICO/missing)
- * Never uses wsrv for SVG — that proxy 404s on many Wikimedia/Demandware URLs.
+ * 1. Stored logo (any non-SVG/ICO http URL — many CDNs omit extensions)
+ * 2. Google favicon for the brand website (reliable for most stores)
+ * 3. DuckDuckGo icon
+ * 4. Clearbit (last — often returns a blank tile that still "loads")
+ * 5. Weserv rasterization for SVG/ICO / odd CDN URLs
  */
 export const logoCandidateUris = (logoUrl, website) => {
   const uris = [];
   const logo = (logoUrl || '').trim();
-  if (logo && RASTER_LOGO.test(logo) && !UNRELIABLE_LOGO.test(logo)) {
+  const host = hostnameFromWebsite(website);
+  const unreliable = Boolean(logo && UNRELIABLE_LOGO.test(logo));
+
+  if (logo && HTTP_URL.test(logo) && !unreliable) {
     uris.push(logo);
   }
-  const host = hostnameFromWebsite(website);
+
   if (host) {
     uris.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`);
+    uris.push(`https://icons.duckduckgo.com/ip3/${encodeURIComponent(host)}.ico`);
+    uris.push(`https://logo.clearbit.com/${encodeURIComponent(host)}`);
   }
-  // Last resort: still try rasterizing SVG/ICO via images.weserv.nl (alternate
-  // host — wsrv.nl 404s on several of our stored marks).
-  if (logo && UNRELIABLE_LOGO.test(logo)) {
-    let encoded = logo;
-    try {
-      encoded = encodeURIComponent(decodeURI(logo));
-    } catch {
-      encoded = encodeURIComponent(logo);
-    }
-    uris.push(`https://images.weserv.nl/?url=${encoded}&output=png&w=256`);
+
+  if (logo && unreliable) {
+    uris.push(`https://images.weserv.nl/?url=${encodeLogoUrl(logo)}&output=png&w=256`);
+  } else if (logo && HTTP_URL.test(logo) && !unreliable) {
+    // Extension-less / odd CDN URLs — retry via weserv if direct fetch fails
+    uris.push(`https://images.weserv.nl/?url=${encodeLogoUrl(logo)}&output=png&w=256`);
   }
+
   return [...new Set(uris)];
 };
 
@@ -63,13 +75,17 @@ const BrandLogo = ({ initials, logoUrl, website, size = 56, tone = 'outline', fi
   const candidates = useMemo(() => logoCandidateUris(logoUrl, website), [logoUrl, website]);
   const [index, setIndex] = useState(0);
   const [gaveUp, setGaveUp] = useState(false);
-  const settledRef = useRef(false);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
     setIndex(0);
     setGaveUp(false);
-    settledRef.current = false;
+    loadedRef.current = false;
   }, [logoUrl, website]);
+
+  useEffect(() => {
+    loadedRef.current = false;
+  }, [index]);
 
   const uri = !gaveUp ? candidates[index] ?? null : null;
   const source = useMemo(
@@ -77,35 +93,29 @@ const BrandLogo = ({ initials, logoUrl, website, size = 56, tone = 'outline', fi
     [uri],
   );
 
-  useEffect(() => {
-    settledRef.current = false;
-    if (!uri) return undefined;
-    const timer = setTimeout(() => {
-      settledRef.current = true;
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [uri]);
+  const disk = { width: size, height: size, borderRadius: plain ? Math.min(12, size * 0.18) : size / 2 };
 
-  const disk = { width: size, height: size, borderRadius: plain ? 0 : size / 2 };
+  const onImageError = () => {
+    // Ignore late errors after this URI already painted successfully.
+    if (loadedRef.current) return;
+    if (index >= candidates.length - 1) {
+      setGaveUp(true);
+      return;
+    }
+    setIndex((i) => i + 1);
+  };
 
   const mark = (() => {
     if (source) {
-      const imageSize = plain || cover ? size : size * 0.72;
+      const imageSize = plain || cover ? size * 0.78 : size * 0.72;
       return (
-        <View style={[styles.circle, !plain && (cover ? styles.coverWrap : styles.imageWrap), disk]}>
+        <View style={[styles.circle, plain ? styles.plainWrap : cover ? styles.coverWrap : styles.imageWrap, disk]}>
           <FastImage
             source={source}
             onLoad={() => {
-              settledRef.current = true;
+              loadedRef.current = true;
             }}
-            onError={() => {
-              if (settledRef.current) return;
-              if (index >= candidates.length - 1) {
-                setGaveUp(true);
-                return;
-              }
-              setIndex((i) => i + 1);
-            }}
+            onError={onImageError}
             style={{ width: imageSize, height: imageSize }}
             resizeMode={cover ? FastImage.resizeMode.cover : FastImage.resizeMode.contain}
           />
@@ -114,7 +124,7 @@ const BrandLogo = ({ initials, logoUrl, website, size = 56, tone = 'outline', fi
     }
 
     return (
-      <View style={[styles.circle, !plain && (isFilled ? styles.filled : styles.outline), disk]}>
+      <View style={[styles.circle, plain ? styles.plainWrap : isFilled ? styles.filled : styles.outline, disk]}>
         <Text
           style={{
             fontSize: size * 0.32,
@@ -157,6 +167,11 @@ const createStyles = (colors) =>
     },
     coverWrap: {
       backgroundColor: '#F3F4F6',
+    },
+    plainWrap: {
+      backgroundColor: '#F8F9FB',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
     },
     lift: Platform.select({
       ios: {

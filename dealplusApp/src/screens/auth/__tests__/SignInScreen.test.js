@@ -5,7 +5,11 @@ const mockCanGoBack = jest.fn(() => true);
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate, goBack: mockGoBack, canGoBack: mockCanGoBack }),
 }));
-jest.mock('../../../services/authApi', () => ({ login: jest.fn(), loginWithGoogle: jest.fn() }));
+jest.mock('../../../services/authApi', () => ({
+  login: jest.fn(),
+  signup: jest.fn(),
+  loginWithGoogle: jest.fn(),
+}));
 jest.mock('../../../services/googleAuth', () => ({ signInWithGoogle: jest.fn() }));
 
 import React from 'react';
@@ -103,7 +107,7 @@ test('when there is nowhere to go back to, navigates into the Profile tab instea
   await fireEvent.changeText(getByPlaceholderText('Password'), 'secret123');
   await fireEvent.press(getByText('Sign In'));
 
-  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('MainTabs', { screen: 'Tabs', params: { screen: 'Profile' } }));
+  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('MainTabs', { screen: 'Profile' }));
 });
 
 test('"Skip" returns to the previous screen without signing in', async () => {
@@ -113,10 +117,14 @@ test('"Skip" returns to the previous screen without signing in', async () => {
   expect(login).not.toHaveBeenCalled();
 });
 
-test('the "Sign Up" link navigates to SignUpScreen', async () => {
-  const { getByText } = await render(<SignInScreen />);
+test('the "Sign Up" link / Create Account tab slides to signup fields in place', async () => {
+  const { getByText, getByPlaceholderText, queryByPlaceholderText } = await render(<SignInScreen />);
+  expect(queryByPlaceholderText('Full name')).toBeNull();
+
   await fireEvent.press(getByText('Sign Up'));
-  expect(mockNavigate).toHaveBeenCalledWith('SignUpScreen');
+  expect(mockNavigate).not.toHaveBeenCalledWith('SignUpScreen');
+  expect(getByPlaceholderText('Full name')).toBeTruthy();
+  expect(getByPlaceholderText('Confirm password')).toBeTruthy();
 });
 
 test('Apple sign-in is not offered', async () => {

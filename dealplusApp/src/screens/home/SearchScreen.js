@@ -10,48 +10,17 @@ import { RECENT_SEARCHES } from '../../utils/mock';
 import { isCloseToBottom } from '../../utils/scroll';
 import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
-import PaginationLoader from '../../components/PaginationLoader';
+import BrandLogo from '../../components/BrandLogo';
 import DealCard from '../../components/DealCard';
 import EmptyState from '../../components/EmptyState';
-import PrimaryButton from '../../components/PrimaryButton';
+import PaginationLoader from '../../components/PaginationLoader';
 import SearchBar from '../../components/SearchBar';
 
-const DISCOUNT_TIERS = [20, 50, 70];
-const SORTS = ['Highest Discount', 'Newest', 'Expiring Soonest'];
-
-const CATEGORY_ICONS = [
-  { match: /fashion|apparel|clothing|retail/i, icon: 'shirt-outline' },
-  { match: /men/i, icon: 'body-outline' },
-  { match: /electronic|software|tech/i, icon: 'laptop-outline' },
-  { match: /beauty|cosmetic|personal care|skincare/i, icon: 'flask-outline' },
-  { match: /food|restaurant|grocery|dining/i, icon: 'restaurant-outline' },
-  { match: /travel/i, icon: 'airplane-outline' },
-  { match: /sport|fitness|outdoor/i, icon: 'football-outline' },
-  { match: /home|furniture|garden/i, icon: 'home-outline' },
-  { match: /footwear|shoe/i, icon: 'footsteps-outline' },
-];
-const iconForCategory = (name) => CATEGORY_ICONS.find((c) => c.match.test(name))?.icon ?? 'pricetag-outline';
-
-function CategoryChip({ label, icon, selected, onPress, colors, styles }) {
-  return (
-    <Pressable style={[styles.categoryChip, selected && styles.categoryChipSelected]} onPress={onPress}>
-      <Icon name={icon} size={15} color={selected ? '#FFFFFF' : colors.primary} />
-      <Text style={[styles.categoryChipLabel, selected && styles.categoryChipLabelSelected]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function DiscountCard({ tier, selected, onPress, colors, styles }) {
-  return (
-    <Pressable style={[styles.discountCard, selected && styles.discountCardSelected]} onPress={onPress}>
-      <View style={[styles.discountIconBadge, selected && styles.discountIconBadgeSelected]}>
-        <Icon name="pricetag" size={16} color={selected ? '#FFFFFF' : colors.primary} />
-      </View>
-      <Text style={styles.discountTierLabel}>{tier}%+</Text>
-      <Text style={styles.discountTierSub}>Deals</Text>
-    </Pressable>
-  );
-}
+const codeLabel = (count) => {
+  const n = Number(count) || 0;
+  if (n <= 0) return null;
+  return `${n} ${n === 1 ? 'Code' : 'Codes'}`;
+};
 
 const SearchScreen = () => {
   const navigation = useNavigation();
@@ -60,178 +29,188 @@ const SearchScreen = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const deals = useDataStore((state) => state.deals);
-  const categories = useDataStore((state) => state.categories);
+  const brands = useDataStore((state) => state.brands);
   const brandsById = useDataStore((state) => state.brandsById);
 
   const [query, setQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(route.params?.category ?? null);
-  const [minDiscount, setMinDiscount] = useState(null);
-  const [sort, setSort] = useState('Highest Discount');
-  const [sortOpen, setSortOpen] = useState(false);
   const [showResults, setShowResults] = useState(Boolean(route.params?.category));
+  const [selectedCategory, setSelectedCategory] = useState(route.params?.category ?? null);
   const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES);
+  const [storeSearches, setStoreSearches] = useState([]);
+
+  const popularStores = useMemo(
+    () => [...brands].sort((a, b) => (b.dealCount || 0) - (a.dealCount || 0) || a.name.localeCompare(b.name)).slice(0, 12),
+    [brands],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = deals.filter((deal) => {
+    return deals.filter((deal) => {
       const brandName = brandsById[deal.brandId]?.name ?? '';
       if (q && !deal.title.toLowerCase().includes(q) && !brandName.toLowerCase().includes(q)) {
         return false;
       }
       if (selectedCategory && deal.category !== selectedCategory) return false;
-      if (minDiscount) {
-        const pct = deal.isPercentageOff ? parseInt(deal.discountLabel) || 0 : 0;
-        if (Math.abs(pct) < minDiscount) return false;
-      }
       return true;
     });
-    if (sort === 'Highest Discount') {
-      list = [...list].sort((a, b) => (parseInt(a.discountLabel) || 0) - (parseInt(b.discountLabel) || 0));
-    } else if (sort === 'Newest') {
-      list = [...list].sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
-    } else {
-      list = [...list].sort((a, b) => new Date(a.expiresAt || '9999').getTime() - new Date(b.expiresAt || '9999').getTime());
-    }
-    return list;
-  }, [deals, brandsById, query, selectedCategory, minDiscount, sort]);
+  }, [deals, brandsById, query, selectedCategory]);
 
-  const showFilters = query.trim().length === 0 && !showResults;
-  const previewCategories = useMemo(() => categories.slice(0, 6), [categories]);
   const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(filtered);
+  const idle = !showResults;
 
   const goBack = () => {
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.navigate('CategoriesScreen');
   };
 
+  const rememberSearch = (term) => {
+    const next = term.trim();
+    if (!next) return;
+    setRecentSearches((prev) => [next, ...prev.filter((s) => s.toLowerCase() !== next.toLowerCase())].slice(0, 8));
+  };
+
+  const rememberStore = (brand) => {
+    if (!brand?.id) return;
+    setStoreSearches((prev) => [brand, ...prev.filter((b) => b.id !== brand.id)].slice(0, 8));
+  };
+
+  const runSearch = (term = query) => {
+    const next = (term ?? '').trim();
+    setQuery(next);
+    if (next) rememberSearch(next);
+    setShowResults(true);
+  };
+
+  const openBrand = (brand) => {
+    if (!brand?.id) return;
+    rememberStore(brand);
+    navigation.navigate('BrandDetailScreen', { id: brand.id });
+  };
+
+  const onRecentPress = (term) => {
+    setQuery(term);
+    runSearch(term);
+  };
+
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
-        <Pressable onPress={goBack} hitSlop={8}>
-          <Icon name="chevron-back" size={24} color={colors.text} />
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.two }]}>
+        <Pressable onPress={goBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back">
+          <Icon name="chevron-back" size={26} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>DealPulse</Text>
-        <Pressable style={styles.filterButton} onPress={() => setShowResults(false)} hitSlop={4}>
-          <Icon name="filter" size={17} color="#FFFFFF" />
+        <SearchBar
+          style={styles.searchField}
+          value={query}
+          onChangeText={(t) => {
+            setQuery(t);
+            if (!t.trim()) {
+              setShowResults(false);
+              setSelectedCategory(null);
+            }
+          }}
+          placeholder="Search stores & deals"
+          showCamera
+          autoFocus
+          onSubmitEditing={() => runSearch()}
+        />
+        <Pressable style={styles.searchButton} onPress={() => runSearch()} accessibilityRole="button">
+          <Text style={styles.searchButtonLabel}>Search</Text>
         </Pressable>
       </View>
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]}
         showsVerticalScrollIndicator={false}
-        onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
+        keyboardShouldPersistTaps="handled"
+        onScroll={({ nativeEvent }) => !idle && isCloseToBottom(nativeEvent) && loadMore()}
         scrollEventThrottle={200}>
-        <SearchBar
-          value={query}
-          onChangeText={(t) => {
-            setQuery(t);
-            setShowResults(false);
-          }}
-          placeholder="Search deals, brands, categories..."
-          showMic
-        />
-
-        {showFilters ? (
+        {idle ? (
           <>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Categories</Text>
-              <Pressable onPress={() => navigation.navigate('CategoriesScreen')} hitSlop={8}>
-                <Text style={styles.sectionLink}>View All</Text>
-              </Pressable>
-            </View>
-            <View style={styles.chipRow}>
-              <CategoryChip label="All" icon="grid" selected={!selectedCategory} onPress={() => setSelectedCategory(null)} colors={colors} styles={styles} />
-              {previewCategories.map((c) => (
-                <CategoryChip
-                  key={c.name}
-                  label={c.name}
-                  icon={iconForCategory(c.name)}
-                  selected={selectedCategory === c.name}
-                  onPress={() => setSelectedCategory(selectedCategory === c.name ? null : c.name)}
-                  colors={colors}
-                  styles={styles}
-                />
-              ))}
-            </View>
-
-            <Text style={styles.sectionTitle}>Discount Range</Text>
-            <View style={styles.discountGrid}>
-              {DISCOUNT_TIERS.map((tier) => (
-                <DiscountCard
-                  key={tier}
-                  tier={tier}
-                  selected={minDiscount === tier}
-                  onPress={() => setMinDiscount(minDiscount === tier ? null : tier)}
-                  colors={colors}
-                  styles={styles}
-                />
-              ))}
-            </View>
-
-            <Text style={styles.sectionTitle}>Sort By</Text>
-            <View style={styles.sortWrap}>
-              <Pressable style={styles.sortBox} onPress={() => setSortOpen((o) => !o)}>
-                <View style={styles.sortIconBadge}>
-                  <Icon name="swap-vertical" size={15} color={colors.primary} />
-                </View>
-                <Text style={styles.sortLabel}>{sort}</Text>
-                <Icon name={sortOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
-              </Pressable>
-              {sortOpen && (
-                <View style={styles.sortDropdown}>
-                  {SORTS.map((option, index) => (
-                    <Pressable
-                      key={option}
-                      style={[styles.sortDropdownItem, index === SORTS.length - 1 && styles.sortDropdownItemLast]}
-                      onPress={() => {
-                        setSort(option);
-                        setSortOpen(false);
-                      }}>
-                      <Text style={styles.sortDropdownItemLabel}>{option}</Text>
-                      {sort === option && <Icon name="checkmark" size={16} color={colors.primary} />}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            <PrimaryButton
-              label={`Show Results (${filtered.length})`}
-              icon="search"
-              pill
-              style={styles.showResultsButton}
-              onPress={() => setShowResults(true)}
-            />
-
             {recentSearches.length > 0 && (
-              <View style={styles.suggestionSection}>
+              <View style={styles.section}>
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionTitle}>Recent Searches</Text>
                   <Pressable onPress={() => setRecentSearches([])} hitSlop={8}>
-                    <Text style={styles.sectionLink}>Clear All</Text>
+                    <Text style={styles.clearLink}>Clear</Text>
                   </Pressable>
                 </View>
                 <View style={styles.chipRow}>
-                  {recentSearches.map((s) => (
-                    <View key={s} style={styles.recentChip}>
-                      <Icon name="time-outline" size={14} color={colors.textSecondary} />
-                      <Pressable onPress={() => setQuery(s)}>
-                        <Text style={styles.recentChipLabel}>{s}</Text>
-                      </Pressable>
-                      <Pressable onPress={() => setRecentSearches((prev) => prev.filter((item) => item !== s))} hitSlop={8}>
-                        <Icon name="close" size={14} color={colors.textSecondary} />
-                      </Pressable>
-                    </View>
+                  {recentSearches.map((term) => (
+                    <Pressable key={term} style={styles.chip} onPress={() => onRecentPress(term)}>
+                      <Text style={styles.chipLabel}>{term}</Text>
+                    </Pressable>
                   ))}
                 </View>
               </View>
             )}
+
+            {storeSearches.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>Store Searches</Text>
+                  <Pressable onPress={() => setStoreSearches([])} hitSlop={8}>
+                    <Text style={styles.clearLink}>Clear</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.chipRow}>
+                  {storeSearches.map((brand) => (
+                    <Pressable key={brand.id} style={styles.storeChip} onPress={() => openBrand(brand)}>
+                      <BrandLogo
+                        initials={brand.initials}
+                        logoUrl={brand.logoUrl}
+                        website={brand.website}
+                        size={22}
+                        tone="filled"
+                      />
+                      <Text style={styles.chipLabel} numberOfLines={1}>
+                        {brand.name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Popular stores</Text>
+              {popularStores.length === 0 ? (
+                <EmptyState icon="storefront-outline" title="No stores yet" body="Stores will show up here once deals load." />
+              ) : (
+                <View style={styles.storeList}>
+                  {popularStores.map((brand, index) => {
+                    const codes = codeLabel(brand.dealCount);
+                    return (
+                      <Pressable
+                        key={brand.id}
+                        style={[styles.storeRow, index === popularStores.length - 1 && styles.storeRowLast]}
+                        onPress={() => openBrand(brand)}>
+                        <BrandLogo
+                          initials={brand.initials}
+                          logoUrl={brand.logoUrl}
+                          website={brand.website}
+                          size={36}
+                          tone="filled"
+                        />
+                        <Text style={styles.storeName} numberOfLines={1}>
+                          {brand.name}
+                        </Text>
+                        {codes ? (
+                          <View style={styles.badge}>
+                            <Text style={styles.badgeLabel}>{codes}</Text>
+                          </View>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
           </>
         ) : filtered.length === 0 ? (
-          <EmptyState icon="search-outline" title="No results" body="Try a different search term or clear your filters." />
+          <EmptyState icon="search-outline" title="No results" body="Try a different search term." />
         ) : (
           <>
-            {selectedCategory && (
+            {selectedCategory ? (
               <View style={styles.activeFilterRow}>
                 <Text style={styles.activeFilterLabel}>Showing:</Text>
                 <Pressable
@@ -244,14 +223,14 @@ const SearchScreen = () => {
                   <Icon name="close" size={14} color="#FFFFFF" />
                 </Pressable>
               </View>
-            )}
-
+            ) : null}
             <View style={styles.results}>
               {visibleDeals.map((deal, index) => {
                 const tag = `search-${deal.id}`;
                 return (
                   <AnimatedListItem key={deal.id} index={index}>
                     <DealCard
+                      variant="offer"
                       deal={deal}
                       brand={brandsById[deal.brandId]}
                       transitionTag={tag}
@@ -260,7 +239,7 @@ const SearchScreen = () => {
                   </AnimatedListItem>
                 );
               })}
-              {isLoadingMore && <PaginationLoader />}
+              {isLoadingMore ? <PaginationLoader /> : null}
             </View>
           </>
         )}
@@ -275,189 +254,114 @@ const createStyles = (colors) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SPACING.four,
+      gap: SPACING.two,
+      paddingHorizontal: SPACING.three,
       paddingBottom: SPACING.three,
+      backgroundColor: colors.surface,
     },
-    headerTitle: {
-      ...TYPOGRAPHY.headline,
-      color: colors.primary,
+    searchField: {
+      flex: 1,
+      height: 42,
+      backgroundColor: colors.backgroundElement,
     },
-    filterButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+    searchButton: {
       backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      height: 42,
       alignItems: 'center',
       justifyContent: 'center',
     },
+    searchButtonLabel: {
+      ...TYPOGRAPHY.smallBold,
+      color: colors.white,
+      fontSize: 15,
+    },
     content: {
       paddingHorizontal: SPACING.four,
-      paddingTop: SPACING.three,
+      paddingTop: SPACING.two,
+      gap: SPACING.four,
+    },
+    section: {
       gap: SPACING.three,
     },
     sectionHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginTop: SPACING.two,
     },
     sectionTitle: {
-      ...TYPOGRAPHY.headline,
+      ...TYPOGRAPHY.subtitle,
       color: colors.text,
-      marginTop: SPACING.two,
+      fontSize: 17,
     },
-    sectionLink: {
-      ...TYPOGRAPHY.linkPrimary,
+    clearLink: {
+      ...TYPOGRAPHY.small,
+      color: colors.mutedInk,
+      fontWeight: '500',
     },
     chipRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: SPACING.two,
     },
-    categoryChip: {
+    chip: {
+      backgroundColor: colors.backgroundElement,
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    storeChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      borderWidth: 1.5,
-      borderColor: colors.primary,
-      borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
-      backgroundColor: colors.surface,
+      gap: 8,
+      backgroundColor: colors.backgroundElement,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      maxWidth: '100%',
     },
-    categoryChipSelected: {
-      backgroundColor: colors.primary,
-    },
-    categoryChipLabel: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.text,
-    },
-    categoryChipLabelSelected: {
-      color: '#FFFFFF',
-    },
-    discountGrid: {
-      flexDirection: 'row',
-      gap: SPACING.two,
-    },
-    discountCard: {
-      flex: 1,
-      alignItems: 'center',
-      gap: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.card,
-      paddingVertical: SPACING.three,
-    },
-    discountCardSelected: {
-      borderColor: colors.primary,
-      borderWidth: 1.5,
-    },
-    discountIconBadge: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.errorTint,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 2,
-    },
-    discountIconBadgeSelected: {
-      backgroundColor: colors.primary,
-    },
-    discountTierLabel: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.text,
-      fontSize: 15,
-    },
-    discountTierSub: {
+    chipLabel: {
       ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
+      color: colors.text,
+      fontWeight: '500',
     },
-    sortWrap: {
-      zIndex: 10,
+    storeList: {
+      marginTop: SPACING.one,
     },
-    sortBox: {
+    storeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: SPACING.two,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.button,
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
+      gap: SPACING.three,
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
     },
-    sortIconBadge: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: colors.errorTint,
-      alignItems: 'center',
-      justifyContent: 'center',
+    storeRowLast: {
+      borderBottomWidth: 0,
     },
-    sortLabel: {
+    storeName: {
       ...TYPOGRAPHY.default,
       color: colors.text,
       flex: 1,
+      fontWeight: '500',
     },
-    sortDropdown: {
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      right: 0,
-      marginTop: SPACING.one,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.button,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 4,
-    },
-    sortDropdownItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.three,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    sortDropdownItemLast: {
-      borderBottomWidth: 0,
-    },
-    sortDropdownItemLabel: {
-      ...TYPOGRAPHY.small,
-      color: colors.text,
-    },
-    showResultsButton: {
-      marginTop: SPACING.two,
-    },
-    suggestionSection: {
-      gap: SPACING.two,
-      marginTop: SPACING.three,
-    },
-    recentChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      borderWidth: 1,
-      borderColor: colors.border,
+    badge: {
+      backgroundColor: colors.backgroundElement,
       borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
     },
-    recentChipLabel: {
-      ...TYPOGRAPHY.smallBold,
-      color: colors.text,
+    badgeLabel: {
+      ...TYPOGRAPHY.small,
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '600',
     },
     results: {
       gap: SPACING.three,

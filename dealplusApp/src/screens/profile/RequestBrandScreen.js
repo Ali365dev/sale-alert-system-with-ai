@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { requestBrand } from '../../services/brandRequestApi';
 import { showErrorToast } from '../../utils/CustomToast';
+import CategoryPickerSheet from '../../components/CategoryPickerSheet';
 import Logo from '../../components/Logo';
 import PrimaryButton from '../../components/PrimaryButton';
 
@@ -48,11 +49,11 @@ const RequestBrandScreen = () => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const categories = useDataStore((state) => state.categories);
+  const categorySheetRef = useRef(null);
 
   const [brandName, setBrandName] = useState(route.params?.brandName ?? '');
   const [website, setWebsite] = useState('');
   const [category, setCategory] = useState(null);
-  const [categoryOpen, setCategoryOpen] = useState(false);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -128,7 +129,7 @@ const RequestBrandScreen = () => {
           </Text>
           <PrimaryButton
             label="Back to Home"
-            onPress={() => navigation.navigate('MainTabs', { screen: 'Tabs', params: { screen: 'Home' } })}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
             style={styles.fullWidthButton}
           />
           <OutlineButton label="Request Another Brand" icon="add-circle-outline" onPress={resetForm} colors={colors} styles={styles} />
@@ -147,12 +148,17 @@ const RequestBrandScreen = () => {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.five }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.five }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
         <View style={styles.heroIconCircle}>
           <Icon name="storefront" size={36} color="#FFFFFF" />
         </View>
         <Text style={styles.title}>Request a Brand</Text>
-        <Text style={styles.subtitle}>Can't find your favorite brand? Let us know and we'll work on bringing their deals to you!</Text>
+        <Text style={styles.subtitle}>
+          Can't find your favorite brand? Let us know and we'll work on bringing their deals to you!
+        </Text>
 
         <View style={styles.card}>
           <View style={styles.field}>
@@ -193,27 +199,17 @@ const RequestBrandScreen = () => {
 
           <View style={styles.field}>
             <Text style={styles.label}>Category</Text>
-            <Pressable style={styles.fieldRow} onPress={() => setCategoryOpen((o) => !o)}>
+            <Pressable
+              style={styles.fieldRow}
+              onPress={() => categorySheetRef.current?.present()}
+              accessibilityRole="button"
+              accessibilityLabel="Select a category">
               <Icon name="storefront-outline" size={18} color={colors.textSecondary} style={styles.fieldIcon} />
-              <Text style={[styles.fieldInput, !category && styles.placeholderText]}>{category ?? 'Select a category'}</Text>
-              <Icon name={categoryOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
+              <Text style={[styles.fieldValue, !category && styles.placeholderText]} numberOfLines={1}>
+                {category ?? 'Select a category'}
+              </Text>
+              <Icon name="chevron-down" size={16} color={colors.textSecondary} />
             </Pressable>
-            {categoryOpen && (
-              <View style={styles.dropdown}>
-                {categories.map((c) => (
-                  <Pressable
-                    key={c.name}
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setCategory(c.name);
-                      setCategoryOpen(false);
-                    }}>
-                    <Text style={styles.dropdownItemLabel}>{c.name}</Text>
-                    {category === c.name && <Icon name="checkmark" size={16} color={colors.primary} />}
-                  </Pressable>
-                ))}
-              </View>
-            )}
           </View>
 
           <View style={styles.field}>
@@ -223,7 +219,7 @@ const RequestBrandScreen = () => {
               onChangeText={setNote}
               placeholder="Why do you want to see deals from this brand?"
               placeholderTextColor={colors.textSecondary}
-              style={[styles.fieldInput, styles.noteInput]}
+              style={styles.noteInput}
               multiline
               autoCorrect={false}
               spellCheck={false}
@@ -243,6 +239,8 @@ const RequestBrandScreen = () => {
           </Pressable>
         </View>
       </ScrollView>
+
+      <CategoryPickerSheet ref={categorySheetRef} categories={categories} selected={category} onSelect={setCategory} />
     </KeyboardAvoidingView>
   );
 };
@@ -320,8 +318,10 @@ const createStyles = (colors) =>
       backgroundColor: colors.backgroundElement,
       borderBottomWidth: 1.5,
       borderBottomColor: colors.textSecondary,
+      borderTopLeftRadius: 8,
+      borderTopRightRadius: 8,
       paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.three,
+      height: 50,
     },
     fieldRowError: {
       borderBottomColor: colors.primary,
@@ -337,9 +337,23 @@ const createStyles = (colors) =>
     },
     fieldInput: {
       flex: 1,
-      ...TYPOGRAPHY.default,
+      alignSelf: 'stretch',
+      fontSize: 15,
+      fontWeight: '500',
       color: colors.text,
-      padding: 0,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+      margin: 0,
+      ...Platform.select({
+        ios: { lineHeight: 18 },
+        android: { textAlignVertical: 'center', includeFontPadding: false },
+      }),
+    },
+    fieldValue: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '500',
+      color: colors.text,
     },
     placeholderText: {
       color: colors.textSecondary,
@@ -348,31 +362,15 @@ const createStyles = (colors) =>
       backgroundColor: colors.backgroundElement,
       borderBottomWidth: 1.5,
       borderBottomColor: colors.textSecondary,
+      borderTopLeftRadius: 8,
+      borderTopRightRadius: 8,
       paddingHorizontal: SPACING.three,
       paddingVertical: SPACING.three,
       minHeight: 88,
-      textAlignVertical: 'top',
-    },
-    dropdown: {
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.button,
-      marginTop: -SPACING.one,
-      overflow: 'hidden',
-    },
-    dropdownItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.three,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    dropdownItemLabel: {
-      ...TYPOGRAPHY.default,
+      fontSize: 15,
+      fontWeight: '500',
       color: colors.text,
+      textAlignVertical: 'top',
     },
     checkExistingWrap: {
       alignItems: 'center',

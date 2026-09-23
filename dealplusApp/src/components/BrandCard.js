@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
@@ -8,7 +8,7 @@ import BrandLogo from './BrandLogo';
 import SaleBadge from './SaleBadge';
 import { usePressScale } from '../hooks/usePressScale';
 
-const BrandCard = ({ brand, onPress, variant = 'default', badge }) => {
+const BrandCard = ({ brand, onPress, variant = 'default', badge, selected = false }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -46,16 +46,27 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge }) => {
   if (variant === 'tile') {
     return (
       <Animated.View style={[animatedStyle, styles.tileWrap]}>
-        <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.tileCard}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={onPressIn}
+          onPressOut={onPressOut}
+          style={[styles.tileCard, selected && styles.tileCardSelected]}
+          accessibilityState={{ selected }}
+          accessibilityRole="button">
+          {selected ? (
+            <View style={styles.tileCheck}>
+              <Icon name="checkmark" size={12} color={colors.primary} />
+            </View>
+          ) : null}
           <BrandLogo
             initials={brand.initials}
             logoUrl={brand.logoUrl}
             website={brand.website}
-            size={56}
+            size={64}
             fit="contain"
-            shape="plain"
+            tone="outline"
           />
-          <Text style={styles.tileName} numberOfLines={1}>
+          <Text style={[styles.tileName, selected && styles.tileNameSelected]} numberOfLines={1}>
             {brand.name}
           </Text>
         </Pressable>
@@ -125,23 +136,54 @@ const createStyles = (colors) =>
     tileCard: {
       width: '100%',
       aspectRatio: 1,
-      borderRadius: 18,
+      borderRadius: 20,
       backgroundColor: colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: SPACING.two,
       paddingVertical: SPACING.three,
-      gap: SPACING.two,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-      ...SHADOWS.card,
+      gap: 10,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#10233F',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.12,
+          shadowRadius: 14,
+        },
+        android: {
+          elevation: 5,
+          shadowColor: '#10233F',
+        },
+        default: {
+          ...SHADOWS.raised,
+        },
+      }),
+    },
+    tileCardSelected: {
+      backgroundColor: colors.primary,
+      borderWidth: 0,
+    },
+    tileCheck: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1,
     },
     tileName: {
       fontSize: 12,
       lineHeight: 16,
-      fontWeight: '600',
+      fontWeight: '700',
       color: colors.text,
       textAlign: 'center',
+    },
+    tileNameSelected: {
+      color: '#FFFFFF',
     },
     logoWrap: {
       position: 'relative',

@@ -47,3 +47,19 @@ test('pressing the card body calls onPress', async () => {
   await fireEvent.press(getByText('Acme Corp Promo'));
   expect(onPress).toHaveBeenCalledTimes(1);
 });
+
+test('offer variant shows the Figma headline, subtitle, channel, and heart', async () => {
+  const { getByText, getByLabelText } = await render(
+    <DealCard
+      variant="offer"
+      deal={{ ...baseDeal, expiresAt: '2027-05-25T12:00:00Z' }}
+      brand={brand}
+      onPress={() => {}}
+    />,
+  );
+  expect(getByText('Flat 50% Off')).toBeTruthy();
+  expect(getByText('Summer Sale')).toBeTruthy();
+  expect(getByText('Online')).toBeTruthy();
+  expect(getByText('Exp: 25 May 2027')).toBeTruthy();
+  expect(getByLabelText('Add to favorites')).toBeTruthy();
+});

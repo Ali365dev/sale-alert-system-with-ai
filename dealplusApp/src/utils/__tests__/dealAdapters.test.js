@@ -3,6 +3,7 @@ import {
   deriveBrandsAndDeals,
   deriveCategories,
   filterForYou,
+  formatFlatOffer,
   iconForCategory,
   imageForCategory,
   initialsForName,
@@ -325,6 +326,16 @@ describe('deriveAlerts', () => {
   test('empty input produces an empty feed', () => {
     expect(deriveAlerts([])).toEqual([]);
   });
+
+  test('resolves brandId against registered brands (regional suffix fuzzy match)', () => {
+    const brands = [{ id: 'hush-puppies-pakistan', name: 'Hush Puppies Pakistan' }];
+    const alerts = deriveAlerts(
+      [{ id: 1, brand: 'Hush Puppies', discount_percentage: 10, created_at: '2026-01-01T00:00:00Z' }],
+      brands,
+    );
+    expect(alerts[0].brandId).toBe('hush-puppies-pakistan');
+    expect(alerts[0].dealId).toBe('1');
+  });
 });
 
 describe('syntheticBrand', () => {
@@ -334,5 +345,19 @@ describe('syntheticBrand', () => {
 
   test('website defaults to null when not provided', () => {
     expect(syntheticBrand('Some Brand', 'Tech', 1).website).toBeNull();
+  });
+});
+
+describe('formatFlatOffer', () => {
+  test('formats a percentage discount as Flat N% Off', () => {
+    expect(formatFlatOffer({ isPercentageOff: true, discountLabel: '-40%' })).toBe('Flat 40% Off');
+  });
+
+  test('formats a non-percentage label as Flat {label} Off', () => {
+    expect(formatFlatOffer({ isPercentageOff: false, discountLabel: 'Rs. 500' })).toBe('Flat Rs. 500 Off');
+  });
+
+  test('falls back to title when there is no discount label', () => {
+    expect(formatFlatOffer({ title: 'Summer Sale' })).toBe('Summer Sale');
   });
 });

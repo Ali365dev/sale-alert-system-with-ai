@@ -33,7 +33,7 @@ const ForYouScreen = () => {
 
   return (
     <View style={styles.container}>
-      <TopAppBar showBack hideSearch />
+      <TopAppBar showBack />
 
       {forYouDeals.length === 0 ? (
         <EmptyState

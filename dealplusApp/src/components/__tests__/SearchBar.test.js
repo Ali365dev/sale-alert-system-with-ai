@@ -25,3 +25,12 @@ test('submitting the input calls onSubmitEditing', async () => {
   await fireEvent(getByPlaceholderText('Search brands'), 'submitEditing');
   expect(onSubmitEditing).toHaveBeenCalledTimes(1);
 });
+
+test('showCamera renders a visual search control', async () => {
+  const onPressCamera = jest.fn();
+  const { getByLabelText } = await render(
+    <SearchBar value="" onChangeText={() => {}} placeholder="Search brands" showCamera onPressCamera={onPressCamera} />,
+  );
+  await fireEvent.press(getByLabelText('Visual search'));
+  expect(onPressCamera).toHaveBeenCalledTimes(1);
+});

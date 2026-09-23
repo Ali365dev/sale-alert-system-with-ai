@@ -1,14 +1,13 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { DrawerActions, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SPACING, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import useDataStore from '../state/dataStore';
-import MenuIcon from './MenuIcon';
 
-const TopAppBar = ({ title, showBack, onBack, hideSearch, hideProfile, hideBorder, rightIcon, onPressRight, rightSlot, titleAlign = 'center', style }) => {
+const TopAppBar = ({ title, showBack, onBack, hideProfile, hideBorder, rightIcon, onPressRight, rightSlot, titleAlign = 'center', style }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -23,18 +22,12 @@ const TopAppBar = ({ title, showBack, onBack, hideSearch, hideProfile, hideBorde
           <Pressable hitSlop={8} onPress={onBack ?? (() => navigation.goBack())}>
             <Icon name="chevron-back" size={24} color={colors.text} />
           </Pressable>
-        ) : (
-          !hideSearch && (
-            <Pressable hitSlop={8} onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
-              <MenuIcon size={36} color={colors.text} />
-            </Pressable>
-          )
-        )}
+        ) : null}
       </View>
 
       {title ? <Text style={[styles.title, titleStart && styles.titleStart]}>{title}</Text> : <View style={styles.titleSpacer} />}
 
-      <View style={[styles.side, styles.sideRight]}>
+      <View style={[styles.side, styles.sideRight, rightSlot && styles.sideRightWide]}>
         {rightSlot ? (
           rightSlot
         ) : rightIcon ? (
@@ -83,12 +76,18 @@ const createStyles = (colors) =>
     sideRight: {
       justifyContent: 'flex-end',
     },
+    sideRightWide: {
+      width: 96,
+      zIndex: 2,
+      gap: 4,
+    },
     title: {
       ...TYPOGRAPHY.subtitle,
       flex: 1,
       textAlign: 'center',
       color: colors.text,
       fontSize: 18,
+      zIndex: 0,
     },
     titleStart: {
       textAlign: 'left',
