@@ -135,6 +135,9 @@ export const mapApiBrandToBrand = (apiBrand, dealCount) => {
     name: apiBrand.name,
     initials: initialsForName(apiBrand.name),
     logoUrl: apiBrand.logo_url ?? null,
+    logoScale: apiBrand.logo_scale ?? 1,
+    logoOffsetX: apiBrand.logo_offset_x ?? 0,
+    logoOffsetY: apiBrand.logo_offset_y ?? 0,
     color: '#10233F',
     category,
     dealCount,
@@ -153,7 +156,10 @@ export const syntheticBrand = (name, category, dealCount, website = null) => ({
   name,
   initials: initialsForName(name),
   logoUrl: null,
-    color: '#10233F',
+  logoScale: 1,
+  logoOffsetX: 0,
+  logoOffsetY: 0,
+  color: '#10233F',
   category: category ?? 'General',
   dealCount,
   description: `Tracked offers from ${name}.`,
@@ -252,17 +258,12 @@ export const deriveBrandsAndDeals = (apiBrands, apiOffers) => {
   return { brands, deals, brandsById };
 };
 
-/** Derives category counts (sorted by deal count desc) from raw API offers,
- * and the brand catalog's own tagged categories.
+/** Derives category counts (sorted by deal count desc) from managed categories
+ * when provided, else from raw API offers + brand-tagged categories.
  *
- * `apiOffers` alone isn't enough: when device_id is sent, GET /offers is
- * already personalized (services/offer_matching.py), so building the pickable
- * category list purely from that response means any category not already
- * matching the user's current preferences quietly disappears from the very
- * screen meant to let them add more of them. GET /brands is never filtered,
- * so brand.categories (Brand.categories on the backend) is the stable source
- * for "which categories exist at all" — offers just contribute counts on top. */
-export const deriveCategories = (apiOffers, apiBrands = []) => {
+ * `managedCategories` is the admin catalog from GET /categories (active only).
+ * Offer counts still come from the offers list so the UI stays live. */
+export const deriveCategories = (apiOffers, apiBrands = [], managedCategories = null) => {
   const counts = new Map();
   for (const brand of apiBrands) {
     for (const name of brand.categories ?? []) {
@@ -273,6 +274,19 @@ export const deriveCategories = (apiOffers, apiBrands = []) => {
     if (!offer.category) continue;
     counts.set(offer.category, (counts.get(offer.category) ?? 0) + 1);
   }
+
+  if (Array.isArray(managedCategories) && managedCategories.length > 0) {
+    return managedCategories
+      .filter((c) => c && c.name && c.is_active !== false)
+      .map((c) => ({
+        name: c.name,
+        dealCount: counts.get(c.name) ?? c.offer_count ?? 0,
+        icon: iconForCategory(c.name),
+        sortOrder: c.sort_order ?? 0,
+      }))
+      .sort((a, b) => a.sortOrder - b.sortOrder || b.dealCount - a.dealCount || a.name.localeCompare(b.name));
+  }
+
   return Array.from(counts.entries())
     .map(([name, dealCount]) => ({ name, dealCount, icon: iconForCategory(name) }))
     .sort((a, b) => b.dealCount - a.dealCount);

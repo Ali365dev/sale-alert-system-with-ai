@@ -84,6 +84,11 @@ class Brand(Base):
     created_at   = Column(DateTime, default=_utcnow, nullable=False)
 
     logo_url     = Column(String(500), nullable=True)
+    # Display transform for the original logo_url — never bakes into the asset.
+    # scale=1 / offset=0 is "fit centered" (same default the app used before these columns).
+    logo_scale     = Column(Float, nullable=False, default=1.0)
+    logo_offset_x  = Column(Float, nullable=False, default=0.0)  # fraction of container from center
+    logo_offset_y  = Column(Float, nullable=False, default=0.0)
     description  = Column(Text, nullable=True)
     country      = Column(String(100), nullable=True)
     social_links = Column(Text, nullable=True)        # JSON object stored as text, e.g. {"instagram": "..."}
@@ -100,6 +105,23 @@ class Brand(Base):
 
     def __repr__(self) -> str:
         return f"<Brand id={self.id} name={self.name!r}>"
+
+
+class Category(Base):
+    """Admin-managed category catalog — source of truth for onboarding,
+    manage-interests, and browse filters. Offer.category / Brand.categories
+    remain free-text names that match Category.name when assigned."""
+    __tablename__ = "categories"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    name        = Column(String(255), unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    is_active   = Column(Boolean, default=True, nullable=False)
+    sort_order  = Column(Integer, default=0, nullable=False, index=True)
+    created_at  = Column(DateTime, default=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<Category id={self.id} name={self.name!r}>"
 
 
 class BrandCandidate(Base):

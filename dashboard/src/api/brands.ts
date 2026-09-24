@@ -13,6 +13,9 @@ export interface Brand {
   last_searched: string | null;
   created_at: string | null;
   logo_url: string | null;
+  logo_scale: number;
+  logo_offset_x: number;
+  logo_offset_y: number;
   description: string | null;
   country: string | null;
   social_links: Record<string, string | null> | null;
@@ -69,6 +72,32 @@ export function useUpdateBrand() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["brands"] });
       toast.success("Brand updated.");
+    },
+  });
+}
+
+export function useUpdateBrandLogo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      input,
+    }: {
+      id: number;
+      input: {
+        logo_url?: string | null;
+        logo_scale?: number;
+        logo_offset_x?: number;
+        logo_offset_y?: number;
+        reset_logo_transform?: boolean;
+      };
+    }) => {
+      const { data } = await apiClient.put<Brand>(`/brands/${id}/logo`, input);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["brands"] });
+      toast.success("Logo settings saved.");
     },
   });
 }

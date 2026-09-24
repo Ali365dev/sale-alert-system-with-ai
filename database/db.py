@@ -45,6 +45,9 @@ def _migrate() -> None:
         ("emails", "ocr_text_clean",              "TEXT"),
         ("emails", "ocr_processed_at",             "TIMESTAMP"),
         ("brands", "logo_url",                     "VARCHAR(500)"),
+        ("brands", "logo_scale",                   "FLOAT DEFAULT 1.0"),
+        ("brands", "logo_offset_x",                "FLOAT DEFAULT 0.0"),
+        ("brands", "logo_offset_y",                "FLOAT DEFAULT 0.0"),
         ("brands", "description",                  "TEXT"),
         ("brands", "country",                       "VARCHAR(100)"),
         ("brands", "social_links",                   "TEXT"),
@@ -98,6 +101,23 @@ def _migrate() -> None:
                     logger.info("Migration: backfilled emails.processing_status from existing offers")
             except Exception:
                 conn.rollback()  # column already exists — safe to skip
+
+        # Normalize logo transform nulls left by older rows after the columns
+        # were added (Postgres ADD COLUMN DEFAULT only applies to new inserts
+        # depending on version / IF NOT EXISTS path).
+        try:
+            conn.execute(text(
+                "UPDATE brands SET logo_scale = 1.0 WHERE logo_scale IS NULL"
+            ))
+            conn.execute(text(
+                "UPDATE brands SET logo_offset_x = 0.0 WHERE logo_offset_x IS NULL"
+            ))
+            conn.execute(text(
+                "UPDATE brands SET logo_offset_y = 0.0 WHERE logo_offset_y IS NULL"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
         try:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_emails_processing_status ON emails (processing_status)"))
@@ -281,6 +301,53 @@ def _seed_brands() -> None:
         session.close()
 
 
+def _seed_categories() -> None:
+    """If the categories table is empty, seed from distinct Offer.category and
+    Brand.categories names so existing apps keep working after the migration.
+    Never overwrites admin-managed rows once any category exists."""
+    import json
+    from database.models import Brand, Category, Offer
+
+    session = SessionLocal()
+    try:
+        if session.query(Category).count() > 0:
+            return
+
+        names: list[str] = []
+        seen: set[str] = set()
+
+        def add(raw):
+            name = (raw or "").strip()
+            if not name:
+                return
+            key = name.lower()
+            if key in seen:
+                return
+            seen.add(key)
+            names.append(name)
+
+        for (cat,) in session.query(Offer.category).filter(Offer.category.isnot(None)).distinct():
+            add(cat)
+        for brand in session.query(Brand).all():
+            try:
+                cats = json.loads(brand.categories) if brand.categories else []
+            except Exception:
+                cats = []
+            for cat in cats:
+                add(cat)
+
+        for i, name in enumerate(sorted(names, key=str.lower)):
+            session.add(Category(name=name, is_active=True, sort_order=(i + 1) * 10))
+        session.commit()
+        if names:
+            logger.info("Seeded %d categor(ies) from existing offers/brands", len(names))
+    except Exception as exc:
+        session.rollback()
+        logger.error("Category seed failed: %s", exc)
+    finally:
+        session.close()
+
+
 def _seed_settings() -> None:
     """Seed the 6 default Prompt rows (from their hardcoded fallback
     constants) and default scalar Settings, only if each is missing —
@@ -378,6 +445,7 @@ def init_db() -> None:
     job_service.reconcile_interrupted_jobs()
 
     _seed_brands()
+    _seed_categories()
     _seed_settings()
     logger.info("Database initialized — all tables ready.")
 

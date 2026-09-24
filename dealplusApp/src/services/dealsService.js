@@ -12,15 +12,17 @@ import { fetchInterests } from './preferencesApi';
 export const loadDeals = async () => {
   useDataStore.setState({ loading: true, error: null });
   try {
-    const [brandsRes, offersRes] = await Promise.all([
+    const [brandsRes, offersRes, categoriesRes] = await Promise.all([
       appAxios.get('/brands'),
       appAxios.get('/offers', { params: { device_id: getDeviceId() } }),
+      appAxios.get('/categories').catch(() => ({ data: { categories: [] } })),
     ]);
     const apiBrands = brandsRes?.data?.brands || [];
     const apiOffers = offersRes?.data?.offers || [];
+    const managedCategories = categoriesRes?.data?.categories || [];
 
     const { brands, deals, brandsById } = deriveBrandsAndDeals(apiBrands, apiOffers);
-    const categories = deriveCategories(apiOffers, apiBrands);
+    const categories = deriveCategories(apiOffers, apiBrands, managedCategories);
     const derivedAlerts = deriveAlerts(apiOffers, brands);
 
     // Alerts pushed in via FCM (id-prefixed 'push-') aren't derived from

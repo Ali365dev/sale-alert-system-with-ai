@@ -14,44 +14,46 @@ describe('hostnameFromWebsite', () => {
 });
 
 describe('logoCandidateUris', () => {
-  test('prefers a raster logo_url, then Google favicon before Clearbit', () => {
+  test('prefers a raster logo_url, then weserv of that URL, then Google favicon before Clearbit', () => {
     const uris = logoCandidateUris(
       'https://cdn.example/logo.png',
       'https://www.hushpuppies.com.pk',
     );
     expect(uris[0]).toBe('https://cdn.example/logo.png');
-    expect(uris[1]).toContain('google.com/s2/favicons');
-    expect(uris[1]).toContain('hushpuppies.com.pk');
+    expect(uris[1]).toContain('images.weserv.nl');
+    expect(uris[1]).toContain(encodeURIComponent('https://cdn.example/logo.png'));
+    expect(uris.find((u) => u.includes('google.com/s2/favicons'))).toContain('hushpuppies.com.pk');
     expect(uris.indexOf('https://logo.clearbit.com/hushpuppies.com.pk')).toBeGreaterThan(
       uris.findIndex((u) => u.includes('google.com/s2/favicons')),
     );
   });
 
-  test('tries extension-less CDN logos directly, then favicons, then weserv', () => {
+  test('tries extension-less CDN logos directly, then weserv, then favicons', () => {
     const uris = logoCandidateUris(
       'https://cdn.example.com/brands/hushpuppies/mark',
       'https://www.hushpuppies.com.pk',
     );
     expect(uris[0]).toBe('https://cdn.example.com/brands/hushpuppies/mark');
-    expect(uris.some((u) => u.includes('images.weserv.nl'))).toBe(true);
+    expect(uris[1]).toContain('images.weserv.nl');
+    expect(uris.some((u) => u.includes('google.com/s2/favicons'))).toBe(true);
   });
 
-  test('skips SVG logo_url and uses the website favicon first', () => {
+  test('skips SVG logo_url direct fetch and rasterizes via weserv, with website favicon as fallback', () => {
     const uris = logoCandidateUris(
       "https://upload.wikimedia.org/wikipedia/commons/7/7f/Levi%27s_logo.svg",
       'https://www.levi.com/US/en_US/',
     );
-    expect(uris[0]).toBe('https://www.google.com/s2/favicons?domain=levi.com&sz=128');
-    expect(uris.some((u) => u.includes('images.weserv.nl'))).toBe(true);
+    expect(uris[0]).toContain('images.weserv.nl');
+    expect(uris.some((u) => u.includes('google.com/s2/favicons'))).toBe(true);
   });
 
-  test('ICO alone falls back to favicon then Clearbit then weserv', () => {
+  test('ICO uses weserv first, then website favicon / Clearbit', () => {
     const uris = logoCandidateUris(
       'https://pk.sapphireonline.pk/images/favicon.ico',
       'https://pk.sapphireonline.pk',
     );
-    expect(uris[0]).toContain('google.com/s2/favicons');
-    expect(uris[0]).toContain('pk.sapphireonline.pk');
+    expect(uris[0]).toContain('images.weserv.nl');
+    expect(uris.some((u) => u.includes('google.com/s2/favicons'))).toBe(true);
     expect(uris).toContain('https://logo.clearbit.com/pk.sapphireonline.pk');
   });
 

@@ -2,15 +2,15 @@
 // port of the same product, not a separate service.
 
 // production
-// export const BASE_URL = 'https://sale-alert-system-with-ai.onrender.com/api';
+export const BASE_URL = 'https://sale-alert-system-with-ai.onrender.com/api';
 
 // local dev — the iOS Simulator reaches the Mac through IPv4 loopback, while the
 // Android emulator uses its special host-loopback alias.
 import { Platform } from 'react-native';
 
-export const BASE_URL = Platform.OS === 'ios'
-	? 'http://127.0.0.1:8000/api'
-	: 'http://10.0.2.2:8000/api';
+// export const BASE_URL = Platform.OS === 'ios'
+// 	? 'http://127.0.0.1:8000/api'
+// 	: 'http://10.0.2.2:8000/api';
 
 // local dev — your Mac's LAN IP, reachable from a physical Android or iOS
 // device on the same WiFi network (the backend must also be bound to
@@ -35,3 +35,7 @@ export const CLARITY_PROJECT_ID = 'y9fq0ureju';
 // > Google > Web SDK configuration > Web client ID. Empty = "Continue with
 // Google" is disabled client-side (see googleAuth.js).
 export const GOOGLE_WEB_CLIENT_ID = '254426897331-d1vq81m8rtj3oef8asfvlgu050tvtf7d.apps.googleusercontent.com';
+
+// iOS OAuth client ID from GoogleService-Info.plist (CLIENT_ID). Used as
+// `iosClientId` when configuring Google Sign-In on iOS.
+export const GOOGLE_IOS_CLIENT_ID = '254426897331-1jnk5399j8nqf96f6pifr3qvs26po2dv.apps.googleusercontent.com';

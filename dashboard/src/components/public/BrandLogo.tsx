@@ -1,66 +1,62 @@
 import { useState } from "react";
 
-import { useBrandLogoCandidates } from "../../hooks/useBrandLogoCandidates";
-import { TONE_BG, TONE_FG, toneForName } from "../../lib/publicOffers";
+import { useBrands } from "../../api/brands";
+import { BrandLogo as ConfiguredBrandLogo } from "../brands/BrandLogo";
+import type { LogoTransform } from "../../lib/logoDisplay";
 
-export function BrandLogo({ name, size = 44, circle = false }: { name: string; size?: number; circle?: boolean }) {
-  const tone = toneForName(name);
-  const candidates = useBrandLogoCandidates(name);
-  const [attempt, setAttempt] = useState(0);
-  const src = candidates[attempt];
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
+/** Public-site / list BrandLogo — looks up the brand by name when logoUrl is
+ * not passed, then renders with the saved transform. */
+export function BrandLogo({
+  name,
+  size = 44,
+  circle = false,
+  logoUrl,
+  website,
+  transform,
+}: {
+  name: string;
+  size?: number;
+  circle?: boolean;
+  logoUrl?: string | null;
+  website?: string | null;
+  transform?: Partial<LogoTransform> | null;
+}) {
+  const { data } = useBrands();
+  const brand = data?.brands.find((b) => b.name === name);
+  return (
+    <ConfiguredBrandLogo
+      name={name}
+      size={size}
+      circle={circle}
+      logoUrl={logoUrl ?? brand?.logo_url ?? null}
+      website={website ?? brand?.website ?? null}
+      transform={
+        transform ??
+        (brand
+          ? {
+              logo_scale: brand.logo_scale,
+              logo_offset_x: brand.logo_offset_x,
+              logo_offset_y: brand.logo_offset_y,
+            }
+          : null)
+      }
+    />
+  );
+}
 
-  const radius = circle ? "50%" : size > 32 ? "var(--radius-md)" : "var(--radius-sm)";
-
-  if (src) {
-    return (
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: radius,
-          background: "var(--surface-card)",
-          border: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          flex: "0 0 auto",
-        }}
-      >
-        <img
-          key={src}
-          src={src}
-          alt={name}
-          onError={() => setAttempt((a) => a + 1)}
-          style={{ width: "78%", height: "78%", objectFit: "contain" }}
-        />
-      </div>
-    );
-  }
-
+/** Tiny loading placeholder used while brands query is in flight. */
+export function BrandLogoPlaceholder({ size = 44 }: { size?: number }) {
+  const [ready] = useState(true);
+  if (!ready) return null;
   return (
     <div
       style={{
         width: size,
         height: size,
-        borderRadius: radius,
-        background: TONE_BG[tone],
-        color: TONE_FG[tone],
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        font: `800 ${Math.max(12, size * 0.36)}px/1 var(--font-sans)`,
-        flex: "0 0 auto",
+        borderRadius: "50%",
+        background: "var(--surface-sunken)",
+        border: "1px solid var(--border)",
       }}
-      aria-hidden
-    >
-      {initials || "?"}
-    </div>
+    />
   );
 }

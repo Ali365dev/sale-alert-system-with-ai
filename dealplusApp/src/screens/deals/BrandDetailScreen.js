@@ -102,15 +102,7 @@ const BrandDetailScreen = () => {
             </View>
 
             <View style={styles.profileCard}>
-              <BrandLogo
-                initials={brand.initials}
-                logoUrl={brand.logoUrl}
-                website={brand.website}
-                size={56}
-                tone="filled"
-                fit="cover"
-                elevated
-              />
+              <BrandLogo brand={brand} size={56} tone="filled" fit="cover" elevated />
               <View style={styles.profileText}>
                 <Text style={styles.brandName}>{brand.name}</Text>
                 <Text style={styles.dealCount}>

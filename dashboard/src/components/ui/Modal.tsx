@@ -1,6 +1,16 @@
 import type { ReactNode } from "react";
 
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  maxWidth = 560,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  maxWidth?: number;
+}) {
   return (
     <div
       style={{
@@ -24,7 +34,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
           borderRadius: "var(--radius-lg)",
           boxShadow: "var(--shadow-lg)",
           width: "100%",
-          maxWidth: 560,
+          maxWidth,
           padding: 24,
           display: "flex",
           flexDirection: "column",

@@ -172,8 +172,18 @@ const AuthScreen = ({ initialMode = 'login' }) => {
       }
       applyAuthResult(result);
     } catch (error) {
-      if (error?.code !== 'SIGN_IN_CANCELLED' && error?.code !== '12501') {
-        showToast.error("Couldn't sign in with Google. Please try again.", 'Sign-in failed');
+      // User dismissed the Google sheet — stay silent.
+      if (error?.code === 'SIGN_IN_CANCELLED' || error?.code === '12501') {
+        return;
+      }
+      const message =
+        error?.message ||
+        error?.userInfo?.message ||
+        "Couldn't sign in with Google. Please try again.";
+      setFormError(message);
+      showToast.error(message, 'Sign-in failed');
+      if (__DEV__) {
+        console.warn('Google sign-in failed', error?.code, error);
       }
     } finally {
       setGoogleSubmitting(false);

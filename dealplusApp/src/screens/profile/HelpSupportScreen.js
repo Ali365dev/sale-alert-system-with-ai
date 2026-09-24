@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
+
+const SUPPORT_EMAIL = 'support@dealpulse.app';
 
 const FAQS = [
   {
@@ -40,6 +42,15 @@ function FaqItem({ question, answer, expanded, onPress, colors, styles }) {
   );
 }
 
+const openSupportEmail = async () => {
+  const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('DealPulse Support')}`;
+  try {
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert('Could not open mail', `Please email us at ${SUPPORT_EMAIL}`);
+  }
+};
+
 const HelpSupportScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -63,13 +74,17 @@ const HelpSupportScreen = () => {
         <View style={styles.contactCard}>
           <Text style={styles.contactTitle}>Need more help?</Text>
           <Text style={styles.contactBody}>Our team usually replies within a day.</Text>
-          <Pressable style={styles.contactRow} onPress={() => Linking.openURL('mailto:support@dealpulse.app')}>
+          <Pressable
+            style={styles.contactRow}
+            onPress={openSupportEmail}
+            accessibilityRole="link"
+            accessibilityLabel={`Email support at ${SUPPORT_EMAIL}`}>
             <View style={styles.contactIconCircle}>
               <Icon name="mail-outline" size={18} color={colors.primary} />
             </View>
             <View style={styles.contactText}>
               <Text style={styles.contactLabel}>Email Support</Text>
-              <Text style={styles.contactValue}>support@dealpulse.app</Text>
+              <Text style={styles.contactValue}>{SUPPORT_EMAIL}</Text>
             </View>
             <Icon name="chevron-forward" size={18} color={colors.textSecondary} />
           </Pressable>
@@ -158,7 +173,7 @@ const createStyles = (colors) =>
     },
     contactValue: {
       ...TYPOGRAPHY.small,
-      color: colors.textSecondary,
+      color: colors.primary,
     },
     section: {
       gap: SPACING.three,

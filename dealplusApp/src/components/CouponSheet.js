@@ -158,15 +158,7 @@ const CouponSheet = ({ deal, brand, onClose }) => {
 
           <View style={styles.summaryRow}>
             <View style={styles.logoCol}>
-              <BrandLogo
-                initials={brand?.initials}
-                logoUrl={brand?.logoUrl}
-                website={brand?.website}
-                size={64}
-                tone="filled"
-                fit="cover"
-                elevated
-              />
+              <BrandLogo brand={brand} size={64} tone="filled" fit="cover" elevated />
             </View>
             <View style={styles.summaryText}>
               <Text style={styles.offerTitle}>{deal.title}</Text>

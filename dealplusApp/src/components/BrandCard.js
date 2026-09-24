@@ -17,7 +17,7 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge, selected = fals
     return (
       <Animated.View style={animatedStyle}>
         <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.avatarCard}>
-          <BrandLogo initials={brand.initials} logoUrl={brand.logoUrl} website={brand.website} size={64} tone="filled" />
+          <BrandLogo brand={brand} size={64} tone="filled" />
           <Text style={styles.avatarName} numberOfLines={1}>
             {brand.name}
           </Text>
@@ -30,14 +30,7 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge, selected = fals
     return (
       <Animated.View style={animatedStyle}>
         <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.storeCard}>
-          <BrandLogo
-            initials={brand.initials}
-            logoUrl={brand.logoUrl}
-            website={brand.website}
-            size={56}
-            fit="contain"
-            shape="plain"
-          />
+          <BrandLogo brand={brand} size={56} fit="contain" shape="plain" />
         </Pressable>
       </Animated.View>
     );
@@ -58,14 +51,7 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge, selected = fals
               <Icon name="checkmark" size={12} color={colors.primary} />
             </View>
           ) : null}
-          <BrandLogo
-            initials={brand.initials}
-            logoUrl={brand.logoUrl}
-            website={brand.website}
-            size={64}
-            fit="contain"
-            tone="outline"
-          />
+          <BrandLogo brand={brand} size={64} fit="contain" tone="outline" />
           <Text style={[styles.tileName, selected && styles.tileNameSelected]} numberOfLines={1}>
             {brand.name}
           </Text>
@@ -78,7 +64,7 @@ const BrandCard = ({ brand, onPress, variant = 'default', badge, selected = fals
     <Animated.View style={animatedStyle}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.card}>
         <View style={styles.logoWrap}>
-          <BrandLogo initials={brand.initials} logoUrl={brand.logoUrl} website={brand.website} size={64} tone="filled" />
+          <BrandLogo brand={brand} size={64} tone="filled" />
           {badge && (
             <View style={styles.badgeWrap}>
               <SaleBadge label={badge} tone="red" />

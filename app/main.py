@@ -68,7 +68,7 @@ from app.api.routers.health import router as health_router  # noqa: E402
 app.include_router(health_router)
 
 from app.api.routers import (  # noqa: E402
-    analytics, auth, automation, brand_discovery, brand_requests, brands, emails, insights, jobs, notifications,
+    analytics, auth, automation, brand_discovery, brand_requests, brands, categories, emails, insights, jobs, notifications,
     offers, overview, preferences, search, settings, social_scraper, unknown_emails, website_scraper,
 )
 
@@ -79,6 +79,7 @@ app.include_router(insights.router)
 app.include_router(search.router)
 app.include_router(offers.router)
 app.include_router(brands.router)
+app.include_router(categories.router)
 app.include_router(brand_requests.router)
 app.include_router(brand_discovery.router)
 app.include_router(social_scraper.router)

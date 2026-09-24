@@ -46,14 +46,7 @@ function AlertRow({ item, brand, onPress, colors, styles }) {
     <Animated.View style={animatedStyle}>
       <Pressable style={[styles.card, urgent && styles.cardUrgent]} onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
         {brand ? (
-          <BrandLogo
-            initials={brand.initials}
-            logoUrl={brand.logoUrl}
-            website={brand.website}
-            size={52}
-            tone="filled"
-            fit="cover"
-          />
+          <BrandLogo brand={brand} size={52} tone="filled" fit="cover" />
         ) : (
           <View style={[styles.iconCircle, { backgroundColor: item.read ? colors.backgroundElement : CIRCLE_BG[item.kind] }]}>
             <Icon

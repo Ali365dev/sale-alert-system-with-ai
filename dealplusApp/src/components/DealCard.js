@@ -92,15 +92,7 @@ const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo
           accessibilityRole="button"
           accessibilityLabel={`${headline}. ${subtitle}`}>
           <View style={[styles.logoBox, grid && styles.logoBoxGrid]}>
-            <BrandLogo
-              initials={brand?.initials ?? letter}
-              logoUrl={brand?.logoUrl}
-              website={brand?.website}
-              size={grid ? 40 : 34}
-              shape="plain"
-              fit="contain"
-              tone="outline"
-            />
+            <BrandLogo brand={brand} initials={brand?.initials ?? letter} size={grid ? 40 : 34} shape="plain" fit="contain" tone="outline" />
           </View>
 
           <View style={[styles.offerBody, grid && styles.offerBodyGrid]}>

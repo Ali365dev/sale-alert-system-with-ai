@@ -155,13 +155,7 @@ const SearchScreen = () => {
                 <View style={styles.chipRow}>
                   {storeSearches.map((brand) => (
                     <Pressable key={brand.id} style={styles.storeChip} onPress={() => openBrand(brand)}>
-                      <BrandLogo
-                        initials={brand.initials}
-                        logoUrl={brand.logoUrl}
-                        website={brand.website}
-                        size={22}
-                        tone="filled"
-                      />
+                      <BrandLogo brand={brand} size={22} tone="filled" />
                       <Text style={styles.chipLabel} numberOfLines={1}>
                         {brand.name}
                       </Text>
@@ -184,13 +178,7 @@ const SearchScreen = () => {
                         key={brand.id}
                         style={[styles.storeRow, index === popularStores.length - 1 && styles.storeRowLast]}
                         onPress={() => openBrand(brand)}>
-                        <BrandLogo
-                          initials={brand.initials}
-                          logoUrl={brand.logoUrl}
-                          website={brand.website}
-                          size={36}
-                          tone="filled"
-                        />
+                        <BrandLogo brand={brand} size={36} tone="filled" />
                         <Text style={styles.storeName} numberOfLines={1}>
                           {brand.name}
                         </Text>

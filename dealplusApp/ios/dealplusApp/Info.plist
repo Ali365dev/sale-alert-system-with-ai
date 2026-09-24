@@ -62,5 +62,16 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.254426897331-1jnk5399j8nqf96f6pifr3qvs26po2dv</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

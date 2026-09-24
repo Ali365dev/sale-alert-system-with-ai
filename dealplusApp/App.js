@@ -1,5 +1,5 @@
-import { StatusBar } from 'react-native';
-import React, { useEffect } from 'react';
+import { StatusBar, AppState } from 'react-native';
+import React, { useEffect, useRef } from 'react';
 import { initialize as initializeClarity } from '@microsoft/react-native-clarity';
 import Navigation from './src/navigation/Navigation';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -31,6 +31,7 @@ function hideNativeSplash() {
 
 const App = () => {
   const { isDark, colors } = useTheme();
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     hideNativeSplash();
@@ -48,6 +49,16 @@ const App = () => {
 
     loadDeals();
 
+    // Re-fetch brands/offers when returning to the app so dashboard logo
+    // (and other) edits show up without force-killing the process.
+    const sub = AppState.addEventListener('change', (next) => {
+      const wasBackground = appState.current.match(/inactive|background/);
+      appState.current = next;
+      if (wasBackground && next === 'active') {
+        loadDeals();
+      }
+    });
+
     // Best-effort: a denied permission or a registration failure should
     // never block app startup, so nothing here is awaited into the render path.
     let unsubscribeTokenRefresh;
@@ -64,6 +75,7 @@ const App = () => {
     })();
 
     return () => {
+      sub.remove();
       unsubscribeTokenRefresh?.();
       unsubscribePushListeners?.();
     };

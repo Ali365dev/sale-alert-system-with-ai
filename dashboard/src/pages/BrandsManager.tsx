@@ -13,9 +13,11 @@ import {
   useSearchBrand,
   useSearchBrandStatus,
   useUpdateBrand,
+  useUpdateBrandLogo,
 } from "../api/brands";
 import { BrandForm } from "../components/brands/BrandForm";
-import { BrandLogo } from "../components/public/BrandLogo";
+import { BrandLogo } from "../components/brands/BrandLogo";
+import { LogoEditorModal } from "../components/brands/LogoEditorModal";
 import { Badge } from "../components/ui/Badge";
 import { Button, IconButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
@@ -189,7 +191,9 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
   const navigate = useNavigate();
   const deleteBrand = useDeleteBrand();
   const updateBrand = useUpdateBrand();
+  const updateLogo = useUpdateBrandLogo();
   const [editing, setEditing] = useState<Brand | null>(null);
+  const [logoEditing, setLogoEditing] = useState<Brand | null>(null);
   const [query, setQuery] = useState("");
   const [statusTab, setStatusTab] = useState<"" | "active" | "inactive">("");
   const bulkSearch = useBulkSearchBrands();
@@ -328,7 +332,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "50px 46px 140px 60px 120px 1fr 80px 160px 160px",
+                gridTemplateColumns: "50px 72px 140px 60px 120px 1fr 80px 160px 220px",
                 gap: 12,
                 padding: "11px 20px",
                 background: "var(--surface-sunken)",
@@ -341,7 +345,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
               }}
             >
               <span>ID</span>
-              <span>Logo</span>
+              <span>Logo preview</span>
               <span>Name</span>
               <span>Website</span>
               <span>Social</span>
@@ -362,7 +366,7 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                 title={`View offers from ${b.name}`}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "50px 46px 140px 60px 120px 1fr 80px 160px 160px",
+                  gridTemplateColumns: "50px 72px 140px 60px 120px 1fr 80px 160px 220px",
                   alignItems: "center",
                   gap: 12,
                   padding: "var(--row-pad) 20px",
@@ -372,7 +376,20 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                 }}
               >
                 <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{b.id}</span>
-                <BrandLogo name={b.name} size={30} />
+                <div onClick={(e) => e.stopPropagation()} title={b.logo_url ? "App logo preview" : "Logo unavailable"}>
+                  <BrandLogo
+                    name={b.name}
+                    logoUrl={b.logo_url}
+                    website={b.website}
+                    size={52}
+                    circle
+                    transform={{
+                      logo_scale: b.logo_scale ?? 1,
+                      logo_offset_x: b.logo_offset_x ?? 0,
+                      logo_offset_y: b.logo_offset_y ?? 0,
+                    }}
+                  />
+                </div>
                 <span style={{ fontWeight: 600, color: "var(--text-strong)" }}>{b.name}</span>
                 <span>
                   {b.website ? (
@@ -413,7 +430,10 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                 </span>
                 <span>{b.is_active ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Inactive</Badge>}</span>
                 <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(b.last_searched)}</span>
-                <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="secondary" onClick={() => setLogoEditing(b)}>
+                    Logo
+                  </Button>
                   <IconButton
                     icon={<Icon.globe size={14} />}
                     label="Re-discover this brand"
@@ -450,6 +470,22 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
             onSubmit={(input) => updateBrand.mutate({ id: editing.id, input }, { onSuccess: () => setEditing(null) })}
           />
         </Modal>
+      )}
+
+      {logoEditing && (
+        <LogoEditorModal
+          brand={logoEditing}
+          submitting={updateLogo.isPending}
+          onClose={() => setLogoEditing(null)}
+          onSave={(input) =>
+            updateLogo.mutate(
+              { id: logoEditing.id, input },
+              {
+                onSuccess: () => setLogoEditing(null),
+              },
+            )
+          }
+        />
       )}
     </>
   );

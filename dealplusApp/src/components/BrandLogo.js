@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import FastImage from '@d11/react-native-fast-image';
 import useTheme from '../hooks/useTheme';
+import { LOGO_FILL_RATIO, normalizeLogoTransform } from '../utils/logoDisplay';
 
 /** RN paints these without a proxy. SVG/ICO need another source. */
 const UNRELIABLE_LOGO = /\.(svg|ico)(\?|$)/i;
@@ -27,13 +28,12 @@ const encodeLogoUrl = (logo) => {
   }
 };
 
+const weservUrl = (logo) => `https://images.weserv.nl/?url=${encodeLogoUrl(logo)}&output=png&w=256`;
+
 /**
  * Ordered candidate URIs for a brand mark.
- * 1. Stored logo (any non-SVG/ICO http URL — many CDNs omit extensions)
- * 2. Google favicon for the brand website (reliable for most stores)
- * 3. DuckDuckGo icon
- * 4. Clearbit (last — often returns a blank tile that still "loads")
- * 5. Weserv rasterization for SVG/ICO / odd CDN URLs
+ * When an admin-saved logo_url exists, try it (and a weserv rasterization)
+ * before any host favicon/Clearbit fallbacks so dashboard saves win.
  */
 export const logoCandidateUris = (logoUrl, website) => {
   const uris = [];
@@ -43,19 +43,18 @@ export const logoCandidateUris = (logoUrl, website) => {
 
   if (logo && HTTP_URL.test(logo) && !unreliable) {
     uris.push(logo);
+    // Same asset via weserv — recovers CDN/CORS/odd Content-Type failures
+    // that still paint fine in the dashboard <img>.
+    uris.push(weservUrl(logo));
+  } else if (logo && unreliable) {
+    uris.push(weservUrl(logo));
   }
 
   if (host) {
     uris.push(`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`);
     uris.push(`https://icons.duckduckgo.com/ip3/${encodeURIComponent(host)}.ico`);
+    // Clearbit last — often returns a blank tile that still "loads"
     uris.push(`https://logo.clearbit.com/${encodeURIComponent(host)}`);
-  }
-
-  if (logo && unreliable) {
-    uris.push(`https://images.weserv.nl/?url=${encodeLogoUrl(logo)}&output=png&w=256`);
-  } else if (logo && HTTP_URL.test(logo) && !unreliable) {
-    // Extension-less / odd CDN URLs — retry via weserv if direct fetch fails
-    uris.push(`https://images.weserv.nl/?url=${encodeLogoUrl(logo)}&output=png&w=256`);
   }
 
   return [...new Set(uris)];
@@ -65,38 +64,71 @@ export const logoCandidateUris = (logoUrl, website) => {
 export const resolvableLogoUri = (logoUrl, website) => logoCandidateUris(logoUrl, website)[0] ?? null;
 
 /** Real logo when available, otherwise website favicon, otherwise initials.
+ * Applies admin-saved scale / offset so dashboard preview and app match.
  * `shape="plain"` skips the circular crop — used for directory / grid tiles. */
-const BrandLogo = ({ initials, logoUrl, website, size = 56, tone = 'outline', fit = 'contain', elevated = false, shape = 'circle' }) => {
+const BrandLogo = ({
+  brand,
+  initials,
+  logoUrl,
+  website,
+  size = 56,
+  tone = 'outline',
+  fit = 'contain',
+  elevated = false,
+  shape = 'circle',
+  logoScale,
+  logoOffsetX,
+  logoOffsetY,
+}) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isFilled = tone === 'filled';
   const cover = fit === 'cover';
   const plain = shape === 'plain';
-  const candidates = useMemo(() => logoCandidateUris(logoUrl, website), [logoUrl, website]);
+  const resolvedInitials = initials ?? brand?.initials;
+  const resolvedLogoUrl = logoUrl ?? brand?.logoUrl;
+  const resolvedWebsite = website ?? brand?.website;
+  const candidates = useMemo(
+    () => logoCandidateUris(resolvedLogoUrl, resolvedWebsite),
+    [resolvedLogoUrl, resolvedWebsite],
+  );
   const [index, setIndex] = useState(0);
   const [gaveUp, setGaveUp] = useState(false);
   const loadedRef = useRef(false);
+  const transform = useMemo(
+    () =>
+      normalizeLogoTransform({
+        logoScale: logoScale ?? brand?.logoScale,
+        logoOffsetX: logoOffsetX ?? brand?.logoOffsetX,
+        logoOffsetY: logoOffsetY ?? brand?.logoOffsetY,
+      }),
+    [logoScale, logoOffsetX, logoOffsetY, brand?.logoScale, brand?.logoOffsetX, brand?.logoOffsetY],
+  );
 
   useEffect(() => {
     setIndex(0);
     setGaveUp(false);
     loadedRef.current = false;
-  }, [logoUrl, website]);
+  }, [resolvedLogoUrl, resolvedWebsite]);
 
   useEffect(() => {
     loadedRef.current = false;
   }, [index]);
 
   const uri = !gaveUp ? candidates[index] ?? null : null;
-  const source = useMemo(
-    () => (uri ? { uri, priority: FastImage.priority.normal, cache: FastImage.cacheControl.web } : null),
-    [uri],
-  );
+  const source = useMemo(() => {
+    if (!uri) return null;
+    return {
+      uri,
+      priority: FastImage.priority.normal,
+      // Prefer fresh bytes when admins change the logo URL/CDN asset.
+      cache: FastImage.cacheControl.web,
+    };
+  }, [uri]);
 
   const disk = { width: size, height: size, borderRadius: plain ? Math.min(12, size * 0.18) : size / 2 };
 
   const onImageError = () => {
-    // Ignore late errors after this URI already painted successfully.
     if (loadedRef.current) return;
     if (index >= candidates.length - 1) {
       setGaveUp(true);
@@ -107,18 +139,28 @@ const BrandLogo = ({ initials, logoUrl, website, size = 56, tone = 'outline', fi
 
   const mark = (() => {
     if (source) {
-      const imageSize = plain || cover ? size * 0.78 : size * 0.72;
+      const imageSize = size * LOGO_FILL_RATIO * transform.logoScale;
+      // FastImage often ignores style.transform — pan/zoom on a wrapper View.
+      const pan = {
+        transform: [
+          { translateX: transform.logoOffsetX * size },
+          { translateY: transform.logoOffsetY * size },
+        ],
+      };
       return (
         <View style={[styles.circle, plain ? styles.plainWrap : cover ? styles.coverWrap : styles.imageWrap, disk]}>
-          <FastImage
-            source={source}
-            onLoad={() => {
-              loadedRef.current = true;
-            }}
-            onError={onImageError}
-            style={{ width: imageSize, height: imageSize }}
-            resizeMode={cover ? FastImage.resizeMode.cover : FastImage.resizeMode.contain}
-          />
+          <View style={pan}>
+            <FastImage
+              key={`${uri}-${imageSize}`}
+              source={source}
+              onLoad={() => {
+                loadedRef.current = true;
+              }}
+              onError={onImageError}
+              style={{ width: imageSize, height: imageSize }}
+              resizeMode={cover ? FastImage.resizeMode.cover : FastImage.resizeMode.contain}
+            />
+          </View>
         </View>
       );
     }
@@ -132,7 +174,7 @@ const BrandLogo = ({ initials, logoUrl, website, size = 56, tone = 'outline', fi
             fontWeight: '700',
             color: isFilled && !plain ? '#FFFFFF' : colors.text,
           }}>
-          {initials || '?'}
+          {resolvedInitials || '?'}
         </Text>
       </View>
     );

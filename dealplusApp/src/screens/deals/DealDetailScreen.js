@@ -67,7 +67,7 @@ const DealDetailScreen = () => {
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.summaryCard}>
-          <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} website={brand?.website} size={56} tone="filled" />
+          <BrandLogo initials={brand?.initials ?? '?'} logoUrl={brand?.logoUrl} website={brand?.website} logoScale={brand?.logoScale} logoOffsetX={brand?.logoOffsetX} logoOffsetY={brand?.logoOffsetY} size={56} tone="filled" />
           <View style={styles.summaryBody}>
             <Text style={styles.brandName}>{brand?.name ?? 'Unknown brand'}</Text>
             <Text style={styles.offerTitle} numberOfLines={2}>

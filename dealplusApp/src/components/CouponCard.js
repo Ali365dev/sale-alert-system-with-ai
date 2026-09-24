@@ -67,15 +67,7 @@ const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => 
         accessibilityRole="button"
         accessibilityLabel={`${name} ${percent} discount`}>
         <View style={styles.vTop}>
-          <BrandLogo
-            initials={brand?.initials}
-            logoUrl={brand?.logoUrl}
-            website={brand?.website}
-            size={68}
-            tone="filled"
-            fit="cover"
-            elevated
-          />
+          <BrandLogo brand={brand} size={68} tone="filled" fit="cover" elevated />
           <Text style={styles.vName} numberOfLines={1}>
             {name}
           </Text>
@@ -110,15 +102,7 @@ const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => 
       accessibilityRole="button"
       accessibilityLabel={`${name} ${percent} discount`}>
       <View style={styles.hLeft}>
-        <BrandLogo
-          initials={brand?.initials}
-          logoUrl={brand?.logoUrl}
-          website={brand?.website}
-          size={52}
-          tone="filled"
-          fit="cover"
-          elevated
-        />
+        <BrandLogo brand={brand} size={52} tone="filled" fit="cover" elevated />
         <Text style={styles.hBrandName} numberOfLines={1}>
           {name}
         </Text>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { Brand, BrandInput } from "../../api/brands";
+import { BrandLogo } from "./BrandLogo";
 import { Button } from "../ui/Button";
 import { Label, TextArea, TextInput } from "../ui/Field";
 
@@ -85,16 +86,22 @@ export function BrandForm({
             style={{ flex: 1 }}
           />
           {form.logo_url.trim() && (
-            <img
-              src={form.logo_url.trim()}
-              alt=""
-              style={{ width: 36, height: 36, borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", objectFit: "contain", background: "var(--surface-card)" }}
-              onError={(e) => {
-                e.currentTarget.style.visibility = "hidden";
-              }}
-              onLoad={(e) => {
-                e.currentTarget.style.visibility = "visible";
-              }}
+            <BrandLogo
+              name={form.name || "Brand"}
+              logoUrl={form.logo_url.trim()}
+              website={form.website.trim() || null}
+              size={52}
+              circle
+              strictUrl
+              transform={
+                initial
+                  ? {
+                      logo_scale: initial.logo_scale,
+                      logo_offset_x: initial.logo_offset_x,
+                      logo_offset_y: initial.logo_offset_y,
+                    }
+                  : null
+              }
             />
           )}
         </div>

@@ -5,6 +5,7 @@ import { ToastContainer } from "./components/ui/ToastContainer";
 import { Analytics } from "./pages/Analytics";
 import { BrandRequests } from "./pages/BrandRequests";
 import { BrandsManager } from "./pages/BrandsManager";
+import { CategoriesManager } from "./pages/CategoriesManager";
 import { DiscoverBrand } from "./pages/DiscoverBrand";
 import { EmailManager } from "./pages/EmailManager";
 import { Insights } from "./pages/Insights";
@@ -93,6 +94,14 @@ function App() {
           element={
             <AppShell title="Brands manager">
               <BrandsManager />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/manage-categories"
+          element={
+            <AppShell title="Categories">
+              <CategoriesManager />
             </AppShell>
           }
         />

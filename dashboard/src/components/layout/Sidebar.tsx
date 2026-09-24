@@ -14,6 +14,7 @@ const MAIN_ITEMS: NavItem[] = [
   { to: "/search", label: "Search", icon: Icon.search },
   { to: "/offers", label: "Offers Manager", icon: Icon.offer },
   { to: "/brands", label: "Brands Manager", icon: Icon.home },
+  { to: "/manage-categories", label: "Categories", icon: Icon.grid },
   { to: "/discover-brand", label: "Discover Brand", icon: Icon.globe },
   { to: "/offer-discovery", label: "Offer Discovery", icon: Icon.sparkle },
   { to: "/social-scraper-test", label: "Social Scraper Test", icon: Icon.instagram },

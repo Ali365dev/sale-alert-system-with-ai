@@ -29,7 +29,7 @@ const HeroCarousel = ({ deals, brandsById, onPressDeal }) => {
               <View style={styles.textCol}>
                 {brand?.name ? (
                   <View style={styles.brandBadge}>
-                    <BrandLogo initials={brand.initials} logoUrl={brand.logoUrl} website={brand.website} size={28} tone="filled" />
+                    <BrandLogo brand={brand} size={28} tone="filled" />
                     <Text style={[styles.brandName, !isYellow && styles.onPink]} numberOfLines={1}>
                       {brand.name}
                     </Text>

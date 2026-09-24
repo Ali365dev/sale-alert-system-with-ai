@@ -1,5 +1,6 @@
 import auth from '@react-native-firebase/auth';
-import { GOOGLE_WEB_CLIENT_ID } from './config';
+import { Platform } from 'react-native';
+import { GOOGLE_IOS_CLIENT_ID, GOOGLE_WEB_CLIENT_ID } from './config';
 import { hasTurboModule, shouldLoadNativePackage } from '../utils/turboModules';
 
 const NATIVE_MODULE_NAME = 'RNGoogleSignin';
@@ -31,7 +32,13 @@ export const configureGoogleSignIn = () => {
   if (!GOOGLE_WEB_CLIENT_ID) return;
   const GoogleSignin = loadGoogleSignin();
   if (!GoogleSignin) return;
-  GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+  const config = { webClientId: GOOGLE_WEB_CLIENT_ID, offlineAccess: false };
+  // iOS client ID from GoogleService-Info.plist — helps the native SDK pick
+  // the correct OAuth client when multiple are registered on the Firebase project.
+  if (Platform.OS === 'ios' && GOOGLE_IOS_CLIENT_ID) {
+    config.iosClientId = GOOGLE_IOS_CLIENT_ID;
+  }
+  GoogleSignin.configure(config);
 };
 
 /** Runs the native Google account picker, then exchanges the resulting
@@ -51,13 +58,19 @@ export const signInWithGoogle = async () => {
     throw missing;
   }
 
-  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    const unconfigured = new Error('Google Sign-In is not configured (missing web client ID).');
+    unconfigured.code = 'NOT_CONFIGURED';
+    throw unconfigured;
+  }
+
+  // Play Services check is Android-only — calling it on iOS can fail the flow.
+  if (Platform.OS === 'android') {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  }
 
   // v13+ of this library wraps the result as { type: 'success', data: User }
   // or { type: 'cancelled', data: null } — it is NOT `{ idToken }` directly.
-  // Destructuring idToken off the top-level response (an earlier version of
-  // this function did) silently gives undefined, which Firebase then fails
-  // on with an opaque native-bridge error rather than a clear one.
   const response = await GoogleSignin.signIn();
   if (response.type !== 'success') {
     const cancelled = new Error('Google sign-in was cancelled.');
@@ -65,9 +78,11 @@ export const signInWithGoogle = async () => {
     throw cancelled;
   }
 
-  const { idToken } = response.data;
+  const { idToken } = response.data ?? {};
   if (!idToken) {
-    throw new Error('Google did not return an ID token — check that GOOGLE_WEB_CLIENT_ID in config.js is correct.');
+    throw new Error(
+      'Google did not return an ID token — check that GOOGLE_WEB_CLIENT_ID in config.js matches the Web client in Firebase, and that the iOS URL scheme (REVERSED_CLIENT_ID) is set in Info.plist.',
+    );
   }
 
   const credential = auth.GoogleAuthProvider.credential(idToken);

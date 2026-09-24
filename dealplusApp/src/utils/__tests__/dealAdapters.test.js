@@ -236,6 +236,19 @@ describe('deriveCategories', () => {
     expect(categories.find((c) => c.name === 'Food')).toMatchObject({ dealCount: 0 });
     expect(categories.find((c) => c.name === 'Technology')).toMatchObject({ dealCount: 0 });
   });
+
+  test('managed admin categories become the sole source list (with offer counts attached)', () => {
+    const offers = [{ category: 'Fashion' }, { category: 'Fashion' }];
+    const managed = [
+      { name: 'Shoes', is_active: true, sort_order: 10 },
+      { name: 'Fashion', is_active: true, sort_order: 20 },
+      { name: 'Hidden', is_active: false, sort_order: 5 },
+    ];
+    const categories = deriveCategories(offers, [], managed);
+    expect(categories.map((c) => c.name)).toEqual(['Shoes', 'Fashion']);
+    expect(categories.find((c) => c.name === 'Fashion')).toMatchObject({ dealCount: 2 });
+    expect(categories.find((c) => c.name === 'Shoes')).toMatchObject({ dealCount: 0 });
+  });
 });
 
 describe('filterForYou', () => {

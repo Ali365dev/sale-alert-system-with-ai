@@ -7,9 +7,11 @@ import json
 import threading
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 
+from app.api.logo_display import apply_logo_body, logo_fields_from_brand
+from app.core.security import require_admin
 from database.db import get_session
 from database.models import Brand, Offer
 
@@ -29,7 +31,7 @@ def _brand_to_dict(b: Brand) -> dict:
         "is_active": b.is_active,
         "last_searched": b.last_searched.isoformat() if b.last_searched else None,
         "created_at": b.created_at.isoformat() if b.created_at else None,
-        "logo_url": b.logo_url,
+        **logo_fields_from_brand(b),
         "description": b.description,
         "country": b.country,
         "social_links": json.loads(b.social_links) if b.social_links else {},
@@ -88,7 +90,7 @@ def list_brands():
     }
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(require_admin)])
 def create_brand(body: dict = Body(...)):
     name = (body.get("name") or "").strip()
     if not name:
@@ -112,12 +114,13 @@ def create_brand(body: dict = Body(...)):
             custom_scrape_urls=json.dumps(body.get("custom_scrape_urls")) if body.get("custom_scrape_urls") else None,
             website_scraping_enabled=bool(body.get("website_scraping_enabled", True)),
         )
+        apply_logo_body(brand, body)
         session.add(brand)
         session.flush()
         return JSONResponse(_brand_to_dict(brand), status_code=201)
 
 
-@router.put("/{brand_id}")
+@router.put("/{brand_id}", dependencies=[Depends(require_admin)])
 def update_brand(brand_id: int, body: dict = Body(...)):
     with get_session() as session:
         b = session.query(Brand).filter(Brand.id == brand_id).first()
@@ -134,8 +137,6 @@ def update_brand(brand_id: int, body: dict = Body(...)):
             b.emails = json.dumps(body["emails"]) if body["emails"] else None
         if "is_active" in body:
             b.is_active = bool(body["is_active"])
-        if "logo_url" in body:
-            b.logo_url = (body["logo_url"] or "").strip() or None
         if "description" in body:
             b.description = (body["description"] or "").strip() or None
         if "country" in body:
@@ -150,11 +151,25 @@ def update_brand(brand_id: int, body: dict = Body(...)):
         if "website_scraping_enabled" in body:
             b.website_scraping_enabled = bool(body["website_scraping_enabled"])
 
+        apply_logo_body(b, body, reset=bool(body.get("reset_logo_transform")))
+
         session.flush()
         return _brand_to_dict(b)
 
 
-@router.delete("/{brand_id}")
+@router.put("/{brand_id}/logo", dependencies=[Depends(require_admin)])
+def update_brand_logo(brand_id: int, body: dict = Body(...)):
+    """Dedicated logo transform endpoint — same fields as PUT /brands/{id}."""
+    with get_session() as session:
+        b = session.query(Brand).filter(Brand.id == brand_id).first()
+        if b is None:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        apply_logo_body(b, body, reset=bool(body.get("reset_logo_transform")))
+        session.flush()
+        return _brand_to_dict(b)
+
+
+@router.delete("/{brand_id}", dependencies=[Depends(require_admin)])
 def delete_brand(brand_id: int):
     with get_session() as session:
         b = session.query(Brand).filter(Brand.id == brand_id).first()
