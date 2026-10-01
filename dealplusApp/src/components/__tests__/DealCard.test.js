@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import DealCard from '../DealCard';
+import useFavoritesStore from '../../state/favoritesStore';
 
 jest.mock('../../utils/CustomToast', () => ({
   showSuccessToast: jest.fn(),
@@ -48,8 +49,17 @@ test('pressing the card body calls onPress', async () => {
   expect(onPress).toHaveBeenCalledTimes(1);
 });
 
+test('showUnfavorite removes the deal from favorites', async () => {
+  useFavoritesStore.setState({ favoriteIds: ['deal-1'] });
+  const { getByLabelText } = await render(
+    <DealCard deal={baseDeal} brand={brand} showUnfavorite onPress={() => {}} />,
+  );
+  await fireEvent.press(getByLabelText('Remove from favorites'));
+  expect(useFavoritesStore.getState().favoriteIds).toEqual([]);
+});
+
 test('offer variant shows the Figma headline, subtitle, channel, and heart', async () => {
-  const { getByText, getByLabelText } = await render(
+  const { getByText, getAllByLabelText } = await render(
     <DealCard
       variant="offer"
       deal={{ ...baseDeal, expiresAt: '2027-05-25T12:00:00Z' }}
@@ -61,5 +71,5 @@ test('offer variant shows the Figma headline, subtitle, channel, and heart', asy
   expect(getByText('Summer Sale')).toBeTruthy();
   expect(getByText('Online')).toBeTruthy();
   expect(getByText('Exp: 25 May 2027')).toBeTruthy();
-  expect(getByLabelText('Add to favorites')).toBeTruthy();
+  expect(getAllByLabelText('Add to favorites').length).toBeGreaterThan(0);
 });

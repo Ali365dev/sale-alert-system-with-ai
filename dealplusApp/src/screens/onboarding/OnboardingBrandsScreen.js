@@ -39,8 +39,8 @@ const OnboardingBrandsScreen = () => {
 
   const filteredBrands = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return brands;
-    return brands.filter((b) => b.name.toLowerCase().includes(q));
+    const list = q ? brands.filter((b) => b.name.toLowerCase().includes(q)) : brands;
+    return [...list].sort((a, b) => (b.dealCount || 0) - (a.dealCount || 0) || a.name.localeCompare(b.name));
   }, [brands, query]);
 
   const finish = () => {

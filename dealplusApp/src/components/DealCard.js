@@ -59,7 +59,7 @@ const badgeStyles = StyleSheet.create({
 });
 
 /** Figma deals-list card (`offer` / `offerGrid`) or the original promo row. */
-const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo' }) => {
+const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo', showUnfavorite = false }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale(0.98);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -91,8 +91,17 @@ const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo
           style={[styles.offerCard, grid && styles.offerCardGrid]}
           accessibilityRole="button"
           accessibilityLabel={`${headline}. ${subtitle}`}>
-          <View style={[styles.logoBox, grid && styles.logoBoxGrid]}>
-            <BrandLogo brand={brand} initials={brand?.initials ?? letter} size={grid ? 40 : 34} shape="plain" fit="contain" tone="outline" />
+          <View style={[styles.logoBox, grid && styles.logoBoxGrid, { backgroundColor: tileColorFor(name) }]}>
+            <BrandLogo
+              brand={brand}
+              initials={brand?.initials ?? letter}
+              website={brand?.website || deal.website}
+              size={grid ? 48 : 56}
+              shape="plain"
+              bare
+              fit="contain"
+              tone="outline"
+            />
           </View>
 
           <View style={[styles.offerBody, grid && styles.offerBodyGrid]}>
@@ -148,6 +157,16 @@ const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo
           </Text>
         </View>
 
+        {showUnfavorite ? (
+          <View style={styles.unfavorite}>
+            <FavoriteButton
+              active
+              onPress={() => toggleFavoriteDeal(deal.id)}
+              size={20}
+              tint={colors.primary}
+            />
+          </View>
+        ) : null}
         <Pressable
           onPress={code ? onCopy : onPress}
           style={styles.copyBtn}
@@ -214,6 +233,9 @@ const createStyles = (colors) =>
       fontSize: 13,
       lineHeight: 16,
     },
+    unfavorite: {
+      marginRight: 10,
+    },
     copyBtn: {
       backgroundColor: colors.primary,
       borderRadius: 8,
@@ -239,10 +261,10 @@ const createStyles = (colors) =>
       position: 'relative',
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.surface,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: '#F1F4F8',
+      borderColor: colors.border,
       padding: 15,
       shadowColor: '#10243A',
       shadowOffset: { width: 0, height: 2 },
@@ -258,19 +280,17 @@ const createStyles = (colors) =>
       minHeight: 176,
     },
     logoBox: {
-      width: 52,
-      height: 52,
-      borderRadius: 12,
-      backgroundColor: '#FFFFFF',
-      borderWidth: 1,
-      borderColor: '#F3F4F6',
+      width: 56,
+      height: 56,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
     },
     logoBoxGrid: {
-      width: 44,
-      height: 44,
+      width: 48,
+      height: 48,
+      borderRadius: 14,
       marginBottom: 10,
     },
     offerBody: {
@@ -295,7 +315,7 @@ const createStyles = (colors) =>
       fontSize: 11.5,
       lineHeight: 17,
       fontWeight: '400',
-      color: '#687787',
+      color: colors.textSecondary,
     },
     offerMeta: {
       flexDirection: 'row',
@@ -307,7 +327,7 @@ const createStyles = (colors) =>
     offerExp: {
       fontSize: 10.5,
       lineHeight: 16,
-      color: '#9CA3AF',
+      color: colors.mutedInk,
       fontWeight: '400',
     },
     heart: {

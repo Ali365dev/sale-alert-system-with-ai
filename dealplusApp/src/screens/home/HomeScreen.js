@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
   Dimensions,
   Image,
   Pressable,
@@ -9,16 +10,18 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Icon from 'react-native-vector-icons/Ionicons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import CategoryIcon from '../../components/CategoryIcon';
 import { SHADOWS } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useAuthStore from '../../state/authStore';
 import useDataStore from '../../state/dataStore';
+import usePreferencesStore from '../../state/preferencesStore';
 import { loadDeals } from '../../services/dealsService';
+import { iconForCategory, orderDealsByPreference } from '../../utils/dealAdapters';
 import { showSuccessToast } from '../../utils/CustomToast';
 import CouponCard from '../../components/CouponCard';
 import { useCouponSheet } from '../../components/CouponSheet';
@@ -33,6 +36,8 @@ const BANNER_W = SCREEN_W - PAD * 2;
 const BANNER_GAP = 12;
 // Tallest slide (1024×395) sets carousel height so neither image is cropped.
 const BANNER_H = Math.round(BANNER_W * (395 / 1024));
+const BANNER_STRIDE = BANNER_W + BANNER_GAP;
+const BANNER_INTERVAL_MS = 4000;
 
 const PROMO_BANNERS = [
   {
@@ -49,15 +54,6 @@ const PROMO_BANNERS = [
   },
 ];
 
-const CATEGORY_ITEMS = [
-  { id: 'all', label: 'All', icon: 'view-grid-outline', lib: 'mci' },
-  { id: 'Fashion', label: 'Fashion', icon: 'tshirt-crew-outline', lib: 'mci' },
-  { id: 'Watches', label: 'Watches', icon: 'watch-outline', lib: 'ion' },
-  { id: 'Beauty', label: 'Beauty', icon: 'sparkles-outline', lib: 'ion' },
-  { id: 'Dining', label: 'Dining', icon: 'restaurant-outline', lib: 'ion' },
-  { id: 'Tech', label: 'Tech', icon: 'phone-portrait-outline', lib: 'ion' },
-];
-
 const firstName = (raw) => {
   const value = (raw || '').trim();
   if (!value) return 'there';
@@ -67,26 +63,47 @@ const firstName = (raw) => {
 /** Exact home UI from provided screenshot. */
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const deals = useDataStore((state) => state.deals);
+  const categories = useDataStore((state) => state.categories);
   const brands = useDataStore((state) => state.brands);
   const brandsById = useDataStore((state) => state.brandsById);
   const loading = useDataStore((state) => state.loading);
   const error = useDataStore((state) => state.error);
   const user = useAuthStore((state) => state.user);
+  const followedBrands = usePreferencesStore((state) => state.followedBrands);
+  const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
   const greeting = user
     ? `Hi, ${firstName(user.name || user.displayName)} 👋`
     : 'Hi there! 👋';
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerRef = useRef(null);
+  const bannerIndexRef = useRef(0);
+  const bannerPauseUntil = useRef(0);
   const [gridView, setGridView] = useViewMode(false);
   const { openCoupon, couponSheet } = useCouponSheet();
 
+  const categoryItems = useMemo(() => {
+    const sorted = [...categories].sort(
+      (a, b) => (b.dealCount || 0) - (a.dealCount || 0) || a.name.localeCompare(b.name),
+    );
+    return [
+      { id: 'all', label: 'All', icon: 'grid' },
+      ...sorted.map((category) => ({
+        id: category.name,
+        label: category.name,
+        icon: iconForCategory(category.name),
+      })),
+    ];
+  }, [categories]);
+
   const couponList = useMemo(() => {
-    let list = [...deals];
+    let list = deals;
     if (activeCategory !== 'all') {
       list = list.filter((d) => {
         const brand = brandsById[d.brandId];
@@ -94,8 +111,8 @@ const HomeScreen = () => {
         return cat.includes(activeCategory.toLowerCase());
       });
     }
-    return list;
-  }, [deals, brandsById, activeCategory]);
+    return orderDealsByPreference(list, followedBrands, favoriteCategories);
+  }, [deals, brandsById, activeCategory, followedBrands, favoriteCategories]);
 
   const onCopy = (code) => {
     Clipboard.setString(code);
@@ -104,11 +121,26 @@ const HomeScreen = () => {
 
   const onBannerScroll = (event) => {
     const x = event.nativeEvent.contentOffset.x;
-    const next = Math.round(x / (BANNER_W + BANNER_GAP));
-    if (next !== bannerIndex && next >= 0 && next < PROMO_BANNERS.length) {
+    const next = Math.round(x / BANNER_STRIDE);
+    if (next !== bannerIndexRef.current && next >= 0 && next < PROMO_BANNERS.length) {
+      bannerIndexRef.current = next;
       setBannerIndex(next);
     }
   };
+
+  const pauseBannerAutoScroll = () => {
+    bannerPauseUntil.current = Date.now() + BANNER_INTERVAL_MS;
+  };
+
+  useEffect(() => {
+    if (!isFocused || PROMO_BANNERS.length < 2) return undefined;
+    const id = setInterval(() => {
+      if (AppState.currentState !== 'active' || Date.now() < bannerPauseUntil.current) return;
+      const next = (bannerIndexRef.current + 1) % PROMO_BANNERS.length;
+      bannerRef.current?.scrollTo({ x: next * BANNER_STRIDE, animated: true });
+    }, BANNER_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [isFocused]);
 
   if (error && deals.length === 0 && brands.length === 0) {
     return (
@@ -152,15 +184,17 @@ const HomeScreen = () => {
         {/* Promo banners */}
         <View>
           <ScrollView
+            ref={bannerRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
-            snapToInterval={BANNER_W + BANNER_GAP}
+            snapToInterval={BANNER_STRIDE}
             snapToAlignment="start"
             disableIntervalMomentum
             contentContainerStyle={styles.bannerRow}
             onScroll={onBannerScroll}
-            scrollEventThrottle={16}>
+            onScrollBeginDrag={pauseBannerAutoScroll}
+            scrollEventThrottle={32}>
             {PROMO_BANNERS.map((banner) => (
               <Pressable
                 key={banner.id}
@@ -187,19 +221,17 @@ const HomeScreen = () => {
           </Pressable>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-          {CATEGORY_ITEMS.map((cat) => {
+          {categoryItems.map((cat) => {
             const active = activeCategory === cat.id;
             const color = active ? colors.sale : colors.textSecondary;
             return (
               <Pressable key={cat.id} style={styles.categoryItem} onPress={() => setActiveCategory(cat.id)}>
                 <View style={[styles.categoryIcon, active && styles.categoryIconActive]}>
-                  {cat.lib === 'mci' ? (
-                    <MaterialCommunityIcons name={cat.icon} size={22} color={color} />
-                  ) : (
-                    <Icon name={cat.icon} size={22} color={color} />
-                  )}
+                  <CategoryIcon name={cat.icon} size={22} color={color} />
                 </View>
-                <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>{cat.label}</Text>
+                <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]} numberOfLines={1}>
+                  {cat.label}
+                </Text>
               </Pressable>
             );
           })}

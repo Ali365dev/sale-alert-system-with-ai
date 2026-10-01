@@ -6,7 +6,7 @@ import { SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
-import { filterForYou } from '../../utils/dealAdapters';
+import { orderDealsByPreference } from '../../utils/dealAdapters';
 import { isCloseToBottom } from '../../utils/scroll';
 import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
@@ -26,7 +26,7 @@ const ForYouScreen = () => {
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
 
   const forYouDeals = useMemo(
-    () => filterForYou(deals, followedBrands, favoriteCategories),
+    () => orderDealsByPreference(deals, followedBrands, favoriteCategories),
     [deals, followedBrands, favoriteCategories],
   );
   const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(forYouDeals);
@@ -38,8 +38,8 @@ const ForYouScreen = () => {
       {forYouDeals.length === 0 ? (
         <EmptyState
           icon="heart-outline"
-          title="Choose your interests"
-          body="Select brands and categories to see personalized deals. Empty selections show nothing — we never treat that as “all offers”."
+          title="No deals yet"
+          body="Deals that match your brands and preferences show up first. Latest deals fill in when a preference has no offers."
           ctaLabel={favoriteCategories.length === 0 ? 'Set deal preference' : 'Follow brands'}
           onPressCta={() =>
             navigation.navigate(favoriteCategories.length === 0 ? 'DealPreferenceScreen' : 'FollowedBrandsScreen')

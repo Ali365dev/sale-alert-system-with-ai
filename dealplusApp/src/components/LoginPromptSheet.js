@@ -94,7 +94,7 @@ const LoginPromptSheet = () => {
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handle}
       containerComponent={SheetContainer}>
-      <BottomSheetView style={[styles.body, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+      <BottomSheetView style={[styles.body, { paddingBottom: Math.max(insets.bottom+24, 20) }]}>
         <View style={styles.iconWrap}>
           <Icon name="heart" size={28} color={colors.primary} />
         </View>
@@ -128,6 +128,7 @@ const createStyles = (colors) =>
       paddingTop: 8,
       alignItems: 'center',
       gap: 10,
+      marginBottom: 24,
     },
     iconWrap: {
       width: 64,
@@ -159,7 +160,7 @@ const createStyles = (colors) =>
     },
     dismissBtn: {
       paddingVertical: 12,
-      marginBottom: 4,
+      marginBottom: 14,
     },
     dismissLabel: {
       fontSize: 15,

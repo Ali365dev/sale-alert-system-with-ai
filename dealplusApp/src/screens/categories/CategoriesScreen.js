@@ -40,11 +40,8 @@ const CategoriesScreen = () => {
       const q = query.toLowerCase();
       list = list.filter((c) => c.name.toLowerCase().includes(q));
     }
-    if (filter === 'Trending') {
-      list = [...list].sort((a, b) => b.dealCount - a.dealCount);
-    }
-    return list;
-  }, [categories, query, filter]);
+    return [...list].sort((a, b) => (b.dealCount || 0) - (a.dealCount || 0) || a.name.localeCompare(b.name));
+  }, [categories, query]);
 
   if (loading && categories.length === 0) {
     return (

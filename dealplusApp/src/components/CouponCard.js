@@ -47,7 +47,7 @@ const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => 
   const percent = formatDiscountPercent(deal);
   const isPercent = /%/.test(percent);
   const description =
-    brand?.description || deal?.title || `${brand?.dealCount || 0} deals available`;
+    deal?.title || `${brand?.dealCount || 0} deals available`;
   const dashColor = colors.textSecondary;
 
   const onCopy = () => {

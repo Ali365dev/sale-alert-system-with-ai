@@ -12,16 +12,31 @@ const CATEGORY_IMAGE_QUERIES = [
 ];
 const DEFAULT_IMAGE_QUERY = 'photo-1607082349566-187342175e2f';
 
+/** Lucide keys used by CategoryIcon. More specific matches come first. */
 const CATEGORY_ICONS = [
-  { match: /footwear|shoe/i, icon: 'shoe-sneaker' },
-  { match: /fashion|apparel|clothing|retail/i, icon: 'tshirt-crew-outline' },
-  { match: /electronic|software|tech/i, icon: 'laptop' },
-  { match: /beauty|cosmetic/i, icon: 'face-woman-outline' },
-  { match: /food|restaurant|grocery/i, icon: 'silverware-fork-knife' },
-  { match: /travel/i, icon: 'airplane' },
-  { match: /sport|fitness/i, icon: 'basketball' },
-  { match: /home|furniture/i, icon: 'sofa-outline' },
-  { match: /gaming|game/i, icon: 'controller-classic-outline' },
+  { match: /footwear|shoe|sneaker|boot|sandal/i, icon: 'footprints' },
+  { match: /watch/i, icon: 'watch' },
+  { match: /jewel/i, icon: 'gem' },
+  { match: /eyewear|glass|sunglass|optic/i, icon: 'glasses' },
+  { match: /web\s*server|\bservers?\b/i, icon: 'server' },
+  { match: /\bsoftware\b/i, icon: 'windows' },
+  { match: /bag|wallet|accessor/i, icon: 'bag' },
+  { match: /baby|kid|toy|child/i, icon: 'baby' },
+  { match: /\b(?:auto|cars?|vehicles?|motors?)\b/i, icon: 'car' },
+  { match: /health|pharma|wellness|medical/i, icon: 'health' },
+  { match: /book|audio|education/i, icon: 'book' },
+  { match: /pet|animal/i, icon: 'pet' },
+  { match: /office|stationer/i, icon: 'briefcase' },
+  { match: /fashion|apparel|clothing|retail/i, icon: 'shirt' },
+  { match: /electronic|tech|gadget|phone|computer/i, icon: 'laptop' },
+  { match: /beauty|cosmetic|skin|makeup|fragrance|perfume/i, icon: 'sparkles' },
+  { match: /food|restaurant|grocery|dining|cafe|coffee/i, icon: 'utensils' },
+  { match: /travel|flight|hotel/i, icon: 'plane' },
+  { match: /sport|fitness|gym/i, icon: 'dumbbell' },
+  { match: /garden|plant|flower/i, icon: 'flower' },
+  { match: /furniture|sofa|decor/i, icon: 'sofa' },
+  { match: /home/i, icon: 'house' },
+  { match: /gaming|game/i, icon: 'gamepad' },
 ];
 
 export const imageForCategory = (category) => {
@@ -29,7 +44,7 @@ export const imageForCategory = (category) => {
   return `https://images.unsplash.com/${match?.query ?? DEFAULT_IMAGE_QUERY}?w=1200&q=80`;
 };
 
-export const iconForCategory = (name) => CATEGORY_ICONS.find((c) => c.match.test(name))?.icon ?? 'tag-outline';
+export const iconForCategory = (name) => CATEGORY_ICONS.find((c) => c.match.test(name))?.icon ?? 'tag';
 
 export const initialsForName = (name) => {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -46,7 +61,8 @@ export const formatFlatOffer = (deal) => {
     return n ? `Flat ${n}% Off` : deal.title || 'Deal';
   }
   const raw = String(deal.discountLabel || '').replace(/^-/, '').trim();
-  if (raw) return `Flat ${raw} Off`;
+  // Offer types like OTHER are not a discount amount — show the offer title.
+  if (raw && /\d/.test(raw)) return `Flat ${raw} Off`;
   return deal.title || 'Deal';
 };
 
@@ -284,7 +300,7 @@ export const deriveCategories = (apiOffers, apiBrands = [], managedCategories = 
         icon: iconForCategory(c.name),
         sortOrder: c.sort_order ?? 0,
       }))
-      .sort((a, b) => a.sortOrder - b.sortOrder || b.dealCount - a.dealCount || a.name.localeCompare(b.name));
+      .sort((a, b) => b.dealCount - a.dealCount || a.name.localeCompare(b.name));
   }
 
   return Array.from(counts.entries())
@@ -292,9 +308,8 @@ export const deriveCategories = (apiOffers, apiBrands = [], managedCategories = 
     .sort((a, b) => b.dealCount - a.dealCount);
 };
 
-/** Brand AND category match against saved preferences, newest first.
- * Empty brands or empty categories yield no matches in the default AND mode
- * (same rule as the backend). Shared by HomeScreen and ForYouScreen. */
+/** Brand AND category match, newest first. Used where a strict preference
+ * match is required. Empty brands or empty categories yield no matches. */
 export const filterForYou = (deals, followedBrands, favoriteCategories) => {
   if (followedBrands.length === 0 || favoriteCategories.length === 0) return [];
   const brandSlugs = new Set(followedBrands.map(slugify));
@@ -304,11 +319,41 @@ export const filterForYou = (deals, followedBrands, favoriteCategories) => {
     const cats = [d.category, d.subcategory].filter(Boolean).map((c) => String(c).toLowerCase());
     return cats.some((c) => categorySet.has(c));
   });
-  return [...matched].sort((a, b) => {
-    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return bTime - aTime;
-  });
+  return [...matched].sort(byCreatedDesc);
+};
+
+const byCreatedDesc = (a, b) => {
+  const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+  const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+  return bTime - aTime;
+};
+
+const dealMatchesPreference = (deal, brandSlugs, categorySet) => {
+  const brandOk = brandSlugs.size > 0 && brandSlugs.has(deal.brandId);
+  const cats = [deal.category, deal.subcategory].filter(Boolean).map((c) => String(c).toLowerCase());
+  const categoryOk = categorySet.size > 0 && cats.some((c) => categorySet.has(c));
+  return brandOk || categoryOk;
+};
+
+/** Preference matches first (newest among those), then every other deal newest
+ * first. No preferences, or preferences with no matching offers, still return
+ * the latest deals so the feed is never empty when the catalog has offers. */
+export const orderDealsByPreference = (deals, followedBrands = [], favoriteCategories = []) => {
+  const brandSlugs = new Set(followedBrands.map(slugify));
+  const categorySet = new Set(favoriteCategories.map((c) => String(c).toLowerCase()));
+  if (brandSlugs.size === 0 && categorySet.size === 0) {
+    return [...deals].sort(byCreatedDesc);
+  }
+
+  const preferred = [];
+  const rest = [];
+  for (const deal of deals) {
+    if (dealMatchesPreference(deal, brandSlugs, categorySet)) preferred.push(deal);
+    else rest.push(deal);
+  }
+  preferred.sort(byCreatedDesc);
+  rest.sort(byCreatedDesc);
+  return [...preferred, ...rest];
 };
 
 /** Derives the notification feed (newest 15 offers) from raw API offers.

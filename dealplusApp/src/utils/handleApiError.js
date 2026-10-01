@@ -4,6 +4,8 @@ export const handleApiError = (error, errMsg = 'error', showModal) => {
   let message = 'Something went wrong. Please try again.';
   if (error.message === 'Network Error') {
     message = 'Please check your internet connection.';
+  } else if (error?.code === 'ECONNABORTED' || /timeout of \d+ms exceeded/i.test(error?.message || '')) {
+    message = 'The server took too long to respond. Please try again.';
   } else if (error?.response?.data?.error) {
     message = error.response.data.error;
   } else if (error?.message) {

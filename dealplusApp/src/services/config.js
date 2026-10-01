@@ -1,7 +1,9 @@
 // Same backend as the DealPulse Expo app (mobile/eas.json) — this is a bare-RN
 // port of the same product, not a separate service.
 
-// production
+// production — the iOS Simulator's calls to this host are dropped (connection
+// lost / unparseable response) and Axios gives up at 15s. Use it from a
+// device or Android; the Simulator should use the local server below.
 export const BASE_URL = 'https://sale-alert-system-with-ai.onrender.com/api';
 
 // local dev — the iOS Simulator reaches the Mac through IPv4 loopback, while the

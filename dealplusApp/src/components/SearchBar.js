@@ -31,7 +31,15 @@ const SearchBar = ({
         autoFocus={autoFocus}
         returnKeyType="search"
       />
-      {showCamera ? (
+      {value?.trim() ? (
+        <Pressable
+          onPress={() => onChangeText('')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Clear search">
+          <Icon name="close-circle" size={18} color={colors.textSecondary} />
+        </Pressable>
+      ) : showCamera ? (
         <Pressable onPress={onPressCamera} hitSlop={8} accessibilityRole="button" accessibilityLabel="Visual search">
           <Icon name="camera-outline" size={20} color={colors.textSecondary} />
         </Pressable>

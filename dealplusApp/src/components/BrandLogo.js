@@ -76,6 +76,7 @@ const BrandLogo = ({
   fit = 'contain',
   elevated = false,
   shape = 'circle',
+  bare = false,
   logoScale,
   logoOffsetX,
   logoOffsetY,
@@ -148,7 +149,7 @@ const BrandLogo = ({
         ],
       };
       return (
-        <View style={[styles.circle, plain ? styles.plainWrap : cover ? styles.coverWrap : styles.imageWrap, disk]}>
+        <View style={[styles.circle, plain ? (bare ? styles.bareWrap : styles.plainWrap) : cover ? styles.coverWrap : styles.imageWrap, disk]}>
           <View style={pan}>
             <FastImage
               key={`${uri}-${imageSize}`}
@@ -166,13 +167,14 @@ const BrandLogo = ({
     }
 
     return (
-      <View style={[styles.circle, plain ? styles.plainWrap : isFilled ? styles.filled : styles.outline, disk]}>
+      <View style={[styles.circle, plain ? (bare ? styles.bareWrap : styles.plainWrap) : isFilled ? styles.filled : styles.outline, disk]}>
         <Text
           style={{
-            fontSize: size * 0.32,
-            lineHeight: size * 0.32 * 1.2,
-            fontWeight: '700',
-            color: isFilled && !plain ? '#FFFFFF' : colors.text,
+            fontSize: size * (bare ? 0.34 : 0.32),
+            lineHeight: size * (bare ? 0.38 : 0.38),
+            fontWeight: '800',
+            letterSpacing: 0.4,
+            color: bare ? '#10233F' : isFilled && !plain ? '#FFFFFF' : colors.text,
           }}>
           {resolvedInitials || '?'}
         </Text>
@@ -214,6 +216,9 @@ const createStyles = (colors) =>
       backgroundColor: '#F8F9FB',
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
+    },
+    bareWrap: {
+      backgroundColor: 'transparent',
     },
     lift: Platform.select({
       ios: {

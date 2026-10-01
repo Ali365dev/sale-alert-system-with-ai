@@ -3,6 +3,7 @@ import {
   deriveBrandsAndDeals,
   deriveCategories,
   filterForYou,
+  orderDealsByPreference,
   formatFlatOffer,
   iconForCategory,
   imageForCategory,
@@ -45,11 +46,21 @@ describe('initialsForName', () => {
 
 describe('iconForCategory / imageForCategory', () => {
   test('matches a known category to its icon', () => {
-    expect(iconForCategory('Footwear')).toBe('shoe-sneaker');
+    expect(iconForCategory('Footwear')).toBe('footprints');
+    expect(iconForCategory('Watches')).toBe('watch');
+    expect(iconForCategory('Beauty')).toBe('sparkles');
+    expect(iconForCategory('Beauty & Personal Care')).toBe('sparkles');
+    expect(iconForCategory('Fashion')).toBe('shirt');
+    expect(iconForCategory('Electronics')).toBe('laptop');
+    expect(iconForCategory('Technology')).toBe('laptop');
+    expect(iconForCategory('Software')).toBe('windows');
+    expect(iconForCategory('Bags')).toBe('bag');
+    expect(iconForCategory('Web Server')).toBe('server');
+    expect(iconForCategory('Home & Garden')).toBe('flower');
   });
 
   test('falls back to a generic tag icon for an unknown category', () => {
-    expect(iconForCategory('Some Weird Category')).toBe('tag-outline');
+    expect(iconForCategory('Some Weird Category')).toBe('tag');
   });
 
   test('imageForCategory never throws for a null/undefined category and returns a URL', () => {
@@ -245,7 +256,7 @@ describe('deriveCategories', () => {
       { name: 'Hidden', is_active: false, sort_order: 5 },
     ];
     const categories = deriveCategories(offers, [], managed);
-    expect(categories.map((c) => c.name)).toEqual(['Shoes', 'Fashion']);
+    expect(categories.map((c) => c.name)).toEqual(['Fashion', 'Shoes']);
     expect(categories.find((c) => c.name === 'Fashion')).toMatchObject({ dealCount: 2 });
     expect(categories.find((c) => c.name === 'Shoes')).toMatchObject({ dealCount: 0 });
   });
@@ -289,6 +300,27 @@ describe('filterForYou', () => {
   test('a deal with no matching brand or category is excluded', () => {
     const result = filterForYou(deals, ['Nonexistent Brand'], ['Nonexistent Category']);
     expect(result).toEqual([]);
+  });
+});
+
+describe('orderDealsByPreference', () => {
+  const deals = [
+    { id: '1', brandId: 'nike', category: 'Footwear', createdAt: '2026-01-01T00:00:00Z' },
+    { id: '2', brandId: 'acme', category: 'Fashion', createdAt: '2026-03-01T00:00:00Z' },
+    { id: '3', brandId: 'other', category: 'Tech', createdAt: '2026-02-01T00:00:00Z' },
+  ];
+
+  test('with no preferences, returns the latest deals', () => {
+    expect(orderDealsByPreference(deals, [], []).map((d) => d.id)).toEqual(['2', '3', '1']);
+  });
+
+  test('preference matches come first, then the latest remaining deals', () => {
+    expect(orderDealsByPreference(deals, ['Nike'], []).map((d) => d.id)).toEqual(['1', '2', '3']);
+    expect(orderDealsByPreference(deals, [], ['Fashion']).map((d) => d.id)).toEqual(['2', '3', '1']);
+  });
+
+  test('preferences with no matching offers still show the latest deals', () => {
+    expect(orderDealsByPreference(deals, ['Missing Brand'], ['Missing Category']).map((d) => d.id)).toEqual(['2', '3', '1']);
   });
 });
 
@@ -372,5 +404,8 @@ describe('formatFlatOffer', () => {
 
   test('falls back to title when there is no discount label', () => {
     expect(formatFlatOffer({ title: 'Summer Sale' })).toBe('Summer Sale');
+    expect(formatFlatOffer({ title: 'Compound Mini is being decommissioned', discountLabel: 'OTHER', isPercentageOff: false })).toBe(
+      'Compound Mini is being decommissioned',
+    );
   });
 });

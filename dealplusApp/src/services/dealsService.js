@@ -1,22 +1,54 @@
 import { appAxios } from './apiInterceptors';
 import { handleApiError } from '../utils/handleApiError';
 import { deriveAlerts, deriveBrandsAndDeals, deriveCategories } from '../utils/dealAdapters';
-import { getDeviceId } from '../utils/deviceId';
 import useDataStore from '../state/dataStore';
 import usePreferencesStore from '../state/preferencesStore';
 import { fetchInterests } from './preferencesApi';
 
+const CATALOG_TIMEOUT_MS = 15000;
+// Hosted API (Render) cold-starts past 15s. One longer retry covers that
+// without stacking a new request on every navigation or app-foreground.
+const CATALOG_RETRY_TIMEOUT_MS = 45000;
+
+const isTimeout = (error) =>
+  error?.code === 'ECONNABORTED' || /timeout of \d+ms exceeded/i.test(error?.message || '');
+
+const fetchCatalog = (timeout) =>
+  Promise.all([
+    appAxios.get('/brands', { timeout }),
+    // Full catalog. Passing device_id turns on personalization, and a brand-new
+    // install has no saved brands/categories, so the API returns zero offers.
+    appAxios.get('/offers', { timeout }),
+    appAxios.get('/categories', { timeout }).catch(() => ({ data: { categories: [] } })),
+  ]);
+
+let inflight = null;
+
 /** Fetches brands + offers in parallel, derives Brand/Deal/Category shapes, and
  * writes the result straight into dataStore — screens read from the store,
- * not from this function's return value. */
-export const loadDeals = async () => {
+ * not from this function's return value.
+ * Concurrent callers (launch, foreground, pull-to-refresh) share one request
+ * so navigation cannot pile up hung calls. */
+export const loadDeals = () => {
+  if (inflight) return inflight;
+  inflight = loadDealsOnce().finally(() => {
+    inflight = null;
+  });
+  return inflight;
+};
+
+const loadDealsOnce = async () => {
   useDataStore.setState({ loading: true, error: null });
   try {
-    const [brandsRes, offersRes, categoriesRes] = await Promise.all([
-      appAxios.get('/brands'),
-      appAxios.get('/offers', { params: { device_id: getDeviceId() } }),
-      appAxios.get('/categories').catch(() => ({ data: { categories: [] } })),
-    ]);
+    let brandsRes;
+    let offersRes;
+    let categoriesRes;
+    try {
+      [brandsRes, offersRes, categoriesRes] = await fetchCatalog(CATALOG_TIMEOUT_MS);
+    } catch (error) {
+      if (!isTimeout(error)) throw error;
+      [brandsRes, offersRes, categoriesRes] = await fetchCatalog(CATALOG_RETRY_TIMEOUT_MS);
+    }
     const apiBrands = brandsRes?.data?.brands || [];
     const apiOffers = offersRes?.data?.offers || [];
     const managedCategories = categoriesRes?.data?.categories || [];
@@ -45,9 +77,13 @@ export const loadDeals = async () => {
 
     return { brands, deals, categories, alerts };
   } catch (error) {
-    console.log('Error message:', error);
-    useDataStore.setState({ error: error?.message ?? 'Failed to load data', loading: false });
-    handleApiError(error);
+    const hasCachedCatalog =
+      useDataStore.getState().deals.length > 0 || useDataStore.getState().brands.length > 0;
+    useDataStore.setState({
+      error: hasCachedCatalog ? null : error?.message ?? 'Failed to load data',
+      loading: false,
+    });
+    if (!hasCachedCatalog) handleApiError(error);
     return null;
   }
 };
@@ -57,7 +93,6 @@ export const getOffer = async (id) => {
     const response = await appAxios.get(`/offers/${id}`);
     return response?.data ?? null;
   } catch (error) {
-    console.log('Error message:', error);
     handleApiError(error);
     return null;
   }

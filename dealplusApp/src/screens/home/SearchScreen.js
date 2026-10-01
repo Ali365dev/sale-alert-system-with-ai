@@ -6,7 +6,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
-import { RECENT_SEARCHES } from '../../utils/mock';
+import useSearchHistoryStore from '../../state/searchHistoryStore';
 import { isCloseToBottom } from '../../utils/scroll';
 import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
@@ -35,7 +35,9 @@ const SearchScreen = () => {
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(Boolean(route.params?.category));
   const [selectedCategory, setSelectedCategory] = useState(route.params?.category ?? null);
-  const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES);
+  const recentSearches = useSearchHistoryStore((state) => state.recentSearches);
+  const rememberSearch = useSearchHistoryStore((state) => state.rememberSearch);
+  const clearSearches = useSearchHistoryStore((state) => state.clearSearches);
   const [storeSearches, setStoreSearches] = useState([]);
 
   const popularStores = useMemo(
@@ -46,10 +48,12 @@ const SearchScreen = () => {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return deals.filter((deal) => {
-      const brandName = brandsById[deal.brandId]?.name ?? '';
-      if (q && !deal.title.toLowerCase().includes(q) && !brandName.toLowerCase().includes(q)) {
-        return false;
-      }
+      const brand = brandsById[deal.brandId];
+      const haystack = [deal.title, deal.description, deal.promoCode, deal.category, brand?.name]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (q && !haystack.includes(q)) return false;
       if (selectedCategory && deal.category !== selectedCategory) return false;
       return true;
     });
@@ -61,12 +65,6 @@ const SearchScreen = () => {
   const goBack = () => {
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.navigate('CategoriesScreen');
-  };
-
-  const rememberSearch = (term) => {
-    const next = term.trim();
-    if (!next) return;
-    setRecentSearches((prev) => [next, ...prev.filter((s) => s.toLowerCase() !== next.toLowerCase())].slice(0, 8));
   };
 
   const rememberStore = (brand) => {
@@ -109,7 +107,6 @@ const SearchScreen = () => {
             }
           }}
           placeholder="Search stores & deals"
-          showCamera
           autoFocus
           onSubmitEditing={() => runSearch()}
         />
@@ -130,7 +127,7 @@ const SearchScreen = () => {
               <View style={styles.section}>
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionTitle}>Recent Searches</Text>
-                  <Pressable onPress={() => setRecentSearches([])} hitSlop={8}>
+                  <Pressable onPress={clearSearches} hitSlop={8}>
                     <Text style={styles.clearLink}>Clear</Text>
                   </Pressable>
                 </View>

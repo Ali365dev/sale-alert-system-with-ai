@@ -3,13 +3,10 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
 
-// Only the icon families this app actually uses (Ionicons, MaterialCommunityIcons)
-// get bundled — fonts.gradle defaults to "*.ttf", which pulls in all 18 font
-// families (~3.8MB) regardless of usage.
-project.ext.vectoricons = [
-    iconFontNames: ["Ionicons.ttf", "MaterialCommunityIcons.ttf", "FontAwesome5_Solid.ttf"]
-]
-apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
+// Icon fonts are already in src/main/assets/fonts (linked by react-native-asset).
+// fonts.gradle copies the same files into another asset source set, and
+// mergeDebugAssets then fails on the duplicate Ionicons / MaterialCommunityIcons
+// / FontAwesome5_Solid files.
 
 /**
  * This is the configuration block to customize your React Native Android app.

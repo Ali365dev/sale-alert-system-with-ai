@@ -12,6 +12,7 @@ import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import SearchScreen from '../SearchScreen';
 import useDataStore from '../../../state/dataStore';
+import useSearchHistoryStore from '../../../state/searchHistoryStore';
 
 const brandsById = {
   nike: { id: 'nike', name: 'Nike', initials: 'N', logoUrl: null, website: null, dealCount: 2 },
@@ -62,6 +63,7 @@ beforeEach(() => {
   mockCanGoBack.mockReturnValue(true);
   mockRouteParams = {};
   useDataStore.setState({ deals: baseDeals, brands, brandsById, categories: [] });
+  useSearchHistoryStore.setState({ recentSearches: [] });
 });
 
 describe('idle search home', () => {
@@ -69,16 +71,17 @@ describe('idle search home', () => {
     const { getByText, getByPlaceholderText } = await render(<SearchScreen />);
     expect(getByPlaceholderText('Search stores & deals')).toBeTruthy();
     expect(getByText('Search')).toBeTruthy();
-    expect(getByText('Recent Searches')).toBeTruthy();
     expect(getByText('Popular stores')).toBeTruthy();
     expect(getByText('Nike')).toBeTruthy();
     expect(getByText('2 Codes')).toBeTruthy();
   });
 
   test('"Clear" removes the recent searches section', async () => {
-    const { getByText, queryByText, getAllByText } = await render(<SearchScreen />);
+    useSearchHistoryStore.setState({ recentSearches: ['nike'] });
+    const { getByText, queryByText } = await render(<SearchScreen />);
     expect(getByText('Recent Searches')).toBeTruthy();
-    await fireEvent.press(getAllByText('Clear')[0]);
+    expect(getByText('nike')).toBeTruthy();
+    await fireEvent.press(getByText('Clear'));
     expect(queryByText('Recent Searches')).toBeNull();
   });
 
@@ -94,9 +97,7 @@ describe('idle search home', () => {
     const { getByText, queryByText, getAllByText } = await render(<SearchScreen />);
     await fireEvent.press(getByText('Nike'));
     expect(getByText('Store Searches')).toBeTruthy();
-    const clears = getAllByText('Clear');
-    expect(clears.length).toBeGreaterThanOrEqual(2);
-    await fireEvent.press(clears[clears.length - 1]);
+    await fireEvent.press(getAllByText('Clear')[0]);
     expect(queryByText('Store Searches')).toBeNull();
   });
 });
@@ -152,11 +153,20 @@ describe('running a search', () => {
 });
 
 describe('recent searches', () => {
-  test('tapping a recent search chip runs it as the active search query', async () => {
-    const { getByText, queryByText } = await render(<SearchScreen />);
-    await fireEvent.press(getByText('seafood'));
+  test('a completed search is saved and tapping that chip runs it again', async () => {
+    const { getByPlaceholderText, getByText, queryByText, getByLabelText } = await render(<SearchScreen />);
+    const input = getByPlaceholderText('Search stores & deals');
+    await fireEvent.changeText(input, 'Air Max');
+    await fireEvent.press(getByText('Search'));
+    expect(getByText('Nike Air Max Sale')).toBeTruthy();
+
+    await fireEvent.press(getByLabelText('Clear search'));
+    expect(getByText('Recent Searches')).toBeTruthy();
+    expect(getByText('Air Max')).toBeTruthy();
+
+    await fireEvent.press(getByText('Air Max'));
     expect(queryByText('Popular stores')).toBeNull();
-    expect(getByText('No results')).toBeTruthy();
+    expect(getByText('Nike Air Max Sale')).toBeTruthy();
   });
 });
 

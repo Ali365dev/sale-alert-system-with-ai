@@ -26,6 +26,15 @@ test('submitting the input calls onSubmitEditing', async () => {
   expect(onSubmitEditing).toHaveBeenCalledTimes(1);
 });
 
+test('a filled field shows a clear control that empties the text', async () => {
+  const onChangeText = jest.fn();
+  const { getByLabelText } = await render(
+    <SearchBar value="nike" onChangeText={onChangeText} placeholder="Search brands" />,
+  );
+  await fireEvent.press(getByLabelText('Clear search'));
+  expect(onChangeText).toHaveBeenCalledWith('');
+});
+
 test('showCamera renders a visual search control', async () => {
   const onPressCamera = jest.fn();
   const { getByLabelText } = await render(

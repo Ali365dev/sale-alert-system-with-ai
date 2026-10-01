@@ -64,6 +64,7 @@ const FavoritesScreen = () => {
                     deal={deal}
                     brand={brandsById[deal.brandId]}
                     transitionTag={tag}
+                    showUnfavorite
                     onPress={() => navigation.navigate('DealDetailScreen', { id: deal.id, transitionTag: tag })}
                   />
                 </AnimatedListItem>

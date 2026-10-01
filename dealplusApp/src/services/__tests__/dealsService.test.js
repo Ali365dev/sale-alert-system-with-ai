@@ -45,7 +45,7 @@ describe('loadDeals', () => {
     expect(state.brands).toHaveLength(1);
     expect(state.deals).toHaveLength(1);
     expect(state.categories).toEqual([{ name: 'Fashion', dealCount: 1, icon: expect.any(String) }]);
-    expect(appAxios.get).toHaveBeenCalledWith('/offers', { params: { device_id: 'device-123' } });
+    expect(appAxios.get).toHaveBeenCalledWith('/offers', { timeout: 15000 });
   });
 
   test('sets loading true immediately, before the API calls resolve', () => {
@@ -61,6 +61,58 @@ describe('loadDeals', () => {
 
     resolveBrands({ data: {} });
     return promise;
+  });
+
+  test('a timeout retries the catalog once with a longer timeout', async () => {
+    const timeout = Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED' });
+    appAxios.get.mockImplementation((url) => {
+      if (url === '/categories') return Promise.resolve({ data: { categories: [] } });
+      if (url === '/brands' && appAxios.get.mock.calls.filter((c) => c[0] === '/brands').length > 1) {
+        return Promise.resolve({ data: { brands: [{ id: 1, name: 'Acme', categories: ['Fashion'] }] } });
+      }
+      if (url === '/offers' && appAxios.get.mock.calls.filter((c) => c[0] === '/offers').length > 1) {
+        return Promise.resolve({ data: { offers: [] } });
+      }
+      return Promise.reject(timeout);
+    });
+
+    const result = await loadDeals();
+    expect(result).not.toBeNull();
+    expect(appAxios.get.mock.calls.filter((c) => c[0] === '/offers').pop()[1]).toEqual({ timeout: 45000 });
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  test('overlapping loadDeals calls share one in-flight request', async () => {
+    let resolveOffers;
+    mockEndpoint({
+      '/brands': { data: { brands: [] } },
+      '/categories': { data: { categories: [] } },
+    });
+    appAxios.get.mockImplementation((url) => {
+      if (url === '/offers') return new Promise((resolve) => (resolveOffers = resolve));
+      if (url === '/brands') return Promise.resolve({ data: { brands: [] } });
+      return Promise.resolve({ data: { categories: [] } });
+    });
+
+    const first = loadDeals();
+    const second = loadDeals();
+    expect(second).toBe(first);
+    resolveOffers({ data: { offers: [] } });
+    await first;
+    expect(appAxios.get.mock.calls.filter((c) => c[0] === '/offers')).toHaveLength(1);
+  });
+
+  test('a timeout with deals already on screen keeps them and does not toast', async () => {
+    useDataStore.setState({ deals: [{ id: 'cached' }], brands: [{ id: 'b' }], loading: false });
+    const timeout = Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED' });
+    appAxios.get.mockRejectedValue(timeout);
+
+    const result = await loadDeals();
+    expect(result).toBeNull();
+    expect(useDataStore.getState().deals).toEqual([{ id: 'cached' }]);
+    expect(useDataStore.getState().error).toBeNull();
+    expect(useDataStore.getState().loading).toBe(false);
+    expect(handleApiError).not.toHaveBeenCalled();
   });
 
   test('on API failure, sets the error state, stops loading, and reports via handleApiError', async () => {

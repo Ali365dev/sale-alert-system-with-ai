@@ -47,7 +47,12 @@ const OnboardingCategoriesScreen = () => {
   const favoriteCategories = usePreferencesStore((state) => state.favoriteCategories);
   const toggleCategory = usePreferencesStore((state) => state.toggleCategory);
 
-  const options = realCategories.length > 0 ? realCategories.map((c) => c.name) : FALLBACK_CATEGORIES;
+  const options = useMemo(() => {
+    if (realCategories.length === 0) return FALLBACK_CATEGORIES;
+    return [...realCategories]
+      .sort((a, b) => (b.dealCount || 0) - (a.dealCount || 0) || a.name.localeCompare(b.name))
+      .map((c) => c.name);
+  }, [realCategories]);
   const count = favoriteCategories.length;
   const goNext = () => navigation.navigate('OnboardingBrandsScreen');
 

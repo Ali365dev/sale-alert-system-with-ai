@@ -20,11 +20,11 @@ const brand = {
   name: 'Jahez',
   initials: 'J',
   logoUrl: null,
-  description: 'Delivery of restaurant orders, gifts and more',
+  description: 'Tracked offers from Jahez.',
 };
 
 test('vertical ticket shows brand, percent, Discount badge, and description', async () => {
-  const { getByText } = await render(
+  const { getByText, queryByText } = await render(
     <CouponCard deal={deal} brand={brand} variant="vertical" onPress={() => {}} />,
   );
 
@@ -32,6 +32,7 @@ test('vertical ticket shows brand, percent, Discount badge, and description', as
   expect(getByText('10%')).toBeTruthy();
   expect(getByText('Discount')).toBeTruthy();
   expect(getByText('Delivery of restaurant orders, gifts and more')).toBeTruthy();
+  expect(queryByText('Tracked offers from Jahez.')).toBeNull();
 });
 
 test('pressing the vertical ticket calls onPress', async () => {

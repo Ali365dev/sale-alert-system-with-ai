@@ -17,6 +17,11 @@ test('a backend error payload (response.data.error) is shown verbatim', () => {
   expect(showErrorToast).toHaveBeenCalledWith('Brand name is required.');
 });
 
+test('a request timeout shows a retry message instead of the raw Axios string', () => {
+  handleApiError({ code: 'ECONNABORTED', message: 'timeout of 15000ms exceeded' });
+  expect(showErrorToast).toHaveBeenCalledWith('The server took too long to respond. Please try again.');
+});
+
 test('a generic JS error falls back to its own message', () => {
   handleApiError({ message: 'Something exploded' });
   expect(showErrorToast).toHaveBeenCalledWith('Something exploded');

@@ -14,6 +14,7 @@
 		2E7AEFA2094E406CA0B3EB6D /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6662336DAE0A4477872689F5 /* BootSplash.storyboard */; };
 		75D9411830586C3000D3864D /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 75D9411730586C3000D3864D /* GoogleService-Info.plist */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		A1B2C3D42CA45674006654F1 /* DisableHTTP3.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D32CA45674006654F0 /* DisableHTTP3.m */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		94F120BA24E44762A6515B90 /* FontAwesome5_Solid.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 34BFB7E4D8DB4DABB8C3156B /* FontAwesome5_Solid.ttf */; };
 		BFE50663F53747A687FF218F /* Ionicons.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A08B90149D10444F9B35B385 /* Ionicons.ttf */; };
@@ -33,6 +34,7 @@
 		745BFCD702F48C4C589EA250 /* Pods_dealplusApp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_dealplusApp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		75D9411730586C3000D3864D /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = dealplusApp/AppDelegate.swift; sourceTree = "<group>"; };
+		A1B2C3D32CA45674006654F0 /* DisableHTTP3.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = DisableHTTP3.m; path = dealplusApp/DisableHTTP3.m; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = dealplusApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A08B90149D10444F9B35B385 /* Ionicons.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = Ionicons.ttf; path = ../assets/fonts/Ionicons.ttf; sourceTree = "<group>"; };
 		D3208BBA43E7476BA5E86F81 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = dealplusApp/Colors.xcassets; sourceTree = "<group>"; };
@@ -56,6 +58,7 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				A1B2C3D32CA45674006654F0 /* DisableHTTP3.m */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -294,6 +297,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				A1B2C3D42CA45674006654F1 /* DisableHTTP3.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

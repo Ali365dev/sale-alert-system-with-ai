@@ -70,29 +70,36 @@ const CouponsScreen = () => {
   const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(filteredDeals);
   const { openCoupon, couponSheet } = useCouponSheet();
 
-  const listHeader = popularBrands.length > 0 ? (
-    <View style={styles.popular}>
-      <View style={styles.popularHead}>
-        <Text style={styles.popularTitle}>Popular Brands</Text>
-        <Pressable onPress={() => navigation.navigate('BrandListScreen')} hitSlop={8}>
-          <Text style={styles.seeAll}>See All →</Text>
-        </Pressable>
+  const listHeader = (
+    <View>
+      {popularBrands.length > 0 ? (
+        <View style={styles.popular}>
+          <View style={styles.popularHead}>
+            <Text style={styles.popularTitle}>Popular Brands</Text>
+            <Pressable onPress={() => navigation.navigate('BrandListScreen')} hitSlop={8}>
+              <Text style={styles.seeAll}>See All →</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.brandRow}>
+            {popularBrands.map((brand) => (
+              <BrandCard
+                key={brand.id}
+                brand={brand}
+                variant="store"
+                onPress={() => navigation.navigate('BrandDetailScreen', { id: brand.id })}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+      <View style={styles.switcherRow}>
+        <ViewSwitcher gridView={gridView} onChange={setGridView} />
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.brandRow}>
-        {popularBrands.map((brand) => (
-          <BrandCard
-            key={brand.id}
-            brand={brand}
-            variant="store"
-            onPress={() => navigation.navigate('BrandDetailScreen', { id: brand.id })}
-          />
-        ))}
-      </ScrollView>
     </View>
-  ) : null;
+  );
 
   return (
     <View style={styles.container}>
@@ -131,9 +138,6 @@ const CouponsScreen = () => {
         />
       ) : (
         <>
-          <View style={styles.switcherRow}>
-            <ViewSwitcher gridView={gridView} onChange={setGridView} />
-          </View>
           <FlatList
             key={gridView ? 'coupons-grid' : 'coupons-list'}
             data={visibleDeals}
@@ -195,7 +199,7 @@ const createStyles = (colors) =>
     switcherRow: {
       flexDirection: 'row',
       justifyContent: 'flex-end',
-      paddingHorizontal: GRID_PAD,
+      paddingTop: SPACING.two,
       paddingBottom: SPACING.two,
     },
     filtersScroll: {

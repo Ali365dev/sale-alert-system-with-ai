@@ -20,7 +20,7 @@ const SelectableCard = ({ label, icon, selected, onPress, iconVariant = 'plain',
         {icon &&
           (iconVariant === 'circle' ? (
             <View style={[styles.iconCircle, selected && styles.iconCircleSelected]}>
-              <Icon name={icon} size={22} color={selected ? '#FFFFFF' : '#57302D'} />
+              <Icon name={icon} size={22} color={selected ? '#FFFFFF' : colors.text} />
             </View>
           ) : (
             <Icon name={icon} size={26} color={selected ? '#FFFFFF' : colors.primary} />
@@ -68,7 +68,7 @@ const createStyles = (colors) =>
       width: 48,
       height: 48,
       borderRadius: 24,
-      backgroundColor: colors.backgroundElement,
+      backgroundColor: colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
     },

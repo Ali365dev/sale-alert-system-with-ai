@@ -17,6 +17,7 @@ const deal = {
   promoCode: 'MYNTRA40',
   website: 'https://www.myntra.com',
   expiresAt: '2025-05-30T00:00:00.000Z',
+  terms: 'Offer valid while supplies last. Discount applied at checkout.',
 };
 
 const brand = {
@@ -37,6 +38,8 @@ test('renders coupon details, code, how-to steps, and Shop Now', async () => {
   expect(getByText('Copy')).toBeTruthy();
   expect(getByText('About this offer')).toBeTruthy();
   expect(getByText('How to use')).toBeTruthy();
+  expect(getByText('Terms and Conditions')).toBeTruthy();
+  expect(getByText('Offer valid while supplies last. Discount applied at checkout.')).toBeTruthy();
   expect(getByText('Shop Now')).toBeTruthy();
   expect(getByLabelText('Close coupon')).toBeTruthy();
 });

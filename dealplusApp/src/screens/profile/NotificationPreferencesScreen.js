@@ -65,8 +65,8 @@ const NotificationPreferencesScreen = () => {
             <Switch
               value={prefs.pushEnabled}
               onValueChange={(v) => setPref('pushEnabled', v)}
-              trackColor={{ false: colors.border, true: '#FFFFFF' }}
-              thumbColor={prefs.pushEnabled ? colors.primary : undefined}
+              trackColor={{ false: 'rgba(255,255,255,0.45)', true: '#FFFFFF' }}
+              thumbColor={prefs.pushEnabled ? colors.primary : '#FFFFFF'}
             />
           </View>
         </View>
@@ -87,6 +87,7 @@ const NotificationPreferencesScreen = () => {
                 value={prefs[row.key]}
                 onValueChange={(v) => setPref(row.key, v)}
                 trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={prefs[row.key] ? '#FFFFFF' : colors.surface}
               />
             </View>
           ))}

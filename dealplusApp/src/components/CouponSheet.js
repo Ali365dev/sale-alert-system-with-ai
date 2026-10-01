@@ -207,6 +207,13 @@ const CouponSheet = ({ deal, brand, onClose }) => {
             ))}
           </View>
 
+          {deal.terms ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Terms and Conditions</Text>
+              <Text style={styles.sectionBody}>{deal.terms}</Text>
+            </View>
+          ) : null}
+
           <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <Pressable
               onPress={onShop}
