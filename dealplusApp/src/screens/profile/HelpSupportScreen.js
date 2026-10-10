@@ -6,7 +6,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 
-const SUPPORT_EMAIL = 'support@dealpulse.app';
+const SUPPORT_EMAIL = 'support@dealsmore.app';
 
 const FAQS = [
   {
@@ -17,7 +17,7 @@ const FAQS = [
   {
     question: "Why am I not getting notified about a brand's deals?",
     answer:
-      'Make sure the brand is added under Profile → Followed Brands, and that notifications are allowed for DealPulse in your phone settings.',
+      'Make sure the brand is added under Profile → Followed Brands, and that notifications are allowed for Deals More in your phone settings.',
   },
   {
     question: 'Are the discounts and coupon codes verified?',
@@ -25,8 +25,8 @@ const FAQS = [
       'Offers go through an automated verification pass, shown as a status on each deal. Always confirm the final price and code at checkout, since brands can end promotions at any time.',
   },
   {
-    question: 'Do I need an account to use DealPulse?',
-    answer: 'No — you can use DealPulse as a guest. Your preferences are saved to your device automatically.',
+    question: 'Do I need an account to use Deals More?',
+    answer: 'No — you can use Deals More as a guest. Your preferences are saved to your device automatically.',
   },
 ];
 
@@ -43,7 +43,7 @@ function FaqItem({ question, answer, expanded, onPress, colors, styles }) {
 }
 
 const openSupportEmail = async () => {
-  const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('DealPulse Support')}`;
+  const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Deals More Support')}`;
   try {
     await Linking.openURL(url);
   } catch {

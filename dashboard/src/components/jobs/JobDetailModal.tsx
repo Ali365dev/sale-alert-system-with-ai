@@ -1,11 +1,17 @@
-import { useEffect } from "react";
-
 import { useJob, useJobFullLogs, useRetryJob, type JobLogEntry } from "../../api/jobs";
 import { getJobStatusStyle, getSeverityColor, getSeverityIcon, getStageLabel } from "../../config/jobStatus";
 import { getJobTypeConfig } from "../../config/jobTypes";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
+
+/** Backend timestamps are UTC without a Z suffix; treat them as UTC. */
+function parseApiDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const normalized = iso.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : `${iso}Z`;
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 function formatDuration(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return "—";
@@ -16,8 +22,8 @@ function formatDuration(seconds: number | null | undefined): string {
 }
 
 function formatDateTime(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString();
+  const d = parseApiDate(iso);
+  return d ? d.toLocaleString() : "—";
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -41,7 +47,12 @@ function KeyValueRow({ label, value }: { label: string; value: React.ReactNode }
 }
 
 function downloadLogs(jobId: number, logs: JobLogEntry[]) {
-  const text = logs.map((l) => `[${new Date(l.time).toISOString()}] ${l.severity.toUpperCase()} ${l.category ? `(${l.category}) ` : ""}${l.message}`).join("\n");
+  const text = logs
+    .map((l) => {
+      const t = parseApiDate(l.time);
+      return `[${t ? t.toISOString() : l.time}] ${l.severity.toUpperCase()} ${l.category ? `(${l.category}) ` : ""}${l.message}`;
+    })
+    .join("\n");
   const blob = new Blob([text], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -52,20 +63,34 @@ function downloadLogs(jobId: number, logs: JobLogEntry[]) {
 }
 
 export function JobDetailModal({ jobId, onClose }: { jobId: number; onClose: () => void }) {
-  const { data: job } = useJob(jobId);
+  const { data: job, isLoading: jobLoading, isError: jobError } = useJob(jobId);
   const fullLogs = useJobFullLogs(jobId);
   const retry = useRetryJob();
 
-  useEffect(() => {
-    fullLogs.refetch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch full logs once when the modal opens for this job
-  }, [jobId]);
+  if (jobLoading && !job) {
+    return (
+      <Modal title={`Job #${jobId}`} onClose={onClose}>
+        <div style={{ color: "var(--text-muted)", fontSize: 13 }}>Loading job details…</div>
+      </Modal>
+    );
+  }
 
-  if (!job) return null;
+  if (jobError || !job) {
+    return (
+      <Modal title={`Job #${jobId}`} onClose={onClose}>
+        <div style={{ color: "var(--danger)", fontSize: 13 }}>Could not load this job. It may have been deleted.</div>
+      </Modal>
+    );
+  }
 
   const config = getJobTypeConfig(job.job_type);
   const status = getJobStatusStyle(job);
   const stage = getStageLabel(job.stage);
+  const logs = fullLogs.data ?? [];
+  const started = parseApiDate(job.started_at);
+  const finished = parseApiDate(job.finished_at);
+  const elapsedSeconds =
+    started != null ? ((finished ?? new Date()).getTime() - started.getTime()) / 1000 : null;
 
   return (
     <Modal title={`${config.title} — Job #${job.id}`} onClose={onClose}>
@@ -83,12 +108,7 @@ export function JobDetailModal({ jobId, onClose }: { jobId: number; onClose: () 
         </Section>
 
         <Section title="Performance">
-          <KeyValueRow
-            label="Elapsed"
-            value={formatDuration(
-              job.started_at ? (new Date(job.finished_at ?? Date.now()).getTime() - new Date(job.started_at).getTime()) / 1000 : null,
-            )}
-          />
+          <KeyValueRow label="Elapsed" value={formatDuration(elapsedSeconds)} />
           <KeyValueRow label="Remaining (est.)" value={formatDuration(job.estimated_remaining_seconds)} />
           <KeyValueRow label="Speed" value={job.processing_speed ? `${job.processing_speed} ${config.itemNoun}/min` : "—"} />
         </Section>
@@ -137,16 +157,20 @@ export function JobDetailModal({ jobId, onClose }: { jobId: number; onClose: () 
               fontSize: 11.5,
             }}
           >
-            {(fullLogs.data ?? []).map((log) => (
+            {logs.map((log) => (
               <div key={log.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", color: getSeverityColor(log.severity) }}>
-                <span style={{ color: "var(--text-faint)", flex: "0 0 auto" }}>{new Date(log.time).toLocaleTimeString()}</span>
+                <span style={{ color: "var(--text-faint)", flex: "0 0 auto" }}>
+                  {parseApiDate(log.time)?.toLocaleTimeString() ?? "—"}
+                </span>
                 <span style={{ flex: "0 0 auto" }}>{getSeverityIcon(log.severity)}</span>
                 {log.category && <span style={{ color: "var(--text-faint)", flex: "0 0 auto" }}>[{log.category}]</span>}
                 <span style={{ color: "var(--text-body)", whiteSpace: "pre-line" }}>{log.message}</span>
               </div>
             ))}
-            {(!fullLogs.data || fullLogs.data.length === 0) && (
-              <span style={{ color: "var(--text-muted)" }}>{fullLogs.isFetching ? "Loading…" : "No logs yet."}</span>
+            {logs.length === 0 && (
+              <span style={{ color: "var(--text-muted)" }}>
+                {fullLogs.isFetching || fullLogs.isLoading ? "Loading…" : fullLogs.isError ? "Failed to load logs." : "No logs yet."}
+              </span>
             )}
           </div>
         </Section>
@@ -156,9 +180,10 @@ export function JobDetailModal({ jobId, onClose }: { jobId: number; onClose: () 
             variant="secondary"
             size="sm"
             loading={fullLogs.isFetching}
+            disabled={logs.length === 0 && !fullLogs.isFetching}
             onClick={async () => {
               const { data } = await fullLogs.refetch();
-              if (data) downloadLogs(job.id, data);
+              if (data && data.length > 0) downloadLogs(job.id, data);
             }}
           >
             Download logs

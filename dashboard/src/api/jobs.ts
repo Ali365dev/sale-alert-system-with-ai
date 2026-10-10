@@ -112,11 +112,14 @@ export function useJobFullLogs(jobId: number | null) {
     queryKey: ["jobs", jobId, "logs", "full"],
     queryFn: async () => {
       const { data } = await apiClient.get<{ logs: JobLogEntry[] }>(`/jobs/${jobId}/logs`, {
-        params: { full: true },
+        params: { full: "true" },
       });
       return data.logs;
     },
-    enabled: false, // fetched on demand (download-logs click), not automatically
+    // Auto-fetch whenever a job is selected (Details modal). Download still
+    // reuses this cache via refetch(); keeping enabled:false previously meant
+    // logs often never loaded in TanStack Query v5.
+    enabled: jobId !== null,
   });
 }
 

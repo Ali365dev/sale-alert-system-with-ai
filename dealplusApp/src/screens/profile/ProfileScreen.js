@@ -99,7 +99,7 @@ const ProfileScreen = () => {
     {
       icon: 'document-text-outline',
       label: 'Terms & Conditions',
-      subtitle: 'Rules for using DealPulse',
+      subtitle: 'Rules for using Deals More',
       kind: 'link',
       onPress: () => navigation.navigate('TermsConditionsScreen'),
     },
@@ -170,7 +170,7 @@ const ProfileScreen = () => {
           </Pressable>
         )}
 
-        <Text style={styles.version}>DealPulse v1.0.0</Text>
+        <Text style={styles.version}>Deals More v1.0.1</Text>
       </ScrollView>
     </View>
   );

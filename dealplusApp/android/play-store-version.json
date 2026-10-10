@@ -1,0 +1,10 @@
+{
+  "appName": "Deals More",
+  "applicationId": "com.dealplusapp",
+  "versionName": "1.0.1",
+  "versionCode": 3,
+  "targetSdkVersion": 36,
+  "minSdkVersion": 24,
+  "releaseArtifact": "app/build/outputs/bundle/release/app-release.aab",
+  "notes": "Play Store upload uses the .aab from bundleRelease. versionCode must increase with every upload."
+}

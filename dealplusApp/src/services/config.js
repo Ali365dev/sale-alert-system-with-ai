@@ -1,4 +1,4 @@
-// Same backend as the DealPulse Expo app (mobile/eas.json) — this is a bare-RN
+// Same backend as the Deals More Expo app (mobile/eas.json) — this is a bare-RN
 // port of the same product, not a separate service.
 
 // production — the iOS Simulator's calls to this host are dropped (connection

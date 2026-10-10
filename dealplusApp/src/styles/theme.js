@@ -27,7 +27,7 @@ export const FONT_SIZES = {
   xxl: RFValue(28),
 };
 
-/** DealPulse refined system — primary red, cool neutrals. */
+/** Deals More refined system — primary red, cool neutrals. */
 export const LIGHT_COLORS = {
   text: '#10233F',
   background: '#FAF8F9',

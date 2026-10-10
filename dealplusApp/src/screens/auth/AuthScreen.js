@@ -204,7 +204,7 @@ const AuthScreen = ({ initialMode = 'login' }) => {
                   Create{'\n'}
                   <Text>Your Account</Text>
                 </Text>
-                <Text style={styles.srOnly}>Join DealPulse and never miss a great deal again.</Text>
+                <Text style={styles.srOnly}>Join Deals More and never miss a great deal again.</Text>
               </>
             ) : (
               <>

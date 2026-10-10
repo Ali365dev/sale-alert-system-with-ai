@@ -23,9 +23,8 @@ const AuthChrome = ({ mode, onSkip, onSwitchMode, children }) => {
 
         <View style={styles.logoMark}>
           <Icon name="pricetag" size={28} color={colors.primary} />
-          <Icon name="pulse" size={14} color={colors.primary} style={styles.logoPulse} />
         </View>
-        <Text style={styles.welcome}>Welcome to DealPulse</Text>
+        <Text style={styles.welcome}>Welcome to Deals More</Text>
         <Text style={styles.heroSub}>
           Enter your email or phone number to find exclusive deals & savings.
         </Text>
@@ -88,11 +87,6 @@ const createStyles = (colors) =>
       alignSelf: 'center',
       marginBottom: 18,
       ...SHADOWS.card,
-    },
-    logoPulse: {
-      position: 'absolute',
-      bottom: 12,
-      right: 12,
     },
     welcome: {
       color: '#FFFFFF',

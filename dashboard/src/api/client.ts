@@ -35,8 +35,10 @@ apiClient.interceptors.response.use(
     if (data?.error === "not authenticated") {
       return Promise.reject(error);
     }
+    const detail = typeof data?.detail === "string" ? data.detail : undefined;
     const message =
       data?.error ??
+      detail ??
       (data?.status === "already_running" ? "Already running — please wait for it to finish." : undefined) ??
       error.message ??
       "Something went wrong. Please try again.";

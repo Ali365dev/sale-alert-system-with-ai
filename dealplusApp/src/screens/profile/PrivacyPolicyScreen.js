@@ -59,13 +59,13 @@ const PrivacyPolicyScreen = () => {
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.six }]} showsVerticalScrollIndicator={false}>
         <Text style={styles.updated}>LAST UPDATED: SEPTEMBER 2026</Text>
         <Text style={styles.intro}>
-          At DealPulse, we take your privacy seriously. This policy outlines exactly what information we collect, how it's
+          At Deals More, we take your privacy seriously. This policy outlines exactly what information we collect, how it's
           utilized to improve your deal-finding experience, and the steps we take to ensure your data remains secure within
           our ecosystem.
         </Text>
 
         <PolicySection icon="server-outline" title="Data Collection" colors={colors} styles={styles}>
-          <Text style={styles.sectionBody}>We collect data necessary to provide and improve the DealPulse service.</Text>
+          <Text style={styles.sectionBody}>We collect data necessary to provide and improve the Deals More service.</Text>
           <BulletRow
             icon="person-outline"
             title="Account Information"
@@ -140,14 +140,14 @@ const PrivacyPolicyScreen = () => {
         <PolicySection icon="trash-outline" title="Your Rights & Account Deletion" colors={colors} styles={styles}>
           <Text style={styles.sectionBody}>
             You can permanently delete your account and its saved preferences (followed brands, deal preference) at
-            any time from Profile → Delete Account, or from your Account page on the DealPulse website — no app install
+            any time from Profile → Delete Account, or from your Account page on the Deals More website — no app install
             required.
           </Text>
           <Text style={styles.sectionBody}>
             Deleting your account removes it from our database immediately. Data held by third-party processors above
             (e.g., your Google sign-in record, or aggregated Clarity analytics) is governed by their own retention
-            policies. If you used DealPulse only as a guest, your preferences are stored on your device and removed when
-            you uninstall the app. For any other request, contact support@dealpulse.app.
+            policies. If you used Deals More only as a guest, your preferences are stored on your device and removed when
+            you uninstall the app. For any other request, contact support@dealsmore.app.
           </Text>
         </PolicySection>
 

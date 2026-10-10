@@ -72,6 +72,7 @@ def summary():
 
 
 @router.get("")
+@router.get("/")
 def history(
     job_type: str | None = Query(None),
     status: str | None = Query(None),

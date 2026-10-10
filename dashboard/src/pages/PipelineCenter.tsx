@@ -23,9 +23,18 @@ import { Label, Select, TextInput } from "../components/ui/Field";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
 
+/** Backend timestamps are UTC without a Z suffix; treat them as UTC. */
+function parseApiDate(iso: string | null): Date | null {
+  if (!iso) return null;
+  const normalized = iso.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : `${iso}Z`;
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function formatRelative(iso: string | null) {
-  if (!iso) return "Never run";
-  const diffMs = Date.now() - new Date(iso).getTime();
+  const d = parseApiDate(iso);
+  if (!d) return "Never run";
+  const diffMs = Date.now() - d.getTime();
   const mins = Math.round(diffMs / 60000);
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
@@ -45,8 +54,9 @@ function formatDuration(seconds: number | null | undefined): string {
 }
 
 function formatDateTime(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const d = parseApiDate(iso);
+  if (!d) return "—";
+  return d.toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 function ActionCard({ jobType }: { jobType: string }) {
@@ -135,7 +145,14 @@ function HistoryTable() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const limit = 20;
 
-  const { data, isLoading } = useJobHistory({ status: status || undefined, search: search || undefined, sort, sortDir, limit, offset: page * limit });
+  const { data, isLoading, isFetching, isError } = useJobHistory({
+    status: status || undefined,
+    search: search || undefined,
+    sort,
+    sortDir,
+    limit,
+    offset: page * limit,
+  });
   const retry = useRetryJob();
   const del = useDeleteJob();
   const bulk = useBulkJobAction();
@@ -144,6 +161,7 @@ function HistoryTable() {
   const total = data?.total ?? 0;
 
   function toggleSort(col: typeof sort) {
+    setPage(0);
     if (sort === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else {
       setSort(col);
@@ -165,11 +183,24 @@ function HistoryTable() {
       <div style={{ padding: 18, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end", borderBottom: "1px solid var(--border)" }}>
         <div>
           <Label>Search</Label>
-          <TextInput placeholder="Job type or item…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <TextInput
+            placeholder="Job type or item…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
+          />
         </div>
         <div>
           <Label>Status</Label>
-          <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <Select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(0);
+            }}
+          >
             <option value="">All</option>
             <option value="pending">Queued</option>
             <option value="running">Running</option>
@@ -244,7 +275,13 @@ function HistoryTable() {
               </div>
             ))}
 
-          {!isLoading && jobs.length === 0 && (
+          {!isLoading && isError && (
+            <div style={{ padding: 24, color: "var(--danger)", fontSize: 13 }}>
+              Failed to load job history. Is the API running on port 8000?
+            </div>
+          )}
+
+          {!isLoading && !isError && jobs.length === 0 && (
             <div style={{ padding: 24, color: "var(--text-muted)", fontSize: 13 }}>No jobs found.</div>
           )}
 
@@ -304,7 +341,9 @@ function HistoryTable() {
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
-        <span>{total} job(s) total</span>
+        <span>
+          {total} job(s) total{isFetching && !isLoading ? " · updating…" : ""}
+        </span>
         <div style={{ display: "flex", gap: 8 }}>
           <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
             Previous

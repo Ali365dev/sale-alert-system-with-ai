@@ -10,21 +10,21 @@ const SECTIONS = [
   {
     title: '1. User Agreement',
     paragraphs: [
-      'By accessing or using the DealPulse platform, you agree to be bound by these Terms and Conditions. If you disagree with any part of the terms, you may not access the service. DealPulse provides a curated platform for high-intent shoppers to discover and engage with exclusive deals.',
-      'You must be at least 18 years of age to use this service. By using DealPulse, you represent and warrant that you meet this age requirement.',
+      'By accessing or using the Deals More platform, you agree to be bound by these Terms and Conditions. If you disagree with any part of the terms, you may not access the service. Deals More provides a curated platform for high-intent shoppers to discover and engage with exclusive deals.',
+      'You must be at least 18 years of age to use this service. By using Deals More, you represent and warrant that you meet this age requirement.',
     ],
   },
   {
     title: '2. Intellectual Property',
     paragraphs: [
-      'The service and its original content, features, and functionality are and will remain the exclusive property of DealPulse and its licensors. The service is protected by copyright, trademark, and other laws of both the United States and foreign countries.',
-      'Our trademarks and trade dress may not be used in connection with any product or service without the prior written consent of DealPulse.',
+      'The service and its original content, features, and functionality are and will remain the exclusive property of Deals More and its licensors. The service is protected by copyright, trademark, and other laws of both the United States and foreign countries.',
+      'Our trademarks and trade dress may not be used in connection with any product or service without the prior written consent of Deals More.',
     ],
   },
   {
     title: '3. Limitation of Liability',
     paragraphs: [
-      'In no event shall DealPulse, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.',
+      'In no event shall Deals More, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the service.',
     ],
   },
   {

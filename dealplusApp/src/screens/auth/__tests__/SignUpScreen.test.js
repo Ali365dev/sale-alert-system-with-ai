@@ -42,7 +42,7 @@ const pressCreateAccount = async (utils) => {
 test('renders the Create Your Account headline and tagline', async () => {
   const { getByText } = await render(<SignUpScreen />);
   expect(getByText('Your Account')).toBeTruthy();
-  expect(getByText('Join DealPulse and never miss a great deal again.')).toBeTruthy();
+  expect(getByText('Join Deals More and never miss a great deal again.')).toBeTruthy();
 });
 
 test('a password shorter than 8 characters shows a validation error and does not submit', async () => {

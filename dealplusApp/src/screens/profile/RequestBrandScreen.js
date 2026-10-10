@@ -125,7 +125,7 @@ const RequestBrandScreen = () => {
           <Text style={styles.successTitle}>Request Received!</Text>
           <Text style={styles.successBody}>
             Thank you for helping us grow. We've added <Text style={styles.bold}>{brandName.trim()}</Text> to our
-            wishlist and will notify you if they join DealPulse.
+            wishlist and will notify you if they join Deals More.
           </Text>
           <PrimaryButton
             label="Back to Home"
