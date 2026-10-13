@@ -45,9 +45,17 @@ function rowStatus(row: WebsiteBrandSummary): RowStatus {
   return "active";
 }
 
+function parseApiTime(iso: string): Date {
+  // Backend often returns naive UTC without a Z suffix — force UTC so "time ago" is correct.
+  if (/^\d{4}-\d{2}-\d{2}T/.test(iso) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso)) {
+    return new Date(`${iso}Z`);
+  }
+  return new Date(iso);
+}
+
 function timeAgo(iso: string | null): string {
   if (!iso) return "Never";
-  const ms = Date.now() - new Date(iso).getTime();
+  const ms = Date.now() - parseApiTime(iso).getTime();
   const min = Math.round(ms / 60000);
   if (min < 1) return "just now";
   if (min < 60) return `${min} minute${min === 1 ? "" : "s"} ago`;
@@ -236,7 +244,10 @@ const menuItemStyle: React.CSSProperties = {
 
 export function WebsiteScraper() {
   const { data, isLoading, isError, dataUpdatedAt, refetch, isFetching } = useWebsiteBrandsSummary();
-  const { data: activity } = useWebsiteActivity();
+  const { data: activityData } = useWebsiteActivity();
+  const activity = activityData?.activity ?? [];
+  const activeJobs = activityData?.active_jobs ?? [];
+  const activeCount = activityData?.active_count ?? 0;
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
@@ -296,17 +307,31 @@ export function WebsiteScraper() {
     }
     setScrapingAll(true);
     let started = 0;
+    let rateLimited = 0;
     for (const row of eligible) {
-      try {
-        await apiClient.post("/website-scraper/scrape-now", { brand_id: row.brand_id });
-        started += 1;
-      } catch {
-        // individual failures don't stop the batch — summarized below
+      let attempts = 0;
+      while (attempts < 8) {
+        attempts += 1;
+        try {
+          await apiClient.post("/website-scraper/scrape-now", { brand_id: row.brand_id });
+          started += 1;
+          break;
+        } catch (err: unknown) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status === 429) {
+            rateLimited += 1;
+            // Wait for a running scrape slot to free up (max 3 concurrent).
+            await new Promise((r) => setTimeout(r, 4000));
+            continue;
+          }
+          break;
+        }
       }
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 400));
     }
     setScrapingAll(false);
     if (started === 0) toast.error(`Could not start any scrapes (${eligible.length} attempted).`);
+    else if (rateLimited > 0) toast.success(`Started ${started} scrape(s); queued behind concurrency limit.`);
     else toast.success(`Started scraping ${started} of ${eligible.length} brand(s).`);
     refetch();
   }
@@ -387,13 +412,32 @@ export function WebsiteScraper() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
         <Card>
           <CardHeader icon={<Icon.activity size={16} style={{ color: "var(--brand)" }} />} title="Recent Scraping Activity" />
-          {!activity || activity.length === 0 ? (
+          {activeCount > 0 && (
+            <div style={{ marginBottom: 10, padding: "8px 10px", borderRadius: "var(--radius-sm)", background: "var(--brand-subtle)", fontSize: 12.5, color: "var(--text-body)" }}>
+              {activeCount} scrape{activeCount === 1 ? "" : "s"} in progress
+              {activeJobs[0]?.brand_name ? ` — e.g. ${activeJobs[0].brand_name}` : ""}
+              {activeJobs[0]?.total_items
+                ? ` (${activeJobs[0].processed_items ?? 0}/${activeJobs[0].total_items} pages)`
+                : activeJobs[0]?.stage
+                  ? ` (${activeJobs[0].stage})`
+                  : ""}
+              .{" "}
+              <button
+                type="button"
+                onClick={() => navigate("/pipeline")}
+                style={{ border: "none", background: "none", padding: 0, color: "var(--brand)", cursor: "pointer", fontWeight: 600 }}
+              >
+                Open Pipeline Center
+              </button>
+            </div>
+          )}
+          {activity.length === 0 ? (
             <p style={{ margin: 0, fontSize: 12.5, color: "var(--text-muted)" }}>
               No scraping jobs have run yet. Use Scrape now on a brand, or open Website Scraper Test for a single URL.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {activity.slice(0, 8).map((a) => (
+              {activity.slice(0, 12).map((a) => (
                 <div key={a.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
                   <span style={{ color: SEVERITY_COLOR[a.severity], fontSize: 14, flex: "0 0 auto" }}>{SEVERITY_ICON[a.severity] ?? "○"}</span>
                   <span style={{ fontSize: 12.5, color: "var(--text-body)", flex: "1 1 auto" }}>{a.message}</span>

@@ -45,12 +45,16 @@ class SendPushNotificationJob(BackgroundJob):
         response = fcm_client.send_multicast(tokens, title, body, data)
 
         dead_tokens = []
+        failure_samples: list[str] = []
         for token, resp in zip(tokens, response.responses):
             if resp.success:
                 continue
-            code = getattr(resp.exception, "code", None) or getattr(resp.exception, "reason", None)
+            exc = resp.exception
+            code = getattr(exc, "code", None) or getattr(exc, "reason", None)
             if str(code).upper() in _DEAD_TOKEN_ERRORS:
                 dead_tokens.append(token)
+            if len(failure_samples) < 5:
+                failure_samples.append(f"{code or type(exc).__name__}: {exc}")
 
         if dead_tokens:
             with get_session() as session:
@@ -60,10 +64,15 @@ class SendPushNotificationJob(BackgroundJob):
                     .update({"is_active": False}, synchronize_session=False)
                 )
 
+        detail = (
+            f"{item.label}: {response.success_count} sent, {response.failure_count} failed"
+            + (f" ({len(dead_tokens)} device(s) deactivated)" if dead_tokens else "")
+        )
+        if failure_samples:
+            detail += " | " + " || ".join(failure_samples)
         job_service.append_log(
             job_id,
-            f"{item.label}: {response.success_count} sent, {response.failure_count} failed"
-            + (f" ({len(dead_tokens)} device(s) deactivated)" if dead_tokens else ""),
+            detail,
             severity="success" if response.failure_count == 0 else "warning",
             category="push",
         )

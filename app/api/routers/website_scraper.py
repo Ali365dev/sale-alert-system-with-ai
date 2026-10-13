@@ -30,12 +30,32 @@ def _start_job(job_type: str, payload: dict) -> dict:
 
 @router.post("/scrape-now")
 def scrape_now(body: dict = Body(default={})):
+    from config import WEBSITE_SCRAPE_MAX_CONCURRENT, WEBSITE_SCRAPE_STALE_MINUTES
+
     body = body or {}
     brand_id = body.get("brand_id")
     url = (body.get("url") or "").strip() or None
 
     if brand_id is None and url is None:
         return JSONResponse({"error": "brand_id or url is required"}, status_code=400)
+
+    # Clear hung scrapes so a stuck "Scrape All" doesn't block forever.
+    job_service.reclaim_stale_jobs("website_scrape_brand", WEBSITE_SCRAPE_STALE_MINUTES)
+
+    active = job_service.count_active_jobs("website_scrape_brand")
+    if active >= WEBSITE_SCRAPE_MAX_CONCURRENT:
+        return JSONResponse(
+            {
+                "error": (
+                    f"Too many website scrapes already running ({active}/"
+                    f"{WEBSITE_SCRAPE_MAX_CONCURRENT}). Wait for one to finish, then retry."
+                ),
+                "active_count": active,
+                "max_concurrent": WEBSITE_SCRAPE_MAX_CONCURRENT,
+            },
+            status_code=429,
+        )
+
     brand_name = None
     if brand_id is not None:
         with get_session() as session:
@@ -103,7 +123,7 @@ def list_brands():
 
 @router.get("/activity")
 def recent_activity():
-    return {"activity": website_scraper_services.get_recent_activity()}
+    return website_scraper_services.get_recent_activity()
 
 
 @router.get("/brands/{brand_id}/config")

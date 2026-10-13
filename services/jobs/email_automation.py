@@ -232,9 +232,12 @@ class EmailAutomationJob(BackgroundJob):
             return
 
         schedule_for_new_offer(offer_id)
+        from config import OFFER_MATCH_MODE
+
         job_service.append_log(
             job_id,
-            f"→ Queued personalized notifications for offer #{offer_id} (matching brands AND categories only)",
+            f"→ Queued personalized notifications for offer #{offer_id} "
+            f"(users matching brands/categories, mode={OFFER_MATCH_MODE})",
             category="push",
         )
 

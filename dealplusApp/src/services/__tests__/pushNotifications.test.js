@@ -1,5 +1,5 @@
 jest.mock('../../utils/NavigationUtil', () => ({ navigate: jest.fn() }));
-jest.mock('../../utils/CustomToast', () => ({ showToast: { success: jest.fn(), error: jest.fn() } }));
+jest.mock('../../utils/CustomToast', () => ({ showToast: { success: jest.fn(), error: jest.fn(), push: jest.fn() } }));
 
 import messaging from '@react-native-firebase/messaging';
 import { navigate } from '../../utils/NavigationUtil';
@@ -113,7 +113,7 @@ describe('setupPushListeners', () => {
     const foregroundHandler = messaging().onMessage.mock.calls[0][0];
     foregroundHandler({ messageId: 'msg-1', notification: { title: 'Big Sale', body: '50% off' }, data: { dealId: '9' } });
 
-    expect(showToast.success).toHaveBeenCalledWith('50% off', 'Big Sale');
+    expect(showToast.push).toHaveBeenCalledWith('50% off', 'Big Sale');
     expect(useDataStore.getState().alerts).toHaveLength(1);
     expect(useDataStore.getState().alerts[0]).toMatchObject({ title: 'Big Sale', body: '50% off', dealId: '9' });
     expect(navigate).not.toHaveBeenCalled();
@@ -126,7 +126,7 @@ describe('setupPushListeners', () => {
     const foregroundHandler = messaging().onMessage.mock.calls[0][0];
     foregroundHandler({ messageId: 'msg-2', notification: null, data: { dealId: '9' } });
 
-    expect(showToast.success).not.toHaveBeenCalled();
+    expect(showToast.push).not.toHaveBeenCalled();
     // pushToAlertsFeed itself bails out with no `notification` — nothing crashes, nothing is added.
     expect(useDataStore.getState().alerts).toHaveLength(0);
   });

@@ -19,6 +19,10 @@ class WebsiteScrapeBrandJob(BackgroundJob):
         url = payload.get("url")
 
         if url:
+            from services import job_service
+            job_service.append_log(
+                job["id"], f"Scraping single URL: {url}", severity="info", category="website",
+            )
             return [WorkItem(id=url, label=url)]
 
         if brand_id is None:
@@ -28,10 +32,26 @@ class WebsiteScrapeBrandJob(BackgroundJob):
 
         with get_session() as session:
             brand = session.query(Brand).filter(Brand.id == brand_id).first()
-            if brand is None or not brand.website_scraping_enabled:
+            if brand is None:
+                job_service.append_log(
+                    job["id"], f"⚠ Brand #{brand_id} not found — nothing to scrape.",
+                    severity="warning", category="website",
+                )
+                return []
+            if not brand.website_scraping_enabled:
+                job_service.append_log(
+                    job["id"], f"⚠ Scraping disabled for {brand.name} — skipped.",
+                    severity="warning", category="website",
+                )
                 return []
             brand_name = brand.name
-            job_service.append_log(job["id"], f"Scraping {brand_name}…", severity="info", category="website")
+            homepage = brand.homepage_url or brand.website
+            job_service.set_stage(job["id"], "discovering")
+            job_service.append_log(
+                job["id"],
+                f"Scraping {brand_name}… discovering pages from {homepage or '(no homepage)'}",
+                severity="info", category="website",
+            )
             discovered, errors = website_scraper_services.discover_pages_for_brand(brand)
 
         if not discovered:
@@ -42,8 +62,23 @@ class WebsiteScrapeBrandJob(BackgroundJob):
                     job["id"], "⚠ No relevant sale/offer pages were discovered on this site.",
                     severity="warning", category="website",
                 )
+            else:
+                job_service.append_log(
+                    job["id"],
+                    f"⚠ Discovery failed for {brand_name} ({len(errors)} error(s)).",
+                    severity="error", category="website",
+                )
             website_scraper_services.record_discovery_failure(brand_id, errors)
             return []
+
+        job_service.append_log(
+            job["id"],
+            f"✓ Discovered {len(discovered)} page(s) to scrape"
+            + (f" ({len(errors)} fetch warning(s) during discovery)" if errors else ""),
+            severity="success", category="website",
+        )
+        for err in errors[:3]:
+            job_service.append_log(job["id"], f"⚠ {err}", severity="warning", category="website")
 
         return [WorkItem(id=(d.url, d.page_type), label=d.url) for d in discovered]
 
@@ -84,3 +119,22 @@ class WebsiteScrapeBrandJob(BackgroundJob):
         brand_id = payload.get("brand_id")
         if brand_id is not None:
             website_scraper_services.finalize_brand_scrape(job_id, brand_id)
+
+    def on_failure(self, job_id: int, error: Exception) -> None:
+        self._safe_finalize(job_id)
+
+    def on_cancel(self, job_id: int) -> None:
+        self._safe_finalize(job_id)
+
+    def _safe_finalize(self, job_id: int) -> None:
+        from services import job_service
+
+        job = job_service.get_job(job_id) or {}
+        brand_id = (job.get("payload") or {}).get("brand_id")
+        if brand_id is None:
+            return
+        try:
+            website_scraper_services.finalize_brand_scrape(job_id, brand_id)
+        except Exception:
+            from config import logger
+            logger.exception("finalize_brand_scrape failed after job %s ended early", job_id)

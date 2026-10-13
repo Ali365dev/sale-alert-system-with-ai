@@ -26,6 +26,7 @@ def test_discovery_failure_yields_no_work_items_and_is_recorded(mocker, mock_get
     mock_session.query.return_value.filter.return_value.first.return_value = _brand()
 
     mocker.patch("services.job_service.append_log")
+    mocker.patch("services.job_service.set_stage")
     mocker.patch(
         "services.website_scraper.services.discover_pages_for_brand",
         return_value=([], ["https://acme.example: HTTP 403 (browser fallback also blocked)"]),
@@ -44,6 +45,7 @@ def test_disabled_brand_yields_no_work_and_does_not_record_failure(mocker, mock_
     failure, just nothing to do; must not be conflated with the failure path."""
     mocker.patch("services.jobs.website_scrape_brand.get_session", mock_get_session)
     mock_session.query.return_value.filter.return_value.first.return_value = _brand(website_scraping_enabled=False)
+    mocker.patch("services.job_service.append_log")
 
     record_failure = mocker.patch("services.website_scraper.services.record_discovery_failure")
     discover = mocker.patch("services.website_scraper.services.discover_pages_for_brand")
@@ -60,6 +62,7 @@ def test_successful_discovery_returns_one_work_item_per_page(mocker, mock_get_se
     mocker.patch("services.jobs.website_scrape_brand.get_session", mock_get_session)
     mock_session.query.return_value.filter.return_value.first.return_value = _brand()
     mocker.patch("services.job_service.append_log")
+    mocker.patch("services.job_service.set_stage")
 
     from services.website_scraper.models import DiscoveredUrl
 

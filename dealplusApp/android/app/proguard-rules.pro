@@ -7,4 +7,10 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# Add any project specific keep options here:
+# Firebase / FCM — release builds must keep messaging entry points or
+# getToken()/token refresh can fail silently and leave DeviceToken rows
+# inactive after the backend deactivates UNREGISTERED tokens.
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**

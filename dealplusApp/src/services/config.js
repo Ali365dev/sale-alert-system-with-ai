@@ -40,4 +40,4 @@ export const GOOGLE_WEB_CLIENT_ID = '254426897331-d1vq81m8rtj3oef8asfvlgu050tvtf
 
 // iOS OAuth client ID from GoogleService-Info.plist (CLIENT_ID). Used as
 // `iosClientId` when configuring Google Sign-In on iOS.
-export const GOOGLE_IOS_CLIENT_ID = '254426897331-1jnk5399j8nqf96f6pifr3qvs26po2dv.apps.googleusercontent.com';
+export const GOOGLE_IOS_CLIENT_ID = '254426897331-8u2f992de8mccrl4q4cmskmk85r2hhf0.apps.googleusercontent.com';

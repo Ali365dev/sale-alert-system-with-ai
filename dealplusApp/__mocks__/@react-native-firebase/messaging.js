@@ -9,6 +9,9 @@ const instance = {
   onMessage: jest.fn(() => () => {}),
   onNotificationOpenedApp: jest.fn(() => () => {}),
   getInitialNotification: jest.fn().mockResolvedValue(null),
+  isDeviceRegisteredForRemoteMessages: true,
+  registerDeviceForRemoteMessages: jest.fn().mockResolvedValue(undefined),
+  getAPNSToken: jest.fn().mockResolvedValue('mock-apns-token'),
 };
 
 const messaging = () => instance;

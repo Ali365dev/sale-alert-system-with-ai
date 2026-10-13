@@ -89,6 +89,42 @@ def test_collect_work_empty_when_no_matching_profiles(mocker, mock_get_session, 
     assert NotifyMatchingOfferJob().collect_work({"payload": {"offer_id": 9}}) == []
 
 
+def test_collect_work_logs_when_matches_have_no_active_tokens(mocker, mock_get_session, mock_session):
+    """Matching prefs with no live DeviceToken must explain why notify is empty."""
+    offer = _offer()
+    mocker.patch("services.jobs.notify_matching_offer.get_session", mock_get_session)
+    mocker.patch(
+        "services.jobs.notify_matching_offer.matching_profile_rows",
+        return_value=[("device-a", "user-1"), ("device-b", "user-2")],
+    )
+    append_log = mocker.patch("services.job_service.append_log")
+
+    offer_q = mocker.Mock()
+    offer_q.filter.return_value.first.return_value = offer
+
+    notif_filter = mocker.Mock()
+    notif_filter.__iter__ = lambda self: iter([])
+    notif_q = mocker.Mock()
+    notif_q.filter.return_value = notif_filter
+
+    active_filter = mocker.Mock()
+    active_filter.all.return_value = []
+    inactive_filter = mocker.Mock()
+    inactive_filter.count.return_value = 3
+    token_q = mocker.Mock()
+    token_q.filter.side_effect = [active_filter, inactive_filter]
+
+    # collect_work query order: Offer → OfferNotification.device_id → DeviceToken → DeviceToken.id
+    mock_session.query.side_effect = [offer_q, notif_q, token_q, token_q]
+
+    items = NotifyMatchingOfferJob().collect_work({"id": 42, "payload": {"offer_id": 9}})
+    assert items == []
+    assert append_log.called
+    msg = append_log.call_args.args[1]
+    assert "0 active FCM tokens" in msg
+    assert "re-register" in msg
+
+
 def test_process_item_sends_personalized_copy_and_records(mocker, mock_get_session, mock_session):
     offer = _offer()
     mocker.patch("services.jobs.notify_matching_offer.get_session", mock_get_session)

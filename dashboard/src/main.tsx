@@ -9,7 +9,15 @@ import "./styles/index.css";
 
 initClarity();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Avoid treating every page mount as a cold load (full-page “Loading…” flash).
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

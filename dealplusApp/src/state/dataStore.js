@@ -10,6 +10,8 @@ const useDataStore = create()(
       categories: [],
       alerts: [],
       brandsById: {},
+      // True only for a cold empty store. Cleared after MMKV rehydrate when a
+      // catalog cache exists so screens don't flash skeletons on every open.
       loading: true,
       error: null,
       setBrandsAndDeals: (brands, deals, brandsById) => set({ brands, deals, brandsById }),
@@ -28,6 +30,11 @@ const useDataStore = create()(
         alerts: state.alerts,
         brandsById: state.brandsById,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state && (state.brands?.length > 0 || state.deals?.length > 0)) {
+          useDataStore.setState({ loading: false });
+        }
+      },
     },
   ),
 );

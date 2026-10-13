@@ -298,11 +298,15 @@ export function NotificationManager() {
   const deviceCount = useDeviceCount();
   const fcmStatus = useFcmStatus();
   const configured = fcmStatus.data ?? false;
+  const total = deviceCount.data?.count ?? 0;
+  const ios = deviceCount.data?.ios ?? 0;
+  const android = deviceCount.data?.android ?? 0;
 
   return (
     <>
       <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
         Compose and send push notifications to every registered dealplusApp device.
+        TestFlight needs an active iOS token here — if iOS stays at 0, the phone never registered with FCM/APNs.
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
@@ -311,7 +315,14 @@ export function NotificationManager() {
           iconColor="var(--brand)"
           iconBg="var(--brand-subtle)"
           label="Registered devices"
-          value={deviceCount.data ?? "—"}
+          value={deviceCount.isLoading ? "—" : total}
+        />
+        <StatCard
+          icon={<Icon.bell size={17} />}
+          iconColor="var(--brand)"
+          iconBg="var(--brand-subtle)"
+          label="iOS / Android"
+          value={deviceCount.isLoading ? "—" : `${ios} / ${android}`}
         />
         <StatCard
           icon={<Icon.shield size={17} />}
@@ -323,7 +334,7 @@ export function NotificationManager() {
       </div>
 
       {!fcmStatus.isLoading && !configured && <FirebaseSetupCard onSaved={() => fcmStatus.refetch()} />}
-      {configured && <ComposeCard deviceCount={deviceCount.data ?? 0} />}
+      {configured && <ComposeCard deviceCount={total} />}
 
       <HistoryTable />
     </>

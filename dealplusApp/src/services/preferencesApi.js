@@ -1,5 +1,6 @@
 import { appAxios } from './apiInterceptors';
 import { getDeviceId } from '../utils/deviceId';
+import { ensurePushRegistration } from './pushNotifications';
 
 // Only include a field in the request if the caller actually passed it —
 // the backend treats an omitted field as "leave unchanged", so a
@@ -11,6 +12,9 @@ export const saveInterests = async ({ brands, categories } = {}) => {
 
   try {
     await appAxios.put('/preferences', body);
+    // Prefs are matched to FCM via the same device_id — refresh the token
+    // so a user who just chose brands/categories is actually reachable.
+    ensurePushRegistration().catch(() => {});
   } catch (error) {
     console.log('Failed to save interests:', error?.message);
   }

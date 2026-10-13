@@ -37,6 +37,8 @@
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = dealplusApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A08B90149D10444F9B35B385 /* Ionicons.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = Ionicons.ttf; path = ../assets/fonts/Ionicons.ttf; sourceTree = "<group>"; };
 		A1B2C3D32CA45674006654F0 /* DisableHTTP3.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = DisableHTTP3.m; path = dealplusApp/DisableHTTP3.m; sourceTree = "<group>"; };
+		C0DE51GNENT1TLEMEN7S0001 /* dealplusApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = dealplusApp.entitlements; path = dealplusApp/dealplusApp.entitlements; sourceTree = "<group>"; };
+		C0DE51GNENT1TLEMEN7S0002 /* dealplusApp.Debug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = dealplusApp.Debug.entitlements; path = dealplusApp/dealplusApp.Debug.entitlements; sourceTree = "<group>"; };
 		D3208BBA43E7476BA5E86F81 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = dealplusApp/Colors.xcassets; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
@@ -59,6 +61,8 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				A1B2C3D32CA45674006654F0 /* DisableHTTP3.m */,
+				C0DE51GNENT1TLEMEN7S0001 /* dealplusApp.entitlements */,
+				C0DE51GNENT1TLEMEN7S0002 /* dealplusApp.Debug.entitlements */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -319,11 +323,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CODE_SIGN_ENTITLEMENTS = dealplusApp/dealplusApp.Debug.entitlements;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = HK5JYLV26Z;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = dealplusApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Deals More";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -351,10 +357,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CODE_SIGN_ENTITLEMENTS = dealplusApp/dealplusApp.entitlements;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = HK5JYLV26Z;
 				INFOPLIST_FILE = dealplusApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Deals More";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

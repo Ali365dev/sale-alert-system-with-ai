@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
+import { apiClient } from "../api/client";
 import type { Job } from "../api/jobs";
-import { isJobActive, useActiveJob, useJob } from "../api/jobs";
+import { isJobActive, useAllActiveJobs } from "../api/jobs";
 import { toast } from "../store/toastStore";
-import { getJobTypeConfig, JOB_TYPES } from "../config/jobTypes";
+import { getJobTypeConfig } from "../config/jobTypes";
 
 export type JobLifecycleEvent = "started" | "completed" | "failed" | "cancelled" | "retried";
 
@@ -46,49 +47,47 @@ export function notifyJobEvent(event: JobLifecycleEvent, job: Job) {
   }
 }
 
-/** Watches every registered job type's "active job" slot and fires a
- * lifecycle notification whenever a job starts or leaves the active state.
- * Mount once, app-wide (in AppShell), so notifications fire regardless of
- * which page the user is on. */
+async function notifyFinished(jobId: number) {
+  try {
+    const { data: job } = await apiClient.get<Job>(`/jobs/${jobId}`);
+    if (isJobActive(job.status)) return;
+    if (job.status === "completed") notifyJobEvent("completed", job);
+    else if (job.status === "failed") notifyJobEvent("failed", job);
+    else if (job.status === "cancelled") notifyJobEvent("cancelled", job);
+  } catch {
+    // ignore — toast is best-effort
+  }
+}
+
+/** Watches active jobs app-wide via one `/jobs/active-all` poll (not one
+ * request per job type). Mount once in AppShell. */
 export function useJobLifecycleNotifications() {
   useEffect(() => {
     ensurePermission();
   }, []);
 
-  for (const { jobType } of JOB_TYPES) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks -- JOB_TYPES is a static, module-level constant
-    useJobTypeNotifications(jobType);
-  }
-}
-
-function useJobTypeNotifications(jobType: string) {
-  // useActiveJob only ever returns a job while it's pending/running/cancelling
-  // — it goes back to null the instant a job finishes, so it can't be used to
-  // observe a *completion* transition. Instead: use it only to notice a job
-  // starting, then track that job's id locally and watch it via useJob (which
-  // keeps returning the last-known data even after the job finishes).
-  const active = useActiveJob(jobType);
-  const [watchedId, setWatchedId] = useState<number | null>(null);
-  const watched = useJob(watchedId);
-  const wasActive = useRef(false);
+  const allActive = useAllActiveJobs();
+  /** jobType → active job id last seen */
+  const prevIds = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    if (active.data && active.data.id !== watchedId) {
-      setWatchedId(active.data.id);
-      notifyJobEvent(active.data.payload?.retry_of ? "retried" : "started", active.data);
-    }
-  }, [active.data, watchedId]);
+    const jobs = allActive.data ?? {};
+    const nextIds = new Map<string, number>();
 
-  useEffect(() => {
-    const job = watched.data;
-    const nowActive = isJobActive(job?.status);
-
-    if (wasActive.current && !nowActive && job) {
-      if (job.status === "completed") notifyJobEvent("completed", job);
-      else if (job.status === "failed") notifyJobEvent("failed", job);
-      else if (job.status === "cancelled") notifyJobEvent("cancelled", job);
+    for (const [jobType, job] of Object.entries(jobs)) {
+      if (!job || !isJobActive(job.status)) continue;
+      nextIds.set(jobType, job.id);
+      if (prevIds.current.get(jobType) !== job.id) {
+        notifyJobEvent(job.payload?.retry_of ? "retried" : "started", job);
+      }
     }
 
-    wasActive.current = nowActive;
-  }, [watched.data]);
+    for (const [jobType, prevId] of prevIds.current) {
+      if (nextIds.get(jobType) !== prevId) {
+        void notifyFinished(prevId);
+      }
+    }
+
+    prevIds.current = nextIds;
+  }, [allActive.data]);
 }

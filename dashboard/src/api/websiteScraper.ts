@@ -201,19 +201,40 @@ export function useWebsiteBrandOffers(brandId: number | null) {
 
 export interface WebsiteActivityEntry {
   id: number;
+  job_id?: number;
   message: string;
   severity: "info" | "success" | "warning" | "error";
   time: string;
+}
+
+export interface WebsiteActiveJob {
+  job_id: number;
+  brand_name: string | null;
+  status: string;
+  stage: string | null;
+  progress_percentage: number;
+  current_item_label: string | null;
+  processed_items: number;
+  total_items: number;
+  error: string | null;
+}
+
+export interface WebsiteActivityResponse {
+  activity: WebsiteActivityEntry[];
+  active_jobs: WebsiteActiveJob[];
+  active_count: number;
+  reclaimed_stale: number;
 }
 
 export function useWebsiteActivity() {
   return useQuery({
     queryKey: ["website-scraper", "activity"],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ activity: WebsiteActivityEntry[] }>("/website-scraper/activity");
-      return data.activity;
+      const { data } = await apiClient.get<WebsiteActivityResponse>("/website-scraper/activity");
+      return data;
     },
-    refetchInterval: 15000,
+    // Poll faster while scrapes are in flight so incomplete jobs show progress/errors.
+    refetchInterval: (query) => ((query.state.data?.active_count ?? 0) > 0 ? 4000 : 15000),
   });
 }
 

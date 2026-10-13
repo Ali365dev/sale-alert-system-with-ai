@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Outlet, useLocation } from "react-router";
 
 import { isJobActive, useActiveJob, useStartJob } from "../../api/jobs";
 import { useSettingsSession } from "../../api/settings";
@@ -8,12 +8,43 @@ import { LoadingState } from "../ui/Spinner";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 
-/** Every dashboard page renders through here — the admin login gate lives
- * at this single choke point rather than being duplicated per-page. */
-export function AppShell({ title, children }: { title: string; children: ReactNode }) {
-  const { data: session, isLoading } = useSettingsSession();
+/** Titles for dashboard routes — kept here so AppShell can be a single layout
+ * route (mounts once) instead of remounting a full-page loader on every nav. */
+const ROUTE_TITLES: Record<string, string> = {
+  "/dashboard": "Overview",
+  "/analytics": "Analytics",
+  "/search": "Search",
+  "/offers": "Offers manager",
+  "/brands": "Brands manager",
+  "/manage-categories": "Categories",
+  "/discover-brand": "Discover brand",
+  "/offer-discovery": "Offer discovery",
+  "/social-scraper-test": "Social media scraper test",
+  "/website-scraper": "",
+  "/website-scraper-test": "Website scraper test",
+  "/emails": "",
+  "/unknown-emails": "Unknown emails",
+  "/brand-requests": "Brand requests",
+  "/insights": "AI insights",
+  "/notifications": "Notification Management",
+  "/pipeline": "Pipeline Center",
+  "/settings": "Settings",
+};
 
-  if (isLoading) {
+function titleForPath(pathname: string): string {
+  if (pathname in ROUTE_TITLES) return ROUTE_TITLES[pathname];
+  if (pathname.startsWith("/website-scraper/brands/")) return "";
+  return "";
+}
+
+/** Admin login gate + chrome. Mount once via a React Router layout route —
+ * wrapping each page in its own AppShell remounted the session check and
+ * flashed LoadingState on every navigation. */
+export function AppShell() {
+  const { data: session, isPending } = useSettingsSession();
+
+  // Only block the first session resolve — never blank the shell on background refetch.
+  if (isPending) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
         <LoadingState />
@@ -25,12 +56,14 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
     return <SettingsLogin />;
   }
 
-  return <AuthedShell title={title}>{children}</AuthedShell>;
+  return <AuthedShell />;
 }
 
 /** Split out so the job-polling hooks below only ever mount once an admin
  * session is confirmed — never fired while the login screen is showing. */
-function AuthedShell({ title, children }: { title: string; children: ReactNode }) {
+function AuthedShell() {
+  const location = useLocation();
+  const title = titleForPath(location.pathname);
   const startEmailSync = useStartJob("email_sync");
   const activeEmailSync = useActiveJob("email_sync");
   useJobLifecycleNotifications();
@@ -49,7 +82,7 @@ function AuthedShell({ title, children }: { title: string; children: ReactNode }
           {title && (
             <h1 style={{ margin: 0, font: "var(--fw-bold) 22px/1.2 var(--font-sans)", color: "var(--text-strong)" }}>{title}</h1>
           )}
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>

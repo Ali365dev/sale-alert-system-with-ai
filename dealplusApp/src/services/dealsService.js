@@ -38,7 +38,11 @@ export const loadDeals = () => {
 };
 
 const loadDealsOnce = async () => {
-  useDataStore.setState({ loading: true, error: null });
+  // Keep cached catalog visible — only show the full-screen loading state when
+  // we have nothing to render yet (first install / cleared storage).
+  const cached =
+    useDataStore.getState().deals.length > 0 || useDataStore.getState().brands.length > 0;
+  useDataStore.setState(cached ? { error: null } : { loading: true, error: null });
   try {
     let brandsRes;
     let offersRes;

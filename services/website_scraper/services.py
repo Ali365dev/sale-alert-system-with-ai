@@ -230,11 +230,8 @@ def finalize_brand_scrape(job_id: int, brand_id: int) -> None:
         fetched_gone = {r.final_url or r.url for r in rows if r.http_status in (404, 410)}
         matched_offer_ids = {r.offer_id for r in rows if r.offer_id}
 
-        closure_detector.apply(
-            session, brand.name,
-            fetched_ok_urls=fetched_ok, fetched_gone_urls=fetched_gone, matched_offer_ids=matched_offer_ids,
-        )
-
+        # Write scrape history BEFORE closure so a closure exception cannot
+        # roll back the WebsiteScrapeLog row (activity/history looked empty).
         now = utcnow()
         log = session.query(WebsiteScrapeLog).filter(WebsiteScrapeLog.brand_id == brand_id).first()
         if log is None:
@@ -257,6 +254,15 @@ def finalize_brand_scrape(job_id: int, brand_id: int) -> None:
             log.last_content_change_at = now
         if any_sale:
             log.last_detected_sale_at = now
+
+        try:
+            closure_detector.apply(
+                session, brand.name,
+                fetched_ok_urls=fetched_ok, fetched_gone_urls=fetched_gone, matched_offer_ids=matched_offer_ids,
+            )
+        except Exception:
+            from config import logger
+            logger.exception("Closure detection failed for brand_id=%s job_id=%s", brand_id, job_id)
 
 
 def get_scrape_history(brand_id: int) -> dict | None:
@@ -309,24 +315,87 @@ def record_discovery_failure(brand_id: int, errors: list[str]) -> None:
         log.error_message = "; ".join(errors[:3]) if errors else "No relevant pages could be discovered"
 
 
-def get_recent_activity(limit: int = 15) -> list[dict]:
+def get_recent_activity(limit: int = 20) -> dict:
     """Recent job-log lines across every website-scrape job run — powers the
     dashboard's "Recent Scraping Activity" feed with real events (already
-    written by services/jobs/website_scrape_brand.py), not synthetic data."""
-    from database.models import JobLog
+    written by services/jobs/website_scrape_brand.py), not synthetic data.
+
+    Includes `system` lines (Done / Nothing to do / fatal Error) as well as
+    `website` lines — filtering on category alone made the feed look empty
+    when discovery failed or a job hung before the first page log.
+    """
+    from config import WEBSITE_SCRAPE_STALE_MINUTES
+    from database.models import Job, JobLog
+    from services import job_service
+
+    reclaimed = job_service.reclaim_stale_jobs("website_scrape_brand", WEBSITE_SCRAPE_STALE_MINUTES)
 
     with get_session() as session:
         rows = (
-            session.query(JobLog)
-            .filter(JobLog.category == "website")
+            session.query(JobLog, Job)
+            .join(Job, Job.id == JobLog.job_id)
+            .filter(Job.job_type == "website_scrape_brand")
             .order_by(JobLog.id.desc())
             .limit(limit)
             .all()
         )
-        return [
-            {"id": r.id, "message": r.message, "severity": r.severity, "time": r.created_at.isoformat()}
-            for r in rows
-        ]
+        activity = []
+        for log_row, job in rows:
+            payload = {}
+            try:
+                payload = json.loads(job.payload) if job.payload else {}
+            except (json.JSONDecodeError, TypeError):
+                pass
+            brand = payload.get("brand_name")
+            msg = log_row.message
+            if brand and brand not in msg and not msg.startswith("Scraping "):
+                msg = f"[{brand}] {msg}"
+            time_iso = log_row.created_at.isoformat() if log_row.created_at else None
+            if time_iso and not time_iso.endswith("Z") and "+" not in time_iso:
+                time_iso += "Z"
+            activity.append({
+                "id": log_row.id,
+                "job_id": job.id,
+                "message": msg,
+                "severity": log_row.severity,
+                "time": time_iso,
+            })
+
+        active = (
+            session.query(Job)
+            .filter(
+                Job.job_type == "website_scrape_brand",
+                Job.status.in_(["pending", "running", "cancelling"]),
+            )
+            .order_by(Job.id.desc())
+            .limit(10)
+            .all()
+        )
+        active_jobs = []
+        for job in active:
+            payload = {}
+            try:
+                payload = json.loads(job.payload) if job.payload else {}
+            except (json.JSONDecodeError, TypeError):
+                pass
+            active_jobs.append({
+                "job_id": job.id,
+                "brand_name": payload.get("brand_name"),
+                "status": job.status,
+                "stage": job.stage,
+                "progress_percentage": job.progress_percentage,
+                "current_item_label": job.current_item_label,
+                "processed_items": job.processed_items,
+                "total_items": job.total_items,
+                "error": job.error,
+            })
+
+    return {
+        "activity": activity,
+        "active_jobs": active_jobs,
+        "active_count": len(active_jobs),
+        "reclaimed_stale": len(reclaimed),
+    }
 
 
 def get_pages_by_job(job_id: int) -> list[dict]:

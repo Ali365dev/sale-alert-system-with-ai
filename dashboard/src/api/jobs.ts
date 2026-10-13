@@ -59,27 +59,57 @@ export interface JobsSummary {
 }
 
 const EMAIL_SYNC_TYPE = "email_sync";
-const ACTIVE_POLL_MS = 5000; // how often to check for an externally-started job while idle
-const RUNNING_POLL_MS = 1000; // how often to poll a job we know is active
+/** While idle: slow check for jobs started elsewhere (other tab / scheduler).
+ * Was 5s and inverted (polled only when idle) — that hammered /jobs/active
+ * once per job type continuously. */
+const IDLE_POLL_MS = 60_000;
+const RUNNING_POLL_MS = 2000; // how often to poll a job we know is active
 
 export function isJobActive(status: JobStatus | undefined) {
   return status === "pending" || status === "running" || status === "cancelling";
 }
 
-/** Detects an already-running job of a given type on mount (page refresh
- * recovery) and keeps checking periodically so a job started elsewhere
- * (e.g. a different tab, or another trigger button for the same type) is
- * picked up too. */
+/** Reads the per-type active-job cache. Does not hit the network — AppShell's
+ * `useAllActiveJobs` (and `useStartJob`) own all writes to this key. That stops
+ * Pipeline Center / page buttons from each polling `/jobs/active?type=`. */
 export function useActiveJob(jobType: string) {
   return useQuery({
     queryKey: ["jobs", "active", jobType],
+    queryFn: async (): Promise<Job | null> => null,
+    enabled: false,
+    staleTime: Infinity,
+  });
+}
+
+/** Single poll for every active job type — used by AppShell lifecycle toasts
+ * instead of N parallel `/jobs/active?type=` requests. Also hydrates the
+ * per-type `["jobs","active",type]` cache so page buttons stay in sync. */
+export function useAllActiveJobs() {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ["jobs", "active-all"],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ job: Job | null }>("/jobs/active", {
-        params: { type: jobType },
-      });
-      return data.job;
+      const { data } = await apiClient.get<{ jobs: Record<string, Job> }>("/jobs/active-all");
+      const jobs = data.jobs ?? {};
+      for (const [jobType, job] of Object.entries(jobs)) {
+        queryClient.setQueryData(["jobs", "active", jobType], job);
+      }
+      // Clear stale active caches for types that are no longer running.
+      const cached = queryClient.getQueriesData<Job | null>({ queryKey: ["jobs", "active"] });
+      for (const [key, value] of cached) {
+        const jobType = key[2];
+        if (typeof jobType === "string" && value && !jobs[jobType]) {
+          queryClient.setQueryData(["jobs", "active", jobType], null);
+        }
+      }
+      return jobs;
     },
-    refetchInterval: (query) => (isJobActive(query.state.data?.status) ? false : ACTIVE_POLL_MS),
+    refetchInterval: (query) => {
+      const jobs = query.state.data ?? {};
+      const anyActive = Object.values(jobs).some((j) => isJobActive(j?.status));
+      return anyActive ? RUNNING_POLL_MS : IDLE_POLL_MS;
+    },
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -132,7 +162,8 @@ export function useStartJob(jobType: string) {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["jobs", "active", jobType], { id: data.jobId, status: data.status });
-      queryClient.invalidateQueries({ queryKey: ["jobs", "active", jobType] });
+      // Refresh the batch poll so progress/toasts pick up the new job quickly.
+      queryClient.invalidateQueries({ queryKey: ["jobs", "active-all"] });
       queryClient.invalidateQueries({ queryKey: ["jobs", "summary"] });
       toast.info("Job started.");
     },

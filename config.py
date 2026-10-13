@@ -137,7 +137,14 @@ if OFFER_MATCH_MODE not in ("and", "or"):
 WEBSITE_SCRAPER_ENABLED = os.getenv("WEBSITE_SCRAPER_ENABLED", "true").lower() == "true"
 WEBSITE_SCRAPE_TIMEOUT_SECONDS = float(os.getenv("WEBSITE_SCRAPE_TIMEOUT_SECONDS", "30"))
 WEBSITE_SCRAPE_MAX_PAGES = int(os.getenv("WEBSITE_SCRAPE_MAX_PAGES", "8"))
+# Cap concurrent website_scrape_brand jobs. "Scrape All" used to spawn dozens
+# of Playwright/Camoufox threads at once; the process hung mid-page with no
+# error and Recent Scraping Activity looked frozen.
+WEBSITE_SCRAPE_MAX_CONCURRENT = int(os.getenv("WEBSITE_SCRAPE_MAX_CONCURRENT", "3"))
 WEBSITE_SCRAPE_REQUEST_DELAY_SECONDS = float(os.getenv("WEBSITE_SCRAPE_REQUEST_DELAY_SECONDS", "0.4"))
+# Jobs with no progress update for this long are marked failed so the
+# dashboard stops showing them as "running" forever after a hang.
+WEBSITE_SCRAPE_STALE_MINUTES = int(os.getenv("WEBSITE_SCRAPE_STALE_MINUTES", "45"))
 WEBSITE_SCRAPE_USER_AGENT = os.getenv(
     "WEBSITE_SCRAPE_USER_AGENT",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "

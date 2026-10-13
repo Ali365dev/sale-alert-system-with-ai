@@ -8,7 +8,12 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/utils/CustomToast';
 import { loadDeals } from './src/services/dealsService';
-import { registerDeviceToken, requestNotificationPermission, setupPushListeners } from './src/services/pushNotifications';
+import {
+  refreshDeviceTokenRegistration,
+  registerDeviceToken,
+  requestNotificationPermission,
+  setupPushListeners,
+} from './src/services/pushNotifications';
 import { configureGoogleSignIn } from './src/services/googleAuth';
 import { CLARITY_PROJECT_ID } from './src/services/config';
 import useTheme from './src/hooks/useTheme';
@@ -50,12 +55,16 @@ const App = () => {
     loadDeals();
 
     // Re-fetch brands/offers when returning to the app so dashboard logo
-    // (and other) edits show up without force-killing the process.
+    // (and other) edits show up without force-killing the process. Also
+    // refresh the FCM token registration — personalized offer alerts only
+    // reach devices with an active DeviceToken.device_id, and FCM often
+    // invalidates tokens while the app is backgrounded.
     const sub = AppState.addEventListener('change', (next) => {
       const wasBackground = appState.current.match(/inactive|background/);
       appState.current = next;
       if (wasBackground && next === 'active') {
         loadDeals();
+        refreshDeviceTokenRegistration();
       }
     });
 

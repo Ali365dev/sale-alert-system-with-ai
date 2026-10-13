@@ -18,6 +18,9 @@ export function useSettingsSession() {
       return data;
     },
     retry: false,
+    // Session rarely changes; keep it warm so navigating never re-enters isPending.
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 

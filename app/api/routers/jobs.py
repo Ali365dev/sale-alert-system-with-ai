@@ -94,6 +94,13 @@ def active_job(type: str = Query(EMAIL_SYNC_TYPE)):  # noqa: A002 — matches or
     return {"job": job}
 
 
+@router.get("/active-all")
+def active_jobs_all():
+    """All currently active jobs keyed by job_type — used by the app shell
+    lifecycle watcher so the UI does not poll /jobs/active once per type."""
+    return {"jobs": job_service.get_all_active_jobs()}
+
+
 @router.get("/{job_id}")
 def get_job(job_id: int):
     job = job_service.get_job(job_id)

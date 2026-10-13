@@ -56,6 +56,82 @@ def get_active_job(job_type: str) -> dict | None:
         return _job_to_dict(job) if job else None
 
 
+def count_active_jobs(job_type: str) -> int:
+    with get_session() as session:
+        return (
+            session.query(func.count(Job.id))
+            .filter(Job.job_type == job_type, Job.status.in_(["pending", "running", "cancelling"]))
+            .scalar()
+            or 0
+        )
+
+
+def get_all_active_jobs() -> dict[str, dict]:
+    """Latest pending/running/cancelling job per job_type — one DB round-trip
+    for the dashboard's app-wide lifecycle watcher (avoids N× /jobs/active polls)."""
+    with get_session() as session:
+        rows = (
+            session.query(Job)
+            .filter(Job.status.in_(["pending", "running", "cancelling"]))
+            .order_by(Job.id.desc())
+            .all()
+        )
+        by_type: dict[str, dict] = {}
+        for job in rows:
+            if job.job_type not in by_type:
+                by_type[job.job_type] = _job_to_dict(job)
+        return by_type
+
+
+def reclaim_stale_jobs(job_type: str, stale_minutes: int) -> list[dict]:
+    """Mark hung jobs failed so the UI stops showing them as in-progress.
+
+    Website scrapes can stall inside Playwright with no exception; without
+    this, status stays `running` forever and Recent Activity looks broken.
+    """
+    from datetime import timedelta
+
+    if stale_minutes <= 0:
+        return []
+    cutoff = _utcnow() - timedelta(minutes=stale_minutes)
+    reclaimed: list[dict] = []
+    with get_session() as session:
+        stuck = (
+            session.query(Job)
+            .filter(
+                Job.job_type == job_type,
+                Job.status.in_(["pending", "running", "cancelling"]),
+                Job.updated_at < cutoff,
+            )
+            .all()
+        )
+        for job in stuck:
+            brand = ""
+            try:
+                payload = _loads(job.payload) or {}
+                brand = payload.get("brand_name") or ""
+            except Exception:
+                pass
+            msg = (
+                f"Timed out with no progress for {stale_minutes}+ minutes"
+                + (f" ({brand})" if brand else "")
+                + " — marked failed. Retry the scrape."
+            )
+            job.status = "failed"
+            job.is_interrupted = True
+            job.error = msg
+            job.finished_at = _utcnow()
+            job.stage = "failed"
+            session.add(JobLog(
+                job_id=job.id,
+                message=f"⚠ {msg}",
+                severity="error",
+                category="website",
+            ))
+            reclaimed.append(_job_to_dict(job))
+    return reclaimed
+
+
 def create_job(job_type: str, worker_count: int = 5, payload: dict | None = None) -> dict:
     with get_session() as session:
         job = Job(job_type=job_type, status="pending", worker_count=worker_count, payload=_dumps(payload))

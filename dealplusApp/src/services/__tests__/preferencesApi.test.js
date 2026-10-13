@@ -1,7 +1,11 @@
 jest.mock('../apiInterceptors', () => ({ appAxios: { put: jest.fn(), get: jest.fn() } }));
 jest.mock('../../utils/deviceId', () => ({ getDeviceId: () => 'device-123' }));
+jest.mock('../pushNotifications', () => ({
+  ensurePushRegistration: jest.fn(() => Promise.resolve(true)),
+}));
 
 import { appAxios } from '../apiInterceptors';
+import { ensurePushRegistration } from '../pushNotifications';
 import { fetchInterests, saveInterests } from '../preferencesApi';
 
 beforeEach(() => {
@@ -22,6 +26,7 @@ describe('saveInterests', () => {
       brands: ['Nike'],
       categories: ['Fashion'],
     });
+    expect(ensurePushRegistration).toHaveBeenCalled();
   });
 
   test('a categories-only save omits the brands field entirely (so the backend does not wipe it)', async () => {

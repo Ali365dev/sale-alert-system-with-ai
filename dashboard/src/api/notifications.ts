@@ -7,8 +7,15 @@ export function useDeviceCount() {
   return useQuery({
     queryKey: ["notifications", "device-count"],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ count: number }>("/notifications/devices/count");
-      return data.count;
+      const { data } = await apiClient.get<{
+        count: number;
+        by_platform?: { ios?: number; android?: number };
+      }>("/notifications/devices/count");
+      return {
+        count: data.count ?? 0,
+        ios: data.by_platform?.ios ?? 0,
+        android: data.by_platform?.android ?? 0,
+      };
     },
   });
 }

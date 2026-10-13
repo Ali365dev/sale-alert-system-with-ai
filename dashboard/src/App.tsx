@@ -57,158 +57,30 @@ function App() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <AppShell title="Overview">
-              <Overview />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/analytics"
-          element={
-            <AppShell title="Analytics">
-              <Analytics />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/search"
-          element={
-            <AppShell title="Search">
-              <Search />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/offers"
-          element={
-            <AppShell title="Offers manager">
-              <OffersManager />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/brands"
-          element={
-            <AppShell title="Brands manager">
-              <BrandsManager />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/manage-categories"
-          element={
-            <AppShell title="Categories">
-              <CategoriesManager />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/discover-brand"
-          element={
-            <AppShell title="Discover brand">
-              <DiscoverBrand />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/offer-discovery"
-          element={
-            <AppShell title="Offer discovery">
-              <OfferDiscovery />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/social-scraper-test"
-          element={
-            <AppShell title="Social media scraper test">
-              <SocialScraperTest />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/website-scraper"
-          element={
-            <AppShell title="">
-              <WebsiteScraper />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/website-scraper/brands/:brandId"
-          element={
-            <AppShell title="">
-              <WebsiteScraperBrand />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/website-scraper-test"
-          element={
-            <AppShell title="Website scraper test">
-              <WebsiteScraperTest />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/emails"
-          element={
-            <AppShell title="">
-              <EmailManager />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/unknown-emails"
-          element={
-            <AppShell title="Unknown emails">
-              <UnknownEmailsManager />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/brand-requests"
-          element={
-            <AppShell title="Brand requests">
-              <BrandRequests />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/insights"
-          element={
-            <AppShell title="AI insights">
-              <Insights />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/notifications"
-          element={
-            <AppShell title="Notification Management">
-              <NotificationManager />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/pipeline"
-          element={
-            <AppShell title="Pipeline Center">
-              <PipelineCenter />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <AppShell title="Settings">
-              <Settings />
-            </AppShell>
-          }
-        />
+
+        {/* Single AppShell for all admin pages — avoids remounting the session
+            gate (and its full-page loader) on every sidebar navigation. */}
+        <Route element={<AppShell />}>
+          <Route path="/dashboard" element={<Overview />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/offers" element={<OffersManager />} />
+          <Route path="/brands" element={<BrandsManager />} />
+          <Route path="/manage-categories" element={<CategoriesManager />} />
+          <Route path="/discover-brand" element={<DiscoverBrand />} />
+          <Route path="/offer-discovery" element={<OfferDiscovery />} />
+          <Route path="/social-scraper-test" element={<SocialScraperTest />} />
+          <Route path="/website-scraper" element={<WebsiteScraper />} />
+          <Route path="/website-scraper/brands/:brandId" element={<WebsiteScraperBrand />} />
+          <Route path="/website-scraper-test" element={<WebsiteScraperTest />} />
+          <Route path="/emails" element={<EmailManager />} />
+          <Route path="/unknown-emails" element={<UnknownEmailsManager />} />
+          <Route path="/brand-requests" element={<BrandRequests />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="/notifications" element={<NotificationManager />} />
+          <Route path="/pipeline" element={<PipelineCenter />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
       </Routes>
     </>
   );

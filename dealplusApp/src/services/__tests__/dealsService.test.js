@@ -48,18 +48,33 @@ describe('loadDeals', () => {
     expect(appAxios.get).toHaveBeenCalledWith('/offers', { timeout: 15000 });
   });
 
-  test('sets loading true immediately, before the API calls resolve', () => {
+  test('sets loading true immediately when the catalog cache is empty', () => {
     let resolveBrands;
     appAxios.get.mockImplementation((url) => {
       if (url === '/brands') return new Promise((r) => (resolveBrands = r));
       return Promise.resolve({ data: {} });
     });
 
-    useDataStore.setState({ loading: false });
+    useDataStore.setState({ brands: [], deals: [], loading: false });
     const promise = loadDeals();
     expect(useDataStore.getState().loading).toBe(true);
 
     resolveBrands({ data: {} });
+    return promise;
+  });
+
+  test('does not flip loading true when a catalog cache is already on screen', () => {
+    let resolveBrands;
+    appAxios.get.mockImplementation((url) => {
+      if (url === '/brands') return new Promise((r) => (resolveBrands = r));
+      return Promise.resolve({ data: {} });
+    });
+
+    useDataStore.setState({ brands: [{ id: 'b' }], deals: [{ id: 'd' }], loading: false });
+    const promise = loadDeals();
+    expect(useDataStore.getState().loading).toBe(false);
+
+    resolveBrands({ data: { brands: [] } });
     return promise;
   });
 

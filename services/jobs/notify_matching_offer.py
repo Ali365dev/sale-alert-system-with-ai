@@ -14,17 +14,32 @@ class NotifyMatchingOfferJob(BackgroundJob):
     job_type = "notify_matching_offer"
 
     def collect_work(self, job: dict) -> list[WorkItem]:
+        from services import job_service
+
         payload = job.get("payload") or {}
         offer_id = payload.get("offer_id")
+        job_id = job.get("id")
         if not offer_id:
             return []
 
         with get_session() as session:
             offer = session.query(Offer).filter(Offer.id == offer_id, Offer.is_active.is_(True)).first()
             if offer is None:
+                if job_id:
+                    job_service.append_log(
+                        job_id, f"Offer #{offer_id} missing or inactive — nothing to notify",
+                        severity="warning", category="push",
+                    )
                 return []
             profiles = matching_profile_rows(session, offer)
             if not profiles:
+                if job_id:
+                    job_service.append_log(
+                        job_id,
+                        f"Offer #{offer_id}: no user profiles match brand/categories "
+                        f"({offer.brand!r} / {offer.category!r})",
+                        severity="info", category="push",
+                    )
                 return []
 
             device_ids = [d for d, _uid in profiles if d]
@@ -37,6 +52,13 @@ class NotifyMatchingOfferJob(BackgroundJob):
             }
             pending_ids = [d for d in device_ids if d not in already]
             if not pending_ids:
+                if job_id:
+                    job_service.append_log(
+                        job_id,
+                        f"Offer #{offer_id}: {len(device_ids)} matching profile(s), "
+                        f"all already notified",
+                        severity="info", category="push",
+                    )
                 return []
 
             tokens = (
@@ -53,6 +75,24 @@ class NotifyMatchingOfferJob(BackgroundJob):
                 for row in tokens
                 if row.token and row.device_id
             ]
+
+            if not recipients and job_id:
+                inactive_linked = (
+                    session.query(DeviceToken.id)
+                    .filter(
+                        DeviceToken.is_active.is_(False),
+                        DeviceToken.device_id.in_(pending_ids),
+                    )
+                    .count()
+                )
+                job_service.append_log(
+                    job_id,
+                    f"Offer #{offer_id}: {len(profiles)} matching profile(s), "
+                    f"{len(pending_ids)} pending, 0 active FCM tokens "
+                    f"({inactive_linked} inactive token(s) for those devices — "
+                    f"users must reopen the app to re-register)",
+                    severity="warning", category="push",
+                )
 
         batches = [recipients[i:i + _BATCH_SIZE] for i in range(0, len(recipients), _BATCH_SIZE)]
         return [

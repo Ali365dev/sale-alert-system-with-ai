@@ -44,6 +44,16 @@ def register_device(body: dict = Body(default={})):
         else:
             session.add(DeviceToken(token=token, platform=platform, device_id=device_id))
 
+        # One install → one active token. When the same device_id registers a
+        # refreshed FCM token, deactivate older rows so personalized notify
+        # (keyed by device_id) does not skip a live user stuck on a dead token.
+        if device_id:
+            session.query(DeviceToken).filter(
+                DeviceToken.device_id == device_id,
+                DeviceToken.token != token,
+                DeviceToken.is_active.is_(True),
+            ).update({"is_active": False}, synchronize_session=False)
+
     return {"status": "registered"}
 
 
@@ -65,8 +75,13 @@ def unregister_device(body: dict = Body(default={})):
 @router.get("/devices/count", dependencies=[Depends(require_admin)])
 def device_count():
     with get_session() as session:
-        count = session.query(DeviceToken).filter(DeviceToken.is_active.is_(True)).count()
-    return {"count": count}
+        active = session.query(DeviceToken).filter(DeviceToken.is_active.is_(True)).all()
+        by_platform = {"ios": 0, "android": 0}
+        for row in active:
+            key = (row.platform or "").lower()
+            if key in by_platform:
+                by_platform[key] += 1
+    return {"count": len(active), "by_platform": by_platform}
 
 
 @router.get("/fcm-status", dependencies=[Depends(require_admin)])
