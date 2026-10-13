@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -91,8 +92,8 @@ const SearchScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.two }]}>
+    <Screen style={styles.container}>
+      <View style={[styles.header, { paddingTop: SPACING.two }]}>
         <Pressable onPress={goBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back">
           <Icon name="chevron-back" size={26} color={colors.text} />
         </Pressable>
@@ -229,7 +230,7 @@ const SearchScreen = () => {
           </>
         )}
       </ScrollView>
-    </View>
+    </Screen>
   );
 };
 

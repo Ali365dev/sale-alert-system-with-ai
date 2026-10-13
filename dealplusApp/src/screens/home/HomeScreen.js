@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Clipboard from '@react-native-clipboard/clipboard';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import CategoryIcon from '../../components/CategoryIcon';
 import { SHADOWS } from '../../styles/theme';
@@ -22,7 +22,7 @@ import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import { loadDeals } from '../../services/dealsService';
 import { iconForCategory, orderDealsByPreference } from '../../utils/dealAdapters';
-import { showSuccessToast } from '../../utils/CustomToast';
+import { copyCode } from '../../utils/copyCode';
 import CouponCard from '../../components/CouponCard';
 import { useCouponSheet } from '../../components/CouponSheet';
 import EmptyState from '../../components/EmptyState';
@@ -115,8 +115,7 @@ const HomeScreen = () => {
   }, [deals, brandsById, activeCategory, followedBrands, favoriteCategories]);
 
   const onCopy = (code) => {
-    Clipboard.setString(code);
-    showSuccessToast('Code copied');
+    copyCode(code);
   };
 
   const onBannerScroll = (event) => {
@@ -144,7 +143,7 @@ const HomeScreen = () => {
 
   if (error && deals.length === 0 && brands.length === 0) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <Screen style={styles.container}>
         <EmptyState
           variant="error"
           icon="warning-outline"
@@ -153,14 +152,14 @@ const HomeScreen = () => {
           ctaLabel="Try again"
           onPressCta={loadDeals}
         />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[styles.scroll, { paddingTop: 8, paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor={colors.primary} />}>
         {/* Top: Hi greeting + bell */}
@@ -293,7 +292,7 @@ const HomeScreen = () => {
         )}
       </ScrollView>
       {couponSheet}
-    </View>
+    </Screen>
   );
 };
 

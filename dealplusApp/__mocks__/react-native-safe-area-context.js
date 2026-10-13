@@ -27,7 +27,8 @@ const SafeAreaProvider = ({ children }) =>
 
 module.exports = {
   SafeAreaProvider,
-  SafeAreaView: ({ children }) => children,
+  SafeAreaView: ({ children, style, ...rest }) =>
+    React.createElement('View', { style, ...rest }, children),
   SafeAreaInsetsContext,
   SafeAreaFrameContext,
   useSafeAreaInsets: () => React.useContext(SafeAreaInsetsContext),

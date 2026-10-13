@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SCREEN_WIDTH } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -57,7 +58,7 @@ const BrandDetailScreen = () => {
 
   if (!brand) {
     return (
-      <View style={styles.container}>
+      <Screen style={styles.container}>
         <EmptyState
           icon="alert-circle-outline"
           title="Brand not found"
@@ -65,7 +66,7 @@ const BrandDetailScreen = () => {
           ctaLabel="Go Back"
           onPressCta={() => navigation.goBack()}
         />
-      </View>
+      </Screen>
     );
   }
 

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -106,7 +107,7 @@ const ProfileScreen = () => {
   ];
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <TopAppBar title="Profile" hideProfile hideBorder />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.avatarCard}>
@@ -172,7 +173,7 @@ const ProfileScreen = () => {
 
         <Text style={styles.version}>Deals More v1.0.1</Text>
       </ScrollView>
-    </View>
+    </Screen>
   );
 };
 

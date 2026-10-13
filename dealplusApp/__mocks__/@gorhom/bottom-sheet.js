@@ -25,4 +25,6 @@ module.exports = {
   BottomSheetBackdrop: () => null,
   BottomSheetHandle: () => null,
   BottomSheetFooter: ({ children }) => children ?? null,
+  useBottomSheetTimingConfigs: () => undefined,
+  useBottomSheetSpringConfigs: () => undefined,
 };

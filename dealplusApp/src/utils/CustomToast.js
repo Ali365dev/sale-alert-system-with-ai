@@ -1,12 +1,22 @@
 // CustomToast.js
 import React from 'react';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
-import { Image, StatusBar, StyleSheet, View } from 'react-native';
+import { Image, Platform, StatusBar, StyleSheet, View } from 'react-native';
+import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { moderateScale } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
-import Icon from 'react-native-vector-icons/FontAwesome5';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const APP_ICON = require('../assets/images/app-icon.png');
+
+/** Clear the status bar / notch. Prefer live metrics; fall back for early calls. */
+export function getToastTopOffset() {
+  const inset =
+    initialWindowMetrics?.insets?.top ??
+    (Platform.OS === 'android' ? StatusBar.currentHeight : 0) ??
+    0;
+  return Math.max(inset, 20) + 12;
+}
 
 function SuccessToastWithTheme(props) {
   const { colors } = useTheme();
@@ -20,7 +30,7 @@ function SuccessToastWithTheme(props) {
       text2Style={styles.message}
       text2NumberOfLines={3}
       renderLeadingIcon={() => (
-        <Icon name="check-circle" size={24} color={colors.primary} style={{ marginLeft: moderateScale(8), marginTop: moderateScale(4) }} />
+        <Icon name="checkmark-circle" size={24} color={colors.primary} style={{ marginLeft: moderateScale(8), alignSelf: 'center' }} />
       )}
     />
   );
@@ -38,7 +48,7 @@ function ErrorToastWithTheme(props) {
       text2Style={styles.message}
       text2NumberOfLines={3}
       renderLeadingIcon={() => (
-        <Icon name="exclamation-circle" size={24} color="#ff4444" style={{ marginLeft: moderateScale(8), marginTop: moderateScale(4) }} />
+        <Icon name="alert-circle" size={24} color="#ff4444" style={{ marginLeft: moderateScale(8), alignSelf: 'center' }} />
       )}
     />
   );
@@ -71,63 +81,69 @@ export const toastConfig = {
   push: (props) => <PushToastWithTheme {...props} />,
 };
 
+const topToast = (extras) => ({
+  position: 'top',
+  topOffset: getToastTopOffset(),
+  ...extras,
+});
+
 // Custom toast functions
 export const showToast = {
   success: (message, title = 'Success') => {
-    Toast.show({
-      type: 'success',
-      text1: title,
-      text2: message,
-      position: 'top',
-      visibilityTime: 3000,
-      topOffset: StatusBar.currentHeight || 80,
-    });
+    Toast.show(
+      topToast({
+        type: 'success',
+        text1: title,
+        text2: message,
+        visibilityTime: 3000,
+      }),
+    );
   },
   error: (message, title = 'Error') => {
-    Toast.show({
-      type: 'error',
-      text1: title,
-      text2: message,
-      position: 'top',
-      visibilityTime: 4000,
-      topOffset: StatusBar.currentHeight || 80,
-    });
+    Toast.show(
+      topToast({
+        type: 'error',
+        text1: title,
+        text2: message,
+        visibilityTime: 4000,
+      }),
+    );
   },
   /** In-app banner for a foreground push — title + body with the app icon. */
   push: (message, title = 'Deals More') => {
-    Toast.show({
-      type: 'push',
-      text1: title || 'Deals More',
-      text2: message,
-      position: 'top',
-      visibilityTime: 4500,
-      topOffset: StatusBar.currentHeight || 56,
-    });
+    Toast.show(
+      topToast({
+        type: 'push',
+        text1: title || 'Deals More',
+        text2: message,
+        visibilityTime: 4500,
+      }),
+    );
   },
 };
 
 // Show error toast message
 export const showErrorToast = (message) => {
-  Toast.show({
-    type: 'error',
-    text1: 'Error',
-    text2: message,
-    position: 'top',
-    visibilityTime: 2000,
-    topOffset: StatusBar.currentHeight || 80,
-    zIndex: 9999,
-  });
+  Toast.show(
+    topToast({
+      type: 'error',
+      text1: 'Error',
+      text2: message,
+      visibilityTime: 2000,
+    }),
+  );
 };
 
 // Show success toast message
-export const showSuccessToast = (message) => {
-  Toast.show({
-    type: 'success',
-    text1: 'Success',
-    text2: message,
-    position: 'top',
-    visibilityTime: 2000,
-  });
+export const showSuccessToast = (message, title = 'Success') => {
+  Toast.show(
+    topToast({
+      type: 'success',
+      text1: title,
+      text2: message,
+      visibilityTime: 2800,
+    }),
+  );
 };
 
 const createStyles = (colors) =>

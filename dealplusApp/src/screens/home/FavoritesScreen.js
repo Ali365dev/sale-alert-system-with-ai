@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import { SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
@@ -38,7 +39,7 @@ const FavoritesScreen = () => {
   }, [favoriteDeals, brands]);
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <TopAppBar hideProfile />
       {favoriteDeals.length === 0 ? (
         <EmptyState
@@ -92,7 +93,7 @@ const FavoritesScreen = () => {
           )}
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 };
 

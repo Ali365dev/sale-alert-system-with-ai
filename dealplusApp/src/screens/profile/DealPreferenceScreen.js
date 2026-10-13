@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -39,8 +40,8 @@ const DealPreferenceScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.topBar, { paddingTop: insets.top + SPACING.two }]}>
+    <Screen style={styles.container}>
+      <View style={[styles.topBar, { paddingTop: SPACING.two }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
           <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
@@ -86,7 +87,7 @@ const DealPreferenceScreen = () => {
           </View>
         </Pressable>
       </View>
-    </View>
+    </Screen>
   );
 };
 

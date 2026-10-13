@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import { SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
@@ -32,7 +33,7 @@ const ForYouScreen = () => {
   const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(forYouDeals);
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <TopAppBar showBack />
 
       {forYouDeals.length === 0 ? (
@@ -71,7 +72,7 @@ const ForYouScreen = () => {
           </View>
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 };
 

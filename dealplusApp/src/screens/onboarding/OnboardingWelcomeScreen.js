@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import PrimaryButton from '../../components/PrimaryButton';
@@ -16,8 +17,8 @@ const OnboardingWelcomeScreen = () => {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.four }]} showsVerticalScrollIndicator={false}>
+    <Screen style={styles.container}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: SPACING.four }]} showsVerticalScrollIndicator={false}>
         <Logo size={24} style={styles.logoRow} />
 
         <View style={styles.heroWrap}>
@@ -46,7 +47,7 @@ const OnboardingWelcomeScreen = () => {
           Already have an account? <Text style={styles.loginLink}>Log in</Text>
         </Text>
       </View>
-    </View>
+    </Screen>
   );
 };
 

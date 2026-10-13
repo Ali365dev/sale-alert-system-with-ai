@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
-import Clipboard from '@react-native-clipboard/clipboard';
 import FastImage from '@d11/react-native-fast-image';
 import { SHADOWS, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
@@ -10,7 +9,7 @@ import { logoCandidateUris } from './BrandLogo';
 import BrandLogo from './BrandLogo';
 import FavoriteButton from './FavoriteButton';
 import { usePressScale } from '../hooks/usePressScale';
-import { showSuccessToast } from '../utils/CustomToast';
+import { copyCode } from '../utils/copyCode';
 import { channelTag, formatExpiryShort, formatFlatOffer } from '../utils/dealAdapters';
 import { toggleFavoriteDeal } from '../utils/authGate';
 
@@ -74,8 +73,7 @@ const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo
 
   const onCopy = () => {
     if (!code) return;
-    Clipboard.setString(code);
-    showSuccessToast('Code copied');
+    copyCode(code);
   };
 
   if (variant === 'offer' || variant === 'offerGrid') {

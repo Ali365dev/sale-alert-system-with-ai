@@ -2,7 +2,7 @@ import { StatusBar, AppState } from 'react-native';
 import React, { useEffect, useRef } from 'react';
 import { initialize as initializeClarity } from '@microsoft/react-native-clarity';
 import Navigation from './src/navigation/Navigation';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import Toast from 'react-native-toast-message';
@@ -18,6 +18,13 @@ import { configureGoogleSignIn } from './src/services/googleAuth';
 import { CLARITY_PROJECT_ID } from './src/services/config';
 import useTheme from './src/hooks/useTheme';
 import { shouldLoadNativePackage } from './src/utils/turboModules';
+
+function AppToast() {
+  const insets = useSafeAreaInsets();
+  // Live inset wins over StatusBar.currentHeight (null on iOS) so top toasts
+  // clear the notch / status bar instead of being clipped.
+  return <Toast config={toastConfig} position="top" topOffset={Math.max(insets.top, 20) + 12} />;
+}
 
 function hideNativeSplash() {
   // OS splash covers cold start only — hide as soon as JS mounts so we don't
@@ -91,12 +98,12 @@ const App = () => {
   }, []);
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? 'light-content' : 'dark-content'} />
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
         <BottomSheetModalProvider>
           <Navigation />
-          <Toast config={toastConfig} position="top" />
+          <AppToast />
         </BottomSheetModalProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

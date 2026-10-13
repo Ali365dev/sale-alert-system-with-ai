@@ -1,12 +1,11 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Clipboard from '@react-native-clipboard/clipboard';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
 import BrandLogo from './BrandLogo';
 import { formatDiscountPercent } from '../utils/dealAdapters';
-import { showSuccessToast } from '../utils/CustomToast';
+import { copyCode } from '../utils/copyCode';
 
 const NOTCH = 20;
 const DASH_COUNT_H = 12;
@@ -55,8 +54,7 @@ const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => 
       onPress?.();
       return;
     }
-    Clipboard.setString(code);
-    showSuccessToast('Code copied');
+    copyCode(code);
   };
 
   if (variant === 'vertical') {
@@ -132,7 +130,7 @@ const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => 
           accessibilityRole="button"
           accessibilityLabel={code ? 'Copy coupon code' : 'View coupon'}>
           <Text style={styles.copyLabel}>{code ? 'Copy' : 'View'}</Text>
-          <Icon name="copy-outline" size={15} color="#FFFFFF" />
+          <Icon name={code ? 'copy-outline' : 'eye-outline'} size={15} color="#FFFFFF" />
         </Pressable>
       </View>
     </Pressable>

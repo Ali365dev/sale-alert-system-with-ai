@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SPACING } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -28,9 +29,9 @@ const OnboardingTopicsScreen = () => {
   const goNext = () => navigation.navigate('OnboardingCategoriesScreen');
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.three, paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[styles.content, { paddingTop: SPACING.three, paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}>
         <OnboardingProgress step={0} total={3} />
 
@@ -60,7 +61,7 @@ const OnboardingTopicsScreen = () => {
         disabled={count < MIN_SELECTED}
         selectedCount={count}
       />
-    </View>
+    </Screen>
   );
 };
 

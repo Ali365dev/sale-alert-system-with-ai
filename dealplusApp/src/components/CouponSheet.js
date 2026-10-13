@@ -6,8 +6,10 @@ import {
   BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetScrollView,
+  useBottomSheetTimingConfigs,
 } from '@gorhom/bottom-sheet';
-import Clipboard from '@react-native-clipboard/clipboard';
+import { Easing } from 'react-native-reanimated';
+import { copyCode } from '../utils/copyCode';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
@@ -16,7 +18,6 @@ import useFavoritesStore from '../state/favoritesStore';
 import BrandLogo from './BrandLogo';
 import FavoriteButton from './FavoriteButton';
 import { channelTag } from '../utils/dealAdapters';
-import { showSuccessToast } from '../utils/CustomToast';
 import { isLoggedIn, toggleFavoriteDeal } from '../utils/authGate';
 import useLoginPromptStore from '../state/loginPromptStore';
 
@@ -50,14 +51,16 @@ const CouponSheet = ({ deal, brand, onClose }) => {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [copied, setCopied] = useState(false);
   const favorite = useFavoritesStore((state) => (deal ? state.favoriteIds.includes(deal.id) : false));
+  // Shorter than the default spring — open/close felt a beat late.
+  const animationConfigs = useBottomSheetTimingConfigs({
+    duration: 220,
+    easing: Easing.out(Easing.cubic),
+  });
 
   useEffect(() => {
-    if (!deal) return undefined;
+    if (!deal) return;
     setCopied(false);
-    const id = requestAnimationFrame(() => {
-      sheetRef.current?.present();
-    });
-    return () => cancelAnimationFrame(id);
+    sheetRef.current?.present();
   }, [deal]);
 
   const renderBackdrop = useCallback(
@@ -66,7 +69,7 @@ const CouponSheet = ({ deal, brand, onClose }) => {
         {...props}
         appearsOnIndex={0}
         disappearsOnIndex={-1}
-        opacity={0.52}
+        opacity={0.45}
         pressBehavior="close"
       />
     ),
@@ -75,9 +78,8 @@ const CouponSheet = ({ deal, brand, onClose }) => {
 
   const onCopy = () => {
     if (!deal?.promoCode) return;
-    Clipboard.setString(deal.promoCode);
+    if (!copyCode(deal.promoCode)) return;
     setCopied(true);
-    showSuccessToast('Code copied');
     setTimeout(() => setCopied(false), 1800);
   };
 
@@ -101,7 +103,7 @@ const CouponSheet = ({ deal, brand, onClose }) => {
   const tag = deal ? channelTag(deal) : 'ONLINE';
   const isOnline = tag === 'ONLINE';
   const linkUrl = deal?.website || brand?.website;
-  const steps = howToSteps(name, code);
+  const steps = useMemo(() => howToSteps(name, code), [name, code]);
 
   return (
     <BottomSheetModal
@@ -109,6 +111,8 @@ const CouponSheet = ({ deal, brand, onClose }) => {
       onDismiss={onClose}
       index={0}
       snapPoints={SNAP_POINTS}
+      animationConfigs={animationConfigs}
+      animateOnMount
       enableDynamicSizing={false}
       enablePanDownToClose
       backdropComponent={renderBackdrop}

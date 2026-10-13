@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
@@ -45,7 +46,7 @@ const CategoriesScreen = () => {
 
   if (loading && categories.length === 0) {
     return (
-      <View style={styles.container}>
+      <Screen style={styles.container}>
         <TopAppBar showBack title="Categories" hideProfile hideBorder />
         <View style={styles.content}>
           <Skeleton width="100%" height={44} radius={999} />
@@ -66,30 +67,30 @@ const CategoriesScreen = () => {
             </View>
           </View>
         </View>
-      </View>
+      </Screen>
     );
   }
 
   if (error && !loading && categories.length === 0) {
     return (
-      <View style={styles.container}>
+      <Screen style={styles.container}>
         <TopAppBar showBack title="Categories" hideProfile hideBorder />
         <EmptyState variant="error" icon="warning-outline" title="Couldn't load categories" body="Check your connection and try again." ctaLabel="Try again" onPressCta={loadDeals} />
-      </View>
+      </Screen>
     );
   }
 
   if (!loading && categories.length === 0) {
     return (
-      <View style={styles.container}>
+      <Screen style={styles.container}>
         <TopAppBar showBack title="Categories" hideProfile hideBorder />
         <EmptyState icon="grid-outline" title="No categories yet" body="Categories appear here once your backend has tracked offers with a category." ctaLabel="Refresh" onPressCta={loadDeals} />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <TopAppBar showBack title="Categories" hideProfile hideBorder />
       <FlatList
         data={visible}
@@ -122,7 +123,7 @@ const CategoriesScreen = () => {
           </Pressable>
         }
       />
-    </View>
+    </Screen>
   );
 };
 

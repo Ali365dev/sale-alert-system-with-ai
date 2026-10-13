@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SCREEN_WIDTH, SPACING } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -84,7 +85,7 @@ const CategoryDealsScreen = () => {
   const headerTitle = category && category !== 'All' ? category : 'Deals';
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <TopAppBar
         showBack
         title={headerTitle}
@@ -188,7 +189,7 @@ const CategoryDealsScreen = () => {
       />
 
       <DealFilterSheet ref={filterSheetRef} channel={channel} onSelect={setChannel} />
-    </View>
+    </Screen>
   );
 };
 

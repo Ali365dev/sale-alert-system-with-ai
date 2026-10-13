@@ -1,22 +1,22 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SPACING, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import useDataStore from '../state/dataStore';
 
+/** Top inset is owned by `Screen` (SafeAreaView). Do not add insets.top here
+ * or headers double-pad under the status bar. */
 const TopAppBar = ({ title, showBack, onBack, hideProfile, hideBorder, rightIcon, onPressRight, rightSlot, titleAlign = 'center', style }) => {
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const unreadCount = useDataStore((state) => state.alerts.filter((a) => !a.read).length);
   const titleStart = titleAlign === 'left' || titleAlign === 'start';
 
   return (
-    <View style={[styles.bar, { paddingTop: insets.top + SPACING.two }, hideBorder && styles.barNoBorder, style]}>
+    <View style={[styles.bar, hideBorder && styles.barNoBorder, style]}>
       <View style={[styles.side, titleStart && styles.sideHug]}>
         {showBack ? (
           <Pressable hitSlop={8} onPress={onBack ?? (() => navigation.goBack())}>
@@ -56,6 +56,7 @@ const createStyles = (colors) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: SPACING.four,
+      paddingTop: SPACING.two,
       paddingBottom: SPACING.two,
       backgroundColor: colors.background,
       borderBottomWidth: StyleSheet.hairlineWidth,

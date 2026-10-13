@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
@@ -96,7 +97,7 @@ const NotificationsScreen = () => {
   }, [alerts, filter]);
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <TopAppBar showBack title="Notifications" hideProfile />
       {error && alerts.length === 0 ? (
         <EmptyState variant="error" icon="warning-outline" title="Couldn't load alerts" body="Check your connection and try again." ctaLabel="Try again" onPressCta={loadDeals} />
@@ -138,7 +139,7 @@ const NotificationsScreen = () => {
           )}
         />
       )}
-    </View>
+    </Screen>
   );
 };
 

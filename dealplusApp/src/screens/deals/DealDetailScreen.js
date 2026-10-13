@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
@@ -38,7 +39,7 @@ const DealDetailScreen = () => {
 
   if (!deal) {
     return (
-      <View style={styles.container}>
+      <Screen style={styles.container}>
         <TopAppBar showBack title="Coupon Details" hideProfile hideBorder />
         <EmptyState
           icon="alert-circle-outline"
@@ -47,7 +48,7 @@ const DealDetailScreen = () => {
           ctaLabel="Go Back"
           onPressCta={() => navigation.goBack()}
         />
-      </View>
+      </Screen>
     );
   }
 
@@ -56,7 +57,7 @@ const DealDetailScreen = () => {
   const bullets = deal.highlights?.length > 0 ? deal.highlights : termsToBullets(deal.terms);
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <TopAppBar
         showBack
         title="Coupon Details"
@@ -113,7 +114,7 @@ const DealDetailScreen = () => {
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
         <PrimaryButton label="Shop Now" pill disabled={!linkUrl} onPress={() => linkUrl && Linking.openURL(linkUrl)} />
       </View>
-    </View>
+    </Screen>
   );
 };
 

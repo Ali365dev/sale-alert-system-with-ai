@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SCREEN_WIDTH, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -126,7 +127,7 @@ const BrandListScreen = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <TopAppBar
         showBack
         title="Brands"
@@ -171,7 +172,7 @@ const BrandListScreen = () => {
       ) : (
         renderGrid()
       )}
-    </View>
+    </Screen>
   );
 };
 

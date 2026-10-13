@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -43,8 +44,8 @@ const TermsConditionsScreen = () => {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
+    <Screen style={styles.container}>
+      <View style={[styles.header, { paddingTop: SPACING.three }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
           <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
@@ -66,7 +67,7 @@ const TermsConditionsScreen = () => {
           </View>
         ))}
       </ScrollView>
-    </View>
+    </Screen>
   );
 };
 

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { withSequence, withSpring } from 'react-native-reanimated';
-import Clipboard from '@react-native-clipboard/clipboard';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import { usePressScale } from '../hooks/usePressScale';
+import { copyCode } from '../utils/copyCode';
 
 const CouponCodeBlock = ({ code }) => {
   const [copied, setCopied] = useState(false);
@@ -14,7 +14,7 @@ const CouponCodeBlock = ({ code }) => {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const onCopy = () => {
-    Clipboard.setString(code);
+    if (!copyCode(code, { toast: false })) return;
     setCopied(true);
     scale.value = withSequence(withSpring(1.12, { damping: 8, stiffness: 400 }), withSpring(1));
     setTimeout(() => setCopied(false), 1800);

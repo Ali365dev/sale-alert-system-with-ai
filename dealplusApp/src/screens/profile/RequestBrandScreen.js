@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
@@ -105,8 +106,8 @@ const RequestBrandScreen = () => {
 
   if (submitted) {
     return (
-      <View style={styles.container}>
-        <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
+      <Screen style={styles.container}>
+        <View style={[styles.header, { paddingTop: SPACING.three }]}>
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
             <Icon name="close" size={24} color={colors.text} />
           </Pressable>
@@ -134,13 +135,14 @@ const RequestBrandScreen = () => {
           />
           <OutlineButton label="Request Another Brand" icon="add-circle-outline" onPress={resetForm} colors={colors} styles={styles} />
         </View>
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.three }]}>
+    <Screen style={styles.container}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.header, { paddingTop: SPACING.three }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
           <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
@@ -241,7 +243,8 @@ const RequestBrandScreen = () => {
       </ScrollView>
 
       <CategoryPickerSheet ref={categorySheetRef} categories={categories} selected={category} onSelect={setCategory} />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </Screen>
   );
 };
 
@@ -252,6 +255,9 @@ const createStyles = (colors) =>
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    flex: {
+      flex: 1,
     },
     header: {
       flexDirection: 'row',

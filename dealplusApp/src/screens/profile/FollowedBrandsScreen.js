@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Screen from '../../components/Screen';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SCREEN_WIDTH, SHADOWS, SPACING } from '../../styles/theme';
@@ -58,8 +59,8 @@ const FollowedBrandsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.topBar, { paddingTop: insets.top + SPACING.two }]}>
+    <Screen style={styles.container}>
+      <View style={[styles.topBar, { paddingTop: SPACING.two }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
           <Icon name="chevron-back" size={24} color={colors.text} />
         </Pressable>
@@ -152,7 +153,7 @@ const FollowedBrandsScreen = () => {
       ) : null}
 
       {couponSheet}
-    </View>
+    </Screen>
   );
 };
 
