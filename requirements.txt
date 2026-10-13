@@ -5,6 +5,9 @@ google-api-python-client>=2.131.0
 google-genai>=2.10.0
 sqlalchemy>=2.0.30
 psycopg2-binary>=2.9.9
+# psycopg v3 — some hosts set DATABASE_URL to postgresql+psycopg://; keep both
+# drivers so either dialect works on Render.
+psycopg[binary]>=3.1.0
 groq>=1.5.0
 ddgs>=0.1.0
 python-dotenv>=1.0.1

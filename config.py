@@ -63,6 +63,18 @@ DATABASE_URL = os.getenv("DATABASE_URL", "")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set. Add it to your .env file (Supabase connection string).")
 
+# Render/Heroku often ship `postgres://…`. SQLAlchemy needs `postgresql://…`.
+# Prefer the pinned psycopg2 driver — a bare `postgresql+psycopg://` URL
+# (or SQLAlchemy defaulting to psycopg v3) raises ModuleNotFoundError: psycopg
+# when only psycopg2-binary is installed.
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://") :]
+if DATABASE_URL.startswith("postgresql+psycopg://"):
+    DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len("postgresql+psycopg://") :]
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len("postgresql://") :]
+
+
 # ── Settings module ──────────────────────────────────────────────────────────
 # Symmetric key used to encrypt API keys stored via the Settings page
 # (services/settings_service.py). Generate one with:
