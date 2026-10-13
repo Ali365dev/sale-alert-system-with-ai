@@ -10,6 +10,8 @@ Failover trigger: quota / rate-limit / auth / timeout errors, after every
                   key for the current provider has been tried (see
                   ai/providers.py's _call_with_key_rotation).
 """
+
+
 from typing import Callable, Optional
 
 from ai.providers import ProviderManager
