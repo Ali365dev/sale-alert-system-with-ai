@@ -32,11 +32,30 @@ def notification_copy(offer: Offer) -> tuple[str, str, dict]:
     return title, body, data
 
 
+def _match_sale_alerts(offer_id: int) -> None:
+    try:
+        from services.sale_alert_service import match_brand_alerts_for_offer
+
+        result = match_brand_alerts_for_offer(offer_id, notify=True)
+        if result.get("matched"):
+            logger.info(
+                "Offer %s matched %s brand sale alert(s)",
+                offer_id,
+                result.get("matched"),
+            )
+    except Exception:
+        logger.exception("Failed matching brand sale alerts for offer %s", offer_id)
+
+
 def schedule_for_new_offer(offer_id: int) -> None:
     if not offer_id:
         return
+
+    # Brand SaleAlert watchlist — independent of preference-based FCM fan-out.
+    threading.Thread(target=_match_sale_alerts, args=(offer_id,), daemon=True).start()
+
     if not fcm_client.is_configured():
-        logger.info("Skipping offer %s notifications — FCM is not configured", offer_id)
+        logger.info("Skipping offer %s preference notifications — FCM is not configured", offer_id)
         return
 
     from services import job_runner, job_service

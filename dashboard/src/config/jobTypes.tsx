@@ -92,6 +92,13 @@ export const JOB_TYPES: JobTypeConfig[] = [
     itemNoun: "page",
     description: "Discovers and scrapes a brand's sale/offers/promotions pages (or one ad-hoc URL), rule-scores content, and creates an Offer via AI confirmation when it's a genuine active sale.",
   },
+  {
+    jobType: "check_sale_alerts",
+    title: "Check Sale Alerts",
+    icon: <Icon.bell size={17} />,
+    itemNoun: "alerts",
+    description: "Recheck active product watchlist URLs for price drops, mark matching alerts as triggered, and send push notifications. Runs automatically every 6 hours.",
+  },
 ];
 
 export const JOB_TYPE_BY_ID: Record<string, JobTypeConfig> = Object.fromEntries(

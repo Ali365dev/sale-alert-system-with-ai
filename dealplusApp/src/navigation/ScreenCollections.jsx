@@ -16,6 +16,17 @@ import RequestBrandScreen from '../screens/profile/RequestBrandScreen';
 import SignInScreen from '../screens/auth/SignInScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import SearchScreen from '../screens/home/SearchScreen';
+import SaleAlertsScreen from '../screens/saleAlerts/SaleAlertsScreen';
+import CreateAlertTypeScreen from '../screens/saleAlerts/CreateAlertTypeScreen';
+import AddProductUrlScreen from '../screens/saleAlerts/AddProductUrlScreen';
+import AnalyzeProductScreen from '../screens/saleAlerts/AnalyzeProductScreen';
+import ManualProductScreen from '../screens/saleAlerts/ManualProductScreen';
+import AlertConditionsScreen from '../screens/saleAlerts/AlertConditionsScreen';
+import AlertNotificationsScreen from '../screens/saleAlerts/AlertNotificationsScreen';
+import ReviewAlertScreen from '../screens/saleAlerts/ReviewAlertScreen';
+import AlertCreatedScreen from '../screens/saleAlerts/AlertCreatedScreen';
+import SelectBrandForAlertScreen from '../screens/saleAlerts/SelectBrandForAlertScreen';
+import AlertDetailScreen from '../screens/saleAlerts/AlertDetailScreen';
 import OnboardingWelcomeScreen from '../screens/onboarding/OnboardingWelcomeScreen';
 import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen';
 import OnboardingCategoriesScreen from '../screens/onboarding/OnboardingCategoriesScreen';
@@ -121,6 +132,61 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'RequestBrandScreen',
     component: RequestBrandScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'SaleAlertsScreen',
+    component: SaleAlertsScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'CreateAlertTypeScreen',
+    component: CreateAlertTypeScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'AddProductUrlScreen',
+    component: AddProductUrlScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'AnalyzeProductScreen',
+    component: AnalyzeProductScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'ManualProductScreen',
+    component: ManualProductScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'AlertConditionsScreen',
+    component: AlertConditionsScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'AlertNotificationsScreen',
+    component: AlertNotificationsScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'ReviewAlertScreen',
+    component: ReviewAlertScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'AlertCreatedScreen',
+    component: AlertCreatedScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'SelectBrandForAlertScreen',
+    component: SelectBrandForAlertScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'AlertDetailScreen',
+    component: AlertDetailScreen,
   },
   {
     options: { ...stackoptions, headerShown: false },

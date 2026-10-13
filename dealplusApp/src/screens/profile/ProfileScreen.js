@@ -53,6 +53,13 @@ const ProfileScreen = () => {
 
   const rows = [
     {
+      icon: 'pricetag-outline',
+      label: 'Sale Alerts',
+      subtitle: 'Track products and brands for price drops',
+      kind: 'link',
+      onPress: () => navigation.navigate('SaleAlertsScreen'),
+    },
+    {
       icon: 'notifications-outline',
       label: 'Notification Preferences',
       subtitle: 'Manage push and email alerts',

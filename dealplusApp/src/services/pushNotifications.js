@@ -169,6 +169,7 @@ export const pushToAlertsFeed = (remoteMessage) => {
     time: 'Just now',
     brandId: data?.brandId ?? null,
     dealId: data?.dealId ?? null,
+    saleAlertId: data?.saleAlertId ?? null,
     read: false,
   };
 
@@ -200,9 +201,17 @@ export const parseNotificationTarget = (remoteMessage) => {
   if (!remoteMessage) return null;
 
   const data = remoteMessage.data ?? {};
+  const saleAlertId = asNonEmptyString(data.saleAlertId);
   const dealId = asNonEmptyString(data.dealId) || asNonEmptyString(data.offerId);
   const brandId = asNonEmptyString(data.brandId);
 
+  if (saleAlertId) {
+    const id = Number(saleAlertId);
+    return {
+      screen: 'AlertDetailScreen',
+      params: { alertId: Number.isFinite(id) ? id : saleAlertId },
+    };
+  }
   if (dealId) return { screen: 'DealDetailScreen', params: { id: dealId } };
   if (brandId) return { screen: 'BrandDetailScreen', params: { id: brandId } };
   return { screen: NOTIFICATION_FALLBACK_SCREEN };

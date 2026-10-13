@@ -24,6 +24,23 @@ def _run_cleanup_job() -> None:
         logger.exception("Scheduled offer cleanup failed")
 
 
+def _run_sale_alert_checks() -> None:
+    """Enqueue a check_sale_alerts job for active product watchlists."""
+    try:
+        from services import job_runner, job_service
+        from services.push import fcm_client
+
+        # Always recheck prices even without FCM — status/triggered fields still update.
+        payload: dict = {}
+        job = job_service.create_job("check_sale_alerts", payload=payload)
+        config = job_runner.get_runner("check_sale_alerts")
+        config.run(job["id"], payload)
+        if not fcm_client.is_configured():
+            logger.info("Sale alert check ran without FCM — triggers saved, pushes skipped")
+    except Exception:
+        logger.exception("Scheduled sale alert check failed")
+
+
 def check_gmail_for_changes() -> None:
     """The scheduler backstop for the automatic new-email pipeline (see
     services/jobs/email_automation.py and app/api/routers/automation.py).
@@ -104,10 +121,19 @@ def start_scheduler() -> BackgroundScheduler:
         misfire_grace_time=60,
         max_instances=1,
     )
+    scheduler.add_job(
+        _run_sale_alert_checks,
+        trigger=IntervalTrigger(hours=6),
+        id="check_sale_alerts",
+        replace_existing=True,
+        misfire_grace_time=3600,
+        max_instances=1,
+    )
     scheduler.start()
     _scheduler = scheduler
     logger.info(
-        "Scheduler started — offer cleanup runs daily at %02d:00 UTC, Gmail change-check every %d minute(s)",
+        "Scheduler started — offer cleanup daily at %02d:00 UTC, Gmail change-check every %d minute(s), "
+        "sale alerts every 6 hour(s)",
         OFFER_CLEANUP_HOUR_UTC, GMAIL_AUTOMATION_POLL_MINUTES,
     )
     return scheduler

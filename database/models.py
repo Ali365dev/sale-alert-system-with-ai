@@ -716,6 +716,46 @@ class BrandRequest(Base):
         return f"<BrandRequest id={self.id} brand_name={self.brand_name!r} status={self.status!r}>"
 
 
+class SaleAlert(Base):
+    """Per-device product or brand sale watch — keyed by client device_id
+    (same pattern as UserProfile / BrandRequest)."""
+    __tablename__ = "sale_alerts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    device_id = Column(String(255), nullable=False, index=True)
+    alert_type = Column(String(20), nullable=False)  # "product" | "brand"
+    status = Column(String(20), nullable=False, default="active", index=True)  # "active" | "paused" | "triggered"
+
+    product_name = Column(String(500), nullable=True)
+    brand_name = Column(String(255), nullable=True)
+    product_url = Column(String(1000), nullable=True)
+    image_url = Column(String(1000), nullable=True)
+    current_price = Column(Float, nullable=True)
+    original_price = Column(Float, nullable=True)
+    sku = Column(String(255), nullable=True)
+    variant = Column(String(255), nullable=True)
+
+    condition_type = Column(String(30), nullable=False, default="any_sale")
+    # any_sale | pct_10 | pct_20 | pct_30 | custom_pct | target_price | new_promotion | new_code
+    custom_pct = Column(Float, nullable=True)
+    target_price = Column(Float, nullable=True)
+
+    notify_push = Column(Boolean, nullable=False, default=True)
+    notify_email = Column(Boolean, nullable=False, default=False)
+    notify_in_app = Column(Boolean, nullable=False, default=True)
+
+    last_checked_at = Column(DateTime, nullable=True)
+    last_triggered_at = Column(DateTime, nullable=True)
+    triggered_message = Column(Text, nullable=True)
+    triggered_deal_url = Column(String(1000), nullable=True)
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<SaleAlert id={self.id} device_id={self.device_id!r} type={self.alert_type!r} status={self.status!r}>"
+
+
 class SettingsAuditLog(Base):
     """Append-only record of every Settings mutation — who changed what,
     from what, to what, when."""

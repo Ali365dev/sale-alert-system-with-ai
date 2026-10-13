@@ -36,6 +36,13 @@ describe('parseNotificationTarget (notification payload parsing)', () => {
     });
   });
 
+  test('saleAlertId opens AlertDetailScreen and wins over dealId', () => {
+    expect(parseNotificationTarget({ data: { saleAlertId: '15', dealId: '9' } })).toEqual({
+      screen: 'AlertDetailScreen',
+      params: { alertId: 15 },
+    });
+  });
+
   test('a payload carrying both ids prefers the more specific dealId', () => {
     expect(parseNotificationTarget({ data: { dealId: '42', brandId: 'nike' } })).toEqual({
       screen: 'DealDetailScreen',

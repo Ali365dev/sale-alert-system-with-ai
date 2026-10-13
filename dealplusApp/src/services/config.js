@@ -1,30 +1,31 @@
 // Same backend as the Deals More Expo app (mobile/eas.json) — this is a bare-RN
 // port of the same product, not a separate service.
 
-// production — the iOS Simulator's calls to this host are dropped (connection
-// lost / unparseable response) and Axios gives up at 15s. Use it from a
-// device or Android; the Simulator should use the local server below.
-export const BASE_URL = 'https://sale-alert-system-with-ai.onrender.com/api';
-
-// local dev — the iOS Simulator reaches the Mac through IPv4 loopback, while the
-// Android emulator uses its special host-loopback alias.
 import { Platform } from 'react-native';
 
-// export const BASE_URL = Platform.OS === 'ios'
-// 	? 'http://127.0.0.1:8000/api'
-// 	: 'http://10.0.2.2:8000/api';
+// production — used for release builds. Sale Alerts must be deployed here or
+// product URL analyze returns 404.
+const PRODUCTION_API = 'https://sale-alert-system-with-ai.onrender.com/api';
 
-// local dev — your Mac's LAN IP, reachable from a physical Android or iOS
-// device on the same WiFi network (the backend must also be bound to
-// 0.0.0.0, not just 127.0.0.1, for that to actually work — see how it's
-// started). The iOS Simulator can reach this too (it shares the Mac's
-// network), so this one value covers Simulator + physical iOS + physical
-// Android. Re-run `ipconfig getifaddr en0` if this ever changes (a
-// different WiFi network, router reboot, etc.) — it's not stable forever.
-// The one case this does NOT cover: the Android emulator, which needs the
-// 10.0.2.2 alias above instead, since its virtual network can't resolve the
-// LAN IP the way a real device can.
-// export const BASE_URL = 'http://192.168.18.38:8000/api';
+// local — Mac LAN IP for physical devices + iOS Simulator on the same Wi‑Fi.
+// Android emulator needs 10.0.2.2 instead of the LAN IP.
+// Re-run `ipconfig getifaddr en0` if Wi‑Fi changes.
+const LOCAL_LAN_API = 'http://192.168.18.43:8000/api';
+const LOCAL_SIM_API =
+  Platform.OS === 'android' ? 'http://10.0.2.2:8000/api' : 'http://127.0.0.1:8000/api';
+
+// Prefer LAN so a physical phone on the same Wi‑Fi can hit the Mac. Fall back
+// to loopback for Simulator / Emulator when __DEV__ is true.
+const LOCAL_API = LOCAL_LAN_API;
+
+// In development, talk to the local API (has Sale Alerts). Release builds keep
+// production. Flip USE_LOCAL_API to false to force production while developing.
+const USE_LOCAL_API = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+
+export const BASE_URL = USE_LOCAL_API ? LOCAL_API : PRODUCTION_API;
+
+// Keep unused helpers referenced so the file documents all options clearly.
+void LOCAL_SIM_API;
 
 // Microsoft Clarity project ID (clarity.microsoft.com).
 export const CLARITY_PROJECT_ID = 'y9fq0ureju';
