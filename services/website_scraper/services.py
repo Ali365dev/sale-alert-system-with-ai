@@ -11,12 +11,12 @@ import time
 from typing import Optional
 from urllib.parse import urlparse
 
-from config import WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL
+from config import WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL, WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES
 from database.db import get_session
 from database.models import Brand, WebsiteScrapeLog, WebsiteScrapedPage
 from database.offer_retention import utcnow
 from services.website_scraper import closure_detector, crawler, deduplicator, detectors, normalizer, sale_matcher
-from services.website_scraper.extractor import extract_page
+from services.website_scraper.extractor import extract_hero_banner_images, extract_page
 from services.website_scraper.models import DiscoveredUrl, ExtractedSaleCandidate
 
 _JOB_OUTCOME = {
@@ -50,6 +50,65 @@ def discover_pages_for_brand(brand: Brand) -> tuple[list[DiscoveredUrl], list[st
     if not homepage:
         return [], ["Brand has no homepage_url or website configured"]
     return crawler.discover_pages(homepage, _configured_urls(brand))
+
+
+def _job_log(job_id: Optional[int], message: str, *, severity: str = "info") -> None:
+    if job_id is None:
+        return
+    try:
+        from services import job_service
+
+        job_service.append_log(job_id, message, severity=severity, category="website")
+    except Exception:
+        pass
+
+
+def _enrich_homepage_with_hero_ocr(job_id: Optional[int], page, html: str, page_url: str) -> None:
+    """OCR homepage hero/banner images; merge text into page for sale scoring.
+    Uses the same local PaddleOCR stack as email (ai/ocr.py). Never raises."""
+    try:
+        hero_urls = extract_hero_banner_images(
+            html, page_url, limit=WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES,
+        )
+        if not hero_urls:
+            _job_log(job_id, "Hero OCR: no banner images found on homepage")
+            return
+
+        from ai.ocr import run_ocr_for_urls
+
+        ocr_result = run_ocr_for_urls(hero_urls)
+        items = ocr_result.get("items") or []
+        texts = [t for t in ([*(ocr_result.get("image_texts") or []), *(ocr_result.get("gif_texts") or [])]) if t]
+        if not texts:
+            _job_log(
+                job_id,
+                f"Hero OCR: {len(hero_urls)} banner(s) checked, no usable text "
+                f"(OCR off, tiny images, or empty)",
+                severity="warning",
+            )
+            return
+
+        ocr_blob = "\n".join(texts)
+        page.body_text = (page.body_text + "\n" + ocr_blob).strip()[:12000]
+        if not (page.headline_text or "").strip():
+            page.headline_text = ocr_blob[:240]
+        # Keep alts/images list aware of which banners we OCR'd.
+        for item in items:
+            url = item.get("url")
+            if url and url not in page.images:
+                page.images.append(url)
+        _job_log(
+            job_id,
+            f"Hero OCR: {len(items)}/{len(hero_urls)} banner(s) yielded text "
+            f"({len(ocr_blob)} chars) — folded into sale detection",
+            severity="success",
+        )
+    except Exception as exc:
+        _job_log(
+            job_id,
+            f"Hero OCR failed (continuing with HTML only): {type(exc).__name__}: {exc}",
+            severity="warning",
+        )
 
 
 def process_page(
@@ -97,6 +156,12 @@ def process_page(
         )
 
     page = extract_page(html, url, final_url, status, target_host)
+
+    # Homepage only: OCR hero/banner images and fold text into the same
+    # detectors → AI → offer path used for HTML. Failures never abort the page.
+    if page_type == "homepage":
+        _enrich_homepage_with_hero_ocr(job_id, page, html, final_url or url)
+
     page.important_text = detectors.extract_signals(page)
 
     page_hash = normalizer.page_content_hash(page)
@@ -113,7 +178,13 @@ def process_page(
         previous_sale_score = previous.sale_score if previous else None
         previous_offer_id = previous.offer_id if previous else None
 
-    if previous_exists and previous_hash == norm_hash:
+    # Skip unchanged only when we already have an offer (or it's a product
+    # page). Sale hubs that previously scored NOT_SALE with no offer must be
+    # re-analyzed after threshold/OCR fixes — otherwise they stay stuck.
+    is_individual_product_page = page_type == "product"
+    if previous_exists and previous_hash == norm_hash and (
+        previous_offer_id is not None or is_individual_product_page
+    ):
         return _save_page(
             brand_id=brand_id, job_id=job_id, url=url, final_url=final_url, page_type=page_type,
             scrape_status="UNCHANGED", http_status=status, page=page,
@@ -122,7 +193,7 @@ def process_page(
             duration=time.perf_counter() - started,
         )
 
-    relevance = detectors.evaluate(page)
+    relevance = detectors.evaluate(page, page_type=page_type)
     ai_analyzed = False
     ai_result: dict | None = None
     offer_id = None
@@ -134,7 +205,6 @@ def process_page(
     # "84% off this one perfume mist". Individual product pages are still
     # fetched/stored for visibility, just never sent to AI or turned into
     # an offer.
-    is_individual_product_page = page_type == "product"
 
     should_call_ai = not is_individual_product_page and (
         relevance.status == detectors.STRONG
@@ -142,24 +212,60 @@ def process_page(
     )
     if is_individual_product_page or relevance.status == detectors.NOT_SALE:
         scrape_status = "NOT_SALE"
+        _job_log(
+            job_id,
+            f"○ NOT_SALE (score={relevance.score:.0f}) — {url} [{relevance.reason}]",
+        )
     elif should_call_ai:
         candidate = ExtractedSaleCandidate(
             page=page, page_content_hash=page_hash, normalized_content_hash=norm_hash,
             sale_score=relevance.score, rule_status=relevance.status,
         )
         ai_result = sale_matcher.analyze(brand_name, candidate)
-        ai_analyzed = True
-        if ai_result and ai_result.get("is_offer"):
-            scrape_status = "SALE_DETECTED"
-            with get_session() as session:
-                fresh_brand = session.query(Brand).filter(Brand.id == brand_id).first() if brand_id else None
-                from services.website_scraper.offer_processor import create_or_update_offer
-
-                temp_page = WebsiteScrapedPage(url=url, final_url=final_url)
-                offer, _created = create_or_update_offer(session, temp_page, ai_result, fresh_brand)
-                offer_id = offer.id
+        if ai_result is None:
+            scrape_status = "UPDATED" if previous_exists else "NEW"
+            _job_log(
+                job_id,
+                f"⚠ AI analysis failed for \"{url}\" — no offer created (will retry next scrape)",
+                severity="warning",
+            )
         else:
-            scrape_status = "NOT_SALE"
+            ai_analyzed = True
+            if ai_result.get("is_offer"):
+                scrape_status = "SALE_DETECTED"
+                try:
+                    with get_session() as session:
+                        fresh_brand = (
+                            session.query(Brand).filter(Brand.id == brand_id).first()
+                            if brand_id else None
+                        )
+                        from services.website_scraper.offer_processor import create_or_update_offer
+
+                        temp_page = WebsiteScrapedPage(url=url, final_url=final_url)
+                        offer, created = create_or_update_offer(
+                            session, temp_page, ai_result, fresh_brand,
+                        )
+                        offer_id = offer.id
+                    _job_log(
+                        job_id,
+                        f"✓ Offer {'created' if created else 'updated'} #{offer_id} "
+                        f"from \"{ai_result.get('title') or url}\"",
+                        severity="success",
+                    )
+                except Exception as exc:
+                    scrape_status = "UPDATED" if previous_exists else "NEW"
+                    _job_log(
+                        job_id,
+                        f"✗ AI said is_offer but offer save failed for \"{url}\": "
+                        f"{type(exc).__name__}: {exc}",
+                        severity="error",
+                    )
+            else:
+                scrape_status = "NOT_SALE"
+                _job_log(
+                    job_id,
+                    f"○ AI is_offer=false for \"{url}\" — {ai_result.get('reasoning') or 'no reason'}",
+                )
     else:
         scrape_status = "NOT_SALE"
 

@@ -114,9 +114,19 @@ def _safe_discount(value) -> Optional[float]:
         return None
 
 
+def _safe_is_offer(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes", "y"}
+    return False
+
+
 def _normalize(data: dict) -> dict:
     return {
-        "is_offer": bool(data.get("is_offer")),
+        "is_offer": _safe_is_offer(data.get("is_offer")),
         "title": data.get("title") or None,
         "description": data.get("description") or None,
         "category": data.get("category") or None,

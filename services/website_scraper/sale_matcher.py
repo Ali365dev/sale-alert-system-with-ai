@@ -15,9 +15,14 @@ def build_payload(brand_name: str | None, candidate: ExtractedSaleCandidate) -> 
     page = candidate.page
     sale_signals = list(dict.fromkeys(page.important_text))[:8]
 
-    relevant_text = (page.headline_text or "")
-    if len(relevant_text) < _RELEVANT_TEXT_LIMIT:
-        relevant_text = (relevant_text + " " + page.body_text).strip()
+    # Always include body (hero OCR + page text). Leading with a long headline
+    # alone used to fill the 1500-char window and drop the sale details.
+    head = (page.headline_text or "").strip()
+    body = (page.body_text or "").strip()
+    if head and body:
+        relevant_text = f"{head[:400]}\n{body}".strip()
+    else:
+        relevant_text = head or body
 
     return {
         "brand": brand_name,

@@ -260,7 +260,7 @@ def reanalyze_page(page_id: int):
             coupon_codes=json.loads(row.coupon_codes) if row.coupon_codes else [],
             links=json.loads(row.links) if row.links else [],
         )
-        relevance = detectors.evaluate(page)
+        relevance = detectors.evaluate(page, page_type=row.page_type)
         candidate = ExtractedSaleCandidate(
             page=page, page_content_hash=row.page_content_hash or "", normalized_content_hash=row.normalized_content_hash or "",
             sale_score=relevance.score, rule_status=relevance.status,
@@ -268,15 +268,19 @@ def reanalyze_page(page_id: int):
         ai_result = sale_matcher.analyze(brand.name if brand else None, candidate)
 
         row.sale_score = relevance.score
-        row.ai_analyzed = True
         row.ai_result = json.dumps(ai_result) if ai_result is not None else None
-        if ai_result and ai_result.get("is_offer"):
+        if ai_result is None:
+            row.ai_analyzed = False
+            # Keep prior status if AI failed — don't wipe a SALE_DETECTED.
+        elif ai_result.get("is_offer"):
             from services.website_scraper.offer_processor import create_or_update_offer
 
             offer, _created = create_or_update_offer(session, row, ai_result, brand)
             row.offer_id = offer.id
             row.scrape_status = "SALE_DETECTED"
+            row.ai_analyzed = True
         else:
+            row.ai_analyzed = True
             row.scrape_status = "NOT_SALE"
         session.flush()
         page_id_for_lookup = row.id

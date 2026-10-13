@@ -123,6 +123,105 @@ def extract_links(html: str, page_url: str, target_host: str) -> list[str]:
     return found
 
 
+_NAV_FOOTER_SELECTORS = (
+    "nav a[href]",
+    "header nav a[href]",
+    "header a[href]",
+    "[role='navigation'] a[href]",
+    "footer a[href]",
+    "[role='contentinfo'] a[href]",
+    ".footer a[href]",
+    "#footer a[href]",
+    ".navbar a[href]",
+    ".nav-menu a[href]",
+    "#nav a[href]",
+    ".site-header a[href]",
+    ".site-footer a[href]",
+)
+
+
+def extract_nav_footer_links(html: str, page_url: str, target_host: str) -> list[str]:
+    """Internal links from navbar / header / footer only — preferred discovery
+    seeds for sale hubs (plus scored sale-like paths from the full page)."""
+    from selectolax.parser import HTMLParser
+
+    tree = HTMLParser(html)
+    found: list[str] = []
+    seen: set[str] = set()
+    for selector in _NAV_FOOTER_SELECTORS:
+        for node in tree.css(selector):
+            href = (node.attributes.get("href") or "").strip()
+            if not href:
+                continue
+            absolute = clean_url(urljoin(page_url, href), target_host)
+            if not is_internal(absolute, target_host) or absolute in seen:
+                continue
+            seen.add(absolute)
+            found.append(absolute)
+    return found
+
+
+_HERO_IMG_SELECTORS = (
+    ".hero img[src]",
+    ".banner img[src]",
+    ".slideshow img[src]",
+    ".carousel img[src]",
+    ".swiper-slide img[src]",
+    "[class*='hero'] img[src]",
+    "[class*='banner'] img[src]",
+    "[class*='slider'] img[src]",
+    "[class*='promo'] img[src]",
+    "[id*='hero'] img[src]",
+    "[id*='banner'] img[src]",
+    "header img[src]",
+    ".homepage-slider img[src]",
+    "[data-testid*='hero'] img[src]",
+    "[data-testid*='banner'] img[src]",
+)
+
+
+def extract_hero_banner_images(html: str, page_url: str, *, limit: int = 8) -> list[str]:
+    """Likely hero/banner/carousel images on a homepage — for OCR sale text.
+    Falls back to the first few large-ish <img> tags if no hero selectors match."""
+    from selectolax.parser import HTMLParser
+
+    tree = HTMLParser(html)
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def _add(node) -> None:
+        if len(found) >= limit:
+            return
+        src = (node.attributes.get("src") or node.attributes.get("data-src") or "").strip()
+        if not src or src.startswith("data:"):
+            return
+        absolute = urljoin(page_url, src)
+        if absolute in seen:
+            return
+        # Skip tiny tracking/icon assets by filename heuristics.
+        lowered = absolute.lower()
+        if any(part in lowered for part in ("/icon", "favicon", "sprite", "1x1", "pixel", ".svg")):
+            return
+        seen.add(absolute)
+        found.append(absolute)
+
+    for selector in _HERO_IMG_SELECTORS:
+        for node in tree.css(selector):
+            _add(node)
+            if len(found) >= limit:
+                return found
+
+    if found:
+        return found
+
+    # Fallback: first N content images (extractor already used for page store).
+    for node in tree.css("img[src], img[data-src]"):
+        _add(node)
+        if len(found) >= min(limit, 4):
+            break
+    return found
+
+
 def extract_images(html: str, page_url: str) -> tuple[list[str], list[str]]:
     from selectolax.parser import HTMLParser
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 from services.website_scraper.models import RawPage
 
@@ -36,11 +37,22 @@ STRONG_PATTERNS = (
     re.compile(r"\bend\s+of\s+season\s+sale\b", re.I),
 )
 
+# Page types that are explicitly sale hubs (DB promo URLs or nav sale links).
+_PROMO_PAGE_TYPES = frozenset({"sale", "offers", "promotions", "custom", "nav_footer"})
+_SALE_PATH_MARKERS = (
+    "/sale", "/sales", "/offer", "/offers", "/promo", "/promotion", "/promotions",
+    "/clearance", "/outlet", "/deal", "/deals", "-sale", "_sale",
+)
+
 WEAK_POINTS = 3
 STRONG_PATTERN_POINTS = 15
 PRICE_DROP_POINTS = 20
 DISCOUNT_FIELD_POINTS = 25
 COUPON_FIELD_POINTS = 10
+# Sale hub URL / configured promo page — without this, weak keywords alone
+# cap at 15 which is still NOT_SALE (ceiling 20), so AI never runs and no
+# Offer is created even on /collections/sale pages.
+SALE_HUB_POINTS = 25
 WEAK_CAP = 15  # at most 5 weak-term hits count
 
 NOT_SALE_CEILING = 20
@@ -73,9 +85,24 @@ def extract_signals(page: RawPage, *, limit: int = 8) -> list[str]:
     return found
 
 
-def evaluate(page: RawPage) -> SaleRelevance:
+def _looks_like_sale_hub(page: RawPage, page_type: str | None) -> bool:
+    if page_type in _PROMO_PAGE_TYPES:
+        return True
+    path = urlparse(page.final_url or page.url or "").path.lower()
+    return any(marker in path for marker in _SALE_PATH_MARKERS)
+
+
+def evaluate(page: RawPage, *, page_type: str | None = None) -> SaleRelevance:
     text = f"{page.page_title or ''} {page.headline_text} {page.body_text}".lower()
     if not text.strip() and not page.discount_percentages and not page.detected_prices:
+        # Configured sale URLs with empty extract still deserve a weak pass so
+        # AI can decide — otherwise promos never become Offers.
+        if _looks_like_sale_hub(page, page_type):
+            return SaleRelevance(
+                score=float(SALE_HUB_POINTS),
+                status=WEAK,
+                reason="sale/promo hub URL with little extractable text",
+            )
         return SaleRelevance(score=0.0, status=NOT_SALE, reason="no extractable content")
 
     score = 0.0
@@ -105,6 +132,10 @@ def evaluate(page: RawPage) -> SaleRelevance:
     if page.coupon_codes:
         score += COUPON_FIELD_POINTS
         reasons.append(f"{len(page.coupon_codes)} promo code(s)")
+
+    if _looks_like_sale_hub(page, page_type):
+        score += SALE_HUB_POINTS
+        reasons.append("sale/promo hub URL or configured promo page")
 
     score = min(score, 100.0)
     if score <= NOT_SALE_CEILING:

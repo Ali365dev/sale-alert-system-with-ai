@@ -71,13 +71,27 @@ class WebsiteScrapeBrandJob(BackgroundJob):
             website_scraper_services.record_discovery_failure(brand_id, errors)
             return []
 
+        promos = [d for d in discovered if d.page_type in {"sale", "offers", "promotions", "custom"}]
+        navish = [d for d in discovered if d.page_type in {"discovered", "nav_footer"}]
+        homes = [d for d in discovered if d.page_type == "homepage"]
         job_service.append_log(
             job["id"],
-            f"✓ Discovered {len(discovered)} page(s) to scrape"
-            + (f" ({len(errors)} fetch warning(s) during discovery)" if errors else ""),
+            f"✓ Discovery plan: {len(homes)} homepage + {len(promos)} DB promo URL(s) "
+            f"+ {len(navish)} nav/footer/sale link(s) = {len(discovered)} page(s)"
+            + (f" ({len(errors)} warning(s))" if errors else ""),
             severity="success", category="website",
         )
-        for err in errors[:3]:
+        for d in promos[:6]:
+            job_service.append_log(
+                job["id"], f"  promo [{d.page_type}]: {d.url}", severity="info", category="website",
+            )
+        for d in navish[:5]:
+            job_service.append_log(
+                job["id"],
+                f"  top link [{d.page_type} score={d.score}]: {d.url}",
+                severity="info", category="website",
+            )
+        for err in errors[:5]:
             job_service.append_log(job["id"], f"⚠ {err}", severity="warning", category="website")
 
         return [WorkItem(id=(d.url, d.page_type), label=d.url) for d in discovered]

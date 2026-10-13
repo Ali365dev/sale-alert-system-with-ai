@@ -5,16 +5,21 @@ BASE_URL to a brand's configured + discovered URLs (spec §3: "do not blindly
 crawl an entire website")."""
 from __future__ import annotations
 
-import time
 from urllib.parse import urlparse
 
 from config import (
     WEBSITE_SCRAPE_MAX_PAGES,
     WEBSITE_SCRAPE_REQUEST_DELAY_SECONDS,
     WEBSITE_SCRAPE_TIMEOUT_SECONDS,
+    WEBSITE_SCRAPE_TOP_DISCOVERED_LINKS,
     WEBSITE_SCRAPE_USER_AGENT,
 )
-from services.website_scraper.extractor import extract_links, is_internal, is_product_url
+from services.website_scraper.extractor import (
+    extract_links,
+    extract_nav_footer_links,
+    is_internal,
+    is_product_url,
+)
 from services.website_scraper.models import DiscoveredUrl
 
 PRIORITY_TERMS = (
@@ -179,51 +184,94 @@ def discover_pages(
     configured_urls: list[tuple[str, str]],  # [(url, page_type), ...] e.g. [(sale_url, "sale")]
     *,
     max_pages: int = WEBSITE_SCRAPE_MAX_PAGES,
+    top_discovered: int = WEBSITE_SCRAPE_TOP_DISCOVERED_LINKS,
     delay: float = WEBSITE_SCRAPE_REQUEST_DELAY_SECONDS,
 ) -> tuple[list[DiscoveredUrl], list[str]]:
-    """Fetches the homepage (+ any explicitly configured URLs), discovers
-    internal links, and returns a prioritized list of up to `max_pages` URLs
-    worth scraping, plus any fetch errors encountered along the way."""
+    """Build the scrape list for one brand:
+
+    1. Homepage (fetched once — also sources nav/footer + sale links)
+    2. All DB promo URLs (`sale` / `offers` / `promotions` / `custom`) — always
+       included; never dropped by the top-N cap
+    3. Top `top_discovered` ranked links from navbar/footer + sale-like paths
+
+    Absolute ceiling is at least homepage + all promos + top_discovered (so the
+    new nav/footer path is not silently trimmed by the older max_pages=8
+    default). Extra custom URLs beyond that still trim with promo priority.
+    """
     target_host = (urlparse(homepage_url).netloc or "").lower()
     errors: list[str] = []
-    queue: list[DiscoveredUrl] = [DiscoveredUrl(url=homepage_url, page_type="homepage", score=999)]
-    for url, page_type in configured_urls:
-        if url and url != homepage_url:
-            queue.append(DiscoveredUrl(url=url, page_type=page_type, score=998))
-
-    seen: set[str] = set()
     result: list[DiscoveredUrl] = []
-    discovered_links: list[str] = []
+    seen: set[str] = set()
+    page_ceiling = max(max_pages, 1 + len(configured_urls) + max(0, top_discovered))
 
-    for item in queue:
-        if len(result) >= max_pages or item.url in seen:
-            continue
-        seen.add(item.url)
-        if result:
-            time.sleep(delay)
-        try:
-            status, html, final_url, used_browser = fetch_html_with_fallback(item.url)
-        except Exception as exc:
-            errors.append(f"{item.url}: {type(exc).__name__}: {exc}")
-            continue
+    homepage_html: str | None = None
+    homepage_final = homepage_url
+    try:
+        status, html, final_url, used_browser = fetch_html_with_fallback(homepage_url)
+        homepage_final = final_url or homepage_url
         if status >= 400 or not html:
             suffix = " (browser fallback also blocked)" if used_browser else ""
-            errors.append(f"{final_url or item.url}: HTTP {status}{suffix}")
-            continue
-        result.append(item)
-        discovered_links.extend(extract_links(html, final_url or item.url, target_host))
+            errors.append(f"{homepage_final}: HTTP {status}{suffix}")
+        else:
+            homepage_html = html
+            result.append(DiscoveredUrl(url=homepage_url, page_type="homepage", score=999))
+            seen.add(homepage_url)
+            if homepage_final != homepage_url:
+                seen.add(homepage_final)
+    except Exception as exc:
+        errors.append(f"{homepage_url}: {type(exc).__name__}: {exc}")
 
-    remaining = [u for u in discovered_links if u not in seen and is_internal(u, target_host)]
-    ranked = sorted(dict.fromkeys(remaining), key=lambda u: (-score_url(u), u))
-    slots_left = max_pages - len(result)
-    for url in ranked:
-        if slots_left <= 0:
-            break
-        if url in seen:
+    # DB-configured promo / custom URLs — always queued (existing behaviour).
+    promo_items: list[DiscoveredUrl] = []
+    for url, page_type in configured_urls:
+        if not url or url in seen:
             continue
+        item = DiscoveredUrl(url=url, page_type=page_type, score=998)
+        promo_items.append(item)
         seen.add(url)
-        page_type = "product" if is_product_url(url) else "discovered"
-        result.append(DiscoveredUrl(url=url, page_type=page_type, score=score_url(url)))
-        slots_left -= 1
+
+    # Nav/footer + sale-like links from the homepage HTML only.
+    top_items: list[DiscoveredUrl] = []
+    if homepage_html:
+        nav_footer = extract_nav_footer_links(homepage_html, homepage_final, target_host)
+        all_links = extract_links(homepage_html, homepage_final, target_host)
+        scores: dict[str, int] = {}
+        for url in all_links:
+            if url in seen or not is_internal(url, target_host) or is_product_url(url):
+                continue
+            scores[url] = score_url(url)
+        for url in nav_footer:
+            if url in seen or not is_internal(url, target_host) or is_product_url(url):
+                continue
+            # Prefer chrome links even when the path has no sale keyword.
+            scores[url] = max(scores.get(url, 0), score_url(url)) + 10
+
+        ranked = sorted(scores.keys(), key=lambda u: (-scores[u], u))
+        for url in ranked:
+            if len(top_items) >= max(0, top_discovered):
+                break
+            page_type = "nav_footer" if url in nav_footer else "discovered"
+            top_items.append(DiscoveredUrl(url=url, page_type=page_type, score=scores[url]))
+            seen.add(url)
+
+    # Assemble: homepage (already in result) + promos + top discovered, then
+    # enforce absolute max_pages with promo priority after homepage.
+    result.extend(promo_items)
+    result.extend(top_items)
+
+    if len(result) > page_ceiling:
+        homepage_part = [r for r in result if r.page_type == "homepage"]
+        promo_part = [r for r in result if r.page_type in {"sale", "offers", "promotions", "custom"}]
+        discovered_part = [r for r in result if r.page_type in {"discovered", "nav_footer"}]
+        remaining = page_ceiling - len(homepage_part)
+        kept_promos = promo_part[:remaining]
+        remaining -= len(kept_promos)
+        kept_discovered = discovered_part[:remaining]
+        result = homepage_part + kept_promos + kept_discovered
+        if len(promo_part) > len(kept_promos) or len(discovered_part) > len(kept_discovered):
+            errors.append(
+                f"Page list trimmed to {page_ceiling} "
+                f"(kept {len(kept_promos)} promo + {len(kept_discovered)} discovered)"
+            )
 
     return result, errors

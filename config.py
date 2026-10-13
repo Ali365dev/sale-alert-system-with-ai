@@ -137,6 +137,10 @@ if OFFER_MATCH_MODE not in ("and", "or"):
 WEBSITE_SCRAPER_ENABLED = os.getenv("WEBSITE_SCRAPER_ENABLED", "true").lower() == "true"
 WEBSITE_SCRAPE_TIMEOUT_SECONDS = float(os.getenv("WEBSITE_SCRAPE_TIMEOUT_SECONDS", "30"))
 WEBSITE_SCRAPE_MAX_PAGES = int(os.getenv("WEBSITE_SCRAPE_MAX_PAGES", "8"))
+# After homepage + DB promo URLs, keep at most this many nav/footer/sale links.
+WEBSITE_SCRAPE_TOP_DISCOVERED_LINKS = int(os.getenv("WEBSITE_SCRAPE_TOP_DISCOVERED_LINKS", "5"))
+# Max hero/banner images to OCR on the homepage (reuses ai/ocr.py).
+WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES = int(os.getenv("WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES", "4"))
 # Cap concurrent website_scrape_brand jobs. "Scrape All" used to spawn dozens
 # of Playwright/Camoufox threads at once; the process hung mid-page with no
 # error and Recent Scraping Activity looked frozen.

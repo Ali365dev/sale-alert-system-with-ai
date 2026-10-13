@@ -56,12 +56,17 @@ flowchart TD
 
 ### 1. Discover pages
 
-[`crawler.discover_pages`](services/website_scraper/crawler.py) seeds from:
+[`crawler.discover_pages`](services/website_scraper/crawler.py) builds:
 
-- `brand.homepage_url` or `brand.website`
-- Explicit `sale_page_url` / `offers_page_url` / `promotions_page_url` / `custom_scrape_urls`
+1. **Homepage** (fetched once)
+2. **All DB promo URLs** — `sale_page_url` / `offers_page_url` / `promotions_page_url` / `custom_scrape_urls` (always kept)
+3. **Top 5** nav/footer + sale-like links from the homepage (`WEBSITE_SCRAPE_TOP_DISCOVERED_LINKS`)
 
-It fetches seeds, scores internal links, keeps the top pages (default max 8). Product URLs are tagged `page_type="product"` so they are stored but never turned into offers.
+Product PDPs are skipped in the top-5 list (they never become offers anyway).
+
+### 1b. Homepage hero OCR
+
+On `page_type=homepage`, [`process_page`](services/website_scraper/services.py) OCRs hero/banner images via existing [`ai/ocr.py`](ai/ocr.py) and folds text into the page before rule-score / AI — same offer path as HTML.
 
 ### 2. Fetch HTML
 
