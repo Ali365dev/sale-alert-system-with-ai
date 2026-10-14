@@ -5,7 +5,7 @@ import json
 import re
 from urllib.parse import unquote, urljoin, urlparse
 
-from selectolax.parser import HTMLParser
+from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from services.sale_alert_matching import discount_pct
 from services.website_scraper import crawler

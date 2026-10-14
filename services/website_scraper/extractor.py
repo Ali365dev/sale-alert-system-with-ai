@@ -141,7 +141,7 @@ def is_product_url(url: str) -> bool:
 
 
 def extract_visible_text(html: str, *, limit: int = 12000) -> str:
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     for node in tree.css("script, style, noscript"):
@@ -151,7 +151,7 @@ def extract_visible_text(html: str, *, limit: int = 12000) -> str:
 
 
 def extract_links(html: str, page_url: str, target_host: str) -> list[str]:
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     found: list[str] = []
@@ -188,7 +188,7 @@ _NAV_FOOTER_SELECTORS = (
 def extract_nav_footer_links(html: str, page_url: str, target_host: str) -> list[str]:
     """Internal links from navbar / header / footer only — preferred discovery
     seeds for sale hubs (plus scored sale-like paths from the full page)."""
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     found: list[str] = []
@@ -228,7 +228,7 @@ _HERO_IMG_SELECTORS = (
 def extract_hero_banner_images(html: str, page_url: str, *, limit: int = 8) -> list[str]:
     """Likely hero/banner/carousel images on a homepage — for OCR sale text.
     Falls back to the first few large-ish <img> tags if no hero selectors match."""
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     found: list[str] = []
@@ -268,7 +268,7 @@ def extract_hero_banner_images(html: str, page_url: str, *, limit: int = 8) -> l
 
 
 def extract_images(html: str, page_url: str) -> tuple[list[str], list[str]]:
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     images: list[str] = []
@@ -298,7 +298,7 @@ def extract_products(html: str, page_url: str, target_host: str) -> list[dict[st
     """Shopify (.t4s-product-info) and Salesforce Commerce (.product-tile)
     product-card selectors, plus a PDP fallback — validated against real
     storefronts (sokamal.com, pk.khaadi.com) in the research spike."""
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     products: list[dict[str, Any]] = []
@@ -383,7 +383,7 @@ def extract_products(html: str, page_url: str, target_host: str) -> list[dict[st
 def extract_page(html: str, url: str, final_url: str, http_status: int, target_host: str) -> RawPage:
     """Assembles a RawPage: title/meta/canonical, visible text, images,
     products/prices, discounts, promo codes, internal links."""
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     title_node = tree.css_first("title")

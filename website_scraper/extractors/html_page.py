@@ -10,7 +10,7 @@ from sale_detector import parse_money
 
 
 def extract_visible_text(html: str, *, limit: int = 12000) -> str:
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     for node in tree.css("script, style, noscript"):
@@ -20,7 +20,7 @@ def extract_visible_text(html: str, *, limit: int = 12000) -> str:
 
 
 def extract_links(html: str, page_url: str) -> list[str]:
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     found: list[str] = []
@@ -38,7 +38,7 @@ def extract_links(html: str, page_url: str) -> list[str]:
 
 
 def extract_products(html: str, page_url: str) -> list[dict[str, Any]]:
-    from selectolax.parser import HTMLParser
+    from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
     tree = HTMLParser(html)
     products: list[dict[str, Any]] = []
