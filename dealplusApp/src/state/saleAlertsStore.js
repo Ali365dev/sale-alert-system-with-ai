@@ -14,8 +14,10 @@ const useSaleAlertsStore = create((set, get) => ({
   loading: false,
   error: null,
 
-  loadAlerts: async () => {
-    set({ loading: true, error: null });
+  loadAlerts: async (opts = {}) => {
+    const silent = !!opts.silent;
+    // Only flip `loading` for cold starts — pull-to-refresh uses local `refreshing`.
+    set(silent ? { error: null } : { loading: true, error: null });
     try {
       const data = await fetchSaleAlerts();
       set({

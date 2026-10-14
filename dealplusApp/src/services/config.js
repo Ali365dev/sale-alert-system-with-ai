@@ -10,12 +10,14 @@ const PRODUCTION_API = 'https://sale-alert-system-with-ai.onrender.com/api';
 // local — Mac LAN IP for physical devices + iOS Simulator on the same Wi‑Fi.
 // Android emulator needs 10.0.2.2 instead of the LAN IP.
 // Re-run `ipconfig getifaddr en0` if Wi‑Fi changes.
-const LOCAL_LAN_API = 'http://192.168.18.43:8000/api';
+// Re-run `ipconfig getifaddr en0` if Wi‑Fi changes — stale IP = empty/failed list.
+const LOCAL_LAN_API = 'http://192.168.18.73:8000/api';
 const LOCAL_SIM_API =
   Platform.OS === 'android' ? 'http://10.0.2.2:8000/api' : 'http://127.0.0.1:8000/api';
 
-// Prefer LAN so a physical phone on the same Wi‑Fi can hit the Mac. Fall back
-// to loopback for Simulator / Emulator when __DEV__ is true.
+// Prefer LAN so a physical phone on the same Wi‑Fi can hit the Mac. Backend
+// must listen on 0.0.0.0:8000 (not 127.0.0.1 only). Use LOCAL_SIM_API if you
+// only run the iOS Simulator / Android Emulator on this machine.
 const LOCAL_API = LOCAL_LAN_API;
 
 // In development, talk to the local API (has Sale Alerts). Release builds keep

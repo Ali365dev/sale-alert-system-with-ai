@@ -25,6 +25,28 @@ def test_product_any_sale_and_pct():
     assert product_condition_met("target_price", current_price=120, original_price=150, target_price=100) is False
 
 
+def test_product_watch_below_price():
+    # Already-on-sale "wait for better deal": same price must not trigger.
+    assert (
+        product_condition_met(
+            "any_sale",
+            current_price=699,
+            original_price=6599,
+            watch_below_price=699,
+        )
+        is False
+    )
+    assert (
+        product_condition_met(
+            "any_sale",
+            current_price=650,
+            original_price=6599,
+            watch_below_price=699,
+        )
+        is True
+    )
+
+
 def test_brand_conditions():
     assert brand_condition_met("any_sale", alert_brand="Nike", offer_brand="nike") is True
     assert brand_condition_met("any_sale", alert_brand="Nike", offer_brand="Adidas") is False

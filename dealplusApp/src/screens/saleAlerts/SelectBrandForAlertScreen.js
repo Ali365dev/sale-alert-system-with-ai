@@ -1,34 +1,37 @@
-import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useCallback, useMemo, useRef } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Screen from '../../components/Screen';
 import TopAppBar from '../../components/TopAppBar';
-import BrandLogo from '../../components/BrandLogo';
+import PrimaryButton from '../../components/PrimaryButton';
+import BrandPickerSheet from '../../components/BrandPickerSheet';
 import OnboardingProgress from '../../components/OnboardingProgress';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import useCreateAlertDraftStore from '../../state/createAlertDraftStore';
 
+/** Fallback route — opens the same brand bottom sheet used on Create Alert. */
 const SelectBrandForAlertScreen = () => {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const brands = useDataStore((s) => s.brands);
   const setField = useCreateAlertDraftStore((s) => s.setField);
-  const [query, setQuery] = useState('');
+  const brandName = useCreateAlertDraftStore((s) => s.brandName);
+  const sheetRef = useRef(null);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = [...brands];
-    if (!q) return list;
-    return list.filter((b) => (b.name || '').toLowerCase().includes(q));
-  }, [brands, query]);
+  useFocusEffect(
+    useCallback(() => {
+      const t = setTimeout(() => sheetRef.current?.present(), 80);
+      return () => clearTimeout(t);
+    }, []),
+  );
 
-  const pick = (brand) => {
+  const onBrandSelected = (selection) => {
     setField('alertType', 'brand');
-    setField('brandName', brand.name);
-    setField('imageUrl', brand.logoUrl || brand.logo_url || '');
+    setField('brandName', selection.name);
+    setField('imageUrl', selection.logoUrl || '');
     setField('productName', '');
     setField('productUrl', '');
     navigation.navigate('AlertConditionsScreen');
@@ -40,26 +43,15 @@ const SelectBrandForAlertScreen = () => {
       <View style={styles.body}>
         <OnboardingProgress step={1} total={5} />
         <Text style={styles.heading}>Select Brand</Text>
-        <TextInput
-          style={styles.search}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search brands"
-          placeholderTextColor={colors.mutedInk}
-        />
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => String(item.id ?? item.name)}
-          contentContainerStyle={{ gap: SPACING.two, paddingBottom: SPACING.six }}
-          renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => pick(item)}>
-              <BrandLogo brand={item} size={40} tone="filled" fit="cover" />
-              <Text style={styles.name}>{item.name}</Text>
-            </Pressable>
-          )}
-          ListEmptyComponent={<Text style={styles.empty}>No brands match your search.</Text>}
-        />
+        <Text style={styles.sub}>Pick a brand from the list, or add a custom one.</Text>
+        <PrimaryButton label="Browse brands" onPress={() => sheetRef.current?.present()} />
       </View>
+      <BrandPickerSheet
+        ref={sheetRef}
+        brands={brands}
+        selectedName={brandName}
+        onSelect={onBrandSelected}
+      />
     </Screen>
   );
 };
@@ -69,28 +61,7 @@ export default SelectBrandForAlertScreen;
 const createStyles = (colors) =>
   StyleSheet.create({
     root: { flex: 1 },
-    body: { flex: 1, paddingHorizontal: SPACING.four, paddingTop: SPACING.three, gap: SPACING.three },
-    heading: { ...TYPOGRAPHY.headline, color: colors.text },
-    search: {
-      ...TYPOGRAPHY.default,
-      color: colors.text,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: RADIUS.chip,
-      paddingHorizontal: SPACING.three,
-      paddingVertical: SPACING.two + 4,
-    },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: SPACING.three,
-      backgroundColor: colors.surface,
-      borderRadius: RADIUS.card,
-      padding: SPACING.three,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.border,
-    },
-    name: { ...TYPOGRAPHY.smallBold, color: colors.text, flex: 1 },
-    empty: { ...TYPOGRAPHY.small, color: colors.textSecondary, textAlign: 'center', marginTop: SPACING.four },
+    body: { flex: 1, padding: SPACING.four, gap: SPACING.three },
+    heading: { ...TYPOGRAPHY.headline, color: colors.text, marginTop: SPACING.two },
+    sub: { ...TYPOGRAPHY.small, color: colors.textSecondary },
   });

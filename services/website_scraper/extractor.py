@@ -40,15 +40,60 @@ def parse_money(text: str | None) -> float | None:
         return None
 
 
+_INSTALLMENT_NOISE_RE = re.compile(
+    r"(?i)(?:pay in\s+\d+\s+installments?\s+of|installments?\s+of)\s*"
+    r"(?:rs\.?|pkr|₨|usd|eur|gbp|\$|€|£)?\s*[\d,]+(?:\.\d{1,2})?",
+)
+
+
 def _prices_from_text(text: str) -> tuple[float | None, float | None]:
-    amounts = [parse_money(m.group(0)) for m in _AMOUNT_FIND_RE.finditer(text or "")]
+    cleaned = _INSTALLMENT_NOISE_RE.sub(" ", text or "")
+    amounts = [parse_money(m.group(0)) for m in _AMOUNT_FIND_RE.finditer(cleaned)]
     amounts = [a for a in amounts if a is not None and a >= 20]
     if not amounts:
         return None, None
     if len(amounts) == 1:
         return None, amounts[0]
+    # On a scoped product block, first currency amount is usually the sale/current
+    # price and a later higher amount (often struck-through) is the original.
+    first, *rest = amounts
+    higher = max(rest) if rest else None
+    if higher is not None and higher > first:
+        return higher, first
     high, low = max(amounts), min(amounts)
     return (high, low) if high > low else (None, low)
+
+
+def _product_region_text(tree) -> str:
+    """Price text near the buy box — never the whole page (related products pollute min/max)."""
+    if tree is None:
+        return ""
+    selectors = (
+        "form[action*='/cart']",
+        "form[action*='/cart/add']",
+        "[class*='product__info']",
+        "[class*='product-info']",
+        "[class*='product-form']",
+        "[class*='product__main']",
+        "[data-product-form]",
+        "main",
+    )
+    chunks: list[str] = []
+    for sel in selectors:
+        node = tree.css_first(sel)
+        if not node:
+            continue
+        text = node.text(strip=True) if hasattr(node, "text") else ""
+        if text and len(text) >= 8:
+            chunks.append(text)
+            if len(chunks) >= 2:
+                break
+    if chunks:
+        return " ".join(chunks)[:4000]
+    h1 = tree.css_first("h1")
+    if h1 is not None and h1.parent is not None:
+        return (h1.parent.text(strip=True) or "")[:4000]
+    return ""
 
 
 def _prices_from_price_node(node) -> tuple[float | None, float | None]:
@@ -259,13 +304,21 @@ def extract_products(html: str, page_url: str, target_host: str) -> list[dict[st
     products: list[dict[str, Any]] = []
     seen: set[str] = set()
 
-    def add(name, url, original, current) -> None:
+    def add(name, url, original, current, *, source: str) -> None:
         if not name and current is None:
             return
         if url in seen:
             return
         seen.add(url)
-        products.append({"name": name, "current_price": current, "original_price": original, "url": url})
+        products.append(
+            {
+                "name": name,
+                "current_price": current,
+                "original_price": original,
+                "url": url,
+                "source": source,
+            }
+        )
 
     for info in tree.css(".t4s-product-info"):
         title_a = info.css_first(".t4s-product-title a") or info.css_first("a[href*='/products/']")
@@ -274,7 +327,7 @@ def extract_products(html: str, page_url: str, target_host: str) -> list[dict[st
         href = title_a.attributes.get("href") if title_a else None
         url = clean_url(urljoin(page_url, href), target_host) if href else page_url
         original, current = _prices_from_price_node(price_el)
-        add(name, url, original, current)
+        add(name, url, original, current, source="card")
 
     for tile in tree.css(".product-tile"):
         link = tile.css_first("a.plpRedirectPdp") or tile.css_first("a[href*='.html']") or tile.css_first("a[href]")
@@ -286,7 +339,7 @@ def extract_products(html: str, page_url: str, target_host: str) -> list[dict[st
         original, current = _prices_from_text(tile.text())
         if current is None:
             original, current = _prices_from_text(alt)
-        add(name, url, original, current)
+        add(name, url, original, current, source="card")
 
     for card in tree.css('[data-testid="product-card-main"]'):
         link = card.css_first("a[href]")
@@ -301,18 +354,28 @@ def extract_products(html: str, page_url: str, target_host: str) -> list[dict[st
         current = parse_money(current_el.text() if current_el else None)
         if current is None:
             original, current = _prices_from_text(card.text())
-        add(name, url, original, current)
+        add(name, url, original, current, source="card")
 
     if is_product_url(page_url) and clean_url(page_url, target_host) not in seen:
         title = tree.css_first("h1")
         price_el = (
             tree.css_first(".t4s-product-price") or tree.css_first(".price__sale")
             or tree.css_first(".t4s-price") or tree.css_first(".prices") or tree.css_first(".product-price")
+            or tree.css_first("[class*='price__regular']") or tree.css_first("[class*='product-price']")
         )
         original, current = _prices_from_price_node(price_el)
+        source = "pdp_selector"
         if current is None:
-            original, current = _prices_from_text(tree.body.text() if tree.body else "")
-        add(title.text(strip=True) if title else None, clean_url(page_url, target_host), original, current)
+            # Scoped buy-box text only — full-page min/max picks related-product junk.
+            original, current = _prices_from_text(_product_region_text(tree))
+            source = "pdp_region"
+        add(
+            title.text(strip=True) if title else None,
+            clean_url(page_url, target_host),
+            original,
+            current,
+            source=source,
+        )
 
     return products
 
@@ -466,4 +529,5 @@ def _product_from_schema(node: dict[str, Any], page_url: str) -> dict[str, Any]:
         "original_price": _number(offer.get("highPrice") or node.get("compare_at_price")),
         "url": url,
         "currency": offer.get("priceCurrency") or node.get("priceCurrency"),
+        "source": "schema",
     }

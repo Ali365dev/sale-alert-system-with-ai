@@ -72,6 +72,16 @@ const HomeScreen = () => {
   const brands = useDataStore((state) => state.brands);
   const brandsById = useDataStore((state) => state.brandsById);
   const loading = useDataStore((state) => state.loading);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadDeals();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const error = useDataStore((state) => state.error);
   const user = useAuthStore((state) => state.user);
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
@@ -161,7 +171,7 @@ const HomeScreen = () => {
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: 8, paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor={colors.primary} />}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}>
         {/* Top: Hi greeting + bell */}
         <View style={styles.topBar}>
           <View style={styles.greetingBlock}>

@@ -16,6 +16,7 @@ const AlertCreatedScreen = () => {
   const draft = useCreateAlertDraftStore();
   const reset = useCreateAlertDraftStore((s) => s.reset);
   const name = draft.alertType === 'brand' ? draft.brandName : draft.productName;
+  const waitingForDrop = draft.alreadyOnSale && draft.alreadyOnSaleChoice === 'watch_for_drop';
 
   return (
     <Screen style={styles.root} edges={['top', 'left', 'right', 'bottom']}>
@@ -25,7 +26,9 @@ const AlertCreatedScreen = () => {
         </View>
         <Text style={styles.title}>Alert Created</Text>
         <Text style={styles.bodyText}>
-          You'll be notified when {name || 'this item'} reaches your selected sale condition.
+          {waitingForDrop
+            ? `You will be notified when ${name || 'this product'} drops below the current price.`
+            : `You will be notified when ${name || 'this product'} meets your selected sale condition.`}
         </Text>
         <PrimaryButton
           label="View My Alerts"

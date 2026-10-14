@@ -43,25 +43,47 @@ const SheetContainer = ({ children }) =>
 
 /**
  * Coupon details bottom sheet — Gorhom BottomSheetModal with a dark overlay.
+ * `presentKey` must bump on every open so tapping the same coupon again still presents
+ * (React setState with the same deal object is a no-op otherwise — felt like a 2nd tap).
  */
-const CouponSheet = ({ deal, brand, onClose }) => {
+const CouponSheet = ({ deal, brand, presentKey = 0, onClose }) => {
   const sheetRef = useRef(null);
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [copied, setCopied] = useState(false);
-  const favorite = useFavoritesStore((state) => (deal ? state.favoriteIds.includes(deal.id) : false));
-  // Shorter than the default spring — open/close felt a beat late.
+  // Keep last deal for content so the sheet isn't empty while presenting.
+  const lastDealRef = useRef(deal);
+  const lastBrandRef = useRef(brand);
+  if (deal) lastDealRef.current = deal;
+  if (brand) lastBrandRef.current = brand;
+  const activeDeal = deal || lastDealRef.current;
+  const activeBrand = brand || lastBrandRef.current;
+  const favorite = useFavoritesStore((state) =>
+    activeDeal ? state.favoriteIds.includes(activeDeal.id) : false,
+  );
+  // Snappy open — default spring felt laggy in TestFlight too.
   const animationConfigs = useBottomSheetTimingConfigs({
-    duration: 220,
+    duration: 180,
     easing: Easing.out(Easing.cubic),
   });
 
   useEffect(() => {
-    if (!deal) return;
+    if (!deal || !presentKey) return undefined;
     setCopied(false);
-    sheetRef.current?.present();
-  }, [deal]);
+    // Double rAF: wait until BottomSheetModal is committed (same fix as LoginPromptSheet).
+    // Calling present() in the same tick as mount often no-ops on the first tap.
+    let nested;
+    const outer = requestAnimationFrame(() => {
+      nested = requestAnimationFrame(() => {
+        sheetRef.current?.present();
+      });
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      if (nested != null) cancelAnimationFrame(nested);
+    };
+  }, [deal, presentKey]);
 
   const renderBackdrop = useCallback(
     (props) => (
@@ -77,49 +99,47 @@ const CouponSheet = ({ deal, brand, onClose }) => {
   );
 
   const onCopy = () => {
-    if (!deal?.promoCode) return;
-    if (!copyCode(deal.promoCode)) return;
+    if (!activeDeal?.promoCode) return;
+    if (!copyCode(activeDeal.promoCode)) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   };
 
   const onShare = () => {
-    if (!deal) return;
-    const name = brand?.name || 'this store';
-    const codeLine = deal.promoCode ? ` Use code ${deal.promoCode}.` : '';
+    if (!activeDeal) return;
+    const shareName = activeBrand?.name || 'this store';
+    const codeLine = activeDeal.promoCode ? ` Use code ${activeDeal.promoCode}.` : '';
     Share.share({
-      message: `${deal.title} at ${name}.${codeLine}`.trim(),
+      message: `${activeDeal.title} at ${shareName}.${codeLine}`.trim(),
       title: 'Coupon Details',
     }).catch(() => {});
   };
 
   const onShop = () => {
-    const url = deal?.website || brand?.website;
+    const url = activeDeal?.website || activeBrand?.website;
     if (url) Linking.openURL(url);
   };
 
-  const name = brand?.name || 'Store';
-  const code = deal?.promoCode;
-  const tag = deal ? channelTag(deal) : 'ONLINE';
+  const name = activeBrand?.name || 'Store';
+  const code = activeDeal?.promoCode;
+  const tag = activeDeal ? channelTag(activeDeal) : 'ONLINE';
   const isOnline = tag === 'ONLINE';
-  const linkUrl = deal?.website || brand?.website;
+  const linkUrl = activeDeal?.website || activeBrand?.website;
   const steps = useMemo(() => howToSteps(name, code), [name, code]);
 
   return (
     <BottomSheetModal
       ref={sheetRef}
       onDismiss={onClose}
-      index={0}
       snapPoints={SNAP_POINTS}
       animationConfigs={animationConfigs}
-      animateOnMount
       enableDynamicSizing={false}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       backgroundStyle={styles.background}
       handleIndicatorStyle={styles.handleIndicator}
       containerComponent={SheetContainer}>
-      {deal ? (
+      {activeDeal ? (
         <BottomSheetScrollView
           bounces={false}
           showsVerticalScrollIndicator={false}
@@ -148,12 +168,12 @@ const CouponSheet = ({ deal, brand, onClose }) => {
                 active={favorite}
                 onPress={() => {
                   if (favorite || isLoggedIn()) {
-                    toggleFavoriteDeal(deal.id);
+                    toggleFavoriteDeal(activeDeal.id);
                     return;
                   }
                   // Close coupon overlay first so the login sheet is not trapped behind it.
                   sheetRef.current?.dismiss();
-                  setTimeout(() => useLoginPromptStore.getState().show('deal'), 280);
+                  setTimeout(() => useLoginPromptStore.getState().show('deal'), 200);
                 }}
                 size={20}
               />
@@ -162,17 +182,17 @@ const CouponSheet = ({ deal, brand, onClose }) => {
 
           <View style={styles.summaryRow}>
             <View style={styles.logoCol}>
-              <BrandLogo brand={brand} size={64} tone="filled" fit="cover" elevated />
+              <BrandLogo brand={activeBrand} size={64} tone="filled" fit="cover" elevated />
             </View>
             <View style={styles.summaryText}>
-              <Text style={styles.offerTitle}>{deal.title}</Text>
+              <Text style={styles.offerTitle}>{activeDeal.title}</Text>
               <View style={[styles.channelPill, isOnline ? styles.channelOnline : styles.channelStore]}>
                 <View style={[styles.channelDot, { backgroundColor: isOnline ? colors.success : colors.warning }]} />
                 <Text style={[styles.channelLabel, { color: isOnline ? colors.success : colors.warning }]}>
                   {isOnline ? 'Online' : 'In-Store'}
                 </Text>
               </View>
-              <Text style={styles.expiry}>{expiresOn(deal.expiresAt)}</Text>
+              <Text style={styles.expiry}>{expiresOn(activeDeal.expiresAt)}</Text>
             </View>
           </View>
 
@@ -196,7 +216,7 @@ const CouponSheet = ({ deal, brand, onClose }) => {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About this offer</Text>
-            <Text style={styles.sectionBody}>{deal.description || deal.title}</Text>
+            <Text style={styles.sectionBody}>{activeDeal.description || activeDeal.title}</Text>
           </View>
 
           <View style={styles.section}>
@@ -211,10 +231,10 @@ const CouponSheet = ({ deal, brand, onClose }) => {
             ))}
           </View>
 
-          {deal.terms ? (
+          {activeDeal.terms ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Terms and Conditions</Text>
-              <Text style={styles.sectionBody}>{deal.terms}</Text>
+              <Text style={styles.sectionBody}>{activeDeal.terms}</Text>
             </View>
           ) : null}
 
@@ -237,10 +257,25 @@ const CouponSheet = ({ deal, brand, onClose }) => {
 
 export const useCouponSheet = () => {
   const [deal, setDeal] = useState(null);
+  const [presentKey, setPresentKey] = useState(0);
   const brandsById = useDataStore((state) => state.brandsById);
+
+  const openCoupon = useCallback((next) => {
+    setDeal(next);
+    // Always bump so opening the same coupon again still triggers present().
+    setPresentKey((k) => k + 1);
+  }, []);
+
   return {
-    openCoupon: setDeal,
-    couponSheet: <CouponSheet deal={deal} brand={deal ? brandsById[deal.brandId] : undefined} onClose={() => setDeal(null)} />,
+    openCoupon,
+    couponSheet: (
+      <CouponSheet
+        deal={deal}
+        brand={deal ? brandsById[deal.brandId] : undefined}
+        presentKey={presentKey}
+        onClose={() => setDeal(null)}
+      />
+    ),
   };
 };
 

@@ -28,7 +28,7 @@ const brand = {
 
 test('renders coupon details, code, how-to steps, and Shop Now', async () => {
   const { getByText, getByLabelText } = await render(
-    <CouponSheet deal={deal} brand={brand} onClose={() => {}} />,
+    <CouponSheet deal={deal} brand={brand} presentKey={1} onClose={() => {}} />,
   );
 
   expect(getByText('Coupon Details')).toBeTruthy();
@@ -46,7 +46,9 @@ test('renders coupon details, code, how-to steps, and Shop Now', async () => {
 
 test('back control calls onClose', async () => {
   const onClose = jest.fn();
-  const { getByLabelText } = await render(<CouponSheet deal={deal} brand={brand} onClose={onClose} />);
+  const { getByLabelText } = await render(
+    <CouponSheet deal={deal} brand={brand} presentKey={1} onClose={onClose} />,
+  );
 
   await fireEvent.press(getByLabelText('Close coupon'));
   expect(onClose).toHaveBeenCalled();

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,7 +27,8 @@ const FavoritesScreen = () => {
   const brandsById = useDataStore((state) => state.brandsById);
 
   const favoriteDeals = useMemo(() => deals.filter((d) => favoriteIds.includes(d.id)), [deals, favoriteIds]);
-  const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(favoriteDeals);
+  const { visibleItems: visibleDeals, hasMore, isLoadingMore, loadMore } = usePagination(favoriteDeals);
+  const viewportH = useRef(0);
 
   // Deliberately distinct from "Followed Brands" (usePreferencesStore) —
   // this is just brands with at least one saved deal, not the user's actual
@@ -53,8 +54,14 @@ const FavoritesScreen = () => {
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 80 }]}
           showsVerticalScrollIndicator={false}
+          onLayout={(e) => {
+            viewportH.current = e.nativeEvent.layout.height;
+          }}
           onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
-          scrollEventThrottle={200}>
+          onContentSizeChange={(_w, h) => {
+            if (viewportH.current > 0 && h <= viewportH.current + 160 && hasMore) loadMore();
+          }}
+          scrollEventThrottle={160}>
           <Text style={styles.heading}>Saved Deals</Text>
           <View style={styles.dealsList}>
             {visibleDeals.map((deal, index) => {
@@ -71,7 +78,7 @@ const FavoritesScreen = () => {
                 </AnimatedListItem>
               );
             })}
-            {isLoadingMore && <PaginationLoader />}
+            {isLoadingMore ? <PaginationLoader /> : null}
           </View>
 
           {brandsWithSaves.length > 0 && (

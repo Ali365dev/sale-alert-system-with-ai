@@ -724,7 +724,8 @@ class SaleAlert(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_id = Column(String(255), nullable=False, index=True)
     alert_type = Column(String(20), nullable=False)  # "product" | "brand"
-    status = Column(String(20), nullable=False, default="active", index=True)  # "active" | "paused" | "triggered"
+    status = Column(String(20), nullable=False, default="active", index=True)
+    # "active" | "paused" | "triggered" | "needs_attention"
 
     product_name = Column(String(500), nullable=True)
     brand_name = Column(String(255), nullable=True)
@@ -739,6 +740,8 @@ class SaleAlert(Base):
     # any_sale | pct_10 | pct_20 | pct_30 | custom_pct | target_price | new_promotion | new_code
     custom_pct = Column(Float, nullable=True)
     target_price = Column(Float, nullable=True)
+    # When set, only trigger after price drops below this (used for "wait for better deal").
+    watch_below_price = Column(Float, nullable=True)
 
     notify_push = Column(Boolean, nullable=False, default=True)
     notify_email = Column(Boolean, nullable=False, default=False)
@@ -748,6 +751,8 @@ class SaleAlert(Base):
     last_triggered_at = Column(DateTime, nullable=True)
     triggered_message = Column(Text, nullable=True)
     triggered_deal_url = Column(String(1000), nullable=True)
+    check_fail_count = Column(Integer, nullable=False, default=0)
+    last_check_error = Column(Text, nullable=True)
 
     created_at = Column(DateTime, default=_utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)

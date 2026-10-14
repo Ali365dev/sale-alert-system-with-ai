@@ -9,20 +9,22 @@ from fastapi.responses import JSONResponse
 from database.db import get_session
 from database.models import SaleAlert
 from services.sale_alert_analyze import analyze_product_url
+from services.sale_alert_brand import enrich_analyze_with_brand
 from services.sale_alert_service import check_product_alert, evaluate_alert_on_create
+from services.sale_alert_validation import (
+    is_http_url,
+    normalize_http_url,
+    validate_create_payload,
+    validate_device_id,
+    validate_patch_payload,
+)
 
 router = APIRouter(prefix="/api/sale-alerts", tags=["sale-alerts"])
-
-_ALERT_TYPES = frozenset({"product", "brand"})
-_STATUSES = frozenset({"active", "paused", "triggered"})
-_CONDITION_TYPES = frozenset({
-    "any_sale", "pct_10", "pct_20", "pct_30", "custom_pct", "target_price", "new_promotion", "new_code",
-})
 
 _UPDATABLE = frozenset({
     "alert_type", "status", "product_name", "brand_name", "product_url", "image_url",
     "current_price", "original_price", "sku", "variant", "condition_type", "custom_pct", "target_price",
-    "notify_push", "notify_email", "notify_in_app",
+    "watch_below_price", "notify_push", "notify_email", "notify_in_app",
 })
 
 
@@ -43,6 +45,7 @@ def _alert_to_dict(a: SaleAlert) -> dict:
         "condition_type": a.condition_type,
         "custom_pct": a.custom_pct,
         "target_price": a.target_price,
+        "watch_below_price": a.watch_below_price,
         "notify_push": a.notify_push,
         "notify_email": a.notify_email,
         "notify_in_app": a.notify_in_app,
@@ -50,16 +53,15 @@ def _alert_to_dict(a: SaleAlert) -> dict:
         "last_triggered_at": a.last_triggered_at.isoformat() if a.last_triggered_at else None,
         "triggered_message": a.triggered_message,
         "triggered_deal_url": a.triggered_deal_url,
+        "check_fail_count": int(a.check_fail_count or 0),
+        "last_check_error": a.last_check_error,
         "created_at": a.created_at.isoformat() if a.created_at else None,
         "updated_at": a.updated_at.isoformat() if a.updated_at else None,
     }
 
 
-def _require_device_id(device_id: str | None) -> str | JSONResponse:
-    device_id = (device_id or "").strip()
-    if not device_id:
-        return JSONResponse({"error": "device_id is required"}, status_code=400)
-    return device_id
+def _bad_request(message: str) -> JSONResponse:
+    return JSONResponse({"error": message}, status_code=400)
 
 
 def _get_owned_alert(session, alert_id: int, device_id: str) -> SaleAlert | None:
@@ -93,9 +95,9 @@ def _schedule_evaluate(alert_id: int) -> None:
 
 @router.get("")
 def list_sale_alerts(device_id: str = Query(...)):
-    device_id = _require_device_id(device_id)
-    if isinstance(device_id, JSONResponse):
-        return device_id
+    device_id, err = validate_device_id(device_id)
+    if err:
+        return _bad_request(err)
 
     with get_session() as session:
         alerts = (
@@ -109,78 +111,69 @@ def list_sale_alerts(device_id: str = Query(...)):
 
 @router.post("")
 def create_sale_alert(body: dict = Body(default={})):
-    body = body or {}
-    device_id = _require_device_id(body.get("device_id"))
-    if isinstance(device_id, JSONResponse):
-        return device_id
+    payload, err = validate_create_payload(body or {})
+    if err:
+        return _bad_request(err)
 
-    alert_type = (body.get("alert_type") or "product").strip()
-    if alert_type not in _ALERT_TYPES:
-        return JSONResponse({"error": "alert_type must be 'product' or 'brand'"}, status_code=400)
-
-    condition_type = (body.get("condition_type") or "any_sale").strip()
-    if condition_type not in _CONDITION_TYPES:
-        return JSONResponse({"error": "invalid condition_type"}, status_code=400)
-
-    status = (body.get("status") or "active").strip()
-    if status not in _STATUSES:
-        return JSONResponse({"error": "status must be 'active', 'paused', or 'triggered'"}, status_code=400)
-
-    if alert_type == "product" and not (body.get("product_name") or body.get("product_url") or body.get("brand_name")):
-        return JSONResponse({"error": "product alerts need a product name, URL, or brand"}, status_code=400)
-    if alert_type == "brand" and not (body.get("brand_name") or "").strip():
-        return JSONResponse({"error": "brand_name is required for brand alerts"}, status_code=400)
+    # Fill missing product image from catalog brand logo; record unknown brands.
+    brand_hint = {
+        "ok": True,
+        "brand_name": payload.get("brand_name"),
+        "product_url": payload.get("product_url"),
+        "image_url": payload.get("image_url"),
+        "product_name": payload.get("product_name"),
+        "current_price": payload.get("current_price"),
+    }
+    enriched = enrich_analyze_with_brand(
+        brand_hint,
+        device_id=payload.get("device_id"),
+        record_missing=payload.get("alert_type") == "product",
+    )
+    if enriched.get("image_url") and not payload.get("image_url"):
+        payload["image_url"] = enriched["image_url"]
+    if enriched.get("brand_name") and not payload.get("brand_name"):
+        payload["brand_name"] = enriched["brand_name"]
 
     with get_session() as session:
-        a = SaleAlert(
-            device_id=device_id,
-            alert_type=alert_type,
-            status=status,
-            product_name=(body.get("product_name") or "").strip() or None,
-            brand_name=(body.get("brand_name") or "").strip() or None,
-            product_url=(body.get("product_url") or "").strip() or None,
-            image_url=(body.get("image_url") or "").strip() or None,
-            current_price=body.get("current_price"),
-            original_price=body.get("original_price"),
-            sku=(body.get("sku") or "").strip() or None,
-            variant=(body.get("variant") or "").strip() or None,
-            condition_type=condition_type,
-            custom_pct=body.get("custom_pct"),
-            target_price=body.get("target_price"),
-            notify_push=body.get("notify_push") if "notify_push" in body else True,
-            notify_email=body.get("notify_email") if "notify_email" in body else False,
-            notify_in_app=body.get("notify_in_app") if "notify_in_app" in body else True,
-        )
+        a = SaleAlert(**payload)
         session.add(a)
         session.flush()
-        payload = _alert_to_dict(a)
+        response = _alert_to_dict(a)
         alert_id = a.id
+        status = a.status
 
     if status == "active":
         _schedule_evaluate(alert_id)
-    return JSONResponse(payload, status_code=201)
+    return JSONResponse(response, status_code=201)
 
 
 @router.post("/analyze-product")
 def analyze_product(body: dict = Body(default={})):
     body = body or {}
-    return analyze_product_url(body.get("url"))
+    url = (body.get("url") or "").strip()
+    if not url:
+        return _bad_request("url is required")
+    if not is_http_url(url):
+        return _bad_request("url must be a valid http(s) URL")
+    device_id = (body.get("device_id") or "").strip() or None
+    result = analyze_product_url(normalize_http_url(url) or url)
+    return enrich_analyze_with_brand(result, device_id=device_id, record_missing=True)
 
 
 @router.post("/{alert_id}/check")
 def check_sale_alert(alert_id: int, body: dict = Body(default={})):
     """Manually recheck a product alert (also useful for QA)."""
     body = body or {}
-    device_id = _require_device_id(body.get("device_id"))
-    if isinstance(device_id, JSONResponse):
-        return device_id
+    device_id, err = validate_device_id(body.get("device_id"))
+    if err:
+        return _bad_request(err)
 
     with get_session() as session:
         a = _get_owned_alert(session, alert_id, device_id)
         if a is None:
             return JSONResponse({"error": "not found"}, status_code=404)
         if a.alert_type != "product":
-            return JSONResponse({"error": "only product alerts can be rechecked"}, status_code=400)
+            return _bad_request("only product alerts can be rechecked")
 
     result = check_product_alert(alert_id, notify=True)
     with get_session() as session:
@@ -191,9 +184,9 @@ def check_sale_alert(alert_id: int, body: dict = Body(default={})):
 
 @router.get("/{alert_id}")
 def get_sale_alert(alert_id: int, device_id: str = Query(...)):
-    device_id = _require_device_id(device_id)
-    if isinstance(device_id, JSONResponse):
-        return device_id
+    device_id, err = validate_device_id(device_id)
+    if err:
+        return _bad_request(err)
 
     with get_session() as session:
         a = _get_owned_alert(session, alert_id, device_id)
@@ -205,54 +198,60 @@ def get_sale_alert(alert_id: int, device_id: str = Query(...)):
 @router.patch("/{alert_id}")
 def update_sale_alert(alert_id: int, body: dict = Body(default={})):
     body = body or {}
-    device_id = _require_device_id(body.get("device_id"))
-    if isinstance(device_id, JSONResponse):
-        return device_id
+    device_id, err = validate_device_id(body.get("device_id"))
+    if err:
+        return _bad_request(err)
 
     with get_session() as session:
         a = _get_owned_alert(session, alert_id, device_id)
         if a is None:
             return JSONResponse({"error": "not found"}, status_code=404)
 
-        if "status" in body:
-            status = (body.get("status") or "").strip()
-            if status not in _STATUSES:
-                return JSONResponse({"error": "status must be 'active', 'paused', or 'triggered'"}, status_code=400)
-            # Resuming a triggered alert clears trigger metadata so it can fire again.
-            if status == "active" and a.status in {"paused", "triggered"}:
+        patch, err = validate_patch_payload(body, current_alert_type=a.alert_type)
+        if err:
+            return _bad_request(err)
+
+        if "status" in patch:
+            status = patch["status"]
+            # Resuming clears trigger / broken-link metadata so it can fire again.
+            if status == "active" and a.status in {"paused", "triggered", "needs_attention"}:
                 a.triggered_message = None
                 a.triggered_deal_url = None
+                a.check_fail_count = 0
+                a.last_check_error = None
             a.status = status
 
-        if "alert_type" in body:
-            alert_type = (body.get("alert_type") or "").strip()
-            if alert_type not in _ALERT_TYPES:
-                return JSONResponse({"error": "alert_type must be 'product' or 'brand'"}, status_code=400)
-            a.alert_type = alert_type
-
-        if "condition_type" in body:
-            condition_type = (body.get("condition_type") or "").strip()
-            if condition_type not in _CONDITION_TYPES:
-                return JSONResponse({"error": "invalid condition_type"}, status_code=400)
-            a.condition_type = condition_type
-
-        for key in _UPDATABLE - {"alert_type", "status", "condition_type"}:
-            if key not in body:
+        url_updated = False
+        for key, val in patch.items():
+            if key == "status" or key not in _UPDATABLE:
                 continue
-            val = body[key]
-            if key in ("product_name", "brand_name", "product_url", "image_url", "sku", "variant") and val is not None:
-                val = str(val).strip() or None
+            if key == "product_url" and val and val != a.product_url:
+                url_updated = True
             setattr(a, key, val)
 
+        # Fresh URL from the user — clear broken-link state and resume watching.
+        if url_updated:
+            a.check_fail_count = 0
+            a.last_check_error = None
+            if a.status == "needs_attention":
+                a.status = "active"
+                a.triggered_message = None
+
         session.flush()
-        return _alert_to_dict(a)
+        response = _alert_to_dict(a)
+        should_recheck = url_updated and a.alert_type == "product" and a.status == "active"
+        alert_id = a.id
+
+    if should_recheck:
+        _schedule_evaluate(alert_id)
+    return response
 
 
 @router.delete("/{alert_id}")
 def delete_sale_alert(alert_id: int, device_id: str = Query(...)):
-    device_id = _require_device_id(device_id)
-    if isinstance(device_id, JSONResponse):
-        return device_id
+    device_id, err = validate_device_id(device_id)
+    if err:
+        return _bad_request(err)
 
     with get_session() as session:
         a = _get_owned_alert(session, alert_id, device_id)

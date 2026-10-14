@@ -17,7 +17,12 @@ const TopAppBar = ({ title, showBack, onBack, hideProfile, hideBorder, rightIcon
 
   return (
     <View style={[styles.bar, hideBorder && styles.barNoBorder, style]}>
-      <View style={[styles.side, titleStart && styles.sideHug]}>
+      <View
+        style={[
+          styles.side,
+          titleStart && styles.sideHug,
+          titleStart && !showBack && styles.sideCollapsed,
+        ]}>
         {showBack ? (
           <Pressable hitSlop={8} onPress={onBack ?? (() => navigation.goBack())}>
             <Icon name="chevron-back" size={24} color={colors.text} />
@@ -25,9 +30,15 @@ const TopAppBar = ({ title, showBack, onBack, hideProfile, hideBorder, rightIcon
         ) : null}
       </View>
 
-      {title ? <Text style={[styles.title, titleStart && styles.titleStart]}>{title}</Text> : <View style={styles.titleSpacer} />}
+      {title ? (
+        <Text style={[styles.title, titleStart && styles.titleStart]} numberOfLines={1}>
+          {title}
+        </Text>
+      ) : (
+        <View style={styles.titleSpacer} />
+      )}
 
-      <View style={[styles.side, styles.sideRight, rightSlot && styles.sideRightWide]}>
+      <View style={[styles.side, styles.sideRight, rightSlot && styles.sideRightSlot]}>
         {rightSlot ? (
           rightSlot
         ) : rightIcon ? (
@@ -74,13 +85,19 @@ const createStyles = (colors) =>
     sideHug: {
       width: 28,
     },
+    sideCollapsed: {
+      width: 0,
+      overflow: 'hidden',
+    },
     sideRight: {
       justifyContent: 'flex-end',
     },
-    sideRightWide: {
-      width: 96,
+    sideRightSlot: {
+      width: undefined,
+      flexShrink: 0,
       zIndex: 2,
       gap: 4,
+      marginLeft: SPACING.two,
     },
     title: {
       ...TYPOGRAPHY.subtitle,
@@ -95,7 +112,7 @@ const createStyles = (colors) =>
       fontSize: 22,
       fontWeight: '800',
       letterSpacing: -0.3,
-      paddingLeft: 4,
+      paddingLeft: 0,
     },
     titleSpacer: {
       flex: 1,

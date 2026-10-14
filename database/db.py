@@ -81,6 +81,9 @@ def _migrate() -> None:
         ("offers", "last_seen_at",                  "TIMESTAMP"),
         ("offers", "last_verified_at",               "TIMESTAMP"),
         ("website_scraped_pages", "job_id",           "INTEGER"),
+        ("sale_alerts", "watch_below_price",          "FLOAT"),
+        ("sale_alerts", "check_fail_count",           "INTEGER DEFAULT 0"),
+        ("sale_alerts", "last_check_error",           "TEXT"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:

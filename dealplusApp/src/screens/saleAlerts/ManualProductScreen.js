@@ -5,17 +5,25 @@ import Screen from '../../components/Screen';
 import TopAppBar from '../../components/TopAppBar';
 import PrimaryButton from '../../components/PrimaryButton';
 import OnboardingProgress from '../../components/OnboardingProgress';
+import ProductImage, { normalizeProductImageUrl } from '../../components/ProductImage';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useCreateAlertDraftStore from '../../state/createAlertDraftStore';
+import { validateManualProduct } from '../../utils/saleAlertValidation';
+import { showErrorToast } from '../../utils/CustomToast';
 
-const Field = ({ label, required, styles, ...props }) => (
+const Field = ({ label, required, styles, error, ...props }) => (
   <View style={styles.field}>
     <Text style={styles.label}>
       {label}
       {required ? ' *' : ''}
     </Text>
-    <TextInput style={styles.input} placeholderTextColor={styles.placeholder.color} {...props} />
+    <TextInput
+      style={[styles.input, error ? styles.inputError : null]}
+      placeholderTextColor={styles.placeholder.color}
+      {...props}
+    />
+    {error ? <Text style={styles.errorText}>{error}</Text> : null}
   </View>
 );
 
@@ -34,17 +42,34 @@ const ManualProductScreen = () => {
   const [imageUrl, setImageUrl] = useState(draft.imageUrl || '');
   const [sku, setSku] = useState(draft.sku || '');
   const [variant, setVariant] = useState(draft.variant || '');
+  const [errors, setErrors] = useState({});
 
-  const canContinue = productName.trim() && brandName.trim() && productUrl.trim();
+  const clearError = (key) => {
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
 
   const onContinue = () => {
+    const result = validateManualProduct({
+      productName,
+      brandName,
+      productUrl,
+      currentPrice,
+      originalPrice,
+      imageUrl,
+    });
+    if (!result.ok) {
+      setErrors(result.errors || {});
+      showErrorToast(result.error);
+      return;
+    }
+    setErrors({});
     setProductFields({
-      productName: productName.trim(),
-      brandName: brandName.trim(),
-      productUrl: productUrl.trim(),
-      currentPrice: currentPrice ? Number(currentPrice) : null,
-      originalPrice: originalPrice ? Number(originalPrice) : null,
-      imageUrl: imageUrl.trim(),
+      productName: result.values.productName,
+      brandName: result.values.brandName,
+      productUrl: result.values.productUrl,
+      currentPrice: result.values.currentPrice,
+      originalPrice: result.values.originalPrice,
+      imageUrl: normalizeProductImageUrl(result.values.imageUrl) || result.values.imageUrl,
       sku: sku.trim(),
       variant: variant.trim(),
       analyzeFailed: false,
@@ -58,16 +83,46 @@ const ManualProductScreen = () => {
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <OnboardingProgress step={1} total={5} />
         <Text style={styles.heading}>Product Details</Text>
-        <Text style={styles.sub}>Fields we already found are filled in — complete anything missing.</Text>
+        <Text style={styles.sub}>
+          Available details have been pre-filled. Please complete any missing fields.
+        </Text>
 
-        <Field styles={styles} label="Product Name" required value={productName} onChangeText={setProductName} />
-        <Field styles={styles} label="Brand" required value={brandName} onChangeText={setBrandName} />
+        <View style={styles.preview}>
+          <ProductImage uri={imageUrl} size={112} />
+        </View>
+
+        <Field
+          styles={styles}
+          label="Product Name"
+          required
+          value={productName}
+          error={errors.productName}
+          onChangeText={(t) => {
+            setProductName(t);
+            clearError('productName');
+          }}
+        />
+        <Field
+          styles={styles}
+          label="Brand"
+          required
+          value={brandName}
+          error={errors.brandName}
+          onChangeText={(t) => {
+            setBrandName(t);
+            clearError('brandName');
+          }}
+        />
         <Field
           styles={styles}
           label="Product URL"
           required
           value={productUrl}
-          onChangeText={setProductUrl}
+          error={errors.productUrl}
+          onChangeText={(t) => {
+            setProductUrl(t);
+            clearError('productUrl');
+          }}
           autoCapitalize="none"
           keyboardType="url"
         />
@@ -75,29 +130,41 @@ const ManualProductScreen = () => {
           styles={styles}
           label="Current Price"
           value={currentPrice}
-          onChangeText={setCurrentPrice}
+          error={errors.currentPrice}
+          onChangeText={(t) => {
+            setCurrentPrice(t);
+            clearError('currentPrice');
+          }}
           keyboardType="decimal-pad"
-          placeholder="120"
+          placeholder="4499"
         />
         <Field
           styles={styles}
           label="Original Price"
           value={originalPrice}
-          onChangeText={setOriginalPrice}
+          error={errors.originalPrice}
+          onChangeText={(t) => {
+            setOriginalPrice(t);
+            clearError('originalPrice');
+          }}
           keyboardType="decimal-pad"
-          placeholder="150"
+          placeholder="5999"
         />
         <Field
           styles={styles}
           label="Product Image URL"
           value={imageUrl}
-          onChangeText={setImageUrl}
+          error={errors.imageUrl}
+          onChangeText={(t) => {
+            setImageUrl(t);
+            clearError('imageUrl');
+          }}
           autoCapitalize="none"
         />
         <Field styles={styles} label="SKU / Product ID" value={sku} onChangeText={setSku} />
         <Field styles={styles} label="Product Variant" value={variant} onChangeText={setVariant} />
 
-        <PrimaryButton label="Continue" onPress={onContinue} disabled={!canContinue} style={{ marginTop: SPACING.two }} />
+        <PrimaryButton label="Continue" onPress={onContinue} style={{ marginTop: SPACING.two }} />
       </ScrollView>
     </Screen>
   );
@@ -111,6 +178,7 @@ const createStyles = (colors) =>
     body: { padding: SPACING.four, gap: SPACING.three, paddingBottom: SPACING.six },
     heading: { ...TYPOGRAPHY.headline, color: colors.text, marginTop: SPACING.two },
     sub: { ...TYPOGRAPHY.small, color: colors.textSecondary },
+    preview: { alignItems: 'center', marginVertical: SPACING.one },
     field: { gap: SPACING.one },
     label: { ...TYPOGRAPHY.label, color: colors.text },
     input: {
@@ -123,5 +191,7 @@ const createStyles = (colors) =>
       paddingHorizontal: SPACING.three,
       paddingVertical: SPACING.three,
     },
+    inputError: { borderColor: colors.error },
+    errorText: { ...TYPOGRAPHY.small, color: colors.error },
     placeholder: { color: colors.mutedInk },
   });

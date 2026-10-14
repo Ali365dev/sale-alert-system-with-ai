@@ -10,6 +10,7 @@ from database.models import DeviceToken, Offer, SaleAlert
 from services.offer_matching import normalize_name
 from services.push import fcm_client
 from services.sale_alert_analyze import analyze_product_url
+from services.sale_alert_brand import enrich_analyze_with_brand
 from services.sale_alert_matching import (
     brand_condition_met,
     brand_trigger_message,
@@ -17,6 +18,7 @@ from services.sale_alert_matching import (
     product_condition_met,
     product_trigger_message,
 )
+from services.sale_alert_validation import CHECK_FAIL_THRESHOLD
 
 
 def _utcnow() -> datetime:
@@ -51,6 +53,30 @@ def _mark_triggered(
     alert.triggered_deal_url = (deal_url or "")[:1000] or None
     alert.last_triggered_at = _utcnow()
     alert.last_checked_at = _utcnow()
+    alert.check_fail_count = 0
+    alert.last_check_error = None
+    alert.watch_below_price = None
+
+
+def _mark_check_failed(alert: SaleAlert, error: str) -> None:
+    alert.last_checked_at = _utcnow()
+    alert.last_check_error = (error or "check failed")[:1000]
+    alert.check_fail_count = int(alert.check_fail_count or 0) + 1
+    if alert.status == "active" and alert.check_fail_count >= CHECK_FAIL_THRESHOLD:
+        alert.status = "needs_attention"
+        alert.triggered_message = (
+            "This product link could not be reached. Please update the URL to continue monitoring."
+        )[:1000]
+
+
+def _mark_check_ok(alert: SaleAlert) -> None:
+    alert.check_fail_count = 0
+    alert.last_check_error = None
+    if alert.status == "needs_attention":
+        alert.status = "active"
+        msg = alert.triggered_message or ""
+        if "could not be reached" in msg or msg.startswith("We couldn't open this product link"):
+            alert.triggered_message = None
 
 
 def _push_payload(alert: SaleAlert) -> SimpleNamespace:
@@ -124,27 +150,35 @@ def check_product_alert(alert_id: int, *, notify: bool = True) -> dict:
         if alert.status == "paused":
             return {"ok": True, "status": "paused", "triggered": False}
         if not (alert.product_url or "").strip():
-            alert.last_checked_at = _utcnow()
-            return {"ok": False, "error": "missing product_url"}
+            _mark_check_failed(alert, "missing product_url")
+            return {"ok": False, "error": "missing product_url", "status": alert.status}
 
         url = alert.product_url
         alert_id_val = alert.id
+        can_trigger = alert.status in {"active", "needs_attention"}
 
     snapshot = analyze_product_url(url)
+    # Logo fallback only on recheck — do not spam BrandRequest from the scheduler.
+    if snapshot.get("ok"):
+        snapshot = enrich_analyze_with_brand(snapshot, record_missing=False)
     push_payload = None
     with get_session() as session:
         alert = session.query(SaleAlert).filter(SaleAlert.id == alert_id_val).first()
         if alert is None:
             return {"ok": False, "error": "not found"}
 
-        alert.last_checked_at = _utcnow()
         if not snapshot.get("ok"):
+            _mark_check_failed(alert, snapshot.get("error") or "analyze failed")
             return {
                 "ok": False,
                 "error": snapshot.get("error") or "analyze failed",
                 "triggered": False,
+                "status": alert.status,
+                "check_fail_count": alert.check_fail_count,
             }
 
+        _mark_check_ok(alert)
+        alert.last_checked_at = _utcnow()
         _apply_product_snapshot(alert, snapshot)
         current = snapshot.get("current_price")
         original = snapshot.get("original_price")
@@ -154,10 +188,11 @@ def check_product_alert(alert_id: int, *, notify: bool = True) -> dict:
             original_price=original,
             custom_pct=alert.custom_pct,
             target_price=alert.target_price,
+            watch_below_price=alert.watch_below_price,
         )
 
         triggered_now = False
-        if met and alert.status == "active":
+        if met and (can_trigger or alert.status == "active"):
             message = product_trigger_message(
                 alert.product_name,
                 current_price=current,
@@ -182,6 +217,7 @@ def check_product_alert(alert_id: int, *, notify: bool = True) -> dict:
             "original_price": alert.original_price,
             "discount_pct": discount_pct(alert.current_price, alert.original_price),
             "message": alert.triggered_message,
+            "check_fail_count": alert.check_fail_count,
         }
 
     if push_payload is not None:

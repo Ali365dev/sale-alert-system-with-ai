@@ -10,7 +10,6 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import useFavoritesStore from '../../state/favoritesStore';
 import usePreferencesStore from '../../state/preferencesStore';
-import { isCloseToBottom } from '../../utils/scroll';
 import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import BrandCard from '../../components/BrandCard';
@@ -105,8 +104,8 @@ const FollowedBrandsScreen = () => {
           columnWrapperStyle={gridView ? styles.gridRow : undefined}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
           showsVerticalScrollIndicator={false}
-          onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
-          scrollEventThrottle={200}
+          onEndReached={() => loadMore()}
+          onEndReachedThreshold={0.35}
           renderItem={({ item, index }) => (
             <AnimatedListItem index={index} style={gridView ? styles.gridItem : styles.listItem}>
               <CouponCard
@@ -117,7 +116,9 @@ const FollowedBrandsScreen = () => {
               />
             </AnimatedListItem>
           )}
-          ListFooterComponent={isLoadingMore ? <PaginationLoader /> : null}
+          ListFooterComponent={
+            isLoadingMore ? <PaginationLoader variant={gridView ? 'grid' : 'list'} /> : null
+          }
         />
       ) : (
         <FlatList

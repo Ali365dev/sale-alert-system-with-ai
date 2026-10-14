@@ -121,7 +121,7 @@ const SearchScreen = () => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         onScroll={({ nativeEvent }) => !idle && isCloseToBottom(nativeEvent) && loadMore()}
-        scrollEventThrottle={200}>
+        scrollEventThrottle={160}>
         {idle ? (
           <>
             {recentSearches.length > 0 && (

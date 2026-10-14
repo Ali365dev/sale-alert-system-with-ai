@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,7 +30,8 @@ const ForYouScreen = () => {
     () => orderDealsByPreference(deals, followedBrands, favoriteCategories),
     [deals, followedBrands, favoriteCategories],
   );
-  const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(forYouDeals);
+  const { visibleItems: visibleDeals, hasMore, isLoadingMore, loadMore } = usePagination(forYouDeals);
+  const viewportH = useRef(0);
 
   return (
     <Screen style={styles.container}>
@@ -50,8 +51,15 @@ const ForYouScreen = () => {
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.four }]}
           showsVerticalScrollIndicator={false}
+          onLayout={(e) => {
+            viewportH.current = e.nativeEvent.layout.height;
+          }}
           onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
-          scrollEventThrottle={200}>
+          onContentSizeChange={(_w, h) => {
+            // First page may not fill the screen — load more until it scrolls or we run out.
+            if (viewportH.current > 0 && h <= viewportH.current + 160 && hasMore) loadMore();
+          }}
+          scrollEventThrottle={160}>
           <Text style={styles.pageTitle}>For You</Text>
           <Text style={styles.subtitle}>Matched from your followed brands and categories.</Text>
           <View style={styles.list}>
@@ -68,7 +76,7 @@ const ForYouScreen = () => {
                 </AnimatedListItem>
               );
             })}
-            {isLoadingMore && <PaginationLoader />}
+            {isLoadingMore ? <PaginationLoader /> : null}
           </View>
         </ScrollView>
       )}

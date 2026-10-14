@@ -41,11 +41,23 @@ def product_condition_met(
     original_price: float | None,
     custom_pct: float | None = None,
     target_price: float | None = None,
+    watch_below_price: float | None = None,
 ) -> bool:
     ct = (condition_type or "any_sale").strip()
     pct = discount_pct(current_price, original_price)
 
+    if watch_below_price is not None:
+        # "Wait for a better deal" — only fire after price drops below the create-time price.
+        try:
+            if current_price is None or float(current_price) >= float(watch_below_price):
+                return False
+        except (TypeError, ValueError):
+            return False
+
     if ct == "any_sale":
+        # Further drop alone counts when watch_below_price is set; otherwise need was/now.
+        if watch_below_price is not None:
+            return True
         return pct is not None and pct > 0
 
     threshold = _pct_threshold(ct, custom_pct)
@@ -104,6 +116,14 @@ def brand_condition_met(
     return False
 
 
+def _format_pkr(amount: float) -> str:
+    try:
+        n = int(round(float(amount)))
+    except (TypeError, ValueError):
+        return str(amount)
+    return f"Rs. {n:,}"
+
+
 def product_trigger_message(
     product_name: str | None,
     *,
@@ -115,10 +135,10 @@ def product_trigger_message(
     if pct is not None and current_price is not None and original_price is not None:
         return (
             f"{name} is now {int(round(pct))}% OFF "
-            f"(Was: ${original_price:g} Now: ${current_price:g})"
+            f"(Was: {_format_pkr(original_price)} Now: {_format_pkr(current_price)})"
         )
     if current_price is not None:
-        return f"{name} dropped to ${current_price:g}"
+        return f"{name} dropped to {_format_pkr(current_price)}"
     return f"{name} matches your sale alert"
 
 

@@ -8,7 +8,6 @@ import { SCREEN_WIDTH, SPACING } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { channelTag } from '../../utils/dealAdapters';
-import { isCloseToBottom } from '../../utils/scroll';
 import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import DealCard from '../../components/DealCard';
@@ -158,8 +157,8 @@ const CategoryDealsScreen = () => {
         columnWrapperStyle={gridView ? styles.row : undefined}
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + SPACING.five }]}
         showsVerticalScrollIndicator={false}
-        onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
-        scrollEventThrottle={200}
+        onEndReached={() => loadMore()}
+        onEndReachedThreshold={0.35}
         ListEmptyComponent={
           <EmptyState
             icon="pricetags-outline"
@@ -185,7 +184,9 @@ const CategoryDealsScreen = () => {
             </AnimatedListItem>
           );
         }}
-        ListFooterComponent={isLoadingMore ? <PaginationLoader /> : null}
+        ListFooterComponent={
+          isLoadingMore ? <PaginationLoader variant={gridView ? 'grid' : 'list'} /> : null
+        }
       />
 
       <DealFilterSheet ref={filterSheetRef} channel={channel} onSelect={setChannel} />

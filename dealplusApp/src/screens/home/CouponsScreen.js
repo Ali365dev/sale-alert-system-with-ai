@@ -8,7 +8,6 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import { loadDeals } from '../../services/dealsService';
 import { channelTag } from '../../utils/dealAdapters';
-import { isCloseToBottom } from '../../utils/scroll';
 import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import BrandCard from '../../components/BrandCard';
@@ -48,7 +47,16 @@ const CouponsScreen = () => {
   const deals = useDataStore((state) => state.deals);
   const brands = useDataStore((state) => state.brands);
   const brandsById = useDataStore((state) => state.brandsById);
-  const loading = useDataStore((state) => state.loading);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadDeals();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const popularBrands = useMemo(
     () => [...brands].sort((a, b) => b.dealCount - a.dealCount || a.name.localeCompare(b.name)).slice(0, 12),
@@ -147,9 +155,9 @@ const CouponsScreen = () => {
             columnWrapperStyle={gridView ? styles.row : undefined}
             contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 88 }]}
             showsVerticalScrollIndicator={false}
-            onScroll={({ nativeEvent }) => isCloseToBottom(nativeEvent) && loadMore()}
-            scrollEventThrottle={200}
-            refreshControl={<RefreshControl refreshing={loading} onRefresh={loadDeals} tintColor={colors.primary} />}
+            onEndReached={() => loadMore()}
+            onEndReachedThreshold={0.35}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             ListHeaderComponent={listHeader}
             ListEmptyComponent={
               <EmptyState
@@ -170,7 +178,9 @@ const CouponsScreen = () => {
                 />
               </AnimatedListItem>
             )}
-            ListFooterComponent={isLoadingMore ? <PaginationLoader /> : null}
+            ListFooterComponent={
+              isLoadingMore ? <PaginationLoader variant={gridView ? 'grid' : 'list'} /> : null
+            }
           />
         </>
       )}

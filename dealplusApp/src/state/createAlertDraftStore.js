@@ -13,6 +13,10 @@ const initial = {
   variant: '',
   analyzePartial: false,
   analyzeFailed: false,
+  alreadyOnSale: false,
+  discountPct: null,
+  // notify_now | watch_for_drop — only used when alreadyOnSale
+  alreadyOnSaleChoice: 'notify_now',
   conditionType: 'any_sale',
   customPct: 25,
   targetPrice: null,
@@ -45,6 +49,9 @@ const useCreateAlertDraftStore = create((set) => ({
       notifyPush: !!alert.notify_push,
       notifyEmail: !!alert.notify_email,
       notifyInApp: !!alert.notify_in_app,
+      alreadyOnSale: false,
+      discountPct: null,
+      alreadyOnSaleChoice: alert.watch_below_price != null ? 'watch_for_drop' : 'notify_now',
     }),
 }));
 

@@ -9,7 +9,8 @@
     "link-assets": "npx react-native-asset",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "test:perf": "jest --testPathPattern=performance --watchAll=false --watchman=false"
   },
   "dependencies": {
     "@d11/react-native-fast-image": "^8.13.0",
@@ -26,6 +27,7 @@
     "@react-navigation/drawer": "^7.13.10",
     "@react-navigation/native": "^7.1.9",
     "@react-navigation/native-stack": "^7.3.13",
+    "@shopify/flash-list": "^2.3.3",
     "axios": "^1.10.0",
     "lucide-react-native": "^1.49.0",
     "react": "19.2.3",

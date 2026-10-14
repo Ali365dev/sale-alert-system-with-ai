@@ -106,7 +106,7 @@ const BrandListScreen = () => {
       ListFooterComponent={
         filtered.length > 0 && (
           <>
-            {isLoadingMore && <PaginationLoader />}
+            {isLoadingMore && <PaginationLoader variant="grid" />}
             <Pressable style={styles.requestLink} onPress={() => navigation.navigate('RequestBrandScreen')}>
               <Icon name="add-circle-outline" size={16} color={colors.primary} />
               <Text style={styles.requestLinkLabel}>Can't find a brand? Request it</Text>
