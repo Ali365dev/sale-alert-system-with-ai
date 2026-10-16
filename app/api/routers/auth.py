@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.user_security import get_current_user
 from database.db import get_session
 from database.models import User, UserProfile
-from services import firebase_auth, user_auth
+from services import firebase_auth, password_reset, user_auth
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -186,6 +186,47 @@ def google_login(body: dict = Body(...)):
         profile = _link_device_and_get_profile(session, user, device_id)
         token = user_auth.create_user_token(user.id)
         return {"token": token, "user": _user_to_dict(user), **_profile_fields(profile)}
+
+
+@router.post("/forgot-password")
+def forgot_password(body: dict = Body(...)):
+    """Send a one-time reset code to the email when an email/password account
+    exists. Always returns the same success message (no email enumeration)."""
+    body = body or {}
+    email = (body.get("email") or "").strip().lower()
+    if not _EMAIL_RE.match(email):
+        return JSONResponse({"error": "Enter a valid email address."}, status_code=400)
+
+    with get_session() as session:
+        return password_reset.request_password_reset(session, email)
+
+
+@router.post("/reset-password")
+def reset_password(body: dict = Body(...)):
+    """Verify the emailed OTP and set a new password."""
+    body = body or {}
+    email = (body.get("email") or "").strip().lower()
+    code = (body.get("code") or "").strip()
+    new_password = body.get("password") or ""
+
+    if not _EMAIL_RE.match(email):
+        return JSONResponse({"error": "Enter a valid email address."}, status_code=400)
+    if len(new_password) < _MIN_PASSWORD_LENGTH:
+        return JSONResponse(
+            {"error": f"Password must be at least {_MIN_PASSWORD_LENGTH} characters."},
+            status_code=400,
+        )
+
+    with get_session() as session:
+        ok, message = password_reset.reset_password_with_code(
+            session,
+            email=email,
+            code=code,
+            new_password=new_password,
+        )
+        if not ok:
+            return JSONResponse({"error": message}, status_code=400)
+        return {"ok": True, "message": message}
 
 
 @router.post("/logout")

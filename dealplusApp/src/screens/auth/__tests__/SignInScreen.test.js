@@ -1,9 +1,20 @@
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockReset = jest.fn();
 const mockCanGoBack = jest.fn(() => true);
 
+const homeReset = {
+  index: 0,
+  routes: [{ name: 'MainTabs', state: { index: 0, routes: [{ name: 'Home' }] } }],
+};
+
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate, goBack: mockGoBack, canGoBack: mockCanGoBack }),
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    goBack: mockGoBack,
+    reset: mockReset,
+    canGoBack: mockCanGoBack,
+  }),
 }));
 jest.mock('../../../services/authApi', () => ({
   login: jest.fn(),
@@ -27,10 +38,12 @@ beforeEach(() => {
   usePreferencesStore.setState({ followedBrands: [], favoriteCategories: [] });
 });
 
-test('renders the Welcome Back headline and tagline', async () => {
-  const { getByText } = await render(<SignInScreen />);
-  expect(getByText('Back!')).toBeTruthy();
-  expect(getByText('Sign in to continue discovering the best deals, discounts and offers.')).toBeTruthy();
+test('renders the login chrome and form fields', async () => {
+  const { getByText, getByPlaceholderText } = await render(<SignInScreen />);
+  expect(getByText('Welcome to Deals More')).toBeTruthy();
+  expect(getByText('Login')).toBeTruthy();
+  expect(getByPlaceholderText('Email address')).toBeTruthy();
+  expect(getByText('Forgot password?')).toBeTruthy();
 });
 
 test('submit is disabled until both email and password are entered', async () => {
@@ -64,7 +77,7 @@ test('the password visibility toggle switches secureTextEntry', async () => {
   expect(passwordInput.props.secureTextEntry).toBe(true);
 });
 
-test('on success: stores the token/user, hydrates preferences, and returns to the previous screen', async () => {
+test('on success: stores the token/user, hydrates preferences, and resets to Home', async () => {
   login.mockResolvedValue({
     ok: true,
     token: 'tok-1',
@@ -78,7 +91,7 @@ test('on success: stores the token/user, hydrates preferences, and returns to th
   await fireEvent.changeText(getByPlaceholderText('Password'), 'secret123');
   await fireEvent.press(getByText('Sign In'));
 
-  await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(mockReset).toHaveBeenCalledWith(homeReset));
   expect(useAuthStore.getState().token).toBe('tok-1');
   expect(useAuthStore.getState().user).toEqual({ id: 1, email: 'a@b.com', name: 'Alex' });
   expect(usePreferencesStore.getState().followedBrands).toEqual(['Nike']);
@@ -94,26 +107,14 @@ test('on failure: shows the backend\'s error message and does not navigate away 
   await fireEvent.press(getByText('Sign In'));
 
   await waitFor(() => expect(getByText('Incorrect email or password.')).toBeTruthy());
-  expect(mockGoBack).not.toHaveBeenCalled();
+  expect(mockReset).not.toHaveBeenCalled();
   expect(useAuthStore.getState().token).toBeNull();
 });
 
-test('when there is nowhere to go back to, navigates into the Profile tab instead', async () => {
-  mockCanGoBack.mockReturnValue(false);
-  login.mockResolvedValue({ ok: true, token: 'tok-1', user: { id: 1, email: 'a@b.com' }, brands: [], categories: [] });
-
-  const { getByText, getByPlaceholderText } = await render(<SignInScreen />);
-  await fireEvent.changeText(getByPlaceholderText('Email address'), 'a@b.com');
-  await fireEvent.changeText(getByPlaceholderText('Password'), 'secret123');
-  await fireEvent.press(getByText('Sign In'));
-
-  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('MainTabs', { screen: 'Profile' }));
-});
-
-test('"Skip" returns to the previous screen without signing in', async () => {
+test('"Skip" resets navigation to Home without signing in', async () => {
   const { getByText } = await render(<SignInScreen />);
   await fireEvent.press(getByText('Skip'));
-  expect(mockGoBack).toHaveBeenCalledTimes(1);
+  expect(mockReset).toHaveBeenCalledWith(homeReset);
   expect(login).not.toHaveBeenCalled();
 });
 
@@ -146,7 +147,7 @@ describe('Continue with Google', () => {
     const { getByText } = await render(<SignInScreen />);
     await fireEvent.press(getByText('Continue with Google'));
 
-    await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockReset).toHaveBeenCalledWith(homeReset));
     expect(loginWithGoogle).toHaveBeenCalledWith('firebase-id-token-1');
     expect(login).not.toHaveBeenCalled();
     expect(useAuthStore.getState().token).toBe('tok-google');
@@ -161,7 +162,7 @@ describe('Continue with Google', () => {
     await fireEvent.press(getByText('Continue with Google'));
 
     await waitFor(() => expect(getByText("Google sign-in isn't set up on the server yet.")).toBeTruthy());
-    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(mockReset).not.toHaveBeenCalled();
     expect(useAuthStore.getState().token).toBeNull();
   });
 

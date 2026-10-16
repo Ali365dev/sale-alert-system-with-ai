@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -26,8 +27,6 @@ import GoogleLogo from '../../components/GoogleLogo';
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MIN_PASSWORD_LENGTH = 8;
-
-const notifyComingSoon = (feature) => showToast.error(`${feature} isn't available yet.`, 'Coming soon');
 
 function LabeledField({ label, error, colors, styles, rightIcon, onPressRight, ...props }) {
   return (
@@ -79,10 +78,33 @@ const AuthScreen = ({ initialMode = 'login' }) => {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
-  const returnToPreviousScreen = () => {
-    if (navigation.canGoBack()) navigation.goBack();
-    else navigation.navigate('MainTabs', { screen: 'Profile' });
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  /** Skip / successful auth → Home with a clean stack (no back to Sign In). */
+  const enterHome = () => {
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'MainTabs',
+          state: {
+            index: 0,
+            routes: [{ name: 'Home' }],
+          },
+        },
+      ],
+    });
   };
 
   const applyAuthResult = (result) => {
@@ -90,7 +112,7 @@ const AuthScreen = ({ initialMode = 'login' }) => {
     if (result.brands?.length || result.categories?.length) {
       usePreferencesStore.getState().hydrateFromServer(result.brands, result.categories);
     }
-    returnToPreviousScreen();
+    enterHome();
   };
 
   const switchMode = (next) => {
@@ -191,32 +213,23 @@ const AuthScreen = ({ initialMode = 'login' }) => {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <AuthChrome mode={mode} onSkip={returnToPreviousScreen} onSwitchMode={switchMode}>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+      <AuthChrome
+        mode={mode}
+        compact={keyboardVisible}
+        onSkip={enterHome}
+        onSwitchMode={switchMode}>
         <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 28 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}>
+          keyboardDismissMode="on-drag"
+          bounces={false}>
           <Animated.View style={{ transform: [{ translateX: slideX }] }}>
-            {isSignup ? (
-              <>
-                <Text style={styles.srOnly}>
-                  Create{'\n'}
-                  <Text>Your Account</Text>
-                </Text>
-                <Text style={styles.srOnly}>Join Deals More and never miss a great deal again.</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.srOnly}>
-                  Welcome <Text>Back!</Text>
-                </Text>
-                <Text style={styles.srOnly}>
-                  Sign in to continue discovering the best deals, discounts and offers.
-                </Text>
-              </>
-            )}
-
             {formError ? (
               <View style={styles.formErrorBox}>
                 <Icon name="alert-circle" size={16} color={colors.primary} />
@@ -317,7 +330,14 @@ const AuthScreen = ({ initialMode = 'login' }) => {
               </>
             ) : (
               <>
-                <Pressable onPress={() => notifyComingSoon('Password reset')} hitSlop={8} style={styles.forgotWrap}>
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate('ForgotPasswordScreen', {
+                      email: email.trim().toLowerCase() || undefined,
+                    })
+                  }
+                  hitSlop={8}
+                  style={styles.forgotWrap}>
                   <Text style={styles.forgotLabel}>Forgot password?</Text>
                 </Pressable>
 
@@ -364,7 +384,8 @@ export default AuthScreen;
 const createStyles = (colors) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: colors.primary },
-    srOnly: { height: 0, width: 0, opacity: 0, overflow: 'hidden' },
+    scroll: { flex: 1 },
+    scrollContent: { flexGrow: 1 },
     fieldBlock: { marginBottom: 14 },
     fieldLabel: {
       fontSize: 14,

@@ -242,11 +242,22 @@ export function useScrapeNow() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (body: { brand_id?: number; url?: string }) => {
-      const { data } = await apiClient.post<{ jobId: number }>("/website-scraper/scrape-now", body);
+      const { data } = await apiClient.post<{
+        jobId: number;
+        queued?: boolean;
+        active_count?: number;
+        max_concurrent?: number;
+      }>("/website-scraper/scrape-now", body);
       return data;
     },
-    onSuccess: () => {
-      toast.success("Scraping started.");
+    onSuccess: (data) => {
+      if (data.queued) {
+        toast.success(
+          `Queued — ${data.active_count ?? "?"}/${data.max_concurrent ?? "?"} scrapes running. Starts when a slot frees.`,
+        );
+      } else {
+        toast.success("Scraping started.");
+      }
       queryClient.invalidateQueries({ queryKey: ["website-scraper"] });
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
     },

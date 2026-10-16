@@ -32,10 +32,19 @@ describe('signup', () => {
     expect(result).toEqual({ ok: false, error: 'An account with this email already exists.' });
   });
 
-  test('falls back to a generic error message when the backend gives no error detail (e.g. network failure)', async () => {
+  test('falls back to a reachability message when there is no HTTP response', async () => {
     appAxios.post.mockRejectedValue(new Error('Network Error'));
     const result = await signup({ email: 'a@b.com', password: 'password123' });
-    expect(result).toEqual({ ok: false, error: 'Something went wrong. Please try again.' });
+    expect(result).toEqual({
+      ok: false,
+      error: "Can't reach the server. Check that the API is running and try again.",
+    });
+  });
+
+  test('surfaces FastAPI detail when error field is missing', async () => {
+    appAxios.post.mockRejectedValue({ response: { data: { detail: 'Not Found' }, status: 404 } });
+    const result = await signup({ email: 'a@b.com', password: 'password123' });
+    expect(result).toEqual({ ok: false, error: 'Not Found' });
   });
 });
 

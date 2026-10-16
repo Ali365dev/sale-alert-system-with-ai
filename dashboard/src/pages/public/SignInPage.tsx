@@ -107,16 +107,9 @@ export function SignInPage() {
                 <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
                 Remember me
               </label>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toast.info("Password reset isn't available yet — contact support to reset your password.");
-                }}
-                style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}
-              >
+              <Link to="/forgot-password" style={{ fontSize: 13, fontWeight: 700, color: "var(--brand)" }}>
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
             <button

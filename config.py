@@ -147,20 +147,28 @@ if OFFER_MATCH_MODE not in ("and", "or"):
 # website (sale/offers/promo pages) to detect and create offers with
 # source="website". See services/website_scraper/services.py for the pipeline.
 WEBSITE_SCRAPER_ENABLED = os.getenv("WEBSITE_SCRAPER_ENABLED", "true").lower() == "true"
-WEBSITE_SCRAPE_TIMEOUT_SECONDS = float(os.getenv("WEBSITE_SCRAPE_TIMEOUT_SECONDS", "30"))
+# Per-attempt HTTP / navigation timeout (httpx + Playwright goto).
+WEBSITE_SCRAPE_TIMEOUT_SECONDS = float(os.getenv("WEBSITE_SCRAPE_TIMEOUT_SECONDS", "20"))
+# Hard wall-clock budget for one URL across HTTPX → Chromium → Camoufox.
+# When exhausted, remaining fallbacks are skipped so one dead site cannot
+# stall "Scrape All".
+WEBSITE_SCRAPE_FETCH_BUDGET_SECONDS = float(os.getenv("WEBSITE_SCRAPE_FETCH_BUDGET_SECONDS", "45"))
+# Cap for a single browser fallback (Playwright / Camoufox), including launch.
+WEBSITE_SCRAPE_BROWSER_TIMEOUT_SECONDS = float(
+    os.getenv("WEBSITE_SCRAPE_BROWSER_TIMEOUT_SECONDS", "25")
+)
 WEBSITE_SCRAPE_MAX_PAGES = int(os.getenv("WEBSITE_SCRAPE_MAX_PAGES", "8"))
 # After homepage + DB promo URLs, keep at most this many nav/footer/sale links.
 WEBSITE_SCRAPE_TOP_DISCOVERED_LINKS = int(os.getenv("WEBSITE_SCRAPE_TOP_DISCOVERED_LINKS", "5"))
 # Max hero/banner images to OCR on the homepage (reuses ai/ocr.py).
 WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES = int(os.getenv("WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES", "4"))
-# Cap concurrent website_scrape_brand jobs. "Scrape All" used to spawn dozens
-# of Playwright/Camoufox threads at once; the process hung mid-page with no
-# error and Recent Scraping Activity looked frozen.
-WEBSITE_SCRAPE_MAX_CONCURRENT = int(os.getenv("WEBSITE_SCRAPE_MAX_CONCURRENT", "3"))
+# Cap concurrent *running* website_scrape_brand jobs. Extra scrape-now
+# requests queue as pending and start when a slot frees (no more 429).
+WEBSITE_SCRAPE_MAX_CONCURRENT = int(os.getenv("WEBSITE_SCRAPE_MAX_CONCURRENT", "5"))
 WEBSITE_SCRAPE_REQUEST_DELAY_SECONDS = float(os.getenv("WEBSITE_SCRAPE_REQUEST_DELAY_SECONDS", "0.4"))
 # Jobs with no progress update for this long are marked failed so the
 # dashboard stops showing them as "running" forever after a hang.
-WEBSITE_SCRAPE_STALE_MINUTES = int(os.getenv("WEBSITE_SCRAPE_STALE_MINUTES", "45"))
+WEBSITE_SCRAPE_STALE_MINUTES = int(os.getenv("WEBSITE_SCRAPE_STALE_MINUTES", "10"))
 WEBSITE_SCRAPE_USER_AGENT = os.getenv(
     "WEBSITE_SCRAPE_USER_AGENT",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -176,6 +184,20 @@ WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL = os.getenv("WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL",
 # counts toward these.
 WEBSITE_MISSING_THRESHOLD_POSSIBLY_ENDED = int(os.getenv("WEBSITE_MISSING_THRESHOLD_POSSIBLY_ENDED", "2"))
 WEBSITE_MISSING_THRESHOLD_EXPIRED = int(os.getenv("WEBSITE_MISSING_THRESHOLD_EXPIRED", "3"))
+
+# ── Transactional email (password reset, etc.) ────────────────────────────────
+# Optional SMTP. When unset, forgot-password falls back to the connected
+# Gmail OAuth account (services/transactional_email.py). Set
+# PASSWORD_RESET_DEV_ECHO=true only for local testing (returns `dev_code`
+# in the API body) — never in production.
+SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "").strip()
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").strip()
+SMTP_FROM = os.getenv("SMTP_FROM", "").strip() or SMTP_USER
+SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() != "false"
+PASSWORD_RESET_DEV_ECHO = os.getenv("PASSWORD_RESET_DEV_ECHO", "false").lower() == "true"
+PASSWORD_RESET_CODE_TTL_MINUTES = int(os.getenv("PASSWORD_RESET_CODE_TTL_MINUTES", "15"))
 
 # ── App ───────────────────────────────────────────────────────────────────────
 APP_TITLE = "Gmail Sales Offers AI Dashboard"

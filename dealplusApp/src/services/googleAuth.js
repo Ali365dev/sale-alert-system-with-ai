@@ -89,3 +89,20 @@ export const signInWithGoogle = async () => {
   const userCredential = await auth().signInWithCredential(credential);
   return userCredential.user.getIdToken();
 };
+
+/** Clears the native Google + Firebase sessions on logout. Best-effort — a
+ * failure here must not block local auth clear / navigation to Sign In. */
+export const signOutGoogle = async () => {
+  try {
+    await auth().signOut();
+  } catch {
+    // Already signed out of Firebase.
+  }
+  const GoogleSignin = loadGoogleSignin();
+  if (!GoogleSignin) return;
+  try {
+    await GoogleSignin.signOut();
+  } catch {
+    // No Google session to clear.
+  }
+};

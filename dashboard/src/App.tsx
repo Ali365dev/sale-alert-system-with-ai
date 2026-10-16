@@ -27,6 +27,7 @@ import { OfferDetailPage } from "./pages/public/OfferDetailPage";
 import { PrivacyPolicyPage } from "./pages/public/PrivacyPolicyPage";
 import { PublicOffers } from "./pages/public/PublicOffers";
 import { SearchPage } from "./pages/public/SearchPage";
+import { ForgotPasswordPage } from "./pages/public/ForgotPasswordPage";
 import { SignInPage } from "./pages/public/SignInPage";
 import { SignUpPage } from "./pages/public/SignUpPage";
 import { TermsConditionsPage } from "./pages/public/TermsConditionsPage";
@@ -57,6 +58,7 @@ function App() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* Single AppShell for all admin pages — avoids remounting the session
             gate (and its full-page loader) on every sidebar navigation. */}

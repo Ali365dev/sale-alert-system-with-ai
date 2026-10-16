@@ -5,8 +5,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 
-/** Red hero + overlapping white sheet used by Sign In / Sign Up. */
-const AuthChrome = ({ mode, onSkip, onSwitchMode, children }) => {
+/** Red hero + overlapping white sheet used by Sign In / Sign Up.
+ * Pass `compact` when the keyboard is open so the form keeps usable height. */
+const AuthChrome = ({ mode, onSkip, onSwitchMode, compact = false, children }) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -14,20 +15,31 @@ const AuthChrome = ({ mode, onSkip, onSwitchMode, children }) => {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.hero, { paddingTop: insets.top + SPACING.two }]}>
-        <View style={styles.heroTop}>
+      <View
+        style={[
+          styles.hero,
+          compact && styles.heroCompact,
+          { paddingTop: insets.top + (compact ? SPACING.one : SPACING.two) },
+        ]}>
+        <View style={[styles.heroTop, compact && styles.heroTopCompact]}>
           <Pressable onPress={onSkip} hitSlop={8} accessibilityRole="button" accessibilityLabel="Skip">
             <Text style={styles.skip}>Skip</Text>
           </Pressable>
         </View>
 
-        <View style={styles.logoMark}>
-          <Icon name="pricetag" size={28} color={colors.primary} />
-        </View>
-        <Text style={styles.welcome}>Welcome to Deals More</Text>
-        <Text style={styles.heroSub}>
-          Enter your email or phone number to find exclusive deals & savings.
-        </Text>
+        {!compact ? (
+          <>
+            <View style={styles.logoMark}>
+              <Icon name="pricetag" size={28} color={colors.primary} />
+            </View>
+            <Text style={styles.welcome}>Welcome to Deals More</Text>
+            <Text style={styles.heroSub}>
+              Enter your email or phone number to find exclusive deals & savings.
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.welcomeCompact}>Deals More</Text>
+        )}
       </View>
 
       <View style={styles.sheet}>
@@ -47,7 +59,7 @@ const AuthChrome = ({ mode, onSkip, onSwitchMode, children }) => {
             <Text style={[styles.segmentLabel, !isSignup && styles.segmentLabelActive]}>Login</Text>
           </Pressable>
         </View>
-        {children}
+        <View style={styles.sheetBody}>{children}</View>
       </View>
     </View>
   );
@@ -65,11 +77,17 @@ const createStyles = (colors) =>
       paddingHorizontal: 24,
       paddingBottom: 48,
     },
+    heroCompact: {
+      paddingBottom: 20,
+    },
     heroTop: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'flex-start',
       marginBottom: 28,
+    },
+    heroTopCompact: {
+      marginBottom: 8,
     },
     skip: {
       color: '#FFFFFF',
@@ -97,6 +115,13 @@ const createStyles = (colors) =>
       letterSpacing: -0.4,
       marginBottom: 8,
     },
+    welcomeCompact: {
+      color: '#FFFFFF',
+      fontSize: 18,
+      fontWeight: '800',
+      textAlign: 'center',
+      marginBottom: 4,
+    },
     heroSub: {
       color: 'rgba(255,255,255,0.88)',
       fontSize: 14,
@@ -107,12 +132,18 @@ const createStyles = (colors) =>
     },
     sheet: {
       flex: 1,
+      minHeight: 0,
       marginTop: -28,
       backgroundColor: colors.surface,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
       paddingHorizontal: 24,
       paddingTop: 22,
+      overflow: 'hidden',
+    },
+    sheetBody: {
+      flex: 1,
+      minHeight: 0,
     },
     segment: {
       flexDirection: 'row',

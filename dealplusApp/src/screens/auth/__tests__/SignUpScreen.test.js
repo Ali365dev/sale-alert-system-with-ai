@@ -1,9 +1,20 @@
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockReset = jest.fn();
 const mockCanGoBack = jest.fn(() => true);
 
+const homeReset = {
+  index: 0,
+  routes: [{ name: 'MainTabs', state: { index: 0, routes: [{ name: 'Home' }] } }],
+};
+
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate, goBack: mockGoBack, canGoBack: mockCanGoBack }),
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    goBack: mockGoBack,
+    reset: mockReset,
+    canGoBack: mockCanGoBack,
+  }),
 }));
 jest.mock('../../../services/authApi', () => ({
   signup: jest.fn(),
@@ -39,10 +50,12 @@ const pressCreateAccount = async (utils) => {
   await fireEvent.press(buttons[buttons.length - 1]);
 };
 
-test('renders the Create Your Account headline and tagline', async () => {
-  const { getByText } = await render(<SignUpScreen />);
-  expect(getByText('Your Account')).toBeTruthy();
-  expect(getByText('Join Deals More and never miss a great deal again.')).toBeTruthy();
+test('renders the create-account chrome and form fields', async () => {
+  const { getByText, getAllByText, getByPlaceholderText } = await render(<SignUpScreen />);
+  expect(getByText('Welcome to Deals More')).toBeTruthy();
+  expect(getAllByText('Create Account').length).toBeGreaterThan(0);
+  expect(getByPlaceholderText('Email address')).toBeTruthy();
+  expect(getByPlaceholderText('Confirm password')).toBeTruthy();
 });
 
 test('a password shorter than 8 characters shows a validation error and does not submit', async () => {
@@ -131,7 +144,7 @@ test('on success: stores the token/user, hydrates any adopted guest preferences,
   await fillValidForm(getByPlaceholderText, getByText);
   await pressCreateAccount({ getAllByText });
 
-  await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(mockReset).toHaveBeenCalledWith(homeReset));
   expect(useAuthStore.getState().token).toBe('tok-1');
   expect(usePreferencesStore.getState().followedBrands).toEqual(['Nike']);
 });
@@ -145,7 +158,7 @@ test('on failure (e.g. duplicate email): shows the error and does not store a to
 
   await waitFor(() => expect(getByText('An account with this email already exists.')).toBeTruthy());
   expect(useAuthStore.getState().token).toBeNull();
-  expect(mockGoBack).not.toHaveBeenCalled();
+  expect(mockReset).not.toHaveBeenCalled();
 });
 
 test('the "Sign In" link / Login tab slides to login fields in place', async () => {
@@ -159,10 +172,10 @@ test('the "Sign In" link / Login tab slides to login fields in place', async () 
   expect(getByText('Sign In')).toBeTruthy();
 });
 
-test('"Skip" returns to the previous screen without signing up', async () => {
+test('"Skip" resets navigation to Home without signing up', async () => {
   const { getByText } = await render(<SignUpScreen />);
   await fireEvent.press(getByText('Skip'));
-  expect(mockGoBack).toHaveBeenCalledTimes(1);
+  expect(mockReset).toHaveBeenCalledWith(homeReset);
   expect(signup).not.toHaveBeenCalled();
 });
 
@@ -180,7 +193,7 @@ describe('Continue with Google', () => {
     const { getByText } = await render(<SignUpScreen />);
     await fireEvent.press(getByText('Continue with Google'));
 
-    await waitFor(() => expect(mockGoBack).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockReset).toHaveBeenCalledWith(homeReset));
     expect(loginWithGoogle).toHaveBeenCalledWith('firebase-id-token-1');
     expect(signup).not.toHaveBeenCalled();
     expect(useAuthStore.getState().token).toBe('tok-google');
@@ -195,7 +208,7 @@ describe('Continue with Google', () => {
     await fireEvent.press(getByText('Continue with Google'));
 
     await waitFor(() => expect(getByText("Google sign-in isn't set up on the server yet.")).toBeTruthy());
-    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(mockReset).not.toHaveBeenCalled();
     expect(useAuthStore.getState().token).toBeNull();
   });
 

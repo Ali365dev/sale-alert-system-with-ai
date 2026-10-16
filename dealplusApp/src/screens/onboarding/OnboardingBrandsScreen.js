@@ -49,7 +49,8 @@ const OnboardingBrandsScreen = () => {
     setFollowedBrands(brandNames);
     saveInterests({ brands: brandNames, categories: favoriteCategories });
     completeOnboarding();
-    navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+    // Require sign-in after onboarding; Skip on the auth screen still allows guest.
+    navigation.reset({ index: 0, routes: [{ name: 'SignInScreen' }] });
   };
 
   const renderRows = (items) => {

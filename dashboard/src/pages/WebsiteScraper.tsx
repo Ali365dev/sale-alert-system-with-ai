@@ -307,32 +307,27 @@ export function WebsiteScraper() {
     }
     setScrapingAll(true);
     let started = 0;
-    let rateLimited = 0;
+    let queued = 0;
     for (const row of eligible) {
-      let attempts = 0;
-      while (attempts < 8) {
-        attempts += 1;
-        try {
-          await apiClient.post("/website-scraper/scrape-now", { brand_id: row.brand_id });
-          started += 1;
-          break;
-        } catch (err: unknown) {
-          const status = (err as { response?: { status?: number } })?.response?.status;
-          if (status === 429) {
-            rateLimited += 1;
-            // Wait for a running scrape slot to free up (max 3 concurrent).
-            await new Promise((r) => setTimeout(r, 4000));
-            continue;
-          }
-          break;
-        }
+      try {
+        const { data } = await apiClient.post<{ jobId: number; queued?: boolean }>(
+          "/website-scraper/scrape-now",
+          { brand_id: row.brand_id },
+        );
+        started += 1;
+        if (data?.queued) queued += 1;
+      } catch {
+        // skip failed brand; continue enqueueing the rest
       }
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 150));
     }
     setScrapingAll(false);
     if (started === 0) toast.error(`Could not start any scrapes (${eligible.length} attempted).`);
-    else if (rateLimited > 0) toast.success(`Started ${started} scrape(s); queued behind concurrency limit.`);
-    else toast.success(`Started scraping ${started} of ${eligible.length} brand(s).`);
+    else if (queued > 0) {
+      toast.success(
+        `Enqueued ${started} brand(s) (${queued} waiting for a free slot). Up to 5 run at once.`,
+      );
+    } else toast.success(`Started scraping ${started} of ${eligible.length} brand(s).`);
     refetch();
   }
 

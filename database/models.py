@@ -693,6 +693,23 @@ class User(Base):
         return f"<User id={self.id} email={self.email!r}>"
 
 
+class PasswordResetCode(Base):
+    """One-time email OTP for forgot-password — hashed at rest, short TTL.
+    Multiple rows per email are fine; only the latest unused non-expired
+    code is accepted (see services/password_reset.py)."""
+    __tablename__ = "password_reset_codes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), nullable=False, index=True)
+    code_hash = Column(String(255), nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<PasswordResetCode id={self.id} email={self.email!r}>"
+
+
 class BrandRequest(Base):
     """A user-initiated request for a brand not yet tracked by DealPulse —
     the mirror image of BrandCandidate (which is system/AI-detected from an

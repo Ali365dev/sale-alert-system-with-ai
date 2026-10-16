@@ -31,6 +31,15 @@ async def lifespan(app: FastAPI):
     from services.scheduler import start_scheduler
     start_scheduler()
 
+    # Website scrapes run in-process threads — a restart leaves DB rows as
+    # running/pending with no worker. Free those slots so scrape-now works.
+    try:
+        from services.website_scraper.dispatch import fail_orphaned_on_startup
+
+        fail_orphaned_on_startup()
+    except Exception:
+        logger.exception("Failed to reclaim orphaned website scrape jobs on startup")
+
     logger.info("FastAPI app started")
     yield
 

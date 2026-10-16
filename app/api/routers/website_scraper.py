@@ -5,7 +5,6 @@ services/website_scraper/ for the extraction/detection/AI pipeline and
 services/jobs/website_scrape_brand.py for the background job that runs it.
 Mirrors app/api/routers/social_scraper.py's shape."""
 import json
-import threading
 from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends
@@ -15,22 +14,18 @@ from sqlalchemy import func
 from app.core.security import require_admin
 from database.db import get_session
 from database.models import Brand, Offer, WebsiteScrapeLog
-from services import job_runner, job_service
+from services import job_service
 from services.website_scraper import services as website_scraper_services
 
 router = APIRouter(prefix="/api/website-scraper", tags=["website_scraper"], dependencies=[Depends(require_admin)])
 
 
-def _start_job(job_type: str, payload: dict) -> dict:
-    job = job_service.create_job(job_type, payload=payload)
-    config = job_runner.get_runner(job_type)
-    threading.Thread(target=config.run, args=(job["id"], job["payload"]), daemon=True).start()
-    return job
-
-
 @router.post("/scrape-now")
 def scrape_now(body: dict = Body(default={})):
-    from config import WEBSITE_SCRAPE_MAX_CONCURRENT, WEBSITE_SCRAPE_STALE_MINUTES
+    """Enqueue a brand (or URL) scrape. Runs immediately if under the concurrent
+    cap; otherwise stays pending and auto-starts when a slot frees — never 429."""
+    from config import WEBSITE_SCRAPE_MAX_CONCURRENT
+    from services.website_scraper.dispatch import reclaim_and_dispatch
 
     body = body or {}
     brand_id = body.get("brand_id")
@@ -38,23 +33,6 @@ def scrape_now(body: dict = Body(default={})):
 
     if brand_id is None and url is None:
         return JSONResponse({"error": "brand_id or url is required"}, status_code=400)
-
-    # Clear hung scrapes so a stuck "Scrape All" doesn't block forever.
-    job_service.reclaim_stale_jobs("website_scrape_brand", WEBSITE_SCRAPE_STALE_MINUTES)
-
-    active = job_service.count_active_jobs("website_scrape_brand")
-    if active >= WEBSITE_SCRAPE_MAX_CONCURRENT:
-        return JSONResponse(
-            {
-                "error": (
-                    f"Too many website scrapes already running ({active}/"
-                    f"{WEBSITE_SCRAPE_MAX_CONCURRENT}). Wait for one to finish, then retry."
-                ),
-                "active_count": active,
-                "max_concurrent": WEBSITE_SCRAPE_MAX_CONCURRENT,
-            },
-            status_code=429,
-        )
 
     brand_name = None
     if brand_id is not None:
@@ -71,8 +49,23 @@ def scrape_now(body: dict = Body(default={})):
     if url is not None:
         payload["url"] = url
 
-    job = _start_job("website_scrape_brand", payload)
-    return JSONResponse({"jobId": job["id"]}, status_code=202)
+    job = job_service.create_job("website_scrape_brand", payload=payload)
+    reclaim_and_dispatch()
+    refreshed = job_service.get_job(job["id"]) or job
+    running = job_service.count_active_jobs(
+        "website_scrape_brand", statuses=("running", "cancelling"),
+    )
+    queued = refreshed.get("status") == "pending"
+    return JSONResponse(
+        {
+            "jobId": job["id"],
+            "queued": queued,
+            "status": refreshed.get("status"),
+            "active_count": running,
+            "max_concurrent": WEBSITE_SCRAPE_MAX_CONCURRENT,
+        },
+        status_code=202,
+    )
 
 
 @router.get("/brands")
@@ -227,10 +220,13 @@ def reprocess_page(page_id: int):
             return JSONResponse({"error": "page not found"}, status_code=404)
         url, brand_id = row.url, row.brand_id
 
+    from services.website_scraper.dispatch import reclaim_and_dispatch
+
     payload = {"url": url}
     if brand_id is not None:
         payload["brand_id"] = brand_id
-    job = _start_job("website_scrape_brand", payload)
+    job = job_service.create_job("website_scrape_brand", payload=payload)
+    reclaim_and_dispatch()
     return JSONResponse({"jobId": job["id"]}, status_code=202)
 
 

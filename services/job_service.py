@@ -56,14 +56,79 @@ def get_active_job(job_type: str) -> dict | None:
         return _job_to_dict(job) if job else None
 
 
-def count_active_jobs(job_type: str) -> int:
+def count_active_jobs(
+    job_type: str,
+    statuses: tuple[str, ...] | list[str] | None = None,
+) -> int:
+    """Count jobs in the given statuses (default: pending + running + cancelling)."""
+    status_list = list(statuses) if statuses is not None else ["pending", "running", "cancelling"]
     with get_session() as session:
         return (
             session.query(func.count(Job.id))
-            .filter(Job.job_type == job_type, Job.status.in_(["pending", "running", "cancelling"]))
+            .filter(Job.job_type == job_type, Job.status.in_(status_list))
             .scalar()
             or 0
         )
+
+
+def list_pending_jobs(job_type: str, limit: int = 10) -> list[dict]:
+    """Oldest pending jobs first — used to fill concurrency slots in order."""
+    with get_session() as session:
+        rows = (
+            session.query(Job)
+            .filter(Job.job_type == job_type, Job.status == "pending")
+            .order_by(Job.id.asc())
+            .limit(max(0, limit))
+            .all()
+        )
+        return [_job_to_dict(job) for job in rows]
+
+
+def fail_active_jobs(job_type: str, message: str) -> list[dict]:
+    """Mark every pending/running/cancelling job of this type failed.
+
+    Used on process startup so threads killed by a restart cannot hold
+    concurrency slots forever.
+    """
+    return fail_jobs(
+        job_type,
+        message,
+        statuses=("pending", "running", "cancelling"),
+    )
+
+
+def fail_jobs(
+    job_type: str,
+    message: str,
+    *,
+    statuses: tuple[str, ...] = ("pending", "running", "cancelling"),
+    exclude_ids: set[int] | frozenset[int] | None = None,
+) -> list[dict]:
+    """Mark matching jobs failed. ``exclude_ids`` are left untouched (owned workers)."""
+    skip = exclude_ids or set()
+    failed: list[dict] = []
+    with get_session() as session:
+        rows = (
+            session.query(Job)
+            .filter(Job.job_type == job_type, Job.status.in_(list(statuses)))
+            .all()
+        )
+        for job in rows:
+            if job.id in skip:
+                continue
+            job.status = "failed"
+            job.is_interrupted = True
+            job.error = message
+            job.finished_at = _utcnow()
+            job.stage = "failed"
+            session.add(JobLog(
+                job_id=job.id,
+                message=f"⚠ {message}",
+                severity="warning",
+                category="system",
+            ))
+            failed.append(_job_to_dict(job))
+    return failed
 
 
 def get_all_active_jobs() -> dict[str, dict]:
