@@ -92,8 +92,8 @@ const ReviewAlertScreen = () => {
         await patchAlert(draft.editingAlertId, payload);
         resetDraft();
         navigation.reset({
-          index: 1,
-          routes: [{ name: 'MainTabs' }, { name: 'SaleAlertsScreen' }],
+          index: 0,
+          routes: [{ name: 'MainTabs', params: { screen: 'Track' } }],
         });
       } else {
         await addAlert(payload);
@@ -198,7 +198,7 @@ const ReviewAlertScreen = () => {
         ) : null}
 
         <PrimaryButton
-          label={saving ? (isEditing ? 'Saving…' : 'Creating…') : isEditing ? 'Save Changes' : 'Create Alert'}
+          label={saving ? (isEditing ? 'Saving…' : 'Starting…') : isEditing ? 'Save Changes' : 'Start Tracking'}
           onPress={onCreate}
           disabled={saving}
         />

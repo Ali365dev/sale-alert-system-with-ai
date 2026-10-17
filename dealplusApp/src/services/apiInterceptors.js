@@ -13,7 +13,10 @@ export const appAxios = axios.create({
 
 appAxios.interceptors.request.use(async (config) => {
   const state = await NetInfo.fetch();
-  if (!state.isConnected && !state.isInternetReachable) {
+  // Only hard-block when Wi‑Fi/cellular is clearly off. Do not require
+  // `isInternetReachable` — that is often false on LAN-only / captive Wi‑Fi
+  // even though the Mac API at 192.168.x.x is reachable.
+  if (state.isConnected === false) {
     showErrorToast('No internet connection');
     return Promise.reject({ msg: 'No internet connection' });
   }

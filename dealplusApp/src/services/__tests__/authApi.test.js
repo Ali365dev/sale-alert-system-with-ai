@@ -2,7 +2,7 @@ jest.mock('../apiInterceptors', () => ({ appAxios: { post: jest.fn() } }));
 jest.mock('../../utils/deviceId', () => ({ getDeviceId: () => 'device-123' }));
 
 import { appAxios } from '../apiInterceptors';
-import { login, signup } from '../authApi';
+import { login, loginWithApple, signup } from '../authApi';
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -63,5 +63,17 @@ describe('login', () => {
     appAxios.post.mockRejectedValue({ response: { data: { error: 'Incorrect email or password.' } } });
     const result = await login({ email: 'a@b.com', password: 'wrong' });
     expect(result).toEqual({ ok: false, error: 'Incorrect email or password.' });
+  });
+});
+
+describe('loginWithApple', () => {
+  test('posts Firebase id_token and optional Apple display name', async () => {
+    appAxios.post.mockResolvedValue({ data: { token: 't', user: { id: 1 }, brands: [], categories: [] } });
+    await loginWithApple('firebase-apple-token', { name: 'Ada Lovelace' });
+    expect(appAxios.post).toHaveBeenCalledWith('/auth/apple', {
+      id_token: 'firebase-apple-token',
+      name: 'Ada Lovelace',
+      device_id: 'device-123',
+    });
   });
 });

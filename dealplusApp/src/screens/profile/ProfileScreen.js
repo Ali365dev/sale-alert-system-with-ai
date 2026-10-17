@@ -53,11 +53,11 @@ const ProfileScreen = () => {
 
   const rows = [
     {
-      icon: 'pricetag-outline',
-      label: 'Sale Alerts',
-      subtitle: 'Track products and brands for price drops',
+      icon: 'pulse-outline',
+      label: 'Track',
+      subtitle: 'Follow products for price drops and sales',
       kind: 'link',
-      onPress: () => navigation.navigate('SaleAlertsScreen'),
+      onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
     },
     {
       icon: 'notifications-outline',

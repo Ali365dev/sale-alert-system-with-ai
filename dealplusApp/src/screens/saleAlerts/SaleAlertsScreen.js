@@ -60,7 +60,7 @@ const SaleAlertsSkeleton = ({ styles }) => (
 );
 
 const TABS = [
-  { id: 'all', label: 'All' },
+  { id: 'all', label: 'Tracking' },
   { id: 'triggered', label: 'Triggered' },
 ];
 
@@ -298,7 +298,7 @@ const SaleAlertsScreen = () => {
     () => (
       <View style={styles.headerBlock}>
         <Text style={styles.subtitle}>
-          Track products and receive notifications when they meet your sale conditions.
+          Follow products and get notified when they hit your sale targets.
         </Text>
 
         <View style={styles.urlCard}>
@@ -336,7 +336,7 @@ const SaleAlertsScreen = () => {
           <EmptyState
             variant="error"
             icon="cloud-offline-outline"
-            title="Unable to load alerts"
+            title="Unable to load tracked items"
             body="Please check your connection and try again."
             ctaLabel="Try Again"
             onPressCta={() => loadAlerts()}
@@ -386,19 +386,19 @@ const SaleAlertsScreen = () => {
   const listEmpty =
     !showInitialSkeleton && !(error && productAlerts.length === 0) ? (
       <EmptyState
-        icon={tab === 'triggered' ? 'flame-outline' : 'notifications-outline'}
-        title={tab === 'triggered' ? 'No Triggered Alerts' : 'No Alerts'}
+        icon={tab === 'triggered' ? 'flame-outline' : 'pulse-outline'}
+        title={tab === 'triggered' ? 'Nothing triggered yet' : 'Nothing to track yet'}
         body={
           tab === 'triggered'
             ? 'Matched deals will appear here when your conditions are met.'
-            : 'Enter a product URL above to create your first sale alert.'
+            : 'Paste a product link above to start tracking a sale.'
         }
       />
     ) : null;
 
   return (
     <Screen style={styles.root}>
-      <TopAppBar title="Sale Alerts" showBack titleAlign="left" hideProfile />
+      <TopAppBar title="Track" titleAlign="left" hideProfile />
 
       <FlashList
         data={showInitialSkeleton || (error && productAlerts.length === 0) ? [] : visibleItems}
@@ -423,7 +423,7 @@ const SaleAlertsScreen = () => {
         style={[styles.fab, { bottom: Math.max(insets.bottom, SPACING.three) + SPACING.two }]}
         onPress={startCreate}
         accessibilityRole="button"
-        accessibilityLabel="Create alert">
+        accessibilityLabel="Track a product">
         <Icon name="add" size={28} color={colors.onPrimary} />
       </Pressable>
     </Screen>

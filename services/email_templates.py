@@ -118,11 +118,12 @@ def password_reset_email(*, code: str, ttl_minutes: int) -> EmailContent:
 
 
 def google_only_account_email() -> EmailContent:
-    subject = "Sign in with Google — Deals More"
+    """Sent when reset is requested for a social-only account (Google or Apple)."""
+    subject = "Sign in with Google or Apple — Deals More"
     text = (
         "Someone requested a password reset for this email on Deals More.\n\n"
-        "This account signs in with Google, so there is no password to reset. "
-        "Open the app and tap Continue with Google.\n\n"
+        "This account signs in with Google or Apple, so there is no password to reset. "
+        "Open the app and tap Continue with Google or Continue with Apple.\n\n"
         "If you didn’t request this, you can ignore this email.\n"
     )
     body_html = f"""
@@ -130,20 +131,22 @@ def google_only_account_email() -> EmailContent:
                 Someone asked to reset a password for this email on Deals More.
               </p>
               <p style="margin:0 0 20px 0;font-size:15px;line-height:1.55;color:{_MUTED};">
-                This account uses <strong style="color:{_INK};">Google Sign-In</strong>,
+                This account uses <strong style="color:{_INK};">Google</strong> or
+                <strong style="color:{_INK};">Apple Sign-In</strong>,
                 so there isn’t a password to reset. Open the app and tap
-                <strong style="color:{_INK};">Continue with Google</strong>.
+                <strong style="color:{_INK};">Continue with Google</strong> or
+                <strong style="color:{_INK};">Continue with Apple</strong>.
               </p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 8px 0;">
                 <tr>
                   <td style="background:{_SOFT};border-radius:10px;padding:12px 14px;font-size:13px;color:{_MUTED};line-height:1.5;">
-                    Tip: use the same Google account you originally signed up with.
+                    Tip: use the same Google or Apple account you originally signed up with.
                   </td>
                 </tr>
               </table>
 """
     html_body = _shell(
-        preheader="This account uses Google Sign-In — no password to reset.",
+        preheader="This account uses Google or Apple Sign-In — no password to reset.",
         title="No password on this account",
         body_html=body_html,
         footer_note="If you didn’t request this, you can ignore this email.",

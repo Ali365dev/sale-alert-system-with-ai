@@ -38,7 +38,7 @@ function TabItem({ name, label, focused, onPress, onLayout, active, inactive }) 
 }
 
 /**
- * Figma bottom bar: exact Home / Explore / Profile icons + top pill that
+ * Figma bottom bar: Home / Explore / Track / Profile + top pill that
  * slides left↔right to the active tab.
  */
 const CustomTabBar = ({ state, descriptors, navigation }) => {

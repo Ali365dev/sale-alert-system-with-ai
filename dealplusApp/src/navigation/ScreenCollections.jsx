@@ -17,7 +17,6 @@ import SignInScreen from '../screens/auth/SignInScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import SearchScreen from '../screens/home/SearchScreen';
-import SaleAlertsScreen from '../screens/saleAlerts/SaleAlertsScreen';
 import CreateAlertTypeScreen from '../screens/saleAlerts/CreateAlertTypeScreen';
 import AddProductUrlScreen from '../screens/saleAlerts/AddProductUrlScreen';
 import AnalyzeProductScreen from '../screens/saleAlerts/AnalyzeProductScreen';
@@ -133,11 +132,6 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'RequestBrandScreen',
     component: RequestBrandScreen,
-  },
-  {
-    options: { ...stackoptions, headerShown: false },
-    name: 'SaleAlertsScreen',
-    component: SaleAlertsScreen,
   },
   {
     options: { ...stackoptions, headerShown: false },

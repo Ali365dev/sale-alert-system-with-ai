@@ -39,11 +39,19 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
+		<!-- Dev API is plain HTTP on the LAN (http://192.168.x.x:8000). -->
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- iOS 14+: without this, HTTP to the Mac LAN IP fails on a physical device. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Deals More uses the local network to reach the development server on your computer.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp.</string>
+	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>allow location for </string>
 	<key>RCTNewArchEnabled</key>

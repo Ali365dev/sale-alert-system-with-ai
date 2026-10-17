@@ -19,8 +19,9 @@ import { RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useAuthStore from '../../state/authStore';
 import usePreferencesStore from '../../state/preferencesStore';
-import { login, signup, loginWithGoogle } from '../../services/authApi';
+import { login, signup, loginWithGoogle, loginWithApple } from '../../services/authApi';
 import { signInWithGoogle } from '../../services/googleAuth';
+import { isAppleSignInAvailable, signInWithApple } from '../../services/appleAuth';
 import AuthChrome from '../../components/AuthChrome';
 import PrimaryButton from '../../components/PrimaryButton';
 import GoogleLogo from '../../components/GoogleLogo';
@@ -78,7 +79,9 @@ const AuthScreen = ({ initialMode = 'login' }) => {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [appleSubmitting, setAppleSubmitting] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const showApple = isAppleSignInAvailable();
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -182,7 +185,7 @@ const AuthScreen = ({ initialMode = 'login' }) => {
   };
 
   const handleGoogleSignIn = async () => {
-    if (googleSubmitting) return;
+    if (googleSubmitting || appleSubmitting) return;
     setGoogleSubmitting(true);
     setFormError(null);
     try {
@@ -209,6 +212,36 @@ const AuthScreen = ({ initialMode = 'login' }) => {
       }
     } finally {
       setGoogleSubmitting(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    if (appleSubmitting || googleSubmitting) return;
+    setAppleSubmitting(true);
+    setFormError(null);
+    try {
+      const { idToken, name: appleName } = await signInWithApple();
+      const result = await loginWithApple(idToken, { name: appleName });
+      if (!result.ok) {
+        setFormError(result.error);
+        return;
+      }
+      applyAuthResult(result);
+    } catch (error) {
+      if (error?.code === 'SIGN_IN_CANCELLED' || String(error?.code) === '1001') {
+        return;
+      }
+      const message =
+        error?.message ||
+        error?.userInfo?.message ||
+        "Couldn't sign in with Apple. Please try again.";
+      setFormError(message);
+      showToast.error(message, 'Sign-in failed');
+      if (__DEV__) {
+        console.warn('Apple sign-in failed', error?.code, error);
+      }
+    } finally {
+      setAppleSubmitting(false);
     }
   };
 
@@ -351,10 +384,23 @@ const AuthScreen = ({ initialMode = 'login' }) => {
               </>
             )}
 
-            <Pressable style={styles.googleBtn} onPress={handleGoogleSignIn} disabled={googleSubmitting}>
+            <Pressable
+              style={styles.googleBtn}
+              onPress={handleGoogleSignIn}
+              disabled={googleSubmitting || appleSubmitting}>
               <GoogleLogo size={20} />
               <Text style={styles.googleLabel}>{googleSubmitting ? 'Signing in...' : 'Continue with Google'}</Text>
             </Pressable>
+
+            {showApple ? (
+              <Pressable
+                style={[styles.googleBtn, styles.appleBtn]}
+                onPress={handleAppleSignIn}
+                disabled={appleSubmitting || googleSubmitting}>
+                <Icon name="logo-apple" size={22} color={colors.text} />
+                <Text style={styles.googleLabel}>{appleSubmitting ? 'Signing in...' : 'Continue with Apple'}</Text>
+              </Pressable>
+            ) : null}
 
             <Pressable
               onPress={() => switchMode(isSignup ? 'login' : 'signup')}
@@ -478,6 +524,9 @@ const createStyles = (colors) =>
       borderRadius: 14,
       height: 52,
       marginBottom: 12,
+    },
+    appleBtn: {
+      backgroundColor: colors.surface,
     },
     googleLabel: {
       ...TYPOGRAPHY.smallBold,

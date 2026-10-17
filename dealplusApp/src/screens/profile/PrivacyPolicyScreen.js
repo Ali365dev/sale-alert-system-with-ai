@@ -70,7 +70,7 @@ const PrivacyPolicyScreen = () => {
           <BulletRow
             icon="person-outline"
             title="Account Information"
-            body="Name, email address, and a securely hashed password if you sign up directly — or your name, email, and a Google account identifier if you sign in with Google."
+            body="Name, email address, and a securely hashed password if you sign up directly — or your name, email, and a Google or Apple account identifier if you sign in with Google or Apple."
             colors={colors}
             styles={styles}
           />
@@ -113,8 +113,8 @@ const PrivacyPolicyScreen = () => {
           </Text>
           <BulletRow
             icon="shield-checkmark-outline"
-            title="Firebase Authentication & Google Sign-In (Google LLC)"
-            body="Verifies your identity when you sign in with a Google account. Google receives your basic profile info (name, email) as part of that sign-in."
+            title="Firebase Authentication, Google Sign-In & Sign in with Apple"
+            body="Verifies your identity when you sign in with Google or Apple. Google or Apple receives your basic profile info (name, email) as part of that sign-in. Apple may provide a private relay email address."
             colors={colors}
             styles={styles}
           />

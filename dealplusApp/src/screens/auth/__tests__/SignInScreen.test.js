@@ -20,14 +20,20 @@ jest.mock('../../../services/authApi', () => ({
   login: jest.fn(),
   signup: jest.fn(),
   loginWithGoogle: jest.fn(),
+  loginWithApple: jest.fn(),
 }));
 jest.mock('../../../services/googleAuth', () => ({ signInWithGoogle: jest.fn() }));
+jest.mock('../../../services/appleAuth', () => ({
+  isAppleSignInAvailable: () => true,
+  signInWithApple: jest.fn(),
+}));
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import SignInScreen from '../SignInScreen';
-import { login, loginWithGoogle } from '../../../services/authApi';
+import { login, loginWithGoogle, loginWithApple } from '../../../services/authApi';
 import { signInWithGoogle } from '../../../services/googleAuth';
+import { signInWithApple } from '../../../services/appleAuth';
 import useAuthStore from '../../../state/authStore';
 import usePreferencesStore from '../../../state/preferencesStore';
 
@@ -128,9 +134,34 @@ test('the "Sign Up" link / Create Account tab slides to signup fields in place',
   expect(getByPlaceholderText('Confirm password')).toBeTruthy();
 });
 
-test('Apple sign-in is not offered', async () => {
-  const { queryByText } = await render(<SignInScreen />);
-  expect(queryByText('Continue with Apple')).toBeNull();
+describe('Continue with Apple', () => {
+  test('on success: exchanges the Firebase token, stores auth, and returns home', async () => {
+    signInWithApple.mockResolvedValue({ idToken: 'firebase-apple-token', name: 'Ada Lovelace' });
+    loginWithApple.mockResolvedValue({
+      ok: true,
+      token: 'tok-apple',
+      user: { id: 3, email: 'a@privaterelay.appleid.com', name: 'Ada Lovelace' },
+      brands: [],
+      categories: [],
+    });
+
+    const { getByText } = await render(<SignInScreen />);
+    await fireEvent.press(getByText('Continue with Apple'));
+
+    await waitFor(() => expect(mockReset).toHaveBeenCalledWith(homeReset));
+    expect(loginWithApple).toHaveBeenCalledWith('firebase-apple-token', { name: 'Ada Lovelace' });
+    expect(useAuthStore.getState().token).toBe('tok-apple');
+  });
+
+  test('cancelling Apple sheet is a no-op', async () => {
+    signInWithApple.mockRejectedValue({ code: 'SIGN_IN_CANCELLED' });
+
+    const { getByText } = await render(<SignInScreen />);
+    await fireEvent.press(getByText('Continue with Apple'));
+
+    await waitFor(() => expect(getByText('Continue with Apple')).toBeTruthy());
+    expect(loginWithApple).not.toHaveBeenCalled();
+  });
 });
 
 describe('Continue with Google', () => {

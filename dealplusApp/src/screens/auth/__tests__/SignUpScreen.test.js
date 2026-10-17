@@ -20,8 +20,13 @@ jest.mock('../../../services/authApi', () => ({
   signup: jest.fn(),
   login: jest.fn(),
   loginWithGoogle: jest.fn(),
+  loginWithApple: jest.fn(),
 }));
 jest.mock('../../../services/googleAuth', () => ({ signInWithGoogle: jest.fn() }));
+jest.mock('../../../services/appleAuth', () => ({
+  isAppleSignInAvailable: () => true,
+  signInWithApple: jest.fn(),
+}));
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';

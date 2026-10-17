@@ -31,12 +31,12 @@ const AlertCreatedScreen = () => {
             : `You will be notified when ${name || 'this product'} meets your selected sale condition.`}
         </Text>
         <PrimaryButton
-          label="View My Alerts"
+          label="Go to Track"
           onPress={() => {
             reset();
             navigation.reset({
-              index: 1,
-              routes: [{ name: 'MainTabs' }, { name: 'SaleAlertsScreen' }],
+              index: 0,
+              routes: [{ name: 'MainTabs', params: { screen: 'Track' } }],
             });
           }}
         />

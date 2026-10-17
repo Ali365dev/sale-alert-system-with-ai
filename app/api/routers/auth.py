@@ -134,32 +134,37 @@ def login(body: dict = Body(...)):
         return {"token": token, "user": _user_to_dict(user), **_profile_fields(profile)}
 
 
-@router.post("/google")
-def google_login(body: dict = Body(...)):
-    """Exchanges a Firebase ID token (the mobile app signs in with Google via
-    Firebase Auth, then sends its resulting Firebase ID token here — never a
-    raw Google token) for this app's own session token. Finds the account by
-    firebase_uid first (repeat sign-ins), falling back to matching by email
-    so a user who already signed up with a password and later taps
-    "Continue with Google" under the same address gets linked onto their
-    existing account instead of a duplicate — they can then use either
-    method going forward."""
-    body = body or {}
-    id_token = body.get("id_token") or ""
-    device_id = body.get("device_id")
-
+def _firebase_social_login(
+    *,
+    id_token: str,
+    device_id: str | None,
+    provider_label: str,
+    display_name: str | None = None,
+):
+    """Shared Google / Apple path: verify Firebase ID token → upsert User →
+    app session token. Matches by firebase_uid first, then email, so a
+    password account can later link the same address via social sign-in."""
     if not firebase_auth.is_configured():
-        return JSONResponse({"error": "Google sign-in isn't set up on the server yet."}, status_code=503)
+        return JSONResponse(
+            {"error": f"{provider_label} sign-in isn't set up on the server yet."},
+            status_code=503,
+        )
 
     payload = firebase_auth.verify_firebase_token(id_token)
     if payload is None:
-        return JSONResponse({"error": "Invalid or expired Google sign-in token."}, status_code=401)
+        return JSONResponse(
+            {"error": f"Invalid or expired {provider_label} sign-in token."},
+            status_code=401,
+        )
 
     email = (payload.get("email") or "").strip().lower()
     if not email:
-        return JSONResponse({"error": "That Google account has no email address."}, status_code=400)
+        return JSONResponse(
+            {"error": f"That {provider_label} account has no email address."},
+            status_code=400,
+        )
     firebase_uid = payload.get("uid") or payload.get("user_id")
-    name = payload.get("name")
+    name = (display_name or "").strip() or payload.get("name")
 
     with get_session() as session:
         user = session.query(User).filter(User.firebase_uid == firebase_uid).first() if firebase_uid else None
@@ -186,6 +191,32 @@ def google_login(body: dict = Body(...)):
         profile = _link_device_and_get_profile(session, user, device_id)
         token = user_auth.create_user_token(user.id)
         return {"token": token, "user": _user_to_dict(user), **_profile_fields(profile)}
+
+
+@router.post("/google")
+def google_login(body: dict = Body(...)):
+    """Exchanges a Firebase ID token (mobile Google → Firebase Auth) for this
+    app's session token — never a raw Google token."""
+    body = body or {}
+    return _firebase_social_login(
+        id_token=body.get("id_token") or "",
+        device_id=body.get("device_id"),
+        provider_label="Google",
+    )
+
+
+@router.post("/apple")
+def apple_login(body: dict = Body(...)):
+    """Exchanges a Firebase ID token (mobile Apple → Firebase Auth) for this
+    app's session token. Optional ``name`` is Apple's one-time fullName from
+    the first authorize (Firebase tokens often omit it later)."""
+    body = body or {}
+    return _firebase_social_login(
+        id_token=body.get("id_token") or "",
+        device_id=body.get("device_id"),
+        provider_label="Apple",
+        display_name=body.get("name"),
+    )
 
 
 @router.post("/forgot-password")

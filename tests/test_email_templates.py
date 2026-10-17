@@ -16,6 +16,8 @@ def test_password_reset_template_includes_code_and_branding():
 def test_google_only_template_mentions_google_sign_in():
     content = google_only_account_email()
     assert "Google" in content.subject
+    assert "Apple" in content.subject
     assert "Google" in content.text
     assert "Continue with Google" in content.html
+    assert "Continue with Apple" in content.html
     assert "Deals More" in content.html

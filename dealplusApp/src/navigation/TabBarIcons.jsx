@@ -59,6 +59,61 @@ export function ExploreTabIcon({ color, size = 24 }) {
   );
 }
 
+/** Track tab — target / crosshair (track products for sales). */
+export function TrackTabIcon({ color, size = 25 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 25 25" fill="none">
+      <Path
+        d="M12.5 3.646V6.25"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.15}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M12.5 18.75V21.354"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.15}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M3.646 12.5H6.25"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.15}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M18.75 12.5H21.354"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.15}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M12.5 18.229C15.664 18.229 18.229 15.664 18.229 12.5C18.229 9.336 15.664 6.771 12.5 6.771C9.336 6.771 6.771 9.336 6.771 12.5C6.771 15.664 9.336 18.229 12.5 18.229Z"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.15}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M12.5 14.583C13.65 14.583 14.583 13.65 14.583 12.5C14.583 11.35 13.65 10.417 12.5 10.417C11.35 10.417 10.417 11.35 10.417 12.5C10.417 13.65 11.35 14.583 12.5 14.583Z"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.15}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+/** @deprecated Use TrackTabIcon */
+export const AlertsTabIcon = TrackTabIcon;
+
 /** Exact Profile icon from Figma — head circle + open shoulder arc. */
 export function ProfileTabIcon({ color, size = 25 }) {
   return (
@@ -89,6 +144,8 @@ export function TabBarIcon({ name, color }) {
       return <HomeTabIcon color={color} size={26} />;
     case 'Explore':
       return <ExploreTabIcon color={color} size={24} />;
+    case 'Track':
+      return <TrackTabIcon color={color} size={25} />;
     case 'Profile':
       return <ProfileTabIcon color={color} size={25} />;
     default:

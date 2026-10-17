@@ -13,6 +13,9 @@ const auth = () => authInstance;
 auth.GoogleAuthProvider = {
   credential: jest.fn((idToken) => ({ idToken, providerId: 'google.com' })),
 };
+auth.AppleAuthProvider = {
+  credential: jest.fn((idToken, nonce) => ({ idToken, nonce, providerId: 'apple.com' })),
+};
 
 module.exports = auth;
 module.exports.default = auth;

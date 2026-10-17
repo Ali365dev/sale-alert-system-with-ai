@@ -45,6 +45,11 @@ export const resetPassword = ({ email, code, password }) =>
  * not a raw Google one — the backend verifies it via Firebase Admin. */
 export const loginWithGoogle = (idToken) => authRequest('/auth/google', { id_token: idToken });
 
+/** Firebase ID token from appleAuth.js::signInWithApple. Optional `name` is
+ * Apple's one-time fullName (only on first authorize). */
+export const loginWithApple = (idToken, { name } = {}) =>
+  authRequest('/auth/apple', { id_token: idToken, name: name || undefined });
+
 /** Permanently deletes the signed-in account and its saved preferences
  * (Google Play's Account Deletion policy requirement for any app that
  * supports account creation — see app/api/routers/auth.py::delete_me).
