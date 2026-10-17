@@ -53,13 +53,6 @@ const ProfileScreen = () => {
 
   const rows = [
     {
-      icon: 'pulse-outline',
-      label: 'Track',
-      subtitle: 'Follow products for price drops and sales',
-      kind: 'link',
-      onPress: () => navigation.navigate('MainTabs', { screen: 'Track' }),
-    },
-    {
       icon: 'notifications-outline',
       label: 'Notification Preferences',
       subtitle: 'Manage push and email alerts',

@@ -1,4 +1,6 @@
 <resources>
     <color name="notification_icon_color">#B7131A</color>
     <color name="bootsplash_background">#d7111e</color>
+    <!-- Full-bleed adaptive icon background — must match artwork red. -->
+    <color name="ic_launcher_background">#D7111E</color>
 </resources>

@@ -1,8 +1,8 @@
 {
   "appName": "Deals More",
   "applicationId": "com.dealplusapp",
-  "versionName": "1.0.1",
-  "versionCode": 3,
+  "versionName": "1.0.2",
+  "versionCode": 6,
   "targetSdkVersion": 36,
   "minSdkVersion": 24,
   "releaseArtifact": "app/build/outputs/bundle/release/app-release.aab",
