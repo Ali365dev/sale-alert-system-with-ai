@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { ShoppingBag } from "lucide-react";
 
 import { Icon } from "../icons";
 import { toast } from "../../store/toastStore";
@@ -76,12 +77,12 @@ function AppStoreBadge({ store, sub }: { store: string; sub: string }) {
 
 export function PublicFooter() {
   return (
-    <footer style={{ borderTop: "1px solid var(--border)", background: "var(--surface-card)", marginTop: 48 }}>
+    <footer className="public-footer" style={{ borderTop: "1px solid var(--border)", background: "var(--surface-card)", marginTop: 28 }}>
       <div
         style={{
           maxWidth: 1240,
           margin: "0 auto",
-          padding: "40px 24px 28px",
+          padding: "24px 12px 20px",
           display: "grid",
           gridTemplateColumns: "1.4fr repeat(3, 1fr)",
           gap: 32,
@@ -91,13 +92,13 @@ export function PublicFooter() {
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--brand)" }}>
-              <Icon.pulse size={20} strokeWidth={2.5} />
+              <ShoppingBag size={18} strokeWidth={2.5} />
             </span>
             <span style={{ font: "var(--fw-extra) 15.5px/1 var(--font-sans)", color: "var(--text-strong)" }}>
-              Deal<span style={{ color: "var(--brand)" }}>Pulse</span>
+              Deals<span style={{ color: "var(--brand)" }}>More</span>
             </span>
           </div>
-          <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>Deals Today. A Better Tomorrow.</p>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Deals Today. A Better Tomorrow.</p>
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             {SOCIALS.map((s) => (
               <button
@@ -183,7 +184,7 @@ export function PublicFooter() {
           gap: 12,
         }}
       >
-        <span style={{ fontSize: 12, color: "var(--text-faint)" }}>© {new Date().getFullYear()} DealPulse. All rights reserved.</span>
+        <span style={{ fontSize: 12, color: "var(--text-faint)" }}>© {new Date().getFullYear()} DealsMore. All rights reserved.</span>
         <span style={{ fontSize: 12, color: "var(--text-faint)" }}>Made with ❤️ for smart shoppers.</span>
       </div>
     </footer>

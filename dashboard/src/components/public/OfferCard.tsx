@@ -1,7 +1,7 @@
 import { Link } from "react-router";
+import { Clock3, ExternalLink, Heart } from "lucide-react";
 
 import type { Offer } from "../../api/offers";
-import { Icon } from "../icons";
 import { useFavoritesStore } from "../../store/favoritesStore";
 import { discountLabel, expiryLabel, humanize, imageForOffer, isExpired, isExpiringSoon } from "../../lib/publicOffers";
 import { sourceLabel, sourceTone } from "../../lib/offerSource";
@@ -19,7 +19,7 @@ function offerTitle(offer: Offer): string {
   return type ? `${brand} — ${type}` : `${brand} offer`;
 }
 
-export function OfferCard({ offer }: { offer: Offer }) {
+export function OfferCard({ offer, editorialImage = false }: { offer: Offer; editorialImage?: boolean }) {
   const expired = isExpired(offer);
   const expiringSoon = isExpiringSoon(offer);
   const { isFavorite, toggle } = useFavoritesStore();
@@ -44,7 +44,7 @@ export function OfferCard({ offer }: { offer: Offer }) {
     >
       <div style={{ position: "relative", aspectRatio: "16 / 9", background: "var(--surface-sunken)" }}>
         <img
-          src={offer.image_url || imageForOffer(offer.category, brandName)}
+          src={editorialImage ? imageForOffer(offer.category, `${brandName}-${offer.id}`) : offer.image_url || imageForOffer(offer.category, `${brandName}-${offer.id}`)}
           alt=""
           aria-hidden
           loading="lazy"
@@ -90,7 +90,7 @@ export function OfferCard({ offer }: { offer: Offer }) {
             cursor: "pointer",
           }}
         >
-          <Icon.heart size={15} fill={favorite ? "var(--danger)" : "none"} />
+          <Heart size={15} fill={favorite ? "var(--danger)" : "none"} />
         </button>
       </div>
 
@@ -139,7 +139,7 @@ export function OfferCard({ offer }: { offer: Offer }) {
             color: expired ? "var(--danger)" : expiringSoon ? "var(--warning)" : "var(--text-faint)",
           }}
         >
-          <Icon.clock size={12} /> {expiryLabel(offer)}
+          <Clock3 size={12} /> {expiryLabel(offer)}
         </span>
 
         <Link
@@ -158,7 +158,7 @@ export function OfferCard({ offer }: { offer: Offer }) {
             fontSize: 13,
           }}
         >
-          View Deal <Icon.external size={13} />
+          View Deal <ExternalLink size={13} />
         </Link>
       </div>
     </article>

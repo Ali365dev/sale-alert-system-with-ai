@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiClient } from "./client";
+import { scraperClient as apiClient } from "./client";
 import { toast } from "../store/toastStore";
 
 export type JobStatus = "pending" | "running" | "cancelling" | "cancelled" | "completed" | "failed";

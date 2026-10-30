@@ -1,0 +1,564 @@
+"""Orchestrates the Website Sale Scraper pipeline end to end. Mirrors
+services/social_scraper/content_pipeline.py's shape: this module owns
+per-page processing (`process_page`) and per-brand finalization
+(`finalize_brand_scrape`); services/jobs/website_scrape_brand.py wires these
+into the standard BackgroundJob machinery so the frontend gets stage/log/
+cancel/retry UI for free, exactly like every other pipeline action."""
+from __future__ import annotations
+
+import json
+import time
+from typing import Optional
+from urllib.parse import urlparse
+
+from config import WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL, WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES
+from database.db import get_session
+from database.models import Brand, WebsiteScrapeLog, WebsiteScrapedPage
+from database.offer_retention import utcnow
+from services.website_scraper import closure_detector, crawler, deduplicator, detectors, normalizer, sale_matcher
+from services.website_scraper.extractor import extract_hero_banner_images, extract_page
+from services.website_scraper.models import DiscoveredUrl, ExtractedSaleCandidate
+
+_JOB_OUTCOME = {
+    "ERROR": "failed",
+    "BLOCKED": "failed",
+    "UNCHANGED": "skipped",
+    "DUPLICATE": "skipped",
+}
+
+
+def _configured_urls(brand: Brand) -> list[tuple[str, str]]:
+    urls: list[tuple[str, str]] = []
+    if brand.sale_page_url:
+        urls.append((brand.sale_page_url, "sale"))
+    if brand.offers_page_url:
+        urls.append((brand.offers_page_url, "offers"))
+    if brand.promotions_page_url:
+        urls.append((brand.promotions_page_url, "promotions"))
+    if brand.custom_scrape_urls:
+        try:
+            for url in json.loads(brand.custom_scrape_urls) or []:
+                if url:
+                    urls.append((url, "custom"))
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return urls
+
+
+def discover_pages_for_brand(brand: Brand) -> tuple[list[DiscoveredUrl], list[str]]:
+    homepage = brand.homepage_url or brand.website
+    if not homepage:
+        return [], ["Brand has no homepage_url or website configured"]
+    return crawler.discover_pages(homepage, _configured_urls(brand))
+
+
+def _job_log(job_id: Optional[int], message: str, *, severity: str = "info") -> None:
+    if job_id is None:
+        return
+    try:
+        from services import job_service
+
+        job_service.append_log(job_id, message, severity=severity, category="website")
+    except Exception:
+        pass
+
+
+def _enrich_homepage_with_hero_ocr(job_id: Optional[int], page, html: str, page_url: str) -> None:
+    """OCR homepage hero/banner images; merge text into page for sale scoring.
+    Uses the same local PaddleOCR stack as email (ai/ocr.py). Never raises."""
+    try:
+        hero_urls = extract_hero_banner_images(
+            html, page_url, limit=WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES,
+        )
+        if not hero_urls:
+            _job_log(job_id, "Hero OCR: no banner images found on homepage")
+            return
+
+        from ai.ocr import run_ocr_for_urls
+
+        ocr_result = run_ocr_for_urls(hero_urls)
+        items = ocr_result.get("items") or []
+        texts = [t for t in ([*(ocr_result.get("image_texts") or []), *(ocr_result.get("gif_texts") or [])]) if t]
+        if not texts:
+            _job_log(
+                job_id,
+                f"Hero OCR: {len(hero_urls)} banner(s) checked, no usable text "
+                f"(OCR off, tiny images, or empty)",
+                severity="warning",
+            )
+            return
+
+        ocr_blob = "\n".join(texts)
+        page.body_text = (page.body_text + "\n" + ocr_blob).strip()[:12000]
+        if not (page.headline_text or "").strip():
+            page.headline_text = ocr_blob[:240]
+        # Keep alts/images list aware of which banners we OCR'd.
+        for item in items:
+            url = item.get("url")
+            if url and url not in page.images:
+                page.images.append(url)
+        _job_log(
+            job_id,
+            f"Hero OCR: {len(items)}/{len(hero_urls)} banner(s) yielded text "
+            f"({len(ocr_blob)} chars) — folded into sale detection",
+            severity="success",
+        )
+    except Exception as exc:
+        _job_log(
+            job_id,
+            f"Hero OCR failed (continuing with HTML only): {type(exc).__name__}: {exc}",
+            severity="warning",
+        )
+
+
+def process_page(
+    job_id: Optional[int], brand_id: Optional[int], brand_name: Optional[str], url: str, page_type: str,
+) -> dict:
+    """Fetch -> extract -> normalize/hash -> compare -> rule-score -> AI ->
+    dedup -> offer create/update. Always persists a WebsiteScrapedPage row,
+    including failures (spec §8 — store every scrape attempt).
+
+    Takes brand_id/brand_name as plain scalars, not a Brand ORM instance —
+    the caller's session is long closed by the time this runs (each stage
+    below opens its own short-lived session), so holding onto a Brand
+    instance across that boundary would raise a "not bound to a Session"
+    error the moment an un-eagerly-loaded attribute like .name is touched."""
+    started = time.perf_counter()
+    target_host = urlparse(url).netloc.lower()
+
+    try:
+        status, html, final_url, used_browser = crawler.fetch_html_with_fallback(url)
+    except Exception as exc:
+        return _save_page(
+            brand_id=brand_id, job_id=job_id, url=url, final_url=url, page_type=page_type,
+            scrape_status="ERROR", http_status=None, error_message=f"{type(exc).__name__}: {exc}",
+            duration=time.perf_counter() - started,
+        )
+
+    browser_note = " (browser fallback also blocked)" if used_browser else ""
+    if status in (404, 410):
+        return _save_page(
+            brand_id=brand_id, job_id=job_id, url=url, final_url=final_url, page_type=page_type,
+            scrape_status="ERROR", http_status=status, error_message=f"HTTP {status}{browser_note}",
+            duration=time.perf_counter() - started,
+        )
+    if status in (403, 429):
+        return _save_page(
+            brand_id=brand_id, job_id=job_id, url=url, final_url=final_url, page_type=page_type,
+            scrape_status="BLOCKED", http_status=status, error_message=f"HTTP {status}{browser_note}",
+            duration=time.perf_counter() - started,
+        )
+    if status >= 400 or not html:
+        return _save_page(
+            brand_id=brand_id, job_id=job_id, url=url, final_url=final_url, page_type=page_type,
+            scrape_status="ERROR", http_status=status, error_message=f"HTTP {status}{browser_note}",
+            duration=time.perf_counter() - started,
+        )
+
+    page = extract_page(html, url, final_url, status, target_host)
+
+    # Homepage only: OCR hero/banner images and fold text into the same
+    # detectors → AI → offer path used for HTML. Failures never abort the page.
+    if page_type == "homepage":
+        _enrich_homepage_with_hero_ocr(job_id, page, html, final_url or url)
+
+    page.important_text = detectors.extract_signals(page)
+
+    page_hash = normalizer.page_content_hash(page)
+    norm_hash = normalizer.normalized_content_hash(page)
+
+    with get_session() as session:
+        previous = deduplicator.previous_page_for(session, brand_id, url)
+        # Extract plain scalars before the session closes below — get_session()
+        # commits on exit, which expires every attribute by default, so
+        # reading them off `previous` afterward would raise "not bound to a
+        # Session" the same way an out-of-session Offer/Brand access does.
+        previous_exists = previous is not None
+        previous_hash = previous.normalized_content_hash if previous else None
+        previous_sale_score = previous.sale_score if previous else None
+        previous_offer_id = previous.offer_id if previous else None
+
+    # Skip unchanged only when we already have an offer (or it's a product
+    # page). Sale hubs that previously scored NOT_SALE with no offer must be
+    # re-analyzed after threshold/OCR fixes — otherwise they stay stuck.
+    is_individual_product_page = page_type == "product"
+    if previous_exists and previous_hash == norm_hash and (
+        previous_offer_id is not None or is_individual_product_page
+    ):
+        return _save_page(
+            brand_id=brand_id, job_id=job_id, url=url, final_url=final_url, page_type=page_type,
+            scrape_status="UNCHANGED", http_status=status, page=page,
+            page_hash=page_hash, norm_hash=norm_hash,
+            sale_score=previous_sale_score, offer_id=previous_offer_id, ai_analyzed=False,
+            duration=time.perf_counter() - started,
+        )
+
+    relevance = detectors.evaluate(page, page_type=page_type)
+    ai_analyzed = False
+    ai_result: dict | None = None
+    offer_id = None
+    scrape_status = "UPDATED" if previous_exists else "NEW"
+
+    # Offers must reflect a genuine site-wide/collection promotion (a sale,
+    # offers, promotions, or collection hub page), never one individual
+    # product's own markdown — an admin wants "up to X% off Fragrance", not
+    # "84% off this one perfume mist". Individual product pages are still
+    # fetched/stored for visibility, just never sent to AI or turned into
+    # an offer.
+
+    should_call_ai = not is_individual_product_page and (
+        relevance.status == detectors.STRONG
+        or (relevance.status == detectors.WEAK and WEBSITE_SCRAPE_AI_ON_WEAK_SIGNAL)
+    )
+    if is_individual_product_page or relevance.status == detectors.NOT_SALE:
+        scrape_status = "NOT_SALE"
+        _job_log(
+            job_id,
+            f"○ NOT_SALE (score={relevance.score:.0f}) — {url} [{relevance.reason}]",
+        )
+    elif should_call_ai:
+        candidate = ExtractedSaleCandidate(
+            page=page, page_content_hash=page_hash, normalized_content_hash=norm_hash,
+            sale_score=relevance.score, rule_status=relevance.status,
+        )
+        ai_result = sale_matcher.analyze(brand_name, candidate)
+        if ai_result is None:
+            scrape_status = "UPDATED" if previous_exists else "NEW"
+            _job_log(
+                job_id,
+                f"⚠ AI analysis failed for \"{url}\" — no offer created (will retry next scrape)",
+                severity="warning",
+            )
+        else:
+            ai_analyzed = True
+            if ai_result.get("is_offer"):
+                scrape_status = "SALE_DETECTED"
+                try:
+                    with get_session() as session:
+                        fresh_brand = (
+                            session.query(Brand).filter(Brand.id == brand_id).first()
+                            if brand_id else None
+                        )
+                        from services.website_scraper.offer_processor import create_or_update_offer
+
+                        temp_page = WebsiteScrapedPage(url=url, final_url=final_url)
+                        offer, created = create_or_update_offer(
+                            session, temp_page, ai_result, fresh_brand,
+                        )
+                        offer_id = offer.id
+                    _job_log(
+                        job_id,
+                        f"✓ Offer {'created' if created else 'updated'} #{offer_id} "
+                        f"from \"{ai_result.get('title') or url}\"",
+                        severity="success",
+                    )
+                except Exception as exc:
+                    scrape_status = "UPDATED" if previous_exists else "NEW"
+                    _job_log(
+                        job_id,
+                        f"✗ AI said is_offer but offer save failed for \"{url}\": "
+                        f"{type(exc).__name__}: {exc}",
+                        severity="error",
+                    )
+            else:
+                scrape_status = "NOT_SALE"
+                _job_log(
+                    job_id,
+                    f"○ AI is_offer=false for \"{url}\" — {ai_result.get('reasoning') or 'no reason'}",
+                )
+    else:
+        scrape_status = "NOT_SALE"
+
+    return _save_page(
+        brand_id=brand_id, job_id=job_id, url=url, final_url=final_url, page_type=page_type,
+        scrape_status=scrape_status, http_status=status, page=page,
+        page_hash=page_hash, norm_hash=norm_hash, sale_score=relevance.score,
+        ai_analyzed=ai_analyzed, ai_result=ai_result, offer_id=offer_id,
+        duration=time.perf_counter() - started,
+    )
+
+
+def _save_page(
+    *, brand_id, job_id, url, final_url, page_type, scrape_status, http_status,
+    page=None, page_hash=None, norm_hash=None, sale_score=None, ai_analyzed=False,
+    ai_result=None, offer_id=None, error_message=None, duration=0.0,
+) -> dict:
+    """Returns a plain dict, not the ORM row — get_session()'s commit expires
+    every attribute by default, so returning the row itself would raise
+    "not bound to a Session" the moment any field is read after this
+    function returns (SQLAlchemy's expire_on_commit=True default)."""
+    with get_session() as session:
+        row = WebsiteScrapedPage(
+            brand_id=brand_id, job_id=job_id, url=url, final_url=final_url, page_type=page_type,
+            page_title=page.page_title if page else None,
+            meta_description=page.meta_description if page else None,
+            canonical_url=page.canonical_url if page else None,
+            headline_text=page.headline_text if page else None,
+            body_text=(page.body_text[:8000] if page else None),
+            important_text=json.dumps(page.important_text) if page else None,
+            images=json.dumps(page.images) if page else None,
+            image_alt_text=json.dumps(page.image_alt_text) if page else None,
+            detected_prices=json.dumps([{"original": p.original, "current": p.current} for p in page.detected_prices]) if page else None,
+            discount_percentages=json.dumps(page.discount_percentages) if page else None,
+            coupon_codes=json.dumps(page.coupon_codes) if page else None,
+            links=json.dumps(page.links) if page else None,
+            page_content_hash=page_hash,
+            normalized_content_hash=norm_hash,
+            sale_score=sale_score,
+            scrape_status=scrape_status,
+            ai_analyzed=ai_analyzed,
+            ai_result=json.dumps(ai_result) if ai_result is not None else None,
+            offer_id=offer_id,
+            http_status=http_status,
+            error_message=error_message,
+            processing_duration=round(duration, 3),
+        )
+        session.add(row)
+        session.flush()
+        return _page_to_dict(row)
+
+
+def job_outcome_for(scrape_status: str) -> str:
+    return _JOB_OUTCOME.get(scrape_status, "successful")
+
+
+def finalize_brand_scrape(job_id: int, brand_id: int) -> None:
+    """Runs closure detection for the brand's other open offers and updates
+    WebsiteScrapeLog — called once after every page in the job has been
+    processed (services/jobs/website_scrape_brand.py's after_run)."""
+    with get_session() as session:
+        brand = session.query(Brand).filter(Brand.id == brand_id).first()
+        if brand is None:
+            return
+        rows = session.query(WebsiteScrapedPage).filter(WebsiteScrapedPage.job_id == job_id).all()
+
+        fetched_ok = {r.final_url or r.url for r in rows if r.http_status and r.http_status < 400}
+        fetched_gone = {r.final_url or r.url for r in rows if r.http_status in (404, 410)}
+        matched_offer_ids = {r.offer_id for r in rows if r.offer_id}
+
+        # Write scrape history BEFORE closure so a closure exception cannot
+        # roll back the WebsiteScrapeLog row (activity/history looked empty).
+        now = utcnow()
+        log = session.query(WebsiteScrapeLog).filter(WebsiteScrapeLog.brand_id == brand_id).first()
+        if log is None:
+            log = WebsiteScrapeLog(brand_id=brand_id, first_scraped_at=now)
+            session.add(log)
+
+        any_ok = bool(fetched_ok)
+        any_change = any(r.scrape_status in ("NEW", "UPDATED", "SALE_DETECTED") for r in rows)
+        any_sale = any(r.scrape_status == "SALE_DETECTED" for r in rows)
+        errors = [r.error_message for r in rows if r.error_message]
+
+        log.last_scraped_at = now
+        log.total_scrape_count = (log.total_scrape_count or 0) + 1
+        log.pages_discovered = len(rows)
+        log.status = "success" if any_ok else "failed"
+        log.error_message = None if any_ok else "; ".join(errors[:3]) or "No pages could be fetched"
+        if any_ok:
+            log.last_successful_scrape_at = now
+        if any_change:
+            log.last_content_change_at = now
+        if any_sale:
+            log.last_detected_sale_at = now
+
+        try:
+            closure_detector.apply(
+                session, brand.name,
+                fetched_ok_urls=fetched_ok, fetched_gone_urls=fetched_gone, matched_offer_ids=matched_offer_ids,
+            )
+        except Exception:
+            from config import logger
+            logger.exception("Closure detection failed for brand_id=%s job_id=%s", brand_id, job_id)
+
+
+def get_scrape_history(brand_id: int) -> dict | None:
+    with get_session() as session:
+        log = session.query(WebsiteScrapeLog).filter(WebsiteScrapeLog.brand_id == brand_id).first()
+        if log is None:
+            return None
+        return {
+            "brand_id": log.brand_id,
+            "first_scraped_at": log.first_scraped_at.isoformat() if log.first_scraped_at else None,
+            "last_scraped_at": log.last_scraped_at.isoformat() if log.last_scraped_at else None,
+            "last_successful_scrape_at": log.last_successful_scrape_at.isoformat() if log.last_successful_scrape_at else None,
+            "last_content_change_at": log.last_content_change_at.isoformat() if log.last_content_change_at else None,
+            "last_detected_sale_at": log.last_detected_sale_at.isoformat() if log.last_detected_sale_at else None,
+            "total_scrape_count": log.total_scrape_count,
+            "pages_discovered": log.pages_discovered,
+            "status": log.status,
+            "error_message": log.error_message,
+        }
+
+
+def get_scraped_pages(brand_id: int, limit: int = 100) -> list[dict]:
+    with get_session() as session:
+        rows = (
+            session.query(WebsiteScrapedPage)
+            .filter(WebsiteScrapedPage.brand_id == brand_id)
+            .order_by(WebsiteScrapedPage.id.desc())
+            .limit(limit)
+            .all()
+        )
+        return [_page_to_dict(r) for r in rows]
+
+
+def record_discovery_failure(brand_id: int, errors: list[str]) -> None:
+    """Called when discover_pages_for_brand() returns zero pages (e.g. the
+    homepage itself returned a WAF/bot-detection block) — without this, the
+    BackgroundJob machinery treats "no work items" as a plain success
+    ("Nothing to do.") and never calls after_run/finalize_brand_scrape, so a
+    brand that's actually fully blocked would otherwise show status
+    "never_run" forever with zero indication anything was even attempted."""
+    with get_session() as session:
+        log = session.query(WebsiteScrapeLog).filter(WebsiteScrapeLog.brand_id == brand_id).first()
+        now = utcnow()
+        if log is None:
+            log = WebsiteScrapeLog(brand_id=brand_id, first_scraped_at=now)
+            session.add(log)
+        log.last_scraped_at = now
+        log.total_scrape_count = (log.total_scrape_count or 0) + 1
+        log.status = "failed"
+        log.error_message = "; ".join(errors[:3]) if errors else "No relevant pages could be discovered"
+
+
+def get_recent_activity(limit: int = 20) -> dict:
+    """Recent job-log lines across every website-scrape job run — powers the
+    dashboard's "Recent Scraping Activity" feed with real events (already
+    written by services/jobs/website_scrape_brand.py), not synthetic data.
+
+    Includes `system` lines (Done / Nothing to do / fatal Error) as well as
+    `website` lines — filtering on category alone made the feed look empty
+    when discovery failed or a job hung before the first page log.
+    """
+    from config import WEBSITE_SCRAPE_STALE_MINUTES
+    from database.models import Job, JobLog
+    from services import job_service
+
+    reclaimed = job_service.reclaim_stale_jobs("website_scrape_brand", WEBSITE_SCRAPE_STALE_MINUTES)
+
+    with get_session() as session:
+        rows = (
+            session.query(JobLog, Job)
+            .join(Job, Job.id == JobLog.job_id)
+            .filter(Job.job_type == "website_scrape_brand")
+            .order_by(JobLog.id.desc())
+            .limit(limit)
+            .all()
+        )
+        activity = []
+        for log_row, job in rows:
+            payload = {}
+            try:
+                payload = json.loads(job.payload) if job.payload else {}
+            except (json.JSONDecodeError, TypeError):
+                pass
+            brand = payload.get("brand_name")
+            msg = log_row.message
+            if brand and brand not in msg and not msg.startswith("Scraping "):
+                msg = f"[{brand}] {msg}"
+            time_iso = log_row.created_at.isoformat() if log_row.created_at else None
+            if time_iso and not time_iso.endswith("Z") and "+" not in time_iso:
+                time_iso += "Z"
+            activity.append({
+                "id": log_row.id,
+                "job_id": job.id,
+                "message": msg,
+                "severity": log_row.severity,
+                "time": time_iso,
+            })
+
+        active = (
+            session.query(Job)
+            .filter(
+                Job.job_type == "website_scrape_brand",
+                Job.status.in_(["pending", "running", "cancelling"]),
+            )
+            .order_by(Job.id.desc())
+            .limit(10)
+            .all()
+        )
+        active_jobs = []
+        for job in active:
+            payload = {}
+            try:
+                payload = json.loads(job.payload) if job.payload else {}
+            except (json.JSONDecodeError, TypeError):
+                pass
+            active_jobs.append({
+                "job_id": job.id,
+                "brand_name": payload.get("brand_name"),
+                "status": job.status,
+                "stage": job.stage,
+                "progress_percentage": job.progress_percentage,
+                "current_item_label": job.current_item_label,
+                "processed_items": job.processed_items,
+                "total_items": job.total_items,
+                "error": job.error,
+            })
+
+    return {
+        "activity": activity,
+        "active_jobs": active_jobs,
+        "active_count": len(active_jobs),
+        "reclaimed_stale": len(reclaimed),
+    }
+
+
+def get_pages_by_job(job_id: int) -> list[dict]:
+    with get_session() as session:
+        rows = (
+            session.query(WebsiteScrapedPage)
+            .filter(WebsiteScrapedPage.job_id == job_id)
+            .order_by(WebsiteScrapedPage.id.desc())
+            .all()
+        )
+        return [_page_to_dict(r) for r in rows]
+
+
+def get_page(page_id: int) -> dict | None:
+    with get_session() as session:
+        row = session.query(WebsiteScrapedPage).filter(WebsiteScrapedPage.id == page_id).first()
+        return _page_to_dict(row) if row else None
+
+
+def _loads(value):
+    if not value:
+        return None
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+def _page_to_dict(row: WebsiteScrapedPage) -> dict:
+    return {
+        "id": row.id,
+        "brand_id": row.brand_id,
+        "url": row.url,
+        "final_url": row.final_url,
+        "page_type": row.page_type,
+        "page_title": row.page_title,
+        "meta_description": row.meta_description,
+        "canonical_url": row.canonical_url,
+        "headline_text": row.headline_text,
+        "body_text": row.body_text,
+        "important_text": _loads(row.important_text) or [],
+        "images": _loads(row.images) or [],
+        "image_alt_text": _loads(row.image_alt_text) or [],
+        "detected_prices": _loads(row.detected_prices) or [],
+        "discount_percentages": _loads(row.discount_percentages) or [],
+        "coupon_codes": _loads(row.coupon_codes) or [],
+        "links": _loads(row.links) or [],
+        "page_content_hash": row.page_content_hash,
+        "normalized_content_hash": row.normalized_content_hash,
+        "sale_score": row.sale_score,
+        "scrape_status": row.scrape_status,
+        "ai_analyzed": row.ai_analyzed,
+        "ai_result": _loads(row.ai_result),
+        "offer_id": row.offer_id,
+        "http_status": row.http_status,
+        "error_message": row.error_message,
+        "scraped_at": row.scraped_at.isoformat() if row.scraped_at else None,
+        "processing_duration": row.processing_duration,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }

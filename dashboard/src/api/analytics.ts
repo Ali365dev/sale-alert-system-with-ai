@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "./client";
+import { scraperClient as apiClient } from "./client";
 import type { CountItem, VerificationCount } from "./overview";
 
 export interface HistogramBucket {

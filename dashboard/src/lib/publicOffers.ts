@@ -72,17 +72,23 @@ export function offerTypeIsCashback(offer: Offer): boolean {
   return (offer.offer_type ?? "").toLowerCase().includes("cashback");
 }
 
-const CATEGORY_IMAGE_QUERIES: { match: RegExp; query: string }[] = [
-  { match: /fashion|apparel|clothing|retail/i, query: "photo-1483985988355-763728e1935b" },
-  { match: /electronic|software|tech/i, query: "photo-1518770660439-4636190af475" },
-  { match: /beauty|cosmetic/i, query: "photo-1522335789203-aabd1fc54bc9" },
-  { match: /food|restaurant|grocery/i, query: "photo-1504674900247-0877df9cc836" },
-  { match: /travel/i, query: "photo-1436491865332-7a61a109cc05" },
-  { match: /sport|fitness/i, query: "photo-1517649763962-0c623066013b" },
-  { match: /home|furniture/i, query: "photo-1484154218962-a197022b5858" },
-  { match: /gaming|game/i, query: "photo-1550745165-9bc0b252726f" },
+const CATEGORY_IMAGE_QUERIES: { match: RegExp; queries: string[] }[] = [
+  { match: /fashion|apparel|clothing|retail/i, queries: ["photo-1483985988355-763728e1935b", "photo-1529139574466-a303027c1d8b", "photo-1542291026-7eec264c27ff", "photo-1584917865442-de89df76afd3"] },
+  { match: /electronic|software|tech/i, queries: ["photo-1518770660439-4636190af475", "photo-1498049794561-7780e7231661", "photo-1505740420928-5e560c06d30e"] },
+  { match: /beauty|cosmetic/i, queries: ["photo-1522335789203-aabd1fc54bc9", "photo-1596462502278-27bfdc403348", "photo-1608248543803-ba4f8c70ae0b"] },
+  { match: /food|restaurant|grocery/i, queries: ["photo-1504674900247-0877df9cc836", "photo-1540189549336-e6e99c3679fe"] },
+  { match: /travel/i, queries: ["photo-1436491865332-7a61a109cc05", "photo-1500530855697-b586d89ba3ee"] },
+  { match: /sport|fitness/i, queries: ["photo-1517649763962-0c623066013b", "photo-1530549387789-4c1017266635", "photo-1542291026-7eec264c27ff"] },
+  { match: /home|furniture/i, queries: ["photo-1484154218962-a197022b5858", "photo-1493663284031-b7e3aefcae8e", "photo-1616486338812-3dadae4b4ace"] },
+  { match: /gaming|game/i, queries: ["photo-1550745165-9bc0b252726f", "photo-1593305841991-05c297ba4575"] },
 ];
-const DEFAULT_IMAGE_QUERY = "photo-1607082349566-187342175e2f";
+const DEFAULT_IMAGE_QUERIES = [
+  "photo-1483985988355-763728e1935b",
+  "photo-1529139574466-a303027c1d8b",
+  "photo-1542291026-7eec264c27ff",
+  "photo-1498049794561-7780e7231661",
+  "photo-1584917865442-de89df76afd3",
+];
 
 function hashString(s: string): number {
   let h = 0;
@@ -90,17 +96,14 @@ function hashString(s: string): number {
   return h;
 }
 
-/** Category-relevant stock photo — offers have no real photography anywhere
- * in the backend (see database/models.py's Offer columns). Kept identical
- * to dealplusApp's imageForCategory() (src/utils/dealAdapters.js) so the
- * photo is actually on-theme, unlike a fully random per-brand image; `seed`
- * (typically the brand name) only varies the crop/focal point within that
- * same photo, so different brands in one category still look distinct from
- * each other without losing relevance. */
+/** Category-relevant stock photography — offers have no real photography
+ * stored in the backend. The seed chooses among a few on-theme images and
+ * varies the crop so adjacent cards do not all repeat one photograph. */
 export function imageForOffer(category: string | null | undefined, seed: string | null | undefined, width = 600, height = 400): string {
-  const match = category ? CATEGORY_IMAGE_QUERIES.find((c) => c.match.test(category)) : undefined;
-  const photo = match?.query ?? DEFAULT_IMAGE_QUERY;
+  const hint = `${category ?? ""} ${seed ?? ""}`;
+  const match = CATEGORY_IMAGE_QUERIES.find((c) => c.match.test(hint));
   const h = hashString(seed ?? category ?? "deal");
+  const photo = match?.queries[h % match.queries.length] ?? DEFAULT_IMAGE_QUERIES[h % DEFAULT_IMAGE_QUERIES.length];
   const fx = (0.3 + ((h & 0xff) % 41) / 100).toFixed(2);
   const fy = (0.3 + (((h >> 8) & 0xff) % 41) / 100).toFixed(2);
   return `https://images.unsplash.com/${photo}?w=${width}&h=${height}&q=75&fit=crop&crop=focalpoint&fp-x=${fx}&fp-y=${fy}&fp-z=1.3&auto=format`;

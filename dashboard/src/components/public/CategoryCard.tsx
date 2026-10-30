@@ -1,5 +1,14 @@
-import { Icon } from "../icons";
 import { TONE_BG, TONE_FG, toneForName } from "../../lib/publicOffers";
+
+const CATEGORY_ART: { test: RegExp; emoji: string }[] = [
+  { test: /fashion|clothing|apparel/i, emoji: "👗" },
+  { test: /electronic|tech/i, emoji: "🎧" },
+  { test: /home|living|furniture/i, emoji: "🛋️" },
+  { test: /beauty|cosmetic/i, emoji: "🧴" },
+  { test: /sport|shoe|footwear/i, emoji: "👟" },
+  { test: /kid|baby|toy/i, emoji: "🧸" },
+  { test: /accessor|bag/i, emoji: "👜" },
+];
 
 export function CategoryCard({
   name,
@@ -13,6 +22,7 @@ export function CategoryCard({
   onClick?: () => void;
 }) {
   const tone = toneForName(name);
+  const emoji = CATEGORY_ART.find((item) => item.test.test(name))?.emoji ?? "🏷️";
   return (
     <button
       type="button"
@@ -45,7 +55,7 @@ export function CategoryCard({
           justifyContent: "center",
         }}
       >
-        <Icon.tag size={16} />
+        <span aria-hidden="true" style={{ fontSize: 23, lineHeight: 1 }}>{emoji}</span>
       </span>
       <div>
         <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-strong)" }}>{name}</div>

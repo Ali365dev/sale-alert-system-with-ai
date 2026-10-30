@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { apiClient } from "../api/client";
+import { scraperClient as apiClient } from "../api/client";
 import {
   isHttpUrl,
   useBrandScrapeConfig,

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "./client";
+import { scraperClient as apiClient } from "./client";
 
 export interface InsightOffer {
   id: number;

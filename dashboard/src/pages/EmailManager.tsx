@@ -16,7 +16,7 @@ import {
   type ProcessingStatus,
 } from "../api/emails";
 import { useBrands } from "../api/brands";
-import { apiClient } from "../api/client";
+import { scraperClient as apiClient } from "../api/client";
 import { getJobTypeConfig } from "../config/jobTypes";
 import { TONE_BG, TONE_FG, toneForName } from "../lib/publicOffers";
 import { Icon } from "../components/icons";

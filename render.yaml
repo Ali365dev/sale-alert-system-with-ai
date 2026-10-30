@@ -1,35 +1,20 @@
 services:
-  - name: gmail-offers-api
+
+  # ── App Server ──────────────────────────────────────────────────────────────
+  # Handles: auth, brands, offers, categories, preferences, sale_alerts,
+  # overview, search. Runs the background scheduler.
+  - name: sales-alert-app
     type: web
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./app_server/Dockerfile
     dockerContext: ./
     plan: free
     healthCheckPath: /api/health
     autoDeploy: true
 
-    # No persistent Disk here on purpose — Free web services don't support
-    # one (filesystem resets on every redeploy/restart/spin-down). The Gmail
-    # OAuth token is instead stored in the `Setting` DB row
-    # "gmail_oauth_token" (Fernet-encrypted with SETTINGS_ENCRYPTION_KEY —
-    # see gmail/gmail_client.py), so it survives regardless of host storage.
-    #
-    # First-time auth: run `python -c "from gmail.gmail_client import
-    # get_gmail_service; get_gmail_service()"` LOCALLY, with your local .env
-    # pointed at the SAME DATABASE_URL and the SAME SETTINGS_ENCRYPTION_KEY
-    # you set below — completing the browser consent flow locally then
-    # writes the token straight into the shared DB this service reads from.
-    # No file to copy, no Shell tab needed.
-    #
-    # Free-tier services spin down after ~15 min idle and cold-start on the
-    # next request (~1 min). Keep-alive must be an *external* GET to
-    # /api/health every ~10 min (UptimeRobot, cron-job.org, etc.) — see
-    # README.md "Keeping a Render Free Web Service awake". Do not add a
-    # self-ping inside this process.
-
     envVars:
       - key: GMAIL_CREDENTIALS_JSON
-        sync: false  # paste the raw contents of your credentials.json here
+        sync: false
 
       - key: GMAIL_LABEL
         value: sales_offers
@@ -38,37 +23,67 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-1.5-flash
+
       - key: GROQ_API_KEY
         sync: false
 
-      # External Postgres — Supabase or Render's own managed Postgres both
-      # work; this just needs a valid connection string either way. Use the
-      # SAME connection string in your local .env for first-time Gmail auth
-      # (see note above).
       - key: DATABASE_URL
         sync: false
 
-      # Must match the value in your local .env used for first-time Gmail
-      # auth (it encrypts the token row in the shared DB) — set it
-      # explicitly here rather than letting Render generate one. Never
-      # rotate it once API keys or the Gmail token have been saved, or they
-      # become unreadable.
       - key: SETTINGS_ENCRYPTION_KEY
         sync: false
 
-      # Comma-separated exact origins for the deployed dashboard frontend,
-      # e.g. https://your-dashboard.onrender.com — required for Settings
-      # login (credentialed requests) to work from a browser. Leave unset
-      # only if the dashboard is never used from anywhere but localhost.
       - key: ADDITIONAL_CORS_ORIGINS
         sync: false
 
       - key: LOG_LEVEL
         value: INFO
 
-      # Personalized feed + FCM matching (services/offer_matching.py) —
-      # "or" (brand OR category) vs "and" (brand AND category). "or" is
-      # recommended with few offers per brand, where "and" can produce an
-      # empty feed/no notifications even for users with real preferences.
+      # Keep-alive: ping the app server every 10 min so it never sleeps.
+      - key: APP_SERVER_URL
+        value: https://sales-alert-app.onrender.com
+
       - key: OFFER_MATCH_MODE
         value: or
+
+      # Keep-alive: ping the scraper server every 10 min so it never sleeps.
+      # Set this to your deployed scraper service URL after first deploy.
+      - key: SCRAPER_SERVER_URL
+        value: https://sales-alert-scraper.onrender.com
+
+  # ── Scraper Server ──────────────────────────────────────────────────────────
+  # Handles: analytics, insights, jobs, notifications, automation, settings,
+  # brand_requests, emails, unknown_emails, website scraping, social scraping,
+  # brand discovery.
+  - name: sales-alert-scraper
+    type: web
+    runtime: docker
+    dockerfilePath: ./scraper_server/Dockerfile
+    dockerContext: ./
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: TAVILY_API_KEY
+        sync: false
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: SETTINGS_ENCRYPTION_KEY
+        sync: false
+
+      - key: ADDITIONAL_CORS_ORIGINS
+        sync: false
+
+      - key: LOG_LEVEL
+        value: INFO

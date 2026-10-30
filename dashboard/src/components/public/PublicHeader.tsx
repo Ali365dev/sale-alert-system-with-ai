@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { Moon, Search, ShoppingBag, Sun, UserRound } from "lucide-react";
 
-import { Icon } from "../icons";
 import { useAuthStore } from "../../store/authStore";
 import { useUiStore } from "../../store/uiStore";
 
@@ -9,7 +9,6 @@ const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Deals", href: "/deals" },
   { label: "Categories", href: "/categories" },
-  { label: "Brands", href: "/deals/brands" },
   { label: "Favorites", href: "/favorites" },
 ];
 
@@ -37,6 +36,7 @@ export function PublicHeader() {
 
   return (
     <header
+      className="public-header"
       style={{
         position: "sticky",
         top: 0,
@@ -69,18 +69,21 @@ export function PublicHeader() {
         >
           <span
             style={{
-              width: 30,
-              height: 30,
+              width: 27,
+              height: 29,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "var(--brand)",
+              color: "#fff",
+              background: "var(--brand)",
+              borderRadius: "6px 6px 4px 4px",
+              transform: "rotate(8deg)",
             }}
           >
-            <Icon.pulse size={22} strokeWidth={2.5} />
+            <ShoppingBag size={21} strokeWidth={2.5} />
           </span>
           <span style={{ font: "var(--fw-extra) 18px/1 var(--font-sans)", letterSpacing: "var(--ls-snug)" }}>
-            Deal<span style={{ color: "var(--brand)" }}>Pulse</span>
+            Deals<span style={{ color: "var(--brand)" }}>More</span>
           </span>
         </Link>
 
@@ -93,11 +96,12 @@ export function PublicHeader() {
                 to={link.href}
                 style={{
                   padding: "8px 12px",
-                  borderRadius: "var(--radius-sm)",
+                  borderRadius: 0,
                   fontSize: 13.5,
                   fontWeight: 600,
                   color: active ? "var(--brand)" : "var(--text-body)",
                   whiteSpace: "nowrap",
+                  borderBottom: active ? "2px solid var(--brand)" : "2px solid transparent",
                 }}
               >
                 {link.label}
@@ -110,7 +114,7 @@ export function PublicHeader() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search offers, brands, coupons…"
+            placeholder="Search brands, offers, categories…"
             aria-label="Search offers"
             style={{
               width: "100%",
@@ -124,7 +128,7 @@ export function PublicHeader() {
             }}
           />
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }}>
-            <Icon.search size={15} />
+            <Search size={15} />
           </span>
         </form>
 
@@ -147,7 +151,7 @@ export function PublicHeader() {
             whiteSpace: "nowrap",
           }}
         >
-          {theme === "dark" ? "Dark" : "Light"}
+          {theme === "dark" ? <Sun size={15} aria-label="Dark theme" /> : <Moon size={15} aria-label="Light theme" />}
         </button>
 
         {user ? (
@@ -156,39 +160,42 @@ export function PublicHeader() {
             title={`Signed in as ${user.email}`}
             style={{
               flex: "0 0 auto",
-              height: 38,
-              padding: "0 14px",
+              width: 36,
+              height: 36,
+              padding: 0,
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
               border: "1px solid var(--border)",
-              borderRadius: "var(--radius-pill)",
-              background: "var(--surface-card)",
-              color: "var(--text-body)",
-              font: "600 12.5px/1 var(--font-sans)",
+              borderRadius: "50%",
+              background: "var(--surface-inverse)",
+              color: "var(--text-on-inverse)",
+              font: "700 12px/1 var(--font-sans)",
               whiteSpace: "nowrap",
             }}
           >
-            {user.name || user.email.split("@")[0]}
+            {(user.name || user.email).slice(0, 1).toUpperCase()}
           </Link>
         ) : (
           <Link
             to="/sign-in"
+            aria-label="Sign in"
             style={{
               flex: "0 0 auto",
-              height: 38,
-              padding: "0 16px",
+              width: 36,
+              height: 36,
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               border: "1px solid transparent",
-              borderRadius: "var(--radius-pill)",
-              background: "var(--brand)",
+              borderRadius: "50%",
+              background: "var(--surface-inverse)",
               color: "var(--on-brand)",
               font: "600 12.5px/1 var(--font-sans)",
               whiteSpace: "nowrap",
             }}
           >
-            Sign in
+            <UserRound size={15} />
           </Link>
         )}
       </div>
