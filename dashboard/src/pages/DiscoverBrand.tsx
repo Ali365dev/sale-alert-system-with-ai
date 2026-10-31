@@ -16,6 +16,7 @@ import {
   type SocialPlatform,
 } from "../api/brandDiscovery";
 import { ProcessingPanel } from "../components/jobs/ProcessingPanel";
+import { CountrySelect } from "../components/brands/CountrySelect";
 import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -447,7 +448,10 @@ function ReviewScreen({ discoveryId, onDone }: { discoveryId: number; onDone: ()
               </FieldGroup>
               <FieldGroup>
                 <Label>Country</Label>
-                <TextInput defaultValue={discovery.country ?? ""} onBlur={(e) => patchField("country", e.target.value)} />
+                <CountrySelect
+                  value={discovery.country ?? ""}
+                  onChange={(code) => patchField("country", code)}
+                />
                 <SourceBadge source={discovery.field_sources.country} />
               </FieldGroup>
             </div>
@@ -587,7 +591,7 @@ export function DiscoverBrand() {
         </>
       )}
 
-      {activeDiscoveryId !== null && activeJobId !== null && isDiscovering && (
+      {activeDiscoveryId !== null && activeJobId !== null && (!activeDiscovery || isDiscovering) && (
         <ProcessingPanel jobId={activeJobId} onDismiss={reset} />
       )}
 

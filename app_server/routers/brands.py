@@ -7,7 +7,7 @@ import json
 import threading
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import JSONResponse
 
 from api.logo_display import apply_logo_body, logo_fields_from_brand
@@ -18,6 +18,24 @@ from database.models import Brand, Offer
 router = APIRouter(prefix="/api/brands", tags=["brands"])
 
 _bulk_search_state = {"running": False, "done": 0, "total": 0, "offers_found": 0, "offers_saved": 0}
+
+# Normalise free-text country names (from AI discovery) to 2-letter ISO codes.
+_COUNTRY_ISO: dict[str, str] = {
+    "pakistan": "PK", "saudi arabia": "SA", "ksa": "SA",
+    "united arab emirates": "AE", "uae": "AE", "dubai": "AE",
+    "egypt": "EG", "qatar": "QA", "kuwait": "KW", "oman": "OM", "bahrain": "BH",
+    "united states": "US", "usa": "US", "united states of america": "US",
+    "united kingdom": "GB", "uk": "GB", "turkey": "TR", "türkiye": "TR",
+    "india": "IN", "singapore": "SG",
+}
+
+def _iso_country(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    stripped = raw.strip()
+    if len(stripped) == 2:
+        return stripped.upper()
+    return _COUNTRY_ISO.get(stripped.lower(), stripped)
 _single_search_state: dict[int, dict] = {}
 
 
@@ -74,9 +92,16 @@ def _save_offers(offers_data: list[dict]) -> tuple[int, int]:
 
 
 @router.get("")
-def list_brands():
+def list_brands(region: str | None = Query(default=None)):
     with get_session() as session:
-        brands = session.query(Brand).order_by(Brand.name.asc()).all()
+        q = session.query(Brand)
+        if region:
+            # Include brands tagged for this country OR brands with no country
+            # (null = global/international brand that operates in all markets).
+            q = q.filter(
+                (Brand.country == region.upper()) | Brand.country.is_(None)
+            )
+        brands = q.order_by(Brand.name.asc()).all()
         rows = [_brand_to_dict(b) for b in brands]
 
     return {
@@ -105,7 +130,7 @@ def create_brand(body: dict = Body(...)):
             is_active=bool(body.get("is_active", True)),
             logo_url=(body.get("logo_url") or "").strip() or None,
             description=(body.get("description") or "").strip() or None,
-            country=(body.get("country") or "").strip() or None,
+            country=_iso_country(body.get("country")),
             social_links=json.dumps(body.get("social_links")) if body.get("social_links") else None,
             homepage_url=(body.get("homepage_url") or "").strip() or None,
             sale_page_url=(body.get("sale_page_url") or "").strip() or None,
@@ -140,7 +165,7 @@ def update_brand(brand_id: int, body: dict = Body(...)):
         if "description" in body:
             b.description = (body["description"] or "").strip() or None
         if "country" in body:
-            b.country = (body["country"] or "").strip() or None
+            b.country = _iso_country(body.get("country"))
         if "social_links" in body:
             b.social_links = json.dumps(body["social_links"]) if body["social_links"] else None
         for field in ("homepage_url", "sale_page_url", "offers_page_url", "promotions_page_url"):

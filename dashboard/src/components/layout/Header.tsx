@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import { useSettingsLogout } from "../../api/settings";
 import { useUiStore } from "../../store/uiStore";
 import { Icon } from "../icons";
+import { CountrySelector } from "./CountrySelector";
 
 function GlobalSearch() {
   const navigate = useNavigate();
@@ -178,8 +179,13 @@ function AvatarMenu() {
   );
 }
 
+// Pages where country filter doesn't apply (email ingestion is global)
+const EMAIL_PATHS = ["/emails", "/unknown-emails", "/search"];
+
 export function Header() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const showCountryFilter = !EMAIL_PATHS.some((p) => pathname.startsWith(p));
 
   return (
     <header
@@ -198,6 +204,8 @@ export function Header() {
       <GlobalSearch />
 
       <div style={{ flex: "1 1 auto" }} />
+
+      {showCountryFilter && <CountrySelector />}
 
       <button
         type="button"

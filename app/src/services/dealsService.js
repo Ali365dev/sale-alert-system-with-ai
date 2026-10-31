@@ -4,6 +4,7 @@ import { deriveAlerts, deriveBrandsAndDeals, deriveCategories } from '../utils/d
 import useDataStore from '../state/dataStore';
 import usePreferencesStore from '../state/preferencesStore';
 import { fetchInterests } from './preferencesApi';
+import regionStore from '../state/regionStore';
 
 const CATALOG_TIMEOUT_MS = 15000;
 // Hosted API (Render) cold-starts past 15s. One longer retry covers that
@@ -13,14 +14,17 @@ const CATALOG_RETRY_TIMEOUT_MS = 45000;
 const isTimeout = (error) =>
   error?.code === 'ECONNABORTED' || /timeout of \d+ms exceeded/i.test(error?.message || '');
 
-const fetchCatalog = (timeout) =>
-  Promise.all([
-    appAxios.get('/brands', { timeout }),
+const fetchCatalog = (timeout) => {
+  const region = regionStore.getState().regionCode;
+  const params = region ? { region } : {};
+  return Promise.all([
+    appAxios.get('/brands', { timeout, params }),
     // Full catalog. Passing device_id turns on personalization, and a brand-new
     // install has no saved brands/categories, so the API returns zero offers.
-    appAxios.get('/offers', { timeout }),
-    appAxios.get('/categories', { timeout }).catch(() => ({ data: { categories: [] } })),
+    appAxios.get('/offers', { timeout, params }),
+    appAxios.get('/categories', { timeout, params }).catch(() => ({ data: { categories: [] } })),
   ]);
+};
 
 let inflight = null;
 
@@ -28,8 +32,23 @@ let inflight = null;
  * writes the result straight into dataStore — screens read from the store,
  * not from this function's return value.
  * Concurrent callers (launch, foreground, pull-to-refresh) share one request
- * so navigation cannot pile up hung calls. */
-export const loadDeals = () => {
+ * so navigation cannot pile up hung calls.
+ * Pass clearCache=true when the region changed — clears stale data immediately
+ * so the old country's brands never show under the new country. */
+export const loadDeals = (clearCache = false) => {
+  if (clearCache) {
+    // Region changed: drop any in-flight request for the old region and wipe
+    // the persisted catalog so the loading state shows instead of stale data.
+    inflight = null;
+    useDataStore.setState({
+      brands: [],
+      deals: [],
+      brandsById: {},
+      categories: [],
+      loading: true,
+      error: null,
+    });
+  }
   if (inflight) return inflight;
   inflight = loadDealsOnce().finally(() => {
     inflight = null;

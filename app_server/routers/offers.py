@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import case, func
 
 from database.db import get_session
-from database.models import Offer, UserProfile
+from database.models import Brand, Offer, UserProfile
 from services.offer_delete import delete_offer_row
 from database.offer_retention import compute_offer_status
 from services.offer_matching import apply_personalized_offer_filter
@@ -74,6 +74,7 @@ def list_offers(
     active: str | None = Query(None),
     source: str | None = Query(None),
     device_id: str | None = Query(None),
+    region: str | None = Query(None),
 ):
     with get_session() as session:
         q = session.query(Offer)
@@ -94,6 +95,20 @@ def list_offers(
                 except (json.JSONDecodeError, TypeError):
                     categories = []
             q = apply_personalized_offer_filter(q, brands, categories)
+        if region:
+            # Brands for this country + global brands (country IS NULL).
+            regional_brands = [
+                r[0] for r in session.query(Brand.name)
+                .filter(
+                    (Brand.country == region.upper()) | Brand.country.is_(None),
+                    Brand.name.isnot(None),
+                )
+                .all()
+            ]
+            # Always apply the brand filter even when the list is empty — an
+            # empty list means no brands exist for this region so offers should
+            # also be empty, not unfiltered (which would show all countries).
+            q = q.filter(Offer.brand.in_(regional_brands))
         if brand:
             q = q.filter(Offer.brand == brand)
         if source:

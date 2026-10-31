@@ -37,13 +37,14 @@ export interface BrandsResponse {
   };
 }
 
-async function fetchBrands(): Promise<BrandsResponse> {
-  const { data } = await apiClient.get<BrandsResponse>("/brands");
+async function fetchBrands(region: string | null): Promise<BrandsResponse> {
+  const params = region ? { region } : {};
+  const { data } = await apiClient.get<BrandsResponse>("/brands", { params });
   return data;
 }
 
-export function useBrands() {
-  return useQuery({ queryKey: ["brands"], queryFn: fetchBrands });
+export function useBrands(region: string | null = null) {
+  return useQuery({ queryKey: ["brands", region], queryFn: () => fetchBrands(region) });
 }
 
 export type BrandInput = Partial<Omit<Brand, "id" | "created_at" | "last_searched">>;

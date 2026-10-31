@@ -23,7 +23,7 @@ _MIN_PASSWORD_LENGTH = 8
 
 
 def _user_to_dict(u: User) -> dict:
-    return {"id": u.id, "email": u.email, "name": u.name}
+    return {"id": u.id, "email": u.email, "name": u.name, "phone": u.phone, "country": u.country}
 
 
 def _profile_fields(p: UserProfile | None) -> dict:
@@ -85,6 +85,8 @@ def signup(body: dict = Body(...)):
     email = (body.get("email") or "").strip().lower()
     password = body.get("password") or ""
     name = (body.get("name") or "").strip() or None
+    phone = (body.get("phone") or "").strip() or None
+    country = (body.get("country") or "").strip().upper() or None
     device_id = body.get("device_id")
 
     if not _EMAIL_RE.match(email):
@@ -100,6 +102,8 @@ def signup(body: dict = Body(...)):
             email=email,
             password_hash=user_auth.hash_password(password),
             name=name,
+            phone=phone,
+            country=country,
             last_login_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
         session.add(user)

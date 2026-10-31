@@ -1,4 +1,5 @@
 import { useOverview } from "../api/overview";
+import { useRegionStore } from "../store/regionStore";
 import { BarList } from "../components/ui/BarList";
 import { Badge } from "../components/ui/Badge";
 import { Card, CardHeader } from "../components/ui/Card";
@@ -25,7 +26,8 @@ function formatDate(iso: string | null) {
 }
 
 export function Overview() {
-  const { data, isLoading, isError } = useOverview();
+  const region = useRegionStore((s) => s.region);
+  const { data, isLoading, isError } = useOverview(region);
 
   if (isLoading) {
     return <div style={{ color: "var(--text-muted)" }}>Loading overview…</div>;

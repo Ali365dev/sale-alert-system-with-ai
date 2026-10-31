@@ -25,12 +25,15 @@ export type CategoryInput = {
   sort_order?: number;
 };
 
-export function useCategories(includeInactive = false) {
+export function useCategories(includeInactive = false, region: string | null = null) {
   return useQuery({
-    queryKey: ["categories", includeInactive],
+    queryKey: ["categories", includeInactive, region],
     queryFn: async () => {
+      const params: Record<string, string> = {};
+      if (includeInactive) params.include_inactive = "true";
+      if (region) params.region = region;
       const { data } = await apiClient.get<CategoriesResponse>("/categories", {
-        params: includeInactive ? { include_inactive: true } : undefined,
+        params: Object.keys(params).length ? params : undefined,
       });
       return data;
     },

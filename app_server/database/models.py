@@ -639,6 +639,7 @@ class UserProfile(Base):
 
     brands = Column(Text, nullable=True)      # JSON array of brand names, stored as text
     categories = Column(Text, nullable=True)  # JSON array of category names, stored as text
+    region = Column(String(2), nullable=True)  # ISO country code e.g. 'PK', 'SA'
 
     created_at = Column(DateTime, default=_utcnow, nullable=False)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
@@ -685,6 +686,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)
     firebase_uid = Column(String(255), unique=True, nullable=True, index=True)
     name = Column(String(255), nullable=True)
+    phone = Column(String(30), nullable=True)
+    country = Column(String(2), nullable=True)  # ISO country code e.g. 'PK', 'SA'
 
     created_at = Column(DateTime, default=_utcnow, nullable=False)
     last_login_at = Column(DateTime, nullable=True)

@@ -20,6 +20,15 @@ export const saveInterests = async ({ brands, categories } = {}) => {
   }
 };
 
+export const saveRegion = async (regionCode) => {
+  if (!regionCode) return;
+  try {
+    await appAxios.put('/preferences', { device_id: getDeviceId(), region: regionCode });
+  } catch (error) {
+    console.log('Failed to save region:', error?.message);
+  }
+};
+
 export const fetchInterests = async () => {
   try {
     const response = await appAxios.get('/preferences', { params: { device_id: getDeviceId() } });

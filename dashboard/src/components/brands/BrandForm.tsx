@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import type { Brand, BrandInput } from "../../api/brands";
 import { BrandLogo } from "./BrandLogo";
+import { CategoryMultiSelect } from "./CategoryMultiSelect";
+import { CountrySelect } from "./CountrySelect";
 import { Button } from "../ui/Button";
 import { Label, TextArea, TextInput } from "../ui/Field";
 
@@ -20,7 +22,8 @@ export function BrandForm({
     name: initial?.name ?? "",
     website: initial?.website ?? "",
     logo_url: initial?.logo_url ?? "",
-    categories: initial?.categories.join(", ") ?? "",
+    categories: initial?.categories ?? [] as string[],
+    country: initial?.country ?? "",
     emails: initial?.emails.join("\n") ?? "",
     is_active: initial?.is_active ?? true,
     facebook: initial?.social_links?.facebook ?? "",
@@ -51,7 +54,8 @@ export function BrandForm({
       name: form.name.trim(),
       website: form.website.trim() || null,
       logo_url: form.logo_url.trim() || null,
-      categories: form.categories.split(",").map((c) => c.trim()).filter(Boolean),
+      categories: form.categories,
+      country: form.country || null,
       emails,
       is_active: form.is_active,
       social_links,
@@ -106,9 +110,18 @@ export function BrandForm({
           )}
         </div>
       </div>
-      <div>
-        <Label>Categories (comma-separated)</Label>
-        <TextInput value={form.categories} onChange={(e) => update({ categories: e.target.value })} />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div>
+          <Label>Categories</Label>
+          <CategoryMultiSelect
+            selected={form.categories}
+            onChange={(categories) => update({ categories })}
+          />
+        </div>
+        <div>
+          <Label>Country / Location</Label>
+          <CountrySelect value={form.country} onChange={(country) => update({ country })} />
+        </div>
       </div>
       <div>
         <Label>Social links</Label>

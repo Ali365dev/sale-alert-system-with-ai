@@ -25,6 +25,8 @@ import { isAppleSignInAvailable, signInWithApple } from '../../services/appleAut
 import AuthChrome from '../../components/AuthChrome';
 import PrimaryButton from '../../components/PrimaryButton';
 import GoogleLogo from '../../components/GoogleLogo';
+import CountryPicker from '../../components/CountryPicker';
+import regionStore from '../../state/regionStore';
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -69,6 +71,8 @@ const AuthScreen = ({ initialMode = 'login' }) => {
   const slideX = useRef(new Animated.Value(0)).current;
 
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState(() => regionStore.getState().regionCode || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -162,6 +166,8 @@ const AuthScreen = ({ initialMode = 'login' }) => {
       email: email.trim().toLowerCase(),
       password,
       name: name.trim() || undefined,
+      phone: phone.trim() || undefined,
+      country: country || undefined,
     });
     setSubmitting(false);
     if (!result.ok) {
@@ -271,14 +277,30 @@ const AuthScreen = ({ initialMode = 'login' }) => {
             ) : null}
 
             {isSignup ? (
-              <LabeledField
-                label="Full Name"
-                value={name}
-                onChangeText={setName}
-                placeholder="Full name"
-                colors={colors}
-                styles={styles}
-              />
+              <>
+                <LabeledField
+                  label="Full Name"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Full name"
+                  colors={colors}
+                  styles={styles}
+                />
+                <CountryPicker
+                  value={country}
+                  onChange={setCountry}
+                  error={errors.country}
+                />
+                <LabeledField
+                  label="Phone Number"
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="+92 300 0000000"
+                  keyboardType="phone-pad"
+                  colors={colors}
+                  styles={styles}
+                />
+              </>
             ) : null}
 
             <LabeledField

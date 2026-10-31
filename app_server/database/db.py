@@ -84,6 +84,9 @@ def _migrate() -> None:
         ("sale_alerts", "watch_below_price",          "FLOAT"),
         ("sale_alerts", "check_fail_count",           "INTEGER DEFAULT 0"),
         ("sale_alerts", "last_check_error",           "TEXT"),
+        ("user_profiles", "region",                   "VARCHAR(2)"),
+        ("users", "phone",                            "VARCHAR(30)"),
+        ("users", "country",                          "VARCHAR(2)"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:

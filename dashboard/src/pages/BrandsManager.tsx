@@ -27,6 +27,7 @@ import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
 import { Icon } from "../components/icons";
 import { toast } from "../store/toastStore";
+import { useRegionStore } from "../store/regionStore";
 import { exportBrandsToCsv, exportBrandsToPdf } from "../utils/exportBrands";
 
 function formatDateTime(iso: string | null) {
@@ -509,7 +510,8 @@ function AddBrand() {
 
 export function BrandsManager() {
   const [tab, setTab] = useState("all");
-  const { data, isLoading, isError } = useBrands();
+  const region = useRegionStore((s) => s.region);
+  const { data, isLoading, isError } = useBrands(region);
 
   if (isLoading) return <div style={{ color: "var(--text-muted)" }}>Loading brands…</div>;
   if (isError || !data) return <div style={{ color: "var(--danger)" }}>Failed to load brands.</div>;

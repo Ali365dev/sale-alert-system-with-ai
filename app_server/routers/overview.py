@@ -5,55 +5,63 @@ import threading
 import time
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from sqlalchemy import and_, case, func
 
 from database.db import get_session
-from database.models import Offer
+from database.models import Brand, Offer
 
 router = APIRouter(prefix="/api", tags=["overview"])
 
-# Short-TTL in-process cache for the overview payload — see api/overview.py's
-# original comment: single-process-with-threads deployment, so a plain
-# module-level dict + lock is enough. Unchanged by the FastAPI port.
 _OVERVIEW_CACHE_TTL_SECONDS = 10
 _overview_cache_lock = threading.Lock()
-_overview_cache: dict = {"payload": None, "expires_at": 0.0}
+# Cache keyed by region (None = all countries)
+_overview_cache: dict[str | None, dict] = {}
 
 
-def _top_counts(session, column, limit=8):
-    rows = (
-        session.query(column, func.count(Offer.id))
-        .filter(column.isnot(None))
-        .group_by(column)
-        .order_by(func.count(Offer.id).desc())
-        .limit(limit)
-        .all()
-    )
+def _top_counts(session, column, brand_names: set[str] | None, limit=8):
+    q = session.query(column, func.count(Offer.id)).filter(column.isnot(None))
+    if brand_names is not None:
+        q = q.filter(Offer.brand.in_(brand_names))
+    rows = q.group_by(column).order_by(func.count(Offer.id).desc()).limit(limit).all()
     return [{"name": name, "count": count} for name, count in rows]
 
 
 @router.get("/overview")
-def overview():
-    with _overview_cache_lock:
-        if _overview_cache["payload"] is not None and time.monotonic() < _overview_cache["expires_at"]:
-            return _overview_cache["payload"]
-
-    payload = _build_overview_payload()
+def overview(region: str | None = Query(None)):
+    key = region.upper() if region else None
 
     with _overview_cache_lock:
-        _overview_cache["payload"] = payload
-        _overview_cache["expires_at"] = time.monotonic() + _OVERVIEW_CACHE_TTL_SECONDS
+        cached = _overview_cache.get(key)
+        if cached and time.monotonic() < cached["expires_at"]:
+            return cached["payload"]
+
+    payload = _build_overview_payload(key)
+
+    with _overview_cache_lock:
+        _overview_cache[key] = {"payload": payload, "expires_at": time.monotonic() + _OVERVIEW_CACHE_TTL_SECONDS}
 
     return payload
 
 
-def _build_overview_payload() -> dict:
+def _build_overview_payload(region: str | None) -> dict:
     with get_session() as session:
         now = datetime.utcnow()
         soon = now + timedelta(days=7)
 
-        total_offers, verified, invalid, suspicious, expiring_soon = session.query(
+        brand_names: set[str] | None = None
+        if region:
+            brand_names = {
+                b.name for b in session.query(Brand).filter(
+                    Brand.country == region, Brand.name.isnot(None)
+                ).all()
+            }
+
+        base_q = session.query(Offer)
+        if brand_names is not None:
+            base_q = base_q.filter(Offer.brand.in_(brand_names))
+
+        total_offers, verified, invalid, suspicious, expiring_soon = base_q.with_entities(
             func.count(Offer.id),
             func.count(case((Offer.verification_status == "verified", 1))),
             func.count(case((Offer.verification_status == "invalid", 1))),
@@ -64,16 +72,11 @@ def _build_overview_payload() -> dict:
         ).one()
         unverified = total_offers - verified - invalid - suspicious
 
-        top_brands = _top_counts(session, Offer.brand)
-        top_categories = _top_counts(session, Offer.category)
-        top_subcategories = _top_counts(session, Offer.subcategory)
+        top_brands = _top_counts(session, Offer.brand, brand_names)
+        top_categories = _top_counts(session, Offer.category, brand_names)
+        top_subcategories = _top_counts(session, Offer.subcategory, brand_names)
 
-        latest = (
-            session.query(Offer)
-            .order_by(Offer.created_at.desc())
-            .limit(20)
-            .all()
-        )
+        latest_q = base_q.order_by(Offer.created_at.desc()).limit(20)
         latest_offers = [
             {
                 "id": o.id,
@@ -88,7 +91,7 @@ def _build_overview_payload() -> dict:
                 "summary": o.summary,
                 "source": o.source,
             }
-            for o in latest
+            for o in latest_q.all()
         ]
 
     return {

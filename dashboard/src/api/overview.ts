@@ -39,14 +39,15 @@ export interface OverviewResponse {
   latest_offers: LatestOffer[];
 }
 
-async function fetchOverview(): Promise<OverviewResponse> {
-  const { data } = await apiClient.get<OverviewResponse>("/overview");
+async function fetchOverview(region: string | null): Promise<OverviewResponse> {
+  const params = region ? { region } : {};
+  const { data } = await apiClient.get<OverviewResponse>("/overview", { params });
   return data;
 }
 
-export function useOverview() {
+export function useOverview(region: string | null = null) {
   return useQuery({
-    queryKey: ["overview"],
-    queryFn: fetchOverview,
+    queryKey: ["overview", region],
+    queryFn: () => fetchOverview(region),
   });
 }

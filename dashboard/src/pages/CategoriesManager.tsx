@@ -1,12 +1,15 @@
 import { useState } from "react";
 
 import type { Category, CategoryInput } from "../api/categories";
+import { useRegionStore } from "../store/regionStore";
 import {
   useCategories,
   useCreateCategory,
   useDeleteCategory,
   useUpdateCategory,
 } from "../api/categories";
+import { useBrands, useUpdateBrand } from "../api/brands";
+import { BrandLogo } from "../components/brands/BrandLogo";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -93,8 +96,165 @@ function CategoryForm({
   );
 }
 
+function BrandsInCategoryModal({ category, onClose }: { category: Category; onClose: () => void }) {
+  const { data, isLoading } = useBrands(null);
+  const updateBrand = useUpdateBrand();
+  const [addQuery, setAddQuery] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+
+  const allBrands = data?.brands ?? [];
+  const inCategory = allBrands.filter((b) => b.categories.includes(category.name));
+  const notInCategory = allBrands.filter((b) => !b.categories.includes(category.name));
+  const filteredAdd = notInCategory.filter((b) =>
+    b.name.toLowerCase().includes(addQuery.toLowerCase()),
+  );
+
+  const removeBrand = (brandId: number, currentCategories: string[]) => {
+    updateBrand.mutate({
+      id: brandId,
+      input: { categories: currentCategories.filter((c) => c !== category.name) },
+    });
+  };
+
+  const addBrand = (brandId: number, currentCategories: string[]) => {
+    updateBrand.mutate({
+      id: brandId,
+      input: { categories: [...currentCategories, category.name] },
+    });
+    setAddQuery("");
+    setAddOpen(false);
+  };
+
+  return (
+    <Modal title={`Brands in "${category.name}"`} onClose={onClose}>
+      {isLoading ? (
+        <div style={{ color: "var(--text-muted)", padding: 16 }}>Loading…</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Add brand search */}
+          <div style={{ position: "relative" }}>
+            <TextInput
+              value={addQuery}
+              onChange={(e) => { setAddQuery(e.target.value); setAddOpen(true); }}
+              onFocus={() => setAddOpen(true)}
+              placeholder="Add a brand to this category…"
+              aria-label="Search brands to add"
+            />
+            {addOpen && addQuery && filteredAdd.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  left: 0,
+                  right: 0,
+                  zIndex: 50,
+                  maxHeight: 200,
+                  overflowY: "auto",
+                  background: "var(--surface-card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "var(--shadow-sm)",
+                }}
+              >
+                {filteredAdd.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => addBrand(b.id, b.categories)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "none",
+                      background: "transparent",
+                      textAlign: "left",
+                      fontSize: 13,
+                      color: "var(--text-body)",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-sunken)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <BrandLogo name={b.name} logoUrl={b.logo_url} website={b.website} size={28} circle />
+                    <span style={{ fontWeight: 600 }}>{b.name}</span>
+                    {b.country && <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{b.country}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Brand chips grid */}
+          {inCategory.length === 0 ? (
+            <div style={{ color: "var(--text-muted)", fontSize: 13, textAlign: "center", padding: "16px 0" }}>
+              No brands assigned yet. Search above to add one.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+                gap: 10,
+              }}
+            >
+              {inCategory.map((b) => (
+                <div
+                  key={b.id}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "14px 10px 10px",
+                    background: "var(--surface-sunken)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--border)",
+                    textAlign: "center",
+                  }}
+                >
+                  <BrandLogo name={b.name} logoUrl={b.logo_url} website={b.website} size={44} circle />
+                  <div style={{ fontWeight: 600, fontSize: 12.5, color: "var(--text-strong)", lineHeight: 1.2 }}>
+                    {b.name}
+                  </div>
+                  {b.country && (
+                    <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{b.country}</div>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${b.name}`}
+                    onClick={() => removeBrand(b.id, b.categories)}
+                    style={{
+                      marginTop: 2,
+                      padding: "3px 10px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      border: "1px solid var(--danger)",
+                      borderRadius: 999,
+                      background: "transparent",
+                      color: "var(--danger)",
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--danger)"; e.currentTarget.style.color = "#fff"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--danger)"; }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export function CategoriesManager() {
-  const { data, isLoading, isError } = useCategories(true);
+  const region = useRegionStore((s) => s.region);
+  const { data, isLoading, isError } = useCategories(true, region);
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
@@ -102,6 +262,7 @@ export function CategoriesManager() {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Category | null>(null);
   const [adding, setAdding] = useState(false);
+  const [viewingBrands, setViewingBrands] = useState<Category | null>(null);
 
   if (isLoading) return <div style={{ color: "var(--text-muted)" }}>Loading categories…</div>;
   if (isError || !data) return <div style={{ color: "var(--danger)" }}>Failed to load categories.</div>;
@@ -211,6 +372,9 @@ export function CategoriesManager() {
                   <span>{c.offer_count}</span>
                   <span>{c.is_active ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Inactive</Badge>}</span>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <Button size="sm" variant="secondary" onClick={() => setViewingBrands(c)}>
+                      Brands ({c.brand_count})
+                    </Button>
                     <Button size="sm" variant="secondary" onClick={() => setEditing(c)}>
                       Edit
                     </Button>
@@ -258,6 +422,10 @@ export function CategoriesManager() {
             }
           />
         </Modal>
+      )}
+
+      {viewingBrands && (
+        <BrandsInCategoryModal category={viewingBrands} onClose={() => setViewingBrands(null)} />
       )}
 
       {editing && (

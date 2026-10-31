@@ -9,6 +9,8 @@ import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import useAuthStore from '../../state/authStore';
+import { useRegionCode } from '../../state/regionStore';
+import { REGIONS } from '../../config/regions';
 import { deleteAccount } from '../../services/authApi';
 import { showErrorToast, showSuccessToast } from '../../utils/CustomToast';
 import TopAppBar from '../../components/TopAppBar';
@@ -24,6 +26,8 @@ const ProfileScreen = () => {
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const regionCode = useRegionCode();
+  const regionInfo = REGIONS[regionCode];
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteAccount = () => {
@@ -74,6 +78,13 @@ const ProfileScreen = () => {
         : 'Pick at least 5 interests',
       kind: 'link',
       onPress: () => navigation.navigate('DealPreferenceScreen'),
+    },
+    {
+      icon: 'location-outline',
+      label: 'Country / Region',
+      subtitle: regionInfo ? `${regionInfo.flag}  ${regionInfo.name}` : regionCode,
+      kind: 'link',
+      onPress: () => navigation.navigate('SelectCountryScreen'),
     },
     {
       icon: 'storefront-outline',

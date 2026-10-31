@@ -16,6 +16,7 @@ import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
 import { toast } from "../store/toastStore";
+import { useRegionStore } from "../store/regionStore";
 import { SOURCE_LABEL, sourceLabel, sourceTone } from "../lib/offerSource";
 
 const VERIFICATION_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -240,14 +241,13 @@ function OffersTable() {
     });
   }
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || "table");
-  const { data, isLoading } = useOffers(filters);
+  const region = useRegionStore((s) => s.region);
+  const { data, isLoading } = useOffers({ ...filters, region: region ?? undefined });
   const summary = data?.summary;
 
-  // Full, unfiltered offer set purely to harvest the distinct brand/category/
-  // type values below — so narrowing by one filter doesn't shrink the options
-  // available in the others (same "options come from the full set, not the
-  // filtered result" pattern PublicOffers.tsx uses for its brand/category counts).
-  const { data: allOffersData } = useOffers({});
+  // Full set (within selected region) for harvesting filter options — so narrowing
+  // one filter doesn't shrink the options available in the others.
+  const { data: allOffersData } = useOffers({ region: region ?? undefined });
   const brandOptions = useMemo(
     () => Array.from(new Set((allOffersData?.offers ?? []).map((o) => o.brand).filter((v): v is string => !!v))).sort(),
     [allOffersData],

@@ -8,6 +8,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from './src/utils/CustomToast';
 import { loadDeals } from './src/services/dealsService';
+import { saveRegion } from './src/services/preferencesApi';
 import {
   refreshDeviceTokenRegistration,
   registerDeviceToken,
@@ -18,6 +19,7 @@ import { configureGoogleSignIn } from './src/services/googleAuth';
 import { CLARITY_PROJECT_ID } from './src/services/config';
 import useTheme from './src/hooks/useTheme';
 import { shouldLoadNativePackage } from './src/utils/turboModules';
+import regionStore from './src/state/regionStore';
 
 function AppToast() {
   const insets = useSafeAreaInsets();
@@ -48,6 +50,16 @@ const App = () => {
   useEffect(() => {
     hideNativeSplash();
 
+    // Detect or load the user's region on startup — must run before loadDeals()
+    // so the API call can pass the correct region param.
+    console.log('[Region] starting region init');
+    regionStore.getState().initRegion().then(() => {
+      const { regionCode } = regionStore.getState();
+      console.log('[Region] init done, loading deals, region:', regionCode);
+      saveRegion(regionCode);
+      loadDeals();
+    });
+
     // Session-replay/analytics — inert until a real project ID replaces the
     // placeholder in src/services/config.js (see that file for how to get one).
     if (CLARITY_PROJECT_ID && CLARITY_PROJECT_ID !== 'YOUR_CLARITY_PROJECT_ID') {
@@ -58,8 +70,6 @@ const App = () => {
     // SignUpScreen's "Continue with Google") — without this, that call
     // fails since the native module has no webClientId configured yet.
     configureGoogleSignIn();
-
-    loadDeals();
 
     // Re-fetch brands/offers when returning to the app so dashboard logo
     // (and other) edits show up without force-killing the process. Also

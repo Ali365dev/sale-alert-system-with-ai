@@ -11,7 +11,7 @@ const PRODUCTION_API = 'https://sale-alert-system-with-ai.onrender.com/api';
 // Android emulator needs 10.0.2.2 instead of the LAN IP.
 // Re-run `ipconfig getifaddr en0` if Wi‑Fi changes.
 // Re-run `ipconfig getifaddr en0` if Wi‑Fi changes — stale IP = empty/failed list.
-const LOCAL_LAN_API = 'http://192.168.18.73:8000/api';
+const LOCAL_LAN_API = 'http://192.168.18.101:8000/api';
 const LOCAL_SIM_API =
   Platform.OS === 'android' ? 'http://10.0.2.2:8000/api' : 'http://127.0.0.1:8000/api';
 

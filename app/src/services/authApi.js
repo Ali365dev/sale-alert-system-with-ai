@@ -28,7 +28,8 @@ const authRequest = async (path, body) => {
   }
 };
 
-export const signup = ({ email, password, name }) => authRequest('/auth/signup', { email, password, name });
+export const signup = ({ email, password, name, phone, country }) =>
+  authRequest('/auth/signup', { email, password, name, phone, country });
 
 export const login = ({ email, password }) => authRequest('/auth/login', { email, password });
 

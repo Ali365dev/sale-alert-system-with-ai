@@ -27,6 +27,8 @@ import ReviewAlertScreen from '../screens/saleAlerts/ReviewAlertScreen';
 import AlertCreatedScreen from '../screens/saleAlerts/AlertCreatedScreen';
 import SelectBrandForAlertScreen from '../screens/saleAlerts/SelectBrandForAlertScreen';
 import AlertDetailScreen from '../screens/saleAlerts/AlertDetailScreen';
+import OnboardingCountryScreen from '../screens/onboarding/OnboardingCountryScreen';
+import SelectCountryScreen from '../screens/profile/SelectCountryScreen';
 import OnboardingWelcomeScreen from '../screens/onboarding/OnboardingWelcomeScreen';
 import OnboardingTopicsScreen from '../screens/onboarding/OnboardingTopicsScreen';
 import OnboardingCategoriesScreen from '../screens/onboarding/OnboardingCategoriesScreen';
@@ -135,6 +137,11 @@ export const homeStack = [
   },
   {
     options: { ...stackoptions, headerShown: false },
+    name: 'SelectCountryScreen',
+    component: SelectCountryScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
     name: 'CreateAlertTypeScreen',
     component: CreateAlertTypeScreen,
   },
@@ -201,6 +208,11 @@ export const homeStack = [
 ];
 
 export const onboardingStack = [
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'OnboardingCountryScreen',
+    component: OnboardingCountryScreen,
+  },
   {
     options: { ...stackoptions, headerShown: false },
     name: 'OnboardingWelcomeScreen',

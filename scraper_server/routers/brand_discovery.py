@@ -16,6 +16,23 @@ from services import job_runner, job_service
 
 router = APIRouter(prefix="/api/brand-discovery", tags=["brand_discovery"])
 
+_COUNTRY_ISO: dict[str, str] = {
+    "pakistan": "PK", "saudi arabia": "SA", "ksa": "SA",
+    "united arab emirates": "AE", "uae": "AE", "dubai": "AE",
+    "egypt": "EG", "qatar": "QA", "kuwait": "KW", "oman": "OM", "bahrain": "BH",
+    "united states": "US", "usa": "US", "united states of america": "US",
+    "united kingdom": "GB", "uk": "GB", "turkey": "TR", "türkiye": "TR",
+    "india": "IN", "singapore": "SG",
+}
+
+def _iso_country(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    stripped = raw.strip()
+    if len(stripped) == 2:
+        return stripped.upper()
+    return _COUNTRY_ISO.get(stripped.lower(), stripped)
+
 
 def _utcnow():
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -193,7 +210,7 @@ def save_discovery(discovery_id: int, body: dict = Body(default={})):
             brand.website = brand.website or row.website
             brand.logo_url = brand.logo_url or row.logo_url
             brand.description = brand.description or row.description
-            brand.country = brand.country or row.country
+            brand.country = brand.country or _iso_country(row.country)
             existing_categories = json.loads(brand.categories) if brand.categories else []
             if not existing_categories:
                 brand.categories = json.dumps(categories)
@@ -212,7 +229,7 @@ def save_discovery(discovery_id: int, body: dict = Body(default={})):
                 categories=json.dumps(categories),
                 logo_url=row.logo_url,
                 description=row.description,
-                country=row.country,
+                country=_iso_country(row.country),
                 social_links=json.dumps(flat_social) if flat_social else None,
                 is_active=True,
             )

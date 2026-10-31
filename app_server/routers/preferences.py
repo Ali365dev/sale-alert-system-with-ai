@@ -17,6 +17,7 @@ def _profile_to_dict(p: UserProfile) -> dict:
         "device_id": p.device_id,
         "brands": json.loads(p.brands) if p.brands else [],
         "categories": json.loads(p.categories) if p.categories else [],
+        "region": p.region,
         "updated_at": p.updated_at.isoformat() if p.updated_at else None,
     }
 
@@ -30,7 +31,7 @@ def get_preferences(device_id: str = Query(...)):
     with get_session() as session:
         p = session.query(UserProfile).filter(UserProfile.device_id == device_id).first()
         if p is None:
-            return {"device_id": device_id, "brands": [], "categories": [], "updated_at": None}
+            return {"device_id": device_id, "brands": [], "categories": [], "region": None, "updated_at": None}
         return _profile_to_dict(p)
 
 
@@ -43,8 +44,10 @@ def save_preferences(body: dict = Body(default={})):
 
     has_brands = "brands" in body
     has_categories = "categories" in body
+    has_region = "region" in body
     brands = body.get("brands") or []
     categories = body.get("categories") or []
+    region = (body.get("region") or "").strip().upper() or None
     if (has_brands and not isinstance(brands, list)) or (has_categories and not isinstance(categories, list)):
         return JSONResponse({"error": "brands and categories must be arrays"}, status_code=400)
 
@@ -53,11 +56,13 @@ def save_preferences(body: dict = Body(default={})):
         if p is None:
             p = UserProfile(device_id=device_id, brands=json.dumps([]), categories=json.dumps([]))
             session.add(p)
-        # Only touch the fields the caller actually sent — e.g. the profile
-        # screen only edits categories and must not wipe out saved brands.
+        # Only touch the fields the caller actually sent — a region-only save
+        # must not wipe out saved brands/categories and vice versa.
         if has_brands:
             p.brands = json.dumps(brands)
         if has_categories:
             p.categories = json.dumps(categories)
+        if has_region:
+            p.region = region
         session.flush()
         return _profile_to_dict(p)

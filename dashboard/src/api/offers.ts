@@ -40,6 +40,7 @@ export interface OfferFilters {
   verification_status?: string;
   active?: "true" | "false";
   source?: string;
+  region?: string;
 }
 
 export interface OffersSummary {

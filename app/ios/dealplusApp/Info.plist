@@ -53,7 +53,7 @@
 		<string>_http._tcp.</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>allow location for </string>
+	<string>Allow access to your location to show deals and offers near you.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

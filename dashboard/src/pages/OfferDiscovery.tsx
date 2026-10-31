@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useBrands, type Brand } from "../api/brands";
+import { useRegionStore } from "../store/regionStore";
 import { usePost, useScrapeHistory, useSubmitPost, type SocialPlatform } from "../api/socialScraper";
 import { ProcessingPanel } from "../components/jobs/ProcessingPanel";
 import { PostReviewPanel } from "../components/socialScraper/PostReviewPanel";
@@ -126,7 +127,8 @@ function BrandSocialRow({ brand }: { brand: Brand }) {
 }
 
 function SocialMediaTab() {
-  const { data, isLoading } = useBrands();
+  const region = useRegionStore((s) => s.region);
+  const { data, isLoading } = useBrands(region);
   const brands = (data?.brands ?? []).filter((b) => b.social_links?.facebook || b.social_links?.instagram);
 
   if (isLoading) return <LoadingState />;

@@ -42,7 +42,7 @@ const OnboardingWelcomeScreen = () => {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
-        <PrimaryButton label="Get Started" icon="arrow-forward" onPress={() => navigation.navigate('OnboardingTopicsScreen')} />
+        <PrimaryButton label="Get Started" icon="arrow-forward" onPress={() => navigation.navigate('OnboardingCountryScreen')} />
         <Text style={styles.loginRow}>
           Already have an account? <Text style={styles.loginLink}>Log in</Text>
         </Text>

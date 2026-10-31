@@ -26,21 +26,35 @@ def _category_to_dict(c: Category, *, brand_count: int = 0, offer_count: int = 0
     }
 
 
-def _counts_by_name(session) -> tuple[dict[str, int], dict[str, int]]:
-    offer_rows = (
-        session.query(Offer.category, func.count(Offer.id))
-        .filter(Offer.category.isnot(None), Offer.category != "")
-        .group_by(Offer.category)
-        .all()
+def _counts_by_name(session, region: str | None = None) -> tuple[dict[str, int], dict[str, int]]:
+    import json as _json
+
+    regional_brand_names: set[str] | None = None
+    if region:
+        # Include brands for this country + global brands (country IS NULL).
+        regional_brand_names = {
+            b.name
+            for b in session.query(Brand).filter(
+                (Brand.country == region.upper()) | Brand.country.is_(None),
+                Brand.name.isnot(None),
+            ).all()
+        }
+
+    offer_q = session.query(Offer.category, func.count(Offer.id)).filter(
+        Offer.category.isnot(None), Offer.category != ""
     )
-    offer_counts = {name: count for name, count in offer_rows if name}
+    if regional_brand_names is not None:
+        offer_q = offer_q.filter(Offer.brand.in_(regional_brand_names))
+    offer_counts = {name: count for name, count in offer_q.group_by(Offer.category).all() if name}
+
+    brand_q = session.query(Brand)
+    if regional_brand_names is not None:
+        brand_q = brand_q.filter(Brand.name.in_(regional_brand_names))
 
     brand_counts: dict[str, int] = {}
-    for brand in session.query(Brand).all():
+    for brand in brand_q.all():
         try:
-            import json
-
-            names = json.loads(brand.categories) if brand.categories else []
+            names = _json.loads(brand.categories) if brand.categories else []
         except Exception:
             names = []
         for name in names:
@@ -52,13 +66,13 @@ def _counts_by_name(session) -> tuple[dict[str, int], dict[str, int]]:
 
 
 @router.get("")
-def list_categories(include_inactive: bool = Query(False)):
+def list_categories(include_inactive: bool = Query(False), region: str | None = Query(None)):
     with get_session() as session:
         q = session.query(Category)
         if not include_inactive:
             q = q.filter(Category.is_active.is_(True))
         rows = q.order_by(Category.sort_order.asc(), Category.name.asc()).all()
-        brand_counts, offer_counts = _counts_by_name(session)
+        brand_counts, offer_counts = _counts_by_name(session, region=region)
         return {
             "categories": [
                 _category_to_dict(
