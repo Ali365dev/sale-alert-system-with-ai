@@ -37,6 +37,9 @@ import { UnknownEmailsManager } from "./pages/UnknownEmailsManager";
 import { WebsiteScraper } from "./pages/WebsiteScraper";
 import { WebsiteScraperBrand } from "./pages/WebsiteScraperBrand";
 import { WebsiteScraperTest } from "./pages/WebsiteScraperTest";
+import { ScraperBuilder } from "./pages/ScraperBuilder";
+import { ScraperConfigs } from "./pages/ScraperConfigs";
+import { ScheduledScraping } from "./pages/ScheduledScraping";
 
 function App() {
   return (
@@ -75,6 +78,9 @@ function App() {
           <Route path="/website-scraper" element={<WebsiteScraper />} />
           <Route path="/website-scraper/brands/:brandId" element={<WebsiteScraperBrand />} />
           <Route path="/website-scraper-test" element={<WebsiteScraperTest />} />
+          <Route path="/scraper-builder" element={<ScraperBuilder />} />
+          <Route path="/scraper-configs" element={<ScraperConfigs />} />
+          <Route path="/schedules" element={<ScheduledScraping />} />
           <Route path="/emails" element={<EmailManager />} />
           <Route path="/unknown-emails" element={<UnknownEmailsManager />} />
           <Route path="/brand-requests" element={<BrandRequests />} />

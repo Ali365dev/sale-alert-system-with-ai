@@ -21,5 +21,7 @@ class AdminAuthError(Exception):
 
 
 def require_admin(request: Request) -> None:
-    if not settings_auth.verify_session_token(request.cookies.get(settings_auth.SESSION_COOKIE)):
+    # Accept token from cookie (dashboard) or X-Session-Token header (Chrome extension)
+    token = request.cookies.get(settings_auth.SESSION_COOKIE) or request.headers.get("X-Session-Token")
+    if not settings_auth.verify_session_token(token):
         raise AdminAuthError()

@@ -50,11 +50,13 @@ def login(request: Request, response: Response, body: dict = Body(default={})):
     elif not settings_auth.check_admin_password(password):
         return JSONResponse({"error": "invalid password"}, status_code=401)
 
+    token = settings_auth.create_session_token()
     response.set_cookie(
-        settings_auth.SESSION_COOKIE, settings_auth.create_session_token(),
+        settings_auth.SESSION_COOKIE, token,
         max_age=settings_auth.SESSION_MAX_AGE, httponly=True, **_cookie_kwargs(request),
     )
-    return {"status": "ok"}
+    # Also return token in body so Chrome extensions can save it without cookie access
+    return {"status": "ok", "token": token}
 
 
 @router.post("/logout")
@@ -65,7 +67,8 @@ def logout(request: Request, response: Response):
 
 @router.get("/session")
 def session_status(request: Request):
-    authed = settings_auth.verify_session_token(request.cookies.get(settings_auth.SESSION_COOKIE))
+    token = request.cookies.get(settings_auth.SESSION_COOKIE) or request.headers.get("X-Session-Token")
+    authed = settings_auth.verify_session_token(token)
     return {"authenticated": authed, "setup_required": not settings_auth.has_admin_password()}
 
 

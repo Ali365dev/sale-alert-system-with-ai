@@ -55,7 +55,7 @@ app = FastAPI(title="Sales Alert — Scraper Server", version="1.0.0", lifespan=
 _extra_origins = [o.strip() for o in os.getenv("ADDITIONAL_CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+|chrome-extension://.*",
     allow_origins=_extra_origins,
     allow_credentials=True,
     allow_methods=["*"],
@@ -78,6 +78,8 @@ from routers import (  # noqa: E402
     insights,
     jobs,
     notifications,
+    schedules,
+    scraper_configs,
     settings,
     social_scraper,
     unknown_emails,
@@ -101,3 +103,5 @@ app.include_router(unknown_emails.router)
 app.include_router(website_scraper.router)
 app.include_router(social_scraper.router)
 app.include_router(brand_discovery.router)
+app.include_router(scraper_configs.router)
+app.include_router(schedules.router)

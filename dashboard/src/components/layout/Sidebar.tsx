@@ -1,4 +1,5 @@
-import { NavLink } from "react-router";
+import { useState } from "react";
+import { NavLink, useLocation } from "react-router";
 
 import { Icon } from "../icons";
 
@@ -8,35 +9,70 @@ interface NavItem {
   icon: (typeof Icon)[keyof typeof Icon];
 }
 
-const MAIN_ITEMS: NavItem[] = [
-  { to: "/dashboard", label: "Home", icon: Icon.house },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+// ── Navigation groups ────────────────────────────────────────────────────────
+
+const OVERVIEW_ITEMS: NavItem[] = [
+  { to: "/dashboard", label: "Dashboard", icon: Icon.house },
   { to: "/analytics", label: "Analytics", icon: Icon.trendUp },
-  { to: "/search", label: "Search", icon: Icon.search },
-  { to: "/offers", label: "Offers Manager", icon: Icon.offer },
-  { to: "/brands", label: "Brands Manager", icon: Icon.home },
-  { to: "/manage-categories", label: "Categories", icon: Icon.grid },
-  { to: "/discover-brand", label: "Discover Brand", icon: Icon.globe },
-  { to: "/offer-discovery", label: "Offer Discovery", icon: Icon.sparkle },
-  { to: "/social-scraper-test", label: "Social Scraper Test", icon: Icon.instagram },
 ];
 
-const WEBSITE_SCRAPER_ITEMS: NavItem[] = [
-  { to: "/website-scraper", label: "Website Scraper", icon: Icon.globe },
-  { to: "/website-scraper-test", label: "Website Scraper Test", icon: Icon.search },
+const DISCOVERY_ITEMS: NavItem[] = [
+  { to: "/discover-brand", label: "Discover Brands", icon: Icon.globe },
+  { to: "/brand-requests", label: "Brand Requests", icon: Icon.store },
+];
+
+const BRAND_ITEMS: NavItem[] = [
+  { to: "/brands", label: "All Brands", icon: Icon.home },
+  { to: "/manage-categories", label: "Categories", icon: Icon.grid },
+  { to: "/scraper-configs", label: "Scraper Configs", icon: Icon.target },
+];
+
+const SCRAPER_BUILDER_ITEMS: NavItem[] = [
+  { to: "/scraper-builder", label: "Visual Scraper", icon: Icon.sparkle },
+  { to: "/website-scraper", label: "Website Scraper", icon: Icon.activity },
+  { to: "/website-scraper-test", label: "Scraper Test", icon: Icon.search },
+  { to: "/social-scraper-test", label: "Social Scraper", icon: Icon.instagram },
+];
+
+const AUTOMATION_ITEMS: NavItem[] = [
+  { to: "/pipeline", label: "Scraping Jobs", icon: Icon.pulse },
+  { to: "/schedules", label: "Scheduled Scraping", icon: Icon.bell },
+];
+
+const OFFERS_ITEMS: NavItem[] = [
+  { to: "/offers", label: "All Offers", icon: Icon.offer },
+  { to: "/offer-discovery", label: "Offer Discovery", icon: Icon.sparkle },
+  { to: "/search", label: "Search", icon: Icon.search },
 ];
 
 const EMAIL_ITEMS: NavItem[] = [
   { to: "/emails", label: "Email Manager", icon: Icon.mail },
   { to: "/unknown-emails", label: "Unknown Emails", icon: Icon.inbox },
-  { to: "/brand-requests", label: "Brand Requests", icon: Icon.store },
-  { to: "/notifications", label: "Notifications", icon: Icon.bell },
   { to: "/insights", label: "AI Insights", icon: Icon.sparkle },
+  { to: "/notifications", label: "Notifications", icon: Icon.bell },
 ];
 
 const SETTINGS_ITEMS: NavItem[] = [
-  { to: "/pipeline", label: "Pipeline Center", icon: Icon.activity },
   { to: "/settings", label: "Settings", icon: Icon.target },
 ];
+
+const NAV_GROUPS: NavGroup[] = [
+  { label: "Overview", items: OVERVIEW_ITEMS },
+  { label: "Discovery", items: DISCOVERY_ITEMS },
+  { label: "Brand Management", items: BRAND_ITEMS },
+  { label: "Scraper Builder", items: SCRAPER_BUILDER_ITEMS },
+  { label: "Automation", items: AUTOMATION_ITEMS },
+  { label: "Offers", items: OFFERS_ITEMS },
+  { label: "Email Manager", items: EMAIL_ITEMS },
+  { label: "Settings", items: SETTINGS_ITEMS },
+];
+
+// ── Styles ───────────────────────────────────────────────────────────────────
 
 function navStyle(active: boolean): React.CSSProperties {
   return {
@@ -56,32 +92,57 @@ function navStyle(active: boolean): React.CSSProperties {
   };
 }
 
-function NavSection({ label, items }: { label: string; items: NavItem[] }) {
+// ── Components ───────────────────────────────────────────────────────────────
+
+function NavGroup({ group, defaultOpen }: { group: NavGroup; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <div
+      {/* Section header — clickable to collapse */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
         style={{
-          fontSize: 10.5,
-          fontWeight: 700,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          border: 0,
+          background: "transparent",
+          cursor: "pointer",
+          padding: "10px 10px 4px",
+          color: "var(--text-faint)",
+          font: `700 10.5px/1 var(--font-sans)`,
           letterSpacing: "var(--ls-wide)",
           textTransform: "uppercase",
-          color: "var(--text-faint)",
-          padding: "10px 10px 4px",
         }}
       >
-        {label}
-      </div>
-      {items.map(({ to, label: itemLabel, icon: ItemIcon }) => (
-        <NavLink key={to} to={to} style={({ isActive }) => navStyle(isActive)}>
-          <ItemIcon size={17} />
-          {itemLabel}
-        </NavLink>
-      ))}
+        {group.label}
+        <span style={{ fontSize: 9, opacity: 0.6, transition: "transform 0.15s", transform: open ? "rotate(0)" : "rotate(-90deg)", display: "inline-block" }}>▼</span>
+      </button>
+
+      {open &&
+        group.items.map(({ to, label, icon: ItemIcon }) => (
+          <NavLink key={to} to={to} style={({ isActive }) => navStyle(isActive)}>
+            <ItemIcon size={17} />
+            {label}
+          </NavLink>
+        ))}
     </div>
   );
 }
 
+// ── Sidebar ──────────────────────────────────────────────────────────────────
+
 export function Sidebar({ onRunFetch, fetching }: { onRunFetch: () => void; fetching: boolean }) {
+  const location = useLocation();
+
+  // Auto-open the group that contains the current route
+  function groupIsActive(group: NavGroup) {
+    return group.items.some((item) => location.pathname.startsWith(item.to));
+  }
+
   return (
     <aside
       style={{
@@ -99,6 +160,7 @@ export function Sidebar({ onRunFetch, fetching }: { onRunFetch: () => void; fetc
         boxSizing: "border-box",
       }}
     >
+      {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 8px 16px" }}>
         <Icon.pulse size={22} strokeWidth={2.5} style={{ color: "var(--brand)" }} />
         <span style={{ font: "800 18px/1 var(--font-sans)", letterSpacing: "var(--ls-snug)", color: "var(--text-strong)" }}>
@@ -106,13 +168,14 @@ export function Sidebar({ onRunFetch, fetching }: { onRunFetch: () => void; fetc
         </span>
       </div>
 
-      <nav style={{ display: "flex", flexDirection: "column", gap: 10, flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
-        <NavSection label="Main" items={MAIN_ITEMS} />
-        <NavSection label="Website Scraper" items={WEBSITE_SCRAPER_ITEMS} />
-        <NavSection label="Email Manager" items={EMAIL_ITEMS} />
-        <NavSection label="Settings" items={SETTINGS_ITEMS} />
+      {/* Nav */}
+      <nav style={{ display: "flex", flexDirection: "column", gap: 8, flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+        {NAV_GROUPS.map((group) => (
+          <NavGroup key={group.label} group={group} defaultOpen={groupIsActive(group)} />
+        ))}
       </nav>
 
+      {/* Run Fetch CTA */}
       <button
         type="button"
         onClick={onRunFetch}

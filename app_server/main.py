@@ -56,7 +56,7 @@ app = FastAPI(title="Sales Alert — App Server", version="1.0.0", lifespan=life
 _extra_origins = [o.strip() for o in os.getenv("ADDITIONAL_CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+|chrome-extension://.*",
     allow_origins=_extra_origins,
     allow_credentials=True,
     allow_methods=["*"],

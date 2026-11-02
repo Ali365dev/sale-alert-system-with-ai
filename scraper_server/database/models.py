@@ -778,6 +778,104 @@ class SaleAlert(Base):
         return f"<SaleAlert id={self.id} device_id={self.device_id!r} type={self.alert_type!r} status={self.status!r}>"
 
 
+class ScraperConfig(Base):
+    """Admin-defined custom scraper configuration for a brand.
+    Holds the start URLs, crawl limits, and owns a set of ScraperSelectors
+    that together form a CSS selector tree for data extraction."""
+    __tablename__ = "scraper_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # JSON list of seed URLs the scraper starts from
+    start_urls = Column(Text, nullable=False, default="[]")
+
+    # Crawl limits
+    max_pages = Column(Integer, nullable=False, default=20)
+    max_depth = Column(Integer, nullable=False, default=3)
+    max_links_per_page = Column(Integer, nullable=False, default=50)
+    request_delay = Column(Float, nullable=False, default=1.5)   # seconds
+    request_timeout = Column(Integer, nullable=False, default=30)  # seconds
+    max_retries = Column(Integer, nullable=False, default=2)
+
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    selectors = relationship("ScraperSelector", back_populates="config",
+                             cascade="all, delete-orphan", order_by="ScraperSelector.sort_order")
+
+    def __repr__(self) -> str:
+        return f"<ScraperConfig id={self.id} name={self.name!r} brand_id={self.brand_id}>"
+
+
+class ScraperSelector(Base):
+    """One node in a scraper's CSS/attribute selector tree.
+    parent_id=None means it is a root selector under the config."""
+    __tablename__ = "scraper_selectors"
+
+    SELECTOR_TYPES = (
+        "text", "image", "link", "price", "attribute",
+        "html", "table", "pagination", "click", "container",
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    config_id = Column(Integer, ForeignKey("scraper_configs.id"), nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey("scraper_selectors.id"), nullable=True, index=True)
+
+    name = Column(String(255), nullable=False)
+    selector_type = Column(String(30), nullable=False, default="text")
+    # "text"|"image"|"link"|"price"|"attribute"|"html"|"table"|"pagination"|"click"|"container"
+
+    css_selector = Column(Text, nullable=False, default="")
+    attribute = Column(String(255), nullable=True)   # e.g. "href", "src", "data-price"
+    multiple = Column(Boolean, nullable=False, default=False)  # extract list vs single value
+    enabled = Column(Boolean, nullable=False, default=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+
+    # Optional extraction delay (ms) for dynamic content
+    extraction_delay = Column(Integer, nullable=True)
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    config = relationship("ScraperConfig", back_populates="selectors")
+    parent = relationship("ScraperSelector", remote_side=[id], back_populates="children")
+    children = relationship("ScraperSelector", back_populates="parent",
+                            foreign_keys=[parent_id],
+                            cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        return f"<ScraperSelector id={self.id} name={self.name!r} type={self.selector_type!r}>"
+
+
+class ScrapingSchedule(Base):
+    """Automatic scraping schedule for a brand (or a specific ScraperConfig).
+    cron_expr follows standard 5-field cron syntax (minute hour dom month dow)."""
+    __tablename__ = "scraping_schedules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=False, index=True)
+    config_id = Column(Integer, ForeignKey("scraper_configs.id"), nullable=True, index=True)
+
+    name = Column(String(255), nullable=False)
+    cron_expr = Column(String(100), nullable=False)   # e.g. "0 */6 * * *"
+    timezone = Column(String(100), nullable=False, default="UTC")
+    enabled = Column(Boolean, nullable=False, default=True)
+
+    last_run_at = Column(DateTime, nullable=True)
+    last_job_id = Column(Integer, ForeignKey("jobs.id"), nullable=True)
+    next_run_at = Column(DateTime, nullable=True, index=True)
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<ScrapingSchedule id={self.id} brand_id={self.brand_id} cron={self.cron_expr!r}>"
+
+
 class SettingsAuditLog(Base):
     """Append-only record of every Settings mutation — who changed what,
     from what, to what, when."""
