@@ -1,89 +1,110 @@
+envVarGroups:
+
+  # ── Shared secrets (set once, used by both services) ───────────────────────
+  - name: shared-secrets
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # paste your PostgreSQL URL here (or use the db below)
+      - key: SETTINGS_ENCRYPTION_KEY
+        sync: false          # generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ADDITIONAL_CORS_ORIGINS
+        sync: false          # comma-separated: https://yourdash.com,https://yourapp.com
+
+  # ── App-server-only secrets ─────────────────────────────────────────────────
+  - name: app-secrets
+    envVars:
+      - key: GMAIL_CREDENTIALS_JSON
+        sync: false          # paste the full JSON content of your OAuth credentials file
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false          # paste the full JSON from Firebase console → Service Accounts
+
+  # ── Scraper-server-only secrets ─────────────────────────────────────────────
+  - name: scraper-secrets
+    envVars:
+      - key: TAVILY_API_KEY
+        sync: false
+
+databases:
+
+  # ── Managed PostgreSQL (Render) ─────────────────────────────────────────────
+  # Remove this block if you are supplying your own DATABASE_URL above.
+  - name: sales-alert-db
+    plan: starter            # $7/mo — persistent, daily backups, 1 GB storage
+    region: frankfurt        # closest to Pakistan; change to oregon/singapore as needed
+    databaseName: salesalert
+    user: salesalert
+
 services:
 
   # ── App Server ──────────────────────────────────────────────────────────────
-  # Handles: auth, brands, offers, categories, preferences, sale_alerts,
-  # overview, search. Runs the background scheduler.
   - name: sales-alert-app
     type: web
     runtime: docker
     dockerfilePath: ./app_server/Dockerfile
     dockerContext: ./
-    plan: free
+    plan: starter            # $7/mo — no sleep, always-on, 512 MB RAM
+    region: frankfurt
     healthCheckPath: /api/health
-    autoDeploy: true
+
+    scaling:
+      minInstances: 1
+      maxInstances: 2        # scale to 2 under load; remove if on free plan
+      targetMemoryPercent: 80
+      targetCPUPercent: 70
 
     envVars:
-      - key: GMAIL_CREDENTIALS_JSON
-        sync: false
+      - fromGroup: shared-secrets
+      - fromGroup: app-secrets
 
       - key: GMAIL_LABEL
         value: sales_offers
 
-      - key: GEMINI_API_KEY
-        sync: false
       - key: GEMINI_MODEL
-        value: gemini-1.5-flash
-
-      - key: GROQ_API_KEY
-        sync: false
-
-      - key: DATABASE_URL
-        sync: false
-
-      - key: SETTINGS_ENCRYPTION_KEY
-        sync: false
-
-      - key: ADDITIONAL_CORS_ORIGINS
-        sync: false
-
-      - key: LOG_LEVEL
-        value: INFO
-
-      # Keep-alive: ping the app server every 10 min so it never sleeps.
-      - key: APP_SERVER_URL
-        value: https://sales-alert-app.onrender.com
+        value: gemini-2.0-flash
 
       - key: OFFER_MATCH_MODE
         value: or
 
-      # Keep-alive: ping the scraper server every 10 min so it never sleeps.
-      # Set this to your deployed scraper service URL after first deploy.
+      - key: LOG_LEVEL
+        value: info
+
+      # Keep-alive: ping both servers every 10 min (free plan only; harmless on starter)
+      - key: APP_SERVER_URL
+        value: https://sales-alert-app.onrender.com
       - key: SCRAPER_SERVER_URL
         value: https://sales-alert-scraper.onrender.com
 
   # ── Scraper Server ──────────────────────────────────────────────────────────
-  # Handles: analytics, insights, jobs, notifications, automation, settings,
-  # brand_requests, emails, unknown_emails, website scraping, social scraping,
-  # brand discovery.
   - name: sales-alert-scraper
     type: web
     runtime: docker
     dockerfilePath: ./scraper_server/Dockerfile
     dockerContext: ./
-    plan: free
+    plan: standard           # $25/mo — Playwright + PaddleOCR need ≥ 1 GB RAM
+    region: frankfurt
+
     healthCheckPath: /api/health
-    autoDeploy: true
+
+    scaling:
+      minInstances: 1
+      maxInstances: 1        # scraper is stateful; keep at 1
 
     envVars:
-      - key: GEMINI_API_KEY
-        sync: false
+      - fromGroup: shared-secrets
+      - fromGroup: scraper-secrets
+
       - key: GEMINI_MODEL
-        value: gemini-1.5-flash
-
-      - key: GROQ_API_KEY
-        sync: false
-
-      - key: TAVILY_API_KEY
-        sync: false
-
-      - key: DATABASE_URL
-        sync: false
-
-      - key: SETTINGS_ENCRYPTION_KEY
-        sync: false
-
-      - key: ADDITIONAL_CORS_ORIGINS
-        sync: false
+        value: gemini-2.0-flash
 
       - key: LOG_LEVEL
-        value: INFO
+        value: info
+
+      # Keep-alive
+      - key: SCRAPER_SERVER_URL
+        value: https://sales-alert-scraper.onrender.com
+      - key: APP_SERVER_URL
+        value: https://sales-alert-app.onrender.com

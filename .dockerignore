@@ -1,0 +1,51 @@
+# Version control
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*.pyo
+*.egg-info
+.eggs
+dist
+build
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Virtual environments
+.venv
+venv
+env
+.env
+
+# Local dev secrets / tokens
+*.json.bak*
+token.json
+credentials.json
+app_server/token.json
+app_server/credentials.json
+app_server/token.json.bak-readonly
+
+# Logs and caches
+logs/
+cache/
+state/
+data/
+*.log
+
+# Dashboard (not needed in backend images)
+dashboard/
+chrome-extension/
+app/
+
+# Dev / test files
+*.plan.md
+*.sh
+run.sh
+
+# OS
+.DS_Store
+Thumbs.db
