@@ -50,12 +50,6 @@ services:
     region: frankfurt
     healthCheckPath: /api/health
 
-    scaling:
-      minInstances: 1
-      maxInstances: 2        # scale to 2 under load; remove if on free plan
-      targetMemoryPercent: 80
-      targetCPUPercent: 70
-
     envVars:
       - fromGroup: shared-secrets
       - fromGroup: app-secrets
@@ -88,10 +82,6 @@ services:
     region: frankfurt
 
     healthCheckPath: /api/health
-
-    scaling:
-      minInstances: 1
-      maxInstances: 1        # scraper is stateful; keep at 1
 
     envVars:
       - fromGroup: shared-secrets
