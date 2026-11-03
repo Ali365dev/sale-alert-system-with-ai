@@ -65,11 +65,12 @@ export function useTabScrape(onToast: (type: "success" | "error" | "info", text:
     };
   }, [readState]);
 
-  const startBrowserScrape = useCallback((brands: Brand[]) => {
+  const startBrowserScrape = useCallback((brands: Brand[], overview = false) => {
     const payload = brands.map((b) => ({
       id: b.id,
       name: b.name,
       website: b.website ?? "",
+      overview,
     }));
     chrome.runtime.sendMessage({ type: "SCRAPE_BRANDS_VIA_TABS", brands: payload });
     // Optimistically set active state

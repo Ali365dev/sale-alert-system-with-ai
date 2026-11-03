@@ -1,12 +1,14 @@
 import type { ScrapeResponse } from "../types";
-import { extractAllOffers } from "./extractors";
+import { extractAllOffers, extractOverviewOffers } from "./extractors";
 import { startSelectorMode, stopSelectorMode } from "./selector-mode";
 
 chrome.runtime.onMessage.addListener(
   (message: { type: string } & Record<string, unknown>, _sender, sendResponse) => {
-    if (message.type === "SCRAPE_PAGE") {
+    if (message.type === "SCRAPE_PAGE" || message.type === "SCRAPE_PAGE_OVERVIEW") {
       try {
-        const offers = extractAllOffers(window.location.href);
+        const offers = message.type === "SCRAPE_PAGE_OVERVIEW"
+          ? extractOverviewOffers(window.location.href)
+          : extractAllOffers(window.location.href);
         const response: ScrapeResponse = { type: "SCRAPE_RESULT", offers };
         sendResponse(response);
       } catch (err) {

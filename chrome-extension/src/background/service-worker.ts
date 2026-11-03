@@ -9,7 +9,7 @@ chrome.runtime.onInstalled.addListener(() => {
 const TAB_SCRAPE_KEY = "dm_tab_scrape";
 let tabScrapeCancelled = false;
 
-interface TabScrapeEntry { id: number; name: string; website: string; }
+interface TabScrapeEntry { id: number; name: string; website: string; overview?: boolean; }
 
 function patchTabScrapeState(patch: Record<string, unknown>) {
   chrome.storage.local.get(TAB_SCRAPE_KEY, (r) => {
@@ -39,8 +39,9 @@ function waitForTabComplete(tabId: number, timeoutMs = 25000): Promise<void> {
   });
 }
 
-async function scrapeTabUrl(tabId: number, url: string): Promise<unknown[]> {
-  let response = await sendToTab(tabId, { type: "SCRAPE_PAGE", url });
+async function scrapeTabUrl(tabId: number, url: string, overview = false): Promise<unknown[]> {
+  const msgType = overview ? "SCRAPE_PAGE_OVERVIEW" : "SCRAPE_PAGE";
+  let response = await sendToTab(tabId, { type: msgType, url });
   if (response === null) {
     await new Promise<void>((res) => {
       chrome.scripting.executeScript(
@@ -48,7 +49,7 @@ async function scrapeTabUrl(tabId: number, url: string): Promise<unknown[]> {
         () => setTimeout(res, 500),
       );
     });
-    response = await sendToTab(tabId, { type: "SCRAPE_PAGE", url });
+    response = await sendToTab(tabId, { type: msgType, url });
   }
   return (response as { offers?: unknown[] } | null)?.offers ?? [];
 }
@@ -82,8 +83,13 @@ async function scrapeViaTabsLoop(brands: TabScrapeEntry[]) {
       await waitForTabComplete(tabId);
       if (tabScrapeCancelled) break;
 
-      const offers = await scrapeTabUrl(tabId, url);
-      allOffers.push(...offers);
+      const rawOffers = await scrapeTabUrl(tabId, url, brand.overview);
+      // Tag each offer with the brand name so the review panel can show it
+      const tagged = (rawOffers as Array<Record<string, unknown>>).map((o) => ({
+        ...o,
+        brand: (o.brand as string | undefined) || brand.name,
+      }));
+      allOffers.push(...tagged);
       patchTabScrapeState({ offersFound: allOffers.length, doneCount: i + 1, offers: allOffers });
     } catch {
       // skip and continue

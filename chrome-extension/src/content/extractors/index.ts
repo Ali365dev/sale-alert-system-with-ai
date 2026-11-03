@@ -1,7 +1,7 @@
 import type { ScrapedOffer } from "../../types";
 import { extractFromJsonLd, extractOfferJsonLd } from "./json-ld";
 import { extractFromMeta } from "./meta";
-import { extractFromDom } from "./dom";
+import { extractFromDom, extractBannerAndCouponOffers } from "./dom";
 import { deduplicateOffers } from "../../utils/dedupe";
 
 export function extractAllOffers(sourceUrl: string): ScrapedOffer[] {
@@ -25,5 +25,14 @@ export function extractAllOffers(sourceUrl: string): ScrapedOffer[] {
       (o.discount_percentage || o.sale_price || o.coupon_code || o.original_price),
   );
 
+  return deduplicateOffers(meaningful);
+}
+
+/** Overview mode: extract only sitewide banners and coupon codes — no per-product JSON-LD. */
+export function extractOverviewOffers(sourceUrl: string): ScrapedOffer[] {
+  const all = extractBannerAndCouponOffers(sourceUrl);
+  const meaningful = all.filter(
+    (o) => o.title.trim().length > 2 && (o.discount_percentage || o.coupon_code),
+  );
   return deduplicateOffers(meaningful);
 }

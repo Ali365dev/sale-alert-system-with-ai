@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Job } from "../../types";
+import type { Job, ScrapeHistoryEntry } from "../../types";
 import { listJobs } from "../../services/jobsApi";
+import { getHistory } from "../../services/storage";
 
 const STATUS_COLOR: Record<string, string> = {
   done: "bg-green-100 text-green-600",
@@ -25,13 +26,17 @@ function formatDate(iso: string | null): string {
 }
 
 type FilterType = "all" | "website_scrape_brand" | "brand_discovery" | "running" | "failed";
+type MainTab = "jobs" | "sessions";
 
 export function HistoryTab() {
+  const [mainTab, setMainTab] = useState<MainTab>("jobs");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>("website_scrape_brand");
   const [offset, setOffset] = useState(0);
+  const [sessions, setSessions] = useState<ScrapeHistoryEntry[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
   const PAGE = 20;
 
   const load = useCallback(async (f: FilterType, off: number) => {
@@ -51,6 +56,12 @@ export function HistoryTab() {
 
   useEffect(() => { load(filter, 0); setOffset(0); }, [filter, load]);
 
+  useEffect(() => {
+    if (mainTab !== "sessions") return;
+    setSessionsLoading(true);
+    getHistory().then((h) => { setSessions(h); setSessionsLoading(false); }).catch(() => setSessionsLoading(false));
+  }, [mainTab]);
+
   const FILTERS: { id: FilterType; label: string }[] = [
     { id: "website_scrape_brand", label: "Scrapes" },
     { id: "brand_discovery", label: "Discovery" },
@@ -61,7 +72,26 @@ export function HistoryTab() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Filter chips */}
+      {/* Main tab switcher */}
+      <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
+        {(["jobs", "sessions"] as MainTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setMainTab(t)}
+            className={`flex-1 py-2 text-[10px] font-bold transition relative ${
+              mainTab === t ? "text-primary" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            {mainTab === t && (
+              <span className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary rounded-t-full" />
+            )}
+            {t === "jobs" ? "Server Jobs" : "Sessions"}
+          </button>
+        ))}
+      </div>
+
+      {/* Filter chips (jobs tab only) */}
+      {mainTab === "jobs" && (
       <div className="flex gap-1.5 px-3 py-2 overflow-x-auto flex-shrink-0">
         {FILTERS.map((f) => (
           <button
@@ -77,7 +107,50 @@ export function HistoryTab() {
           </button>
         ))}
       </div>
+      )}
 
+      {/* Sessions tab */}
+      {mainTab === "sessions" && (
+        <div className="flex-1 overflow-y-auto">
+          {sessionsLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+              <span className="text-3xl mb-2">🕐</span>
+              <p className="text-xs font-semibold text-gray-500">No scrape sessions yet</p>
+              <p className="text-[10px] text-gray-400 mt-1">Sessions appear after you scan a page.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col divide-y divide-gray-100">
+              {sessions.map((s) => (
+                <div key={s.id} className="px-3 py-2.5 bg-white hover:bg-gray-50 transition">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-dark truncate">{s.domain || s.url}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(s.startedAt)}</p>
+                    </div>
+                    <span className={`flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
+                      s.status === "done" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"
+                    }`}>
+                      {s.status}
+                    </span>
+                  </div>
+                  <div className="flex gap-2.5 mt-1 text-[10px] text-gray-400">
+                    <span className="uppercase font-semibold">{s.mode}</span>
+                    {s.offersFound > 0 && <span>{s.offersFound} found</span>}
+                    {s.offersSaved > 0 && <span className="text-green-500">{s.offersSaved} saved</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Jobs tab */}
+      {mainTab === "jobs" && (<>
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex justify-center py-10">
@@ -150,6 +223,7 @@ export function HistoryTab() {
           </button>
         </div>
       )}
+      </>)}
     </div>
   );
 }

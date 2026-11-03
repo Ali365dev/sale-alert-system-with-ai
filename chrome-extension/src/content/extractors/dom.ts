@@ -280,6 +280,13 @@ function extractCouponCodes(sourceUrl: string): ScrapedOffer[] {
   return results;
 }
 
+export function extractBannerAndCouponOffers(sourceUrl: string): ScrapedOffer[] {
+  return [
+    ...extractBannerOffers(sourceUrl),
+    ...extractCouponCodes(sourceUrl),
+  ];
+}
+
 export function extractFromDom(sourceUrl: string): ScrapedOffer[] {
   return [
     ...extractPricePairs(sourceUrl),

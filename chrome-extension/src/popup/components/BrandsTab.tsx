@@ -43,6 +43,7 @@ export function BrandsTab({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
+  const [overviewMode, setOverviewMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -172,6 +173,8 @@ export function BrandsTab({
 
   const domain = pageUrl ? (() => { try { return new URL(pageUrl).hostname.replace("www.", ""); } catch { return ""; } })() : "";
 
+  const isAnyScrapeActive = tabState.active || (activeJob != null && (activeJob.status === "pending" || activeJob.status === "running"));
+
   const SUB_TABS: { id: BrandSubTab; label: string }[] = [
     { id: "list", label: "Brands" },
     { id: "discover", label: "Discover" },
@@ -196,6 +199,19 @@ export function BrandsTab({
             {t.label}
           </button>
         ))}
+        {/* Global stop button — visible from any sub-tab when a scrape is running */}
+        {isAnyScrapeActive && (
+          <button
+            onClick={() => {
+              if (tabState.active) cancelBrowserScrape();
+              else if (activeJob) handleCancelJob();
+            }}
+            className="px-3 py-2 text-[10px] font-bold text-red-500 hover:text-red-700 flex items-center gap-1 flex-shrink-0"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
+            Stop
+          </button>
+        )}
       </div>
 
       {/* Sub-tab content */}
@@ -253,11 +269,22 @@ export function BrandsTab({
               All
             </button>
             <button
+              onClick={() => setOverviewMode((v) => !v)}
+              title={overviewMode ? "Overview mode: sitewide deals & coupons" : "Products mode: individual product offers"}
+              className={`px-2 py-1 text-[10px] font-bold rounded-lg transition border ${
+                overviewMode
+                  ? "bg-purple-100 text-purple-700 border-purple-300"
+                  : "bg-gray-100 text-gray-500 border-gray-200"
+              }`}
+            >
+              {overviewMode ? "OVR" : "PRD"}
+            </button>
+            <button
               onClick={() => {
                 const targets = selected.size > 0
                   ? filtered.filter((b) => selected.has(b.id) && b.website)
                   : filtered.filter((b) => b.website);
-                if (targets.length) startBrowserScrape(targets);
+                if (targets.length) startBrowserScrape(targets, overviewMode);
               }}
               disabled={tabState.active}
               aria-label="Scrape via browser tabs"

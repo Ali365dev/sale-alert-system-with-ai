@@ -123,7 +123,7 @@ export type BrandSubTab = "list" | "discover" | "scan";
 export type ScanStatus = "idle" | "scanning" | "done" | "error";
 
 export interface ScrapeMessage {
-  type: "SCRAPE_PAGE";
+  type: "SCRAPE_PAGE" | "SCRAPE_PAGE_OVERVIEW";
   url: string;
 }
 
