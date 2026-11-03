@@ -4,6 +4,7 @@ import { Tooltip } from "./Tooltip";
 interface Props {
   job: Job;
   onCancel: () => void;
+  onViewHistory?: () => void;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -11,14 +12,22 @@ const STATUS_COLOR: Record<string, string> = {
   running: "bg-blue-100 text-blue-700",
   cancelling: "bg-orange-100 text-orange-700",
   done: "bg-green-100 text-green-600",
+  completed: "bg-green-100 text-green-600",
   failed: "bg-red-100 text-red-500",
   cancelled: "bg-gray-100 text-gray-500",
 };
 
-export function JobStatusPanel({ job, onCancel }: Props) {
+// For website_scrape_brand, "successful" means pages scraped OK (not individual offers inserted).
+// Use a job-type-aware label so it doesn't mislead the user.
+function successLabel(job: Job): string {
+  if (job.job_type === "website_scrape_brand") return "pages scraped";
+  return "saved";
+}
+
+export function JobStatusPanel({ job, onCancel, onViewHistory }: Props) {
   const pct = job.progress_percentage ?? 0;
   const canCancel = job.status === "pending" || job.status === "running";
-  const isTerminal = job.status === "done" || job.status === "failed" || job.status === "cancelled";
+  const isTerminal = job.status === "done" || job.status === "failed" || job.status === "cancelled" || job.status === "completed";
 
   const label = job.current_item_label
     ? job.current_item_label
@@ -32,8 +41,8 @@ export function JobStatusPanel({ job, onCancel }: Props) {
 
   const brandName = (job.payload?.brand_name as string | undefined) ?? "";
 
-  return (
-    <div className="mx-3 mt-2 bg-white border border-gray-200 rounded-xl p-3">
+  const panelContent = (
+    <>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <span
@@ -45,17 +54,29 @@ export function JobStatusPanel({ job, onCancel }: Props) {
             {brandName ? `Scraping ${brandName}` : `Job #${job.id}`}
           </p>
         </div>
-        {canCancel && (
-          <Tooltip text="Cancel this scrape job" position="left">
-            <button
-              onClick={onCancel}
-              aria-label="Cancel job"
-              className="text-[10px] text-red-400 hover:text-red-600 font-bold flex-shrink-0 ml-2"
-            >
-              ✕ Cancel
-            </button>
-          </Tooltip>
-        )}
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+          {isTerminal && onViewHistory && (
+            <Tooltip text="View in History" position="left">
+              <button
+                onClick={(e) => { e.stopPropagation(); onViewHistory(); }}
+                className="text-[10px] text-primary hover:text-primary-dark font-bold"
+              >
+                History →
+              </button>
+            </Tooltip>
+          )}
+          {canCancel && (
+            <Tooltip text="Cancel this scrape job" position="left">
+              <button
+                onClick={(e) => { e.stopPropagation(); onCancel(); }}
+                aria-label="Cancel job"
+                className="text-[10px] text-red-400 hover:text-red-600 font-bold"
+              >
+                ✕ Cancel
+              </button>
+            </Tooltip>
+          )}
+        </div>
       </div>
 
       {/* Progress bar */}
@@ -74,7 +95,9 @@ export function JobStatusPanel({ job, onCancel }: Props) {
       {(job.processed_items ?? 0) > 0 && (
         <div className="flex gap-3 mt-1.5 text-[10px] text-gray-400">
           <span>{job.processed_items} processed</span>
-          {(job.successful ?? 0) > 0 && <span className="text-green-500">{job.successful} saved</span>}
+          {(job.successful ?? 0) > 0 && (
+            <span className="text-green-500">{job.successful} {successLabel(job)}</span>
+          )}
           {(job.failed ?? 0) > 0 && <span className="text-red-400">{job.failed} failed</span>}
         </div>
       )}
@@ -82,6 +105,15 @@ export function JobStatusPanel({ job, onCancel }: Props) {
       {job.status === "failed" && job.error && (
         <p className="mt-1.5 text-[10px] text-red-400 line-clamp-2">{job.error}</p>
       )}
+    </>
+  );
+
+  return (
+    <div
+      className={`mx-3 mt-2 bg-white border border-gray-200 rounded-xl p-3 ${isTerminal && onViewHistory ? "cursor-pointer hover:border-primary/40 transition" : ""}`}
+      onClick={isTerminal && onViewHistory ? onViewHistory : undefined}
+    >
+      {panelContent}
     </div>
   );
 }

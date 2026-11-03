@@ -30,6 +30,7 @@ interface Props {
   onOfferChange: (key: string, o: ScrapedOffer) => void;
   onSave: () => void;
   onToast: (type: "success" | "error" | "info", text: string) => void;
+  onViewHistory: () => void;
 }
 
 const POLL_MS = 4000;
@@ -37,7 +38,7 @@ const POLL_MS = 4000;
 export function BrandsTab({
   pageUrl, scanStatus, scanProgress, scanOffers, scanSelected, scanSaving,
   onScanPage, onCrawl, onStopScan, onSelectElements,
-  onToggleOffer, onSelectAll, onClearAll, onOfferChange, onSave, onToast,
+  onToggleOffer, onSelectAll, onClearAll, onOfferChange, onSave, onToast, onViewHistory,
 }: Props) {
   const [subTab, setSubTab] = useState<BrandSubTab>("list");
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -308,7 +309,7 @@ export function BrandsTab({
           {/* Active backend job panel */}
           {activeJob && (
             <div className="flex-shrink-0">
-              <JobStatusPanel job={activeJob} onCancel={handleCancelJob} />
+              <JobStatusPanel job={activeJob} onCancel={handleCancelJob} onViewHistory={onViewHistory} />
             </div>
           )}
 

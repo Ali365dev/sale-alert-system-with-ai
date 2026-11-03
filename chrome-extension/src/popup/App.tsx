@@ -207,6 +207,7 @@ export function App() {
             onOfferChange={(key, updated) => setScanOffers((p) => p.map((o) => (o._key ?? o.offer_url) === key ? updated : o))}
             onSave={handleSave}
             onToast={addToast}
+            onViewHistory={() => setTab("history")}
           />
         )}
         {tab === "selectors" && <SelectorsTab pageUrl={pageUrl} />}
