@@ -35,7 +35,7 @@ from database.db import init_db
 async def lifespan(app: FastAPI):
     init_db()
 
-    from app_server.job_registry import register_app_jobs
+    from job_registry import register_app_jobs
     register_app_jobs()
 
     from services.offer_notifications import register_hooks

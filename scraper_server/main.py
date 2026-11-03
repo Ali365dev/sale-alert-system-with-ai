@@ -32,7 +32,7 @@ from database.db import init_db
 async def lifespan(app: FastAPI):
     init_db()
 
-    from scraper_server.job_registry import register_scraper_jobs
+    from job_registry import register_scraper_jobs
     register_scraper_jobs()
 
     # Any website-scrape jobs left in running/pending state when this
