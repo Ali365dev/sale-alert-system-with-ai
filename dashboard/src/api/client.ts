@@ -10,11 +10,11 @@ import { toast } from "../store/toastStore";
 // In dev both default to localhost. In prod set these in dashboard/.env (or
 // Vercel env vars) to your two Render service URLs.
 const DEFAULT_APP_URL = import.meta.env.PROD
-  ? "https://sales-alert-app.onrender.com/api"
+  ? "https://sale-alert-system-with-ai.onrender.com/api"
   : "http://localhost:8000/api";
 
 const DEFAULT_SCRAPER_URL = import.meta.env.PROD
-  ? "https://sales-alert-scraper.onrender.com/api"
+  ? "https://sale-alert-system-with-ai-1.onrender.com/api"
   : "http://localhost:8001/api";
 
 const APP_BASE_URL     = import.meta.env.VITE_APP_SERVER_URL     ?? DEFAULT_APP_URL;

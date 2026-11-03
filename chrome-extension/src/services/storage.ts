@@ -3,9 +3,15 @@ import type { AppSettings, ScrapeHistoryEntry } from "../types";
 const SETTINGS_KEY = "dm_settings";
 const HISTORY_KEY = "dm_history";
 
+const IS_DEV = typeof process !== "undefined" && process.env.NODE_ENV === "development";
+
 const DEFAULT_SETTINGS: AppSettings = {
-  appServerUrl: "http://localhost:8000",
-  scraperServerUrl: "http://localhost:8001",
+  appServerUrl: IS_DEV
+    ? "http://localhost:8000"
+    : "https://sale-alert-system-with-ai.onrender.com",
+  scraperServerUrl: IS_DEV
+    ? "http://localhost:8001"
+    : "https://sale-alert-system-with-ai-1.onrender.com",
   sessionToken: null,
 };
 

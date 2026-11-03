@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 // production — used for release builds. Sale Alerts must be deployed here or
 // product URL analyze returns 404.
-const PRODUCTION_API = 'https://sale-alert-system-with-ai.onrender.com/api';
+const PRODUCTION_API = 'https://sale-alert-system-with-ai.onrender.com/api'; // app server
 
 // local — Mac LAN IP for physical devices + iOS Simulator on the same Wi‑Fi.
 // Android emulator needs 10.0.2.2 instead of the LAN IP.

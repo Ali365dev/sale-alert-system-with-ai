@@ -1,316 +1,116 @@
-# Gmail Sales Offers AI Dashboard
+# Sale Alert System with AI
 
-A production-ready application that reads Gmail emails from a `sales_offers` label, analyses them with Gemini (Groq fallback) AI, stores results in a database, and exposes them through a Flask API consumed by a React dashboard.
+A full-stack deal & bank card offer aggregation platform for Pakistan.
 
 ---
 
-## Tech Stack
+## 🌐 Production URLs
 
-| Layer | Library |
+| Service | URL | Docs |
+|---|---|---|
+| **App Server** (user-facing API) | https://sale-alert-system-with-ai.onrender.com | [/docs](https://sale-alert-system-with-ai.onrender.com/docs) |
+| **Scraper Server** (admin API) | https://sale-alert-system-with-ai-1.onrender.com | [/docs](https://sale-alert-system-with-ai-1.onrender.com/docs) |
+
+## 🖥️ Local Development URLs
+
+| Service | URL |
 |---|---|
-| Gmail integration | Google API Python Client (OAuth2) |
-| AI analysis | Gemini (primary), Groq (fallback) |
-| Database | SQLAlchemy 2 (SQLite locally, Postgres/Supabase in production) |
-| API | Flask + Flask-CORS |
-| Frontend | React + Vite + TypeScript, TanStack Query, Zustand |
-| Config | python-dotenv |
+| App Server | http://localhost:8000 |
+| Scraper Server | http://localhost:8001 |
 
 ---
 
-## Quick Start (Local)
+## 📁 Project Structure
 
-### 1. Clone & install
+```
+app/              — React Native mobile app (Expo)
+dashboard/        — React + TypeScript admin dashboard (Vite)
+app_server/       — FastAPI: user-facing API (auth, brands, offers, preferences, sale alerts)
+scraper_server/   — FastAPI: admin API (analytics, emails, jobs, scraping, settings)
+chrome-extension/ — Chrome extension for admin scraping
+```
+
+---
+
+## 🚀 Running Locally
 
 ```bash
-git clone <repo>
-cd gmail-ai-dashboard
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+# Install Python deps
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+
+# Start both servers (hot reload)
+bash run.sh
 ```
 
-### 2. Configure environment
+App server → http://localhost:8000/docs  
+Scraper server → http://localhost:8001/docs
 
-```bash
-cp .env.example .env
-# Edit .env — add GEMINI_API_KEY and DATABASE_URL at minimum
-```
-
-### 3. Set up Gmail API
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/).
-2. Create a project → enable **Gmail API**.
-3. Create **OAuth 2.0 Client ID** (Desktop app) → download `credentials.json`.
-4. Place `credentials.json` in the project root.
-5. On first run the browser opens for consent; a `token.json` is saved automatically.
-
-Create the Gmail label `sales_offers` in your Gmail account and filter promotional emails into it.
-
-### 4. Get a Gemini API key
-
-Visit [Google AI Studio](https://aistudio.google.com/app/apikey) → Create API key → paste into `.env`.
-
-### 5. Run the API
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-Serves the REST API on [http://localhost:8000](http://localhost:8000).
-
-### 6. Run the dashboard
+### Dashboard
 
 ```bash
 cd dashboard
 npm install
-npm run dev
+npm run dev     # http://localhost:5173
 ```
 
-Open [http://localhost:5173](http://localhost:5173) — the public offers site is at `/`, the admin dashboard at `/dashboard` (click **Run fetch & analyse now** in the sidebar, or use **Pipeline Center** to run/monitor any background job).
-
-### 7. One-off manual pipeline run (optional)
+### Chrome Extension
 
 ```bash
-python run.py
+cd chrome-extension
+npm install
+npm run build   # output in dist/
 ```
-
-Fetches new emails, analyses them with AI, and saves offers — without going through the API/UI. Useful for cron or a quick manual catch-up.
+Load `dist/` as unpacked extension in Chrome → `chrome://extensions`.
 
 ---
 
-## Project Structure
+## ⚙️ Environment Variables
 
-```
-gmail-ai-dashboard/
-├── app/                    # FastAPI app
-│   ├── main.py             # Entry point — FastAPI() instance, CORS, lifespan startup
-│   ├── core/
-│   │   └── security.py     # Admin-auth dependency (session cookie)
-│   └── api/
-│       ├── dependencies.py # Shared pagination dependency
-│       └── routers/        # One router per resource (offers, brands, emails, settings, ...)
-├── config.py               # All env-var settings + logging
-├── dashboard/               # React + Vite admin dashboard (public offers site + admin)
-├── gmail/
-│   ├── gmail_client.py     # OAuth2 authentication
-│   └── gmail_service.py    # Fetch & deduplicate emails
-├── ai/
-│   ├── analyzer.py         # Gemini/Groq prompt + JSON extraction (per-email)
-│   └── brand_fetcher.py    # AI-driven brand promotion discovery
-├── services/
-│   ├── email_sync.py       # Background job: fetch + analyse + save
-│   └── jobs/                # Other background job types (verify, research, etc.)
-├── database/
-│   ├── models.py           # SQLAlchemy ORM models
-│   └── db.py                # Engine, session, init_db()
-├── research/                 # Tavily + Llama brand research pipeline
-├── run.py                   # Manual one-off pipeline runner
-├── logs/                    # Rotating log files
-├── .env.example
-├── requirements.txt
-└── Dockerfile
-```
+Copy `.env.example` to `.env` and fill in the values.
 
----
-
-## Deployment
-
-### Ubuntu VPS
-
-```bash
-# Install Python 3.12
-sudo apt update && sudo apt install -y python3.12 python3.12-venv
-
-# Clone & install
-git clone <repo> /opt/gmail-dashboard
-cd /opt/gmail-dashboard
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# Configure
-cp .env.example .env && nano .env
-# Place credentials.json and pre-generated token.json here
-
-# systemd service for the API
-sudo tee /etc/systemd/system/gmail-api.service > /dev/null <<EOF
-[Unit]
-Description=Gmail Offers API
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/opt/gmail-dashboard
-EnvironmentFile=/opt/gmail-dashboard/.env
-ExecStart=/opt/gmail-dashboard/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now gmail-api
-
-# Monitor logs
-journalctl -fu gmail-api
-```
-
-Build the dashboard for production and serve `dashboard/dist/` from your web server of choice, pointed at the API's origin (`VITE_API_BASE_URL`, e.g. `https://your-api.example.com/api`):
-
-```bash
-cd dashboard && npm install && npm run build
-```
-
-### Docker
-
-```bash
-# First-time auth (must be done locally, not inside Docker)
-python -c "from gmail.gmail_client import get_gmail_service; get_gmail_service()"
-# Writes the token into the Setting DB row this container's DATABASE_URL points at
-# (see the Render section below) — nothing to copy into the image.
-
-# Build & run the API
-docker build -t gmail-ai-dashboard .
-docker run -d -p 8000:8000 --env-file .env gmail-ai-dashboard
-
-# Logs
-docker logs -f <container-id>
-```
-
-Build and deploy the dashboard separately (static hosting, CDN, or your own container) — the Docker image above only runs the API.
-
-### Render
-
-`render.yaml` in the repo root is a ready-to-use Blueprint (Free plan) — Render builds from the existing `Dockerfile` directly, no separate buildpack config needed.
-
-The Gmail OAuth token and `credentials.json` are both handled without needing a persistent disk or Secret Files (Free web services support neither reliably): the token lives in the `Setting` DB row `gmail_oauth_token` (Fernet-encrypted), and the OAuth client config is passed as a `GMAIL_CREDENTIALS_JSON` env var instead of a mounted file.
-
-1. Push this repo to GitHub (if not already), then in the Render dashboard: **New +** → **Blueprint** → select the repo. Render reads `render.yaml` and provisions the service.
-2. During setup, Render prompts for every env var marked `sync: false`:
-   - `GMAIL_CREDENTIALS_JSON` — paste the raw contents of your `credentials.json` file.
-   - `GEMINI_API_KEY`, `GROQ_API_KEY`
-   - `DATABASE_URL` — your Supabase/Postgres connection string.
-   - `SETTINGS_ENCRYPTION_KEY` — generate one (`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`) and use the **same value** in your local `.env` too (see step 3 — it encrypts the Gmail token, so local and deployed must match to share it).
-   - `ADDITIONAL_CORS_ORIGINS` — the deployed dashboard's origin, e.g. `https://your-dashboard.onrender.com` (required for Settings login to work from a browser).
-3. First-time Gmail auth — run this **locally**, with your local `.env`'s `DATABASE_URL` and `SETTINGS_ENCRYPTION_KEY` set to the exact same values you just entered in Render:
-   ```bash
-   python -c "from gmail.gmail_client import get_gmail_service; get_gmail_service()"
-   ```
-   This opens a browser consent flow and writes the resulting token straight into the shared DB — no file to copy, no Shell tab needed. Render picks it up on its next request.
-4. **Free-tier caveats, be aware of both:**
-   - Services spin down after inactivity (see [Keeping a Render Free Web Service awake](#keeping-a-render-free-web-service-awake)).
-   - The OCR pipeline (`paddlepaddle`/`paddleocr`) wants real RAM; Free-tier instances are limited. If OCR is slow/fails under load, that's the first thing to check — upgrading to a paid plan (`plan: standard` in `render.yaml`) fixes both this and the spin-down issue.
-
-Once it's live, point the mobile app's `EXPO_PUBLIC_API_URL` and the dashboard's `VITE_API_BASE_URL` (both `<render-url>/api`) at the Render service's `https://*.onrender.com` URL.
-
-### Keeping a Render Free Web Service awake
-
-Render Free Web Services spin down after a period of inactivity (about 15 minutes with no traffic). The next request then pays a cold-start delay (~1 minute), and in-process schedulers (offer cleanup, Gmail automation polling) will not run while the process is asleep.
-
-`GET /api/health` is the keep-alive target. It is intentionally lightweight: unauthenticated, no database access, and it does not start Gmail processing, AI, scraping, notifications, or background jobs. It only returns:
-
-```json
-{"status": "ok"}
-```
-
-Call it periodically from an **external** monitoring or scheduling service. **Do not** add a self-pinging loop inside this backend — if the process has already spun down, it cannot ping itself, and a loop in-process would not prevent idle shutdown.
-
-Keep the ping interval in the external scheduler, not in application code. **Every 10 minutes** is a good default on the Free plan (idle timeout is ~15 minutes). Change it in the scheduler if Render's idle policy changes.
-
-#### Configure an external 10-minute ping
-
-Replace `YOUR-RENDER-SERVICE` with the hostname Render assigned to this web service. Do not put that hostname in application code.
-
-Local check (API running on port 8000):
-
-```bash
-curl -sS -m 30 http://localhost:8000/api/health
-```
-
-Deployed check:
-
-```bash
-curl -sS -m 30 https://YOUR-RENDER-SERVICE.onrender.com/api/health
-```
-
-Expected: HTTP 200 and `{"status":"ok"}`.
-
-**Option A — cron-job.org**
-
-1. Create a free account at [cron-job.org](https://cron-job.org).
-2. **Create cronjob**.
-3. Title: e.g. `gmail-api keep-alive`.
-4. Address: `https://YOUR-RENDER-SERVICE.onrender.com/api/health`.
-5. Schedule: every 10 minutes (or a custom cron expression such as `*/10 * * * *`).
-6. Request method: **GET**.
-7. Timeout: 30–60 seconds (cold starts can be slow if a ping is missed; once keep-alive is working, responses should be fast).
-8. Enable retries on failure if the UI offers them (1–2 retries is enough).
-9. Save and confirm the first run returns 200.
-
-**Option B — UptimeRobot**
-
-1. Create a free account at [UptimeRobot](https://uptimerobot.com).
-2. **Add New Monitor** → monitor type **HTTP(s)**.
-3. URL: `https://YOUR-RENDER-SERVICE.onrender.com/api/health`.
-4. Interval: **10 minutes** (or 5 minutes if 10 is not available on the free plan).
-5. Timeout: 30–60 seconds.
-6. Optional: keyword monitor for `ok`.
-7. Create the monitor. UptimeRobot retries failed checks on its own.
-
-`render.yaml` already sets `healthCheckPath: /api/health` for deploy-time probes. That is separate from keep-alive: Render's health check does not ping often enough to prevent Free-plan spin-down.
-
-### Cron alternative (for periodic ingestion)
-
-```bash
-# Add to crontab -e
-0 8 * * * cd /opt/gmail-dashboard && .venv/bin/python run.py >> logs/cron.log 2>&1
-```
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
+| Variable | Required | Description |
 |---|---|---|
-| `GMAIL_CREDENTIALS_FILE` | `credentials.json` | OAuth2 client secrets (file path) |
-| `GMAIL_CREDENTIALS_JSON` | — | OAuth2 client secrets as raw JSON — takes priority over `GMAIL_CREDENTIALS_FILE` when set. Use this on hosts with no reliable file mount (e.g. Render Free) |
-| `GMAIL_TOKEN_FILE` | `token.json` | Local mirror of the saved user token (best-effort). The DB `Setting` row `gmail_oauth_token` is the source of truth — see `gmail/gmail_client.py` |
-| `GMAIL_LABEL` | `sales_offers` | Gmail label to read |
-| `GEMINI_API_KEY` | — | **Required** |
-| `GEMINI_MODEL` | `gemini-1.5-flash` | Model name |
-| `DATABASE_URL` | — | **Required** — SQLAlchemy connection string (Postgres/Supabase in production) |
-| `LOG_LEVEL` | `INFO` | Python log level |
-| `LOG_FILE` | `logs/app.log` | Rotating log path |
+| `DATABASE_URL` | ✅ | PostgreSQL connection string |
+| `SETTINGS_ENCRYPTION_KEY` | ✅ | Fernet key — generate: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `GEMINI_API_KEY` | ✅ | [aistudio.google.com](https://aistudio.google.com) |
+| `GROQ_API_KEY` | ✅ | [console.groq.com](https://console.groq.com) |
+| `GMAIL_CREDENTIALS_JSON` | ✅ | Google OAuth credentials JSON (app server) |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | ✅ | Firebase push notifications (app server) |
+| `TAVILY_API_KEY` | ✅ | Web search for scraper (scraper server) |
+| `APP_SERVER_URL` | prod | https://sale-alert-system-with-ai.onrender.com |
+| `SCRAPER_SERVER_URL` | prod | https://sale-alert-system-with-ai-1.onrender.com |
 
 ---
 
-## Log Monitoring
+## ☁️ Deploying to Render
 
-```bash
-# Live tail
-tail -f logs/app.log
+Each server is its own Render project.
 
-# Errors only
-grep ERROR logs/app.log
+### App Server
+1. Render → **New → Blueprint**
+2. Connect repo → set **Root Directory**: `app_server`
+3. Fill in secrets (`DATABASE_URL`, `GEMINI_API_KEY`, `GMAIL_CREDENTIALS_JSON`, etc.)
 
-# Docker
-docker logs -f <container-id>
-```
+### Scraper Server
+1. Render → **New → Blueprint**
+2. Connect repo → set **Root Directory**: `scraper_server`
+3. Fill in secrets (`DATABASE_URL`, `GEMINI_API_KEY`, `TAVILY_API_KEY`, etc.)
+
+Both servers ping each other every 4 minutes to stay warm on the free plan.
 
 ---
 
-## Frontend Pages
+## 📱 Stack
 
-| Route | What you see |
+| Layer | Tech |
 |---|---|
-| `/` | Public offers site — browse, search, and filter deals |
-| `/deals/:id`, `/deals/brand/:name` | Offer and brand detail pages |
-| `/dashboard` | Admin overview — headline metrics, top brands, latest offers |
-| `/analytics` | Charts and trend analysis |
-| `/search` | Full-text filter by brand/subject/category/date |
-| `/insights` | AI daily digest, expiring deals, recommended actions |
-| `/offers`, `/brands`, `/emails` | Manager views for offers, brands, and raw emails |
-| `/pipeline` | Background job monitor (email sync, verification, research, etc.) |
-| `/settings` | API keys, prompts, Google account, email processing config |
+| Mobile App | React Native (Expo) |
+| Admin Dashboard | React + Vite + TypeScript |
+| Backend | FastAPI + SQLAlchemy (Python 3.12) |
+| Database | PostgreSQL |
+| AI | Gemini 2.0 Flash / Groq |
+| Push Notifications | Firebase FCM |
+| Email Ingestion | Gmail OAuth2 |
+| Hosting | Render (Docker) |

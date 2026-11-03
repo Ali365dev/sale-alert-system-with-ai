@@ -40,6 +40,6 @@ services:
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: APP_SERVER_URL
-        value: https://sales-alert-app.onrender.com
+        value: https://sale-alert-system-with-ai.onrender.com
       - key: SCRAPER_SERVER_URL
-        value: https://sales-alert-scraper.onrender.com
+        value: https://sale-alert-system-with-ai-1.onrender.com
