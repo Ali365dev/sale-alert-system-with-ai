@@ -1,35 +1,48 @@
-"""Pings the app server periodically to prevent Render free-tier sleep.
-
-Set APP_SERVER_URL in the environment to the deployed app server URL
-(e.g. https://sales-alert-app.onrender.com). Omit it locally — pings
-are skipped when the URL is not set, to avoid spurious noise in dev.
-"""
 import os
 import threading
 import time
+import urllib.request
 
 from config import logger
 
-_INTERVAL_SECONDS = 10 * 60  # 10 minutes
+_INTERVAL = 4 * 60   # 4 min — well under Render's 15-min sleep threshold
+_TIMEOUT  = 60       # 60 s — enough time for a cold-start wakeup
 
 
-def _ping_loop(url: str) -> None:
+def _ping(url: str) -> None:
+    try:
+        with urllib.request.urlopen(url, timeout=_TIMEOUT) as resp:
+            logger.debug("keep-alive ✓ %s  %s", url, resp.status)
+    except Exception as exc:
+        logger.warning("keep-alive ✗ %s  %s", url, exc)
+
+
+def _loop(urls: list[str]) -> None:
     while True:
-        time.sleep(_INTERVAL_SECONDS)
-        try:
-            import urllib.request
-            with urllib.request.urlopen(url, timeout=15) as resp:
-                logger.debug("Keep-alive ping → %s  status=%s", url, resp.status)
-        except Exception as exc:
-            logger.warning("Keep-alive ping → %s failed: %s", url, exc)
+        for url in urls:
+            _ping(url)
+        time.sleep(_INTERVAL)
 
 
 def start_keep_alive() -> None:
-    url = os.getenv("APP_SERVER_URL", "").rstrip("/")
-    if not url:
-        logger.debug("Keep-alive: APP_SERVER_URL not set — skipping partner ping")
+    urls = []
+
+    self_url = os.getenv("SCRAPER_SERVER_URL", "").rstrip("/")
+    if self_url:
+        urls.append(f"{self_url}/api/health")
+
+    partner_url = os.getenv("APP_SERVER_URL", "").rstrip("/")
+    if partner_url:
+        urls.append(f"{partner_url}/api/health")
+
+    if not urls:
+        logger.debug("keep-alive: no URLs configured — skipping")
         return
-    health_url = f"{url}/api/health"
-    t = threading.Thread(target=_ping_loop, args=(health_url,), daemon=True, name="keep-alive-app")
+
+    # Ping immediately so servers are warm right after deploy
+    for url in urls:
+        threading.Thread(target=_ping, args=(url,), daemon=True).start()
+
+    t = threading.Thread(target=_loop, args=(urls,), daemon=True, name="keep-alive")
     t.start()
-    logger.info("Keep-alive: will ping %s every %d min", health_url, _INTERVAL_SECONDS // 60)
+    logger.info("keep-alive: pinging %s every %d min", urls, _INTERVAL // 60)
