@@ -2,10 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useScraperConfigs, useDeleteScraperConfig, useRunScraperConfig, useUpdateScraperConfig } from "../api/scraperConfigs";
 import { useBrands } from "../api/brands";
-import { useToastStore } from "../store/toastStore";
+import { toast } from "../store/toastStore";
 
 export function ScraperConfigs() {
-  const toast = useToastStore();
   const navigate = useNavigate();
   const [brandFilter, setBrandFilter] = useState<number | undefined>(undefined);
 

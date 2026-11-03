@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useScraperConfigs, useScraperConfig, useCreateScraperConfig, useUpdateScraperConfig, useDeleteScraperConfig, useRunScraperConfig, useCreateSelector, useDeleteSelector } from "../api/scraperConfigs";
 import type { ScraperConfig, ScraperSelector, ScraperConfigInput } from "../api/scraperConfigs";
 import { useBrands } from "../api/brands";
-import { useToastStore } from "../store/toastStore";
+import { toast } from "../store/toastStore";
 
 const SELECTOR_TYPES = ["text", "image", "link", "price", "attribute", "html", "table", "pagination", "click", "container"] as const;
 
@@ -113,7 +113,6 @@ function AddSelectorForm({
   selectors: ScraperSelector[];
   onDone: () => void;
 }) {
-  const toast = useToastStore();
   const createSelector = useCreateSelector();
   const [name, setName] = useState("");
   const [type, setType] = useState<string>("text");
@@ -279,7 +278,6 @@ function ConfigForm({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function ScraperBuilder() {
-  const toast = useToastStore();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
   const [showAddSelector, setShowAddSelector] = useState(false);
@@ -288,7 +286,6 @@ export function ScraperBuilder() {
   const { data: activeConfig } = useScraperConfig(selectedId);
   const { data: brandsData } = useBrands(null);
   const createConfig = useCreateScraperConfig();
-  const updateConfig = useUpdateScraperConfig();
   const deleteConfig = useDeleteScraperConfig();
   const runConfig = useRunScraperConfig();
   const deleteSelector = useDeleteSelector();
