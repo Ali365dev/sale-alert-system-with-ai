@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSchedules, useCreateSchedule, useUpdateSchedule, useDeleteSchedule, useRunScheduleNow } from "../api/schedules";
 import type { ScrapingSchedule, ScheduleInput } from "../api/schedules";
 import { useBrands } from "../api/brands";
-import { useToastStore } from "../store/toastStore";
+import { toast } from "../store/toastStore";
 
 const PRESETS = [
   { label: "Every 6 hours", cron: "0 */6 * * *" },
@@ -117,7 +117,6 @@ function ScheduleForm({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function ScheduledScraping() {
-  const toast = useToastStore();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 

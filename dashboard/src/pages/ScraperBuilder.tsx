@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useScraperConfigs, useScraperConfig, useCreateScraperConfig, useUpdateScraperConfig, useDeleteScraperConfig, useRunScraperConfig, useCreateSelector, useDeleteSelector } from "../api/scraperConfigs";
+import { useScraperConfigs, useScraperConfig, useCreateScraperConfig, useDeleteScraperConfig, useRunScraperConfig, useCreateSelector, useDeleteSelector } from "../api/scraperConfigs";
 import type { ScraperConfig, ScraperSelector, ScraperConfigInput } from "../api/scraperConfigs";
 import { useBrands } from "../api/brands";
 import { toast } from "../store/toastStore";
