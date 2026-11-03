@@ -44,7 +44,7 @@ services:
   - name: sales-alert-app
     type: web
     runtime: docker
-    dockerfilePath: ./app_server/Dockerfile
+    dockerfilePath: ./Dockerfile.app
     dockerContext: ./
     plan: starter            # $7/mo — no sleep, always-on, 512 MB RAM
     region: frankfurt
@@ -76,7 +76,7 @@ services:
   - name: sales-alert-scraper
     type: web
     runtime: docker
-    dockerfilePath: ./scraper_server/Dockerfile
+    dockerfilePath: ./Dockerfile.scraper
     dockerContext: ./
     plan: standard           # $25/mo — Playwright + PaddleOCR need ≥ 1 GB RAM
     region: frankfurt
