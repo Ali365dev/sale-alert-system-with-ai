@@ -1,0 +1,37 @@
+envVarGroups:
+
+  - name: scraper-shared-secrets
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SETTINGS_ENCRYPTION_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: ADDITIONAL_CORS_ORIGINS
+        sync: false
+
+services:
+
+  - name: sales-alert-scraper
+    type: web
+    runtime: docker
+    plan: standard
+    region: frankfurt
+    healthCheckPath: /api/health
+
+    envVars:
+      - fromGroup: scraper-shared-secrets
+
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: LOG_LEVEL
+        value: info
+      - key: SCRAPER_SERVER_URL
+        value: https://sales-alert-scraper.onrender.com
+      - key: APP_SERVER_URL
+        value: https://sales-alert-app.onrender.com

@@ -1,0 +1,43 @@
+envVarGroups:
+
+  - name: app-shared-secrets
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SETTINGS_ENCRYPTION_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GMAIL_CREDENTIALS_JSON
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: ADDITIONAL_CORS_ORIGINS
+        sync: false
+
+services:
+
+  - name: sales-alert-app
+    type: web
+    runtime: docker
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /api/health
+
+    envVars:
+      - fromGroup: app-shared-secrets
+
+      - key: GMAIL_LABEL
+        value: sales_offers
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: OFFER_MATCH_MODE
+        value: or
+      - key: LOG_LEVEL
+        value: info
+      - key: APP_SERVER_URL
+        value: https://sales-alert-app.onrender.com
+      - key: SCRAPER_SERVER_URL
+        value: https://sales-alert-scraper.onrender.com
