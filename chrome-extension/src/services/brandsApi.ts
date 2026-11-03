@@ -111,6 +111,13 @@ export async function getOrCreateScraperConfig(brandId: number | null, domain: s
   return (createRes.data as { id: number }).id;
 }
 
+/** Fetch all saved offers for a brand (source=website). */
+export async function getBrandOffers(brandId: number): Promise<import("../types").ApiOffer[]> {
+  const client = await scraperClient();
+  const res = await client.get(`/website-scraper/brands/${brandId}/offers`);
+  return (res.data as { offers: import("../types").ApiOffer[] }).offers ?? [];
+}
+
 /** Save a CSS selector into a ScraperConfig. */
 export async function saveScraperSelector(
   configId: number,

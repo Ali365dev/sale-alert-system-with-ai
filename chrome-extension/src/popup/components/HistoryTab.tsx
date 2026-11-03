@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Job, ScrapeHistoryEntry } from "../../types";
+import type { Job, ScrapeHistoryEntry, ApiOffer } from "../../types";
 import { listJobs } from "../../services/jobsApi";
 import { getHistory } from "../../services/storage";
+import { getBrandOffers } from "../../services/brandsApi";
 
 const STATUS_COLOR: Record<string, string> = {
   done: "bg-green-100 text-green-600",
@@ -37,6 +38,8 @@ export function HistoryTab() {
   const [offset, setOffset] = useState(0);
   const [sessions, setSessions] = useState<ScrapeHistoryEntry[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [expandedJobId, setExpandedJobId] = useState<number | null>(null);
+  const [jobOffers, setJobOffers] = useState<Record<number, ApiOffer[] | "loading" | "error">>({});
   const PAGE = 20;
 
   const load = useCallback(async (f: FilterType, off: number) => {
@@ -61,6 +64,20 @@ export function HistoryTab() {
     setSessionsLoading(true);
     getHistory().then((h) => { setSessions(h); setSessionsLoading(false); }).catch(() => setSessionsLoading(false));
   }, [mainTab]);
+
+  const toggleJobExpand = useCallback(async (job: Job) => {
+    if (expandedJobId === job.id) { setExpandedJobId(null); return; }
+    setExpandedJobId(job.id);
+    const brandId = job.payload?.brand_id as number | undefined;
+    if (!brandId || jobOffers[job.id]) return;
+    setJobOffers((prev) => ({ ...prev, [job.id]: "loading" }));
+    try {
+      const offers = await getBrandOffers(brandId);
+      setJobOffers((prev) => ({ ...prev, [job.id]: offers }));
+    } catch {
+      setJobOffers((prev) => ({ ...prev, [job.id]: "error" }));
+    }
+  }, [expandedJobId, jobOffers]);
 
   const FILTERS: { id: FilterType; label: string }[] = [
     { id: "website_scrape_brand", label: "Scrapes" },
@@ -166,35 +183,99 @@ export function HistoryTab() {
             {jobs.map((job) => {
               const brandName = (job.payload?.brand_name as string | undefined)
                 ?? (job.payload?.brand_id != null ? `Brand #${job.payload.brand_id}` : null);
+              const isExpanded = expandedJobId === job.id;
+              const offers = jobOffers[job.id];
+              const hasBrand = job.payload?.brand_id != null;
               return (
-                <div key={job.id} className="px-3 py-2.5 bg-white hover:bg-gray-50 transition">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-semibold text-dark">
-                          {JOB_TYPE_LABEL[job.job_type] ?? job.job_type}
+                <div key={job.id} className="bg-white">
+                  <button
+                    onClick={() => toggleJobExpand(job)}
+                    className="w-full text-left px-3 py-2.5 hover:bg-gray-50 transition"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-semibold text-dark">
+                            {JOB_TYPE_LABEL[job.job_type] ?? job.job_type}
+                          </span>
+                          {brandName && (
+                            <span className="text-[10px] text-gray-500 truncate">— {brandName}</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(job.started_at ?? job.created_at)}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${STATUS_COLOR[job.status] ?? "bg-gray-100 text-gray-500"}`}>
+                          {job.status}
                         </span>
-                        {brandName && (
-                          <span className="text-[10px] text-gray-500 truncate">— {brandName}</span>
+                        {hasBrand && (
+                          <span className="text-[10px] text-gray-400">{isExpanded ? "▲" : "▼"}</span>
                         )}
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(job.started_at ?? job.created_at)}</p>
                     </div>
-                    <span className={`flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${STATUS_COLOR[job.status] ?? "bg-gray-100 text-gray-500"}`}>
-                      {job.status}
-                    </span>
-                  </div>
-                  {/* Stats */}
-                  <div className="flex gap-2.5 mt-1.5 text-[10px] text-gray-400">
-                    {job.progress_percentage != null && job.status !== "done" && (
-                      <span>{Math.round(job.progress_percentage)}%</span>
+                    {/* Stats */}
+                    <div className="flex gap-2.5 mt-1 text-[10px] text-gray-400">
+                      {job.progress_percentage != null && job.status !== "done" && (
+                        <span>{Math.round(job.progress_percentage)}%</span>
+                      )}
+                      {(job.successful ?? 0) > 0 && <span className="text-green-500">{job.successful} saved</span>}
+                      {(job.processed_items ?? 0) > 0 && <span>{job.processed_items} processed</span>}
+                      {(job.failed ?? 0) > 0 && <span className="text-red-400">{job.failed} failed</span>}
+                    </div>
+                    {job.error && (
+                      <p className="mt-1 text-[10px] text-red-400 line-clamp-1">{job.error}</p>
                     )}
-                    {(job.successful ?? 0) > 0 && <span className="text-green-500">{job.successful} saved</span>}
-                    {(job.processed_items ?? 0) > 0 && <span>{job.processed_items} processed</span>}
-                    {(job.failed ?? 0) > 0 && <span className="text-red-400">{job.failed} failed</span>}
-                  </div>
-                  {job.error && (
-                    <p className="mt-1 text-[10px] text-red-400 line-clamp-1">{job.error}</p>
+                  </button>
+
+                  {/* Expanded offers panel */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100 bg-gray-50 px-3 py-2">
+                      {offers === "loading" && (
+                        <div className="flex justify-center py-4">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                      {offers === "error" && (
+                        <p className="text-[10px] text-red-400 text-center py-2">Failed to load offers.</p>
+                      )}
+                      {!offers && !hasBrand && (
+                        <p className="text-[10px] text-gray-400 text-center py-2">No brand linked to this job.</p>
+                      )}
+                      {Array.isArray(offers) && offers.length === 0 && (
+                        <p className="text-[10px] text-gray-400 text-center py-2">No offers saved for this brand yet.</p>
+                      )}
+                      {Array.isArray(offers) && offers.length > 0 && (
+                        <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                          {offers.map((o) => (
+                            <div key={o.id} className="bg-white rounded-lg p-2 border border-gray-100">
+                              <p className="text-[10px] font-semibold text-dark truncate">{o.title ?? "Untitled offer"}</p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {o.discount_percentage && (
+                                  <span className="px-1.5 py-0.5 bg-primary text-white text-[9px] font-bold rounded">
+                                    {o.discount_percentage}% OFF
+                                  </span>
+                                )}
+                                {o.coupon_code && (
+                                  <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded font-mono">
+                                    {o.coupon_code}
+                                  </span>
+                                )}
+                                {o.category && (
+                                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] rounded">
+                                    {o.category}
+                                  </span>
+                                )}
+                                <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${
+                                  o.is_active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"
+                                }`}>
+                                  {o.is_active ? "active" : "inactive"}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               );

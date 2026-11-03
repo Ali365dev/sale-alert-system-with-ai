@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ScrapedOffer } from "../../types";
+import { Tooltip } from "./Tooltip";
 
 interface Props {
   offer: ScrapedOffer;
@@ -147,13 +148,14 @@ export function OfferCard({ offer, selected, onToggle, onChange }: Props) {
       </div>
 
       {/* Edit button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-        className="flex-shrink-0 text-gray-300 hover:text-gray-500 text-sm transition mt-0.5"
-        title="Edit offer"
-      >
-        ✎
-      </button>
+      <Tooltip text="Edit offer" position="left">
+        <button
+          onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+          className="flex-shrink-0 text-gray-300 hover:text-gray-500 text-sm transition mt-0.5"
+        >
+          ✎
+        </button>
+      </Tooltip>
     </div>
   );
 }

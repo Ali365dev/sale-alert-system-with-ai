@@ -1,4 +1,5 @@
 import type { ConnectionStatus } from "../../types";
+import { Tooltip } from "./Tooltip";
 
 function StatusDot({ status }: { status: "connected" | "error" | "unknown" }) {
   const color =
@@ -46,13 +47,15 @@ export function Header({ onSettingsClick, connStatus }: Props) {
           <span className={`text-[10px] font-semibold ${statusColor}`}>{statusLabel}</span>
         </div>
 
-        <button
-          onClick={onSettingsClick}
-          aria-label="Open settings"
-          className="text-gray-400 hover:text-white transition p-1 rounded text-base leading-none"
-        >
-          ⚙
-        </button>
+        <Tooltip text="Settings" position="bottom">
+          <button
+            onClick={onSettingsClick}
+            aria-label="Open settings"
+            className="text-gray-400 hover:text-white transition p-1 rounded text-base leading-none"
+          >
+            ⚙
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

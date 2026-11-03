@@ -3,6 +3,7 @@ import type { Brand, BrandSubTab, Job } from "../../types";
 import { listBrands, triggerBrandScrape, triggerMultiBrandScrape } from "../../services/brandsApi";
 import { getJob, storeActiveJobId, clearActiveJobId, loadActiveJobId, isJobTerminal, cancelJob } from "../../services/jobsApi";
 import { BrandCard } from "./BrandCard";
+import { Tooltip } from "./Tooltip";
 import { DiscoverTab } from "./DiscoverTab";
 import { JobStatusPanel } from "./JobStatusPanel";
 import { OfferCard } from "./OfferCard";
@@ -201,16 +202,18 @@ export function BrandsTab({
         ))}
         {/* Global stop button — visible from any sub-tab when a scrape is running */}
         {isAnyScrapeActive && (
-          <button
-            onClick={() => {
-              if (tabState.active) cancelBrowserScrape();
-              else if (activeJob) handleCancelJob();
-            }}
-            className="px-3 py-2 text-[10px] font-bold text-red-500 hover:text-red-700 flex items-center gap-1 flex-shrink-0"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
-            Stop
-          </button>
+          <Tooltip text={tabState.active ? "Cancel browser scrape" : `Cancel job #${activeJob?.id}`} position="bottom">
+            <button
+              onClick={() => {
+                if (tabState.active) cancelBrowserScrape();
+                else if (activeJob) handleCancelJob();
+              }}
+              className="px-3 py-2 text-[10px] font-bold text-red-500 hover:text-red-700 flex items-center gap-1 flex-shrink-0"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
+              Stop
+            </button>
+          </Tooltip>
         )}
       </div>
 
@@ -268,33 +271,38 @@ export function BrandsTab({
             >
               All
             </button>
-            <button
-              onClick={() => setOverviewMode((v) => !v)}
-              title={overviewMode ? "Overview mode: sitewide deals & coupons" : "Products mode: individual product offers"}
-              className={`px-2 py-1 text-[10px] font-bold rounded-lg transition border ${
-                overviewMode
-                  ? "bg-purple-100 text-purple-700 border-purple-300"
-                  : "bg-gray-100 text-gray-500 border-gray-200"
-              }`}
-            >
-              {overviewMode ? "OVR" : "PRD"}
-            </button>
-            <button
-              onClick={() => {
-                const targets = selected.size > 0
-                  ? filtered.filter((b) => selected.has(b.id) && b.website)
-                  : filtered.filter((b) => b.website);
-                if (targets.length) startBrowserScrape(targets, overviewMode);
-              }}
-              disabled={tabState.active}
-              aria-label="Scrape via browser tabs"
-              className="px-2.5 py-1 text-[10px] font-bold bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              🌐
-            </button>
-            <button onClick={fetchBrands} aria-label="Refresh brands" className="text-gray-400 hover:text-gray-600 text-sm">
-              ↻
-            </button>
+            <Tooltip text={overviewMode ? "Overview mode: sitewide deals & coupons" : "Products mode: individual product offers"}>
+              <button
+                onClick={() => setOverviewMode((v) => !v)}
+                className={`px-2 py-1 text-[10px] font-bold rounded-lg transition border ${
+                  overviewMode
+                    ? "bg-purple-100 text-purple-700 border-purple-300"
+                    : "bg-gray-100 text-gray-500 border-gray-200"
+                }`}
+              >
+                {overviewMode ? "OVR" : "PRD"}
+              </button>
+            </Tooltip>
+            <Tooltip text={tabState.active ? "Scrape in progress…" : "Open brand websites in tabs and scrape"}>
+              <button
+                onClick={() => {
+                  const targets = selected.size > 0
+                    ? filtered.filter((b) => selected.has(b.id) && b.website)
+                    : filtered.filter((b) => b.website);
+                  if (targets.length) startBrowserScrape(targets, overviewMode);
+                }}
+                disabled={tabState.active}
+                aria-label="Scrape via browser tabs"
+                className="px-2.5 py-1 text-[10px] font-bold bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                🌐
+              </button>
+            </Tooltip>
+            <Tooltip text="Refresh brands">
+              <button onClick={fetchBrands} aria-label="Refresh brands" className="text-gray-400 hover:text-gray-600 text-sm">
+                ↻
+              </button>
+            </Tooltip>
           </div>
 
           {/* Active backend job panel */}
@@ -331,20 +339,24 @@ export function BrandsTab({
                   />
                   All
                 </label>
-                <button
-                  onClick={() => saveCollectedOffers(tabState.offers.filter((_, i) => reviewSelected.has(i)))}
-                  disabled={tabSaving || reviewSelected.size === 0}
-                  className="px-2.5 py-1 text-[10px] font-bold bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-40"
-                >
-                  {tabSaving ? "Saving…" : `Save ${reviewSelected.size}`}
-                </button>
-                <button
-                  onClick={dismissCollected}
-                  aria-label="Discard collected offers"
-                  className="text-gray-400 hover:text-red-500 transition text-sm font-bold"
-                >
-                  ✕
-                </button>
+                <Tooltip text={`Save ${reviewSelected.size} selected offer${reviewSelected.size !== 1 ? "s" : ""} to server`}>
+                  <button
+                    onClick={() => saveCollectedOffers(tabState.offers.filter((_, i) => reviewSelected.has(i)))}
+                    disabled={tabSaving || reviewSelected.size === 0}
+                    className="px-2.5 py-1 text-[10px] font-bold bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-40"
+                  >
+                    {tabSaving ? "Saving…" : `Save ${reviewSelected.size}`}
+                  </button>
+                </Tooltip>
+                <Tooltip text="Discard all collected offers">
+                  <button
+                    onClick={dismissCollected}
+                    aria-label="Discard collected offers"
+                    className="text-gray-400 hover:text-red-500 transition text-sm font-bold"
+                  >
+                    ✕
+                  </button>
+                </Tooltip>
               </div>
 
               {/* Offer list */}
@@ -361,20 +373,22 @@ export function BrandsTab({
                       })}
                       onChange={(updated) => updateOffer(i, updated)}
                     />
-                    <button
-                      onClick={() => {
-                        removeOffer(i);
-                        setReviewSelected((s) => {
-                          const n = new Set<number>();
-                          s.forEach((idx) => { if (idx < i) n.add(idx); else if (idx > i) n.add(idx - 1); });
-                          return n;
-                        });
-                      }}
-                      aria-label="Remove offer"
-                      className="absolute top-2 right-8 text-[10px] text-red-300 hover:text-red-500 transition font-bold"
-                    >
-                      ✕
-                    </button>
+                    <Tooltip text="Remove this offer" position="left">
+                      <button
+                        onClick={() => {
+                          removeOffer(i);
+                          setReviewSelected((s) => {
+                            const n = new Set<number>();
+                            s.forEach((idx) => { if (idx < i) n.add(idx); else if (idx > i) n.add(idx - 1); });
+                            return n;
+                          });
+                        }}
+                        aria-label="Remove offer"
+                        className="absolute top-2 right-8 text-[10px] text-red-300 hover:text-red-500 transition font-bold"
+                      >
+                        ✕
+                      </button>
+                    </Tooltip>
                   </div>
                 ))}
               </div>

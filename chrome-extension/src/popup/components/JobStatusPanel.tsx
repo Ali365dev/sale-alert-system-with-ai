@@ -1,4 +1,5 @@
 import type { Job } from "../../types";
+import { Tooltip } from "./Tooltip";
 
 interface Props {
   job: Job;
@@ -45,13 +46,15 @@ export function JobStatusPanel({ job, onCancel }: Props) {
           </p>
         </div>
         {canCancel && (
-          <button
-            onClick={onCancel}
-            aria-label="Cancel job"
-            className="text-[10px] text-red-400 hover:text-red-600 font-bold flex-shrink-0 ml-2"
-          >
-            ✕ Cancel
-          </button>
+          <Tooltip text="Cancel this scrape job" position="left">
+            <button
+              onClick={onCancel}
+              aria-label="Cancel job"
+              className="text-[10px] text-red-400 hover:text-red-600 font-bold flex-shrink-0 ml-2"
+            >
+              ✕ Cancel
+            </button>
+          </Tooltip>
         )}
       </div>
 

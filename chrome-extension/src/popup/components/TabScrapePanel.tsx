@@ -1,4 +1,5 @@
 import type { TabScrapeState } from "../../types";
+import { Tooltip } from "./Tooltip";
 
 interface Props {
   state: TabScrapeState;
@@ -19,13 +20,15 @@ export function TabScrapePanel({ state, onCancel }: Props) {
             Browser Scraping — {state.currentBrand || "starting…"}
           </p>
         </div>
-        <button
-          onClick={onCancel}
-          aria-label="Cancel browser scrape"
-          className="flex-shrink-0 ml-2 text-[10px] text-red-400 hover:text-red-600 font-bold"
-        >
-          ✕ Cancel
-        </button>
+        <Tooltip text="Stop browser tab scraping" position="left">
+          <button
+            onClick={onCancel}
+            aria-label="Cancel browser scrape"
+            className="flex-shrink-0 ml-2 text-[10px] text-red-400 hover:text-red-600 font-bold"
+          >
+            ✕ Cancel
+          </button>
+        </Tooltip>
       </div>
 
       {/* Progress bar */}

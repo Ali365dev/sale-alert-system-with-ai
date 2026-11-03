@@ -1,4 +1,5 @@
 import type { Brand } from "../../types";
+import { Tooltip } from "./Tooltip";
 
 interface Props {
   brand: Brand;
@@ -89,14 +90,16 @@ export function BrandCard({ brand, selected, onToggle, onScrape }: Props) {
       </div>
 
       {/* Scrape button */}
-      <button
-        onClick={onScrape}
-        disabled={!brand.website_scraping_enabled}
-        aria-label={`Scrape ${brand.name}`}
-        className="flex-shrink-0 px-2.5 py-1.5 text-[10px] font-bold bg-primary hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition"
-      >
-        ⚡
-      </button>
+      <Tooltip text={brand.website_scraping_enabled ? `Scrape ${brand.name}` : "Scraping disabled"} position="left">
+        <button
+          onClick={onScrape}
+          disabled={!brand.website_scraping_enabled}
+          aria-label={`Scrape ${brand.name}`}
+          className="flex-shrink-0 px-2.5 py-1.5 text-[10px] font-bold bg-primary hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition"
+        >
+          ⚡
+        </button>
+      </Tooltip>
     </div>
   );
 }
