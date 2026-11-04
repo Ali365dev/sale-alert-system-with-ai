@@ -192,3 +192,62 @@ export interface ConnectionStatus {
   scraperServer: "connected" | "error" | "unknown";
   lastChecked?: string;
 }
+
+// ── Listing Config (visual scraper) ──────────────────────────────────────────
+
+export type PaginationMethod = "next-button" | "url-pattern" | "load-more" | "infinite-scroll" | "none";
+
+export interface PaginationConfig {
+  method: PaginationMethod;
+  nextSelector?: string;        // next button / load-more button CSS selector
+  urlPattern?: string;          // e.g. "https://example.com/page/{page}"
+  urlStartPage?: number;
+  urlEndPage?: number;
+  maxPages?: number;
+  maxProducts?: number;
+  pageLoadDelay?: number;       // ms between page loads
+  stopOnDuplicate?: boolean;
+}
+
+export interface ListingFieldSelector {
+  css: string;
+  attr?: string;                // "href" | "src" | "text" (default) | custom attr name
+}
+
+export interface ListingConfig {
+  id?: number;                  // saved ScraperConfig id
+  brandId?: number;
+  name?: string;
+  listingUrl?: string;
+  containerSelector: string;
+  fields: {
+    title?: ListingFieldSelector;
+    url?: ListingFieldSelector;
+    image?: ListingFieldSelector;
+    currentPrice?: ListingFieldSelector;
+    originalPrice?: ListingFieldSelector;
+    discount?: ListingFieldSelector;
+    availability?: ListingFieldSelector;
+    sku?: ListingFieldSelector;
+  };
+  pagination: PaginationConfig;
+}
+
+export interface ExtractedProduct {
+  title?: string;
+  url?: string;
+  image?: string;
+  currentPrice?: string;
+  originalPrice?: string;
+  discount?: string;
+  availability?: string;
+  sku?: string;
+}
+
+export interface SimilarSelectorResult {
+  containerSelector: string;
+  fieldSelector: string;
+  allMatchesSel: string;
+  containerCount: number;
+  fieldCount: number;
+}

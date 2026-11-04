@@ -89,7 +89,7 @@ export function HistoryTab() {
   ];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Main tab switcher */}
       <div className="flex border-b border-line bg-surface flex-shrink-0">
         {(["jobs", "sessions"] as MainTab[]).map((t) => (

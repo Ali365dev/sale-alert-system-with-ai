@@ -131,36 +131,25 @@ export function ScrapeTab({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Picker overlay — shown when waiting for user to click element on page */}
+      {/* Picker active banner */}
       {pendingField && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-dark/95 backdrop-blur-sm">
-          <div className="mx-4 bg-surface border border-line rounded-2xl p-5 flex flex-col items-center gap-3 text-center">
-            <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E7000B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <circle cx="12" cy="12" r="3"/>
-                <line x1="12" y1="2" x2="12" y2="5"/>
-                <line x1="12" y1="19" x2="12" y2="22"/>
-                <line x1="2" y1="12" x2="5" y2="12"/>
-                <line x1="19" y1="12" x2="22" y2="12"/>
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs font-black text-t1 uppercase tracking-wide">
-                Pick {pendingField === "product" ? "Product Container" : "Pagination Button"}
-              </p>
-              <p className="text-[10px] text-t2 mt-1.5 leading-relaxed">
-                Click any element on the page.<br/>
-                The selector will appear here when you return.
-              </p>
-            </div>
-            <button
-              onClick={cancelPick}
-              className="mt-1 px-4 py-1.5 bg-surface-2 border border-line rounded-lg text-[10px] font-bold text-t2 hover:text-t1 hover:border-t3 transition"
-            >
-              Cancel
-            </button>
+        <div className="mx-3 mt-2 flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/30 rounded-xl flex-shrink-0">
+          <span className="relative flex-shrink-0 w-2 h-2">
+            <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-75" />
+            <span className="relative block w-2 h-2 rounded-full bg-primary" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-black text-primary uppercase tracking-wide">Picker Active</p>
+            <p className="text-[9px] text-t2">
+              Click {pendingField === "product" ? "a product card" : "the next-page button"} on page
+            </p>
           </div>
+          <button
+            onClick={cancelPick}
+            className="flex-shrink-0 px-2 py-1 bg-surface-2 border border-line rounded-lg text-[9px] font-bold text-t2 hover:text-red-400 hover:border-red-500/30 transition"
+          >
+            Stop
+          </button>
         </div>
       )}
       <div className="scrollable">

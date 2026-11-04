@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Brand, ScrapeNowResult } from "../types";
+import type { Brand, ScrapeNowResult, ListingConfig } from "../types";
 import { getSettings } from "./storage";
 
 async function appClient() {
@@ -116,6 +116,107 @@ export async function getBrandOffers(brandId: number): Promise<import("../types"
   const client = await scraperClient();
   const res = await client.get(`/website-scraper/brands/${brandId}/offers`);
   return (res.data as { offers: import("../types").ApiOffer[] }).offers ?? [];
+}
+
+/**
+ * Save a full listing config (container + fields + pagination) to the backend.
+ * Creates or updates a ScraperConfig, then bulk-upserts ScraperSelectors.
+ */
+export async function saveListingConfig(config: ListingConfig): Promise<void> {
+  const client = await scraperClient();
+
+  // Upsert the ScraperConfig record
+  let configId = config.id;
+  if (!configId) {
+    const domain = config.listingUrl
+      ? (() => { try { return new URL(config.listingUrl).hostname; } catch { return "listing"; } })()
+      : "listing";
+    const res = await client.post("/scraper-configs", {
+      brand_id: config.brandId ?? null,
+      name: config.name || domain,
+      start_urls: config.listingUrl ? [config.listingUrl] : [],
+      max_pages: config.pagination.maxPages ?? 10,
+      request_delay: (config.pagination.pageLoadDelay ?? 1500) / 1000,
+    });
+    configId = (res.data as { id: number }).id;
+  }
+
+  // Build selectors array from the listing config
+  type SelDef = { name: string; selector_type: string; css_selector: string; attribute?: string; multiple: boolean };
+  const selectors: SelDef[] = [];
+
+  selectors.push({ name: "container", selector_type: "container", css_selector: config.containerSelector, multiple: true });
+
+  const fieldTypeMap: Record<string, string> = {
+    title: "text", url: "link", image: "image",
+    currentPrice: "price", originalPrice: "price",
+    discount: "text", availability: "text", sku: "attribute",
+  };
+
+  for (const [key, field] of Object.entries(config.fields)) {
+    if (!field?.css) continue;
+    selectors.push({
+      name: key,
+      selector_type: fieldTypeMap[key] ?? "text",
+      css_selector: field.css,
+      attribute: field.attr !== "text" ? field.attr : undefined,
+      multiple: false,
+    });
+  }
+
+  if (config.pagination.method !== "none" && config.pagination.nextSelector) {
+    selectors.push({
+      name: "pagination_next",
+      selector_type: "pagination",
+      css_selector: config.pagination.nextSelector,
+      multiple: false,
+    });
+  }
+
+  // Post selectors (replace all — backend handles upsert by name)
+  await client.put(`/scraper-configs/${configId}/selectors`, { selectors });
+}
+
+/** Update editable fields on a BrandDiscovery row. */
+export async function updateBrandDiscovery(
+  id: number,
+  patch: Partial<{ name: string; website: string; logo_url: string; description: string; category: string; subcategory: string; country: string }>,
+): Promise<void> {
+  const client = await scraperClient();
+  await client.put(`/brand-discovery/${id}`, patch);
+}
+
+/** Save (create or merge) a completed discovery into Brands. */
+export async function saveBrandDiscovery(
+  id: number,
+  action: "create" | "merge",
+  targetBrandId?: number,
+): Promise<{ brand_id: number; brand_name: string }> {
+  const client = await scraperClient();
+  const res = await client.post(`/brand-discovery/${id}/save`, {
+    action,
+    ...(targetBrandId != null ? { target_brand_id: targetBrandId } : {}),
+  });
+  return res.data as { brand_id: number; brand_name: string };
+}
+
+/** Discard a discovery record. */
+export async function discardBrandDiscovery(id: number): Promise<void> {
+  const client = await scraperClient();
+  await client.delete(`/brand-discovery/${id}`);
+}
+
+/** Search DuckDuckGo for brand candidates by name. */
+export async function searchBrandCandidates(brandName: string): Promise<Array<{
+  name: string; website: string; domain: string;
+  logo_url: string | null; description: string | null; category: string;
+}>> {
+  const client = await scraperClient();
+  const res = await client.post("/brand-discovery/search-candidates", { brand_name: brandName });
+  return (res.data as { candidates: unknown[] }).candidates as Array<{
+    name: string; website: string; domain: string;
+    logo_url: string | null; description: string | null; category: string;
+  }>;
 }
 
 /** Save a CSS selector into a ScraperConfig. */

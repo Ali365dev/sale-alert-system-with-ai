@@ -1,16 +1,16 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import Animated from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import useTheme from '../hooks/useTheme';
 import { usePressScale } from '../hooks/usePressScale';
 
-const PrimaryButton = ({ label, onPress, disabled, style, icon, iconPosition = 'right', pill }) => {
+const PrimaryButton = ({ label, onPress, disabled, loading, style, icon, iconPosition = 'right', pill }) => {
   const { animatedStyle, onPressIn, onPressOut } = usePressScale();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const iconEl = icon && <Icon name={icon} size={18} color={colors.onPrimary} />;
+  const iconEl = icon && !loading && <Icon name={icon} size={18} color={colors.onPrimary} />;
 
   return (
     <Animated.View style={[animatedStyle, style]}>
@@ -18,10 +18,12 @@ const PrimaryButton = ({ label, onPress, disabled, style, icon, iconPosition = '
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        disabled={disabled}
-        style={[styles.button, pill && styles.pill, disabled && styles.disabled]}>
+        disabled={disabled || loading}
+        style={[styles.button, pill && styles.pill, (disabled || loading) && styles.disabled]}>
         {iconPosition === 'left' && iconEl}
-        <Text style={styles.label}>{label}</Text>
+        {loading
+          ? <ActivityIndicator size="small" color={colors.onPrimary} />
+          : <Text style={styles.label}>{label}</Text>}
         {iconPosition === 'right' && iconEl}
       </Pressable>
     </Animated.View>

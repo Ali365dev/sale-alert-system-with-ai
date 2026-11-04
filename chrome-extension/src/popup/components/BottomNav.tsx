@@ -53,7 +53,7 @@ interface Props {
 
 export function BottomNav({ activeTab, onTabChange }: Props) {
   return (
-    <div className="flex border-t border-line bg-surface flex-shrink-0 h-[52px]">
+    <div className="flex border-t border-line bg-surface flex-shrink-0 h-[52px] overflow-hidden">
       {TABS.map((tab) => {
         const active = activeTab === tab.id;
         return (

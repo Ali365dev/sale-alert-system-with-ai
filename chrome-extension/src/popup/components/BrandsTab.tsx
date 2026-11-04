@@ -187,7 +187,7 @@ export function BrandsTab({
   ];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Sub-nav */}
       <div className="flex border-b border-line bg-surface flex-shrink-0 h-9">
         {SUB_TABS.map((t) => (

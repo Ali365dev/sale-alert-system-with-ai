@@ -73,6 +73,88 @@ export function generateSelector(el: Element): string {
   return parts.join(" > ");
 }
 
+/**
+ * Given a clicked element, find the repeating sibling "container" it belongs to
+ * and return three selectors:
+ *  - containerSelector  — matches ALL product cards/items (e.g. ".product-card")
+ *  - fieldSelector      — relative selector for the field within one container (e.g. ".product-title")
+ *  - allMatchesSel      — combined selector matching ALL instances of the field (e.g. ".product-card .product-title")
+ */
+export interface SimilarResult {
+  containerSelector: string;
+  fieldSelector: string;
+  allMatchesSel: string;
+  containerCount: number;
+  fieldCount: number;
+}
+
+export function findSimilarSelector(el: Element): SimilarResult | null {
+  // Walk up to find a repeating container (>= 2 siblings with same tag+classes)
+  let node: Element | null = el;
+  let containerNode: Element | null = null;
+
+  while (node && node.tagName !== "BODY" && node.tagName !== "HTML") {
+    const parent = node.parentElement;
+    if (!parent) break;
+
+    // Count siblings with same tag
+    const siblings = Array.from(parent.children).filter((c) => c.tagName === node!.tagName);
+    if (siblings.length >= 2) {
+      // Check enough share the same classes
+      const nodeClasses = Array.from(node.classList)
+        .filter((c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c));
+      if (nodeClasses.length) {
+        const matchSiblings = siblings.filter((s) => {
+          return nodeClasses.every((cls) => s.classList.contains(cls));
+        });
+        if (matchSiblings.length >= 2) {
+          containerNode = node;
+          break;
+        }
+      } else if (siblings.length >= 3) {
+        // No stable classes but many siblings — treat as repeating
+        containerNode = node;
+        break;
+      }
+    }
+    node = parent;
+  }
+
+  if (!containerNode) return null;
+
+  // Build a stable container selector (no nth-of-type)
+  const ctag = containerNode.tagName.toLowerCase();
+  const cClasses = Array.from(containerNode.classList)
+    .filter((c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c))
+    .slice(0, 2);
+  const containerSelector = cClasses.length
+    ? `${ctag}.${cClasses.map(CSS.escape).join(".")}`
+    : ctag;
+  const containerCount = document.querySelectorAll(containerSelector).length;
+
+  // Build a relative selector for `el` inside `containerNode`
+  // Walk from el up to containerNode, build relative path
+  const relParts: string[] = [];
+  let cur: Element | null = el;
+  while (cur && cur !== containerNode) {
+    const tag = cur.tagName.toLowerCase();
+    const stableClasses = Array.from(cur.classList)
+      .filter((c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c))
+      .slice(0, 2);
+    const part = stableClasses.length
+      ? `${tag}.${stableClasses.map(CSS.escape).join(".")}`
+      : tag;
+    relParts.unshift(part);
+    cur = cur.parentElement;
+    if (relParts.length >= 3) break;
+  }
+  const fieldSelector = relParts.length ? relParts.join(" > ") : el.tagName.toLowerCase();
+  const allMatchesSel = `${containerSelector} ${fieldSelector}`;
+  const fieldCount = document.querySelectorAll(allMatchesSel).length;
+
+  return { containerSelector, fieldSelector, allMatchesSel, containerCount, fieldCount };
+}
+
 /** Count how many elements a selector matches on the current page */
 export function countMatches(selector: string): number {
   try {

@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
-  PermissionsAndroid,
-  Platform,
   Pressable,
   StatusBar,
   StyleSheet,
@@ -45,23 +43,6 @@ function CountryItem({ item, selected, onPress }) {
   );
 }
 
-async function requestLocationPermission() {
-  if (Platform.OS !== 'android') return;
-  try {
-    await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-      {
-        title: 'Location Access',
-        message: 'Allow Deals More to use your location to show relevant deals in your region.',
-        buttonPositive: 'Allow',
-        buttonNegative: 'Skip',
-      },
-    );
-  } catch {
-    // permission request failed — silently ignore
-  }
-}
-
 export default function OnboardingCountryScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -70,10 +51,6 @@ export default function OnboardingCountryScreen() {
   const detectedCode = regionStore.getState().regionCode || DEFAULT_REGION;
   const [selected, setSelected] = useState(detectedCode);
   const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    requestLocationPermission();
-  }, []);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return ALL_COUNTRIES;

@@ -3,7 +3,7 @@
  * Highlights hovered elements, generates CSS selectors on click,
  * and sends them back to the popup via chrome.runtime.sendMessage.
  */
-import { generateSelector, countMatches, previewValue } from "./css-gen";
+import { generateSelector, countMatches, previewValue, findSimilarSelector } from "./css-gen";
 
 const OVERLAY_ID = "__dm_selector_overlay__";
 const TOOLTIP_ID = "__dm_selector_tooltip__";
@@ -92,9 +92,14 @@ function onMouseMove(e: MouseEvent) {
 
   hovered = target;
   const selector = generateSelector(target);
-  const matches = countMatches(selector);
+  // Check for similar sibling elements (product cards pattern)
+  const similar = findSimilarSelector(target);
+  const displaySel = similar && similar.containerCount > 1
+    ? similar.containerSelector
+    : selector;
+  const matches = similar ? similar.containerCount : countMatches(selector);
   positionOverlay(target);
-  positionTooltip(e, selector, matches);
+  positionTooltip(e, displaySel, matches);
 }
 
 function onClick(e: MouseEvent) {
@@ -104,7 +109,8 @@ function onClick(e: MouseEvent) {
 
   const target = hovered || (e.target as Element);
   const selector = generateSelector(target);
-  const matches = countMatches(selector);
+  const similar = findSimilarSelector(target);
+  const matches = similar ? similar.containerCount : countMatches(selector);
   const preview = previewValue(selector, "text");
   const tag = target.tagName.toLowerCase();
 
@@ -115,6 +121,8 @@ function onClick(e: MouseEvent) {
     preview,
     tag,
     outerHtml: target.outerHTML.slice(0, 300),
+    // Extra data for listing config
+    similar: similar ?? null,
   });
 }
 

@@ -1,7 +1,53 @@
-import type { ScrapeResponse, ProductScrapeConfig } from "../types";
+import type { ScrapeResponse, ProductScrapeConfig, ListingConfig, ExtractedProduct } from "../types";
 import { extractAllOffers, extractOverviewOffers, extractProductOffers } from "./extractors";
 import { deduplicateOffers } from "../utils/dedupe";
 import { startSelectorMode, stopSelectorMode } from "./selector-mode";
+
+function extractAttr(el: Element, attr?: string): string {
+  if (!attr || attr === "text") return (el.textContent ?? "").trim();
+  if (attr === "src") {
+    return (el as HTMLImageElement).src
+      || el.getAttribute("data-src")
+      || el.getAttribute("data-original")
+      || el.getAttribute("srcset")?.split(" ")[0]
+      || "";
+  }
+  if (attr === "href") return (el as HTMLAnchorElement).href || el.getAttribute("href") || "";
+  return el.getAttribute(attr) ?? "";
+}
+
+function resolveUrl(val: string, base: string): string {
+  if (!val) return "";
+  try { return new URL(val, base).href; } catch { return val; }
+}
+
+function extractListingProducts(config: ListingConfig, pageUrl: string): ExtractedProduct[] {
+  const containers = Array.from(document.querySelectorAll(config.containerSelector));
+  return containers.map((container) => {
+    const get = (field?: { css: string; attr?: string }) => {
+      if (!field?.css) return undefined;
+      try {
+        const el = container.querySelector(field.css);
+        if (!el) return undefined;
+        const val = extractAttr(el, field.attr);
+        if (field.attr === "href" || field.attr === "src")
+          return resolveUrl(val, pageUrl);
+        return val || undefined;
+      } catch { return undefined; }
+    };
+    const f = config.fields;
+    return {
+      title: get(f.title),
+      url: get(f.url) ? resolveUrl(get(f.url)!, pageUrl) : undefined,
+      image: get(f.image),
+      currentPrice: get(f.currentPrice),
+      originalPrice: get(f.originalPrice),
+      discount: get(f.discount),
+      availability: get(f.availability),
+      sku: get(f.sku),
+    } as ExtractedProduct;
+  }).filter((p) => p.title || p.url || p.currentPrice);
+}
 
 /** Scroll down in steps to trigger lazy-loaded content, then scroll back up. */
 async function autoScroll(maxDistance = 12000, stepDelay = 300): Promise<void> {
@@ -72,6 +118,17 @@ chrome.runtime.onMessage.addListener(
         };
         sendResponse(response);
       })();
+      return true;
+    }
+
+    if (message.type === "EXTRACT_LISTING") {
+      try {
+        const config = message.config as ListingConfig;
+        const products = extractListingProducts(config, window.location.href);
+        sendResponse({ products, count: products.length });
+      } catch (err) {
+        sendResponse({ products: [], count: 0, error: err instanceof Error ? err.message : "Failed" });
+      }
       return true;
     }
 

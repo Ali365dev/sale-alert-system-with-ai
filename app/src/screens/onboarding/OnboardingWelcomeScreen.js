@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,9 @@ import { RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import PrimaryButton from '../../components/PrimaryButton';
 import Logo from '../../components/Logo';
+import regionStore from '../../state/regionStore';
+import useOnboardingGateStore from '../../state/onboardingGateStore';
+import { requestLocationPermission } from '../../services/regionDetection';
 
 const heroImage = require('../../assets/images/onboarding-hero.jpg');
 
@@ -15,6 +18,31 @@ const OnboardingWelcomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const detecting = regionStore((s) => s.detecting);
+  const autoDetected = regionStore((s) => s.autoDetected);
+  const tryGPSDetection = regionStore((s) => s.tryGPSDetection);
+  const completeCountrySelection = useOnboardingGateStore((s) => s.completeCountrySelection);
+
+  useEffect(() => {
+    // Show the OS location permission alert immediately on the welcome screen.
+    // After the user responds, try GPS detection — if it finds the country,
+    // the "Get Started" button will skip the country picker automatically.
+    (async () => {
+      await requestLocationPermission();
+      await tryGPSDetection();
+    })();
+  }, []);
+
+  const handleGetStarted = () => {
+    if (autoDetected) {
+      // Country was found automatically — skip the picker entirely.
+      completeCountrySelection();
+      navigation.navigate('OnboardingTopicsScreen');
+    } else {
+      navigation.navigate('OnboardingCountryScreen');
+    }
+  };
 
   return (
     <Screen style={styles.container}>
@@ -42,7 +70,12 @@ const OnboardingWelcomeScreen = () => {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.three }]}>
-        <PrimaryButton label="Get Started" icon="arrow-forward" onPress={() => navigation.navigate('OnboardingCountryScreen')} />
+        <PrimaryButton
+          label="Get Started"
+          icon={detecting ? undefined : 'arrow-forward'}
+          loading={detecting}
+          onPress={handleGetStarted}
+        />
         <Text style={styles.loginRow}>
           Already have an account? <Text style={styles.loginLink}>Log in</Text>
         </Text>

@@ -245,6 +245,44 @@ def create_selector(config_id: int, body: dict = Body(...)):
         return JSONResponse(_selector_to_dict(sel), status_code=201)
 
 
+@router.put("/{config_id}/selectors")
+def replace_selectors(config_id: int, body: dict = Body(...)):
+    """Bulk-replace all selectors for a config (used by Chrome extension listing config save)."""
+    with get_session() as session:
+        c = session.query(ScraperConfig).filter(ScraperConfig.id == config_id).first()
+        if not c:
+            return JSONResponse({"error": "not found"}, status_code=404)
+
+        selectors_data = body.get("selectors", [])
+        if not isinstance(selectors_data, list):
+            return JSONResponse({"error": "selectors must be a list"}, status_code=400)
+
+        # Delete all existing selectors for this config
+        session.query(ScraperSelector).filter(ScraperSelector.config_id == config_id).delete()
+
+        created = []
+        for i, sd in enumerate(selectors_data):
+            name = (sd.get("name") or "").strip()
+            if not name:
+                name = f"selector_{i}"
+            sel = ScraperSelector(
+                config_id=config_id,
+                parent_id=None,
+                name=name,
+                selector_type=sd.get("selector_type", "text"),
+                css_selector=sd.get("css_selector", ""),
+                attribute=sd.get("attribute"),
+                multiple=bool(sd.get("multiple", False)),
+                enabled=True,
+                sort_order=i,
+            )
+            session.add(sel)
+            session.flush()
+            created.append(_selector_to_dict(sel))
+
+        return {"selectors": created}
+
+
 @router.put("/{config_id}/selectors/{selector_id}")
 def update_selector(config_id: int, selector_id: int, body: dict = Body(...)):
     with get_session() as session:

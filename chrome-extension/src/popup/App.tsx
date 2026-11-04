@@ -74,13 +74,15 @@ export function App() {
     });
   }, [authed]);
 
-  // Recover pending selector result from previous popup session (picker closed popup)
+  // Recover pending selector result from previous popup session (ScrapeTab picker only)
   useEffect(() => {
     if (!authed) return;
     chrome.storage.local.get(["dm_pending_selector", "dm_picker_context"], (r) => {
       const pending = r["dm_pending_selector"] as { selector?: string } | undefined;
-      const ctx = r["dm_picker_context"] as "product" | "pagination" | undefined;
-      if (pending?.selector && ctx) {
+      const ctx = r["dm_picker_context"];
+      // Only handle ScrapeTab context (string "product" | "pagination")
+      // SelectorsTab handles its own context recovery on mount
+      if (pending?.selector && (ctx === "product" || ctx === "pagination")) {
         setProductConfig((prev) => ({
           ...prev,
           ...(ctx === "product"
@@ -214,7 +216,7 @@ export function App() {
       <Header onSettingsClick={() => setTab("settings")} connStatus={connStatus} />
       <Toast toasts={toasts} onDismiss={dismissToast} />
 
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {tab === "brands" && (
           <BrandsTab
             pageUrl={pageUrl}

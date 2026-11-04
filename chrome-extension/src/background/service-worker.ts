@@ -2,12 +2,38 @@ import type { ExtensionMessage, ScrapeMessage } from "../types";
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Deals More Scraper installed.");
+  // Allow the side panel to be opened on every tab by default
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+});
+
+// Open side panel when extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  if (tab.windowId) {
+    chrome.sidePanel.open({ windowId: tab.windowId }).catch(() => {});
+  }
 });
 
 // ── Tab-based browser scraping ────────────────────────────────────────────────
 
 const TAB_SCRAPE_KEY = "dm_tab_scrape";
 let tabScrapeCancelled = false;
+
+// MV3 service workers die after ~30s idle; touching storage every 20s keeps them alive
+let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+function startKeepAlive() {
+  if (keepAliveTimer) return;
+  keepAliveTimer = setInterval(() => {
+    chrome.storage.local.get(TAB_SCRAPE_KEY, () => {});
+  }, 20_000);
+}
+
+function stopKeepAlive() {
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
+}
 
 interface TabScrapeEntry { id: number; name: string; website: string; overview?: boolean; }
 
@@ -56,6 +82,7 @@ async function scrapeTabUrl(tabId: number, url: string, overview = false): Promi
 
 async function scrapeViaTabsLoop(brands: TabScrapeEntry[]) {
   tabScrapeCancelled = false;
+  startKeepAlive();
   const allOffers: unknown[] = [];
 
   patchTabScrapeState({
@@ -103,6 +130,7 @@ async function scrapeViaTabsLoop(brands: TabScrapeEntry[]) {
     }
   }
 
+  stopKeepAlive();
   patchTabScrapeState({
     active: false, doneCount: brands.length,
     currentBrand: "", currentUrl: "", offers: allOffers,
@@ -163,6 +191,7 @@ chrome.runtime.onMessage.addListener(
     if (
       message.type === "SCRAPE_PAGE" ||
       message.type === "SCRAPE_PAGE_PRODUCT" ||
+      message.type === "EXTRACT_LISTING" ||
       message.type === "START_SELECTOR_MODE" ||
       message.type === "STOP_SELECTOR_MODE"
     ) {
@@ -214,6 +243,7 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === "CANCEL_TAB_SCRAPE") {
       tabScrapeCancelled = true;
+      stopKeepAlive();
       sendResponse({ ok: true });
       return true;
     }
