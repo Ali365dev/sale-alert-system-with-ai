@@ -1,9 +1,11 @@
 /**
- * Generate a unique-enough CSS selector for a given DOM element.
- * Prefers ID > stable data attrs > class combos > nth-of-type path.
+ * Generate a CSS selector for a given DOM element.
+ * For repeating items (product cards) this returns a general selector
+ * that matches ALL siblings of the same type — not just the clicked one.
+ * Falls back to a specific nth-of-type path only when needed.
  */
 export function generateSelector(el: Element): string {
-  // 1. ID — best and most specific
+  // 1. ID
   if (el.id && /^[a-z_-][\w-]*$/i.test(el.id)) {
     return `#${el.id}`;
   }
@@ -14,23 +16,49 @@ export function generateSelector(el: Element): string {
     if (val) return `${el.tagName.toLowerCase()}[${attr}="${CSS.escape(val)}"]`;
   }
 
-  // 3. Build path up to body/root with nth-of-type
+  // 3. Class-based selector — NO positional pseudo-classes.
+  //    If the element has stable classes, build `parent > tag.cls1.cls2`
+  //    so picking one product card selects ALL cards of the same type.
+  const stableClasses = Array.from(el.classList).filter(
+    (c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c),
+  );
+
+  if (stableClasses.length) {
+    const tagCls =
+      el.tagName.toLowerCase() + "." + stableClasses.map(CSS.escape).join(".");
+
+    // Try narrowing with the direct parent (keeps it precise without positional index)
+    const parent = el.parentElement;
+    if (parent && parent.tagName !== "BODY" && parent.tagName !== "HTML") {
+      const pStable = Array.from(parent.classList)
+        .filter((c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c))
+        .slice(0, 2);
+      if (pStable.length) {
+        const parentSel =
+          parent.tagName.toLowerCase() + "." + pStable.map(CSS.escape).join(".");
+        const combined = `${parentSel} > ${tagCls}`;
+        if (document.querySelectorAll(combined).length >= 1) return combined;
+      }
+    }
+
+    // Simple class selector as fallback
+    if (document.querySelectorAll(tagCls).length >= 1) return tagCls;
+  }
+
+  // 4. Last resort: nth-of-type path (preserves uniqueness for single elements)
   const parts: string[] = [];
   let node: Element | null = el;
 
   while (node && node.tagName !== "HTML" && node.tagName !== "BODY") {
     let selector = node.tagName.toLowerCase();
-
-    // Add most specific stable classes (not dynamic ones with digits in them)
     const stable = Array.from(node.classList)
-      .filter((c) => !/^\d|is-|has-|active|hover|focus|selected/.test(c))
+      .filter((c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c))
       .slice(0, 2);
     if (stable.length) selector += "." + stable.map(CSS.escape).join(".");
 
-    // Add nth-of-type to disambiguate siblings
-    const parent = node.parentElement;
-    if (parent) {
-      const siblings = Array.from(parent.children).filter((c) => c.tagName === node!.tagName);
+    const p = node.parentElement;
+    if (p) {
+      const siblings = Array.from(p.children).filter((c) => c.tagName === node!.tagName);
       if (siblings.length > 1) {
         const idx = siblings.indexOf(node) + 1;
         selector += `:nth-of-type(${idx})`;
@@ -39,8 +67,6 @@ export function generateSelector(el: Element): string {
 
     parts.unshift(selector);
     node = node.parentElement;
-
-    // Stop once we've built a unique selector
     if (parts.length >= 4) break;
   }
 

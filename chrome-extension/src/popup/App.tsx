@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   ScrapedOffer, ScanStatus, TabId, CrawlConfig,
-  ScrapeProgress, ConnectionStatus,
+  ScrapeProgress, ConnectionStatus, ProductScrapeConfig,
 } from "../types";
 import { isAuthenticated, clearSession, addHistoryEntry } from "../services/storage";
 import { checkSession, saveOffers, triggerServerScrape } from "../services/api";
@@ -34,6 +34,9 @@ export function App() {
     appServer: "unknown",
     scraperServer: "unknown",
   });
+
+  // Product scrape config — persisted across tab switches
+  const [productConfig, setProductConfig] = useState<ProductScrapeConfig>({});
 
   // Scan-page state (passed into BrandsTab → ScrapeTab)
   const [scanStatus, setScanStatus] = useState<ScanStatus>("idle");
@@ -71,6 +74,25 @@ export function App() {
     });
   }, [authed]);
 
+  // Recover pending selector result from previous popup session (picker closed popup)
+  useEffect(() => {
+    if (!authed) return;
+    chrome.storage.local.get(["dm_pending_selector", "dm_picker_context"], (r) => {
+      const pending = r["dm_pending_selector"] as { selector?: string } | undefined;
+      const ctx = r["dm_picker_context"] as "product" | "pagination" | undefined;
+      if (pending?.selector && ctx) {
+        setProductConfig((prev) => ({
+          ...prev,
+          ...(ctx === "product"
+            ? { productSelector: pending.selector }
+            : { paginationSelector: pending.selector }),
+        }));
+        chrome.storage.local.remove(["dm_pending_selector", "dm_picker_context"]);
+        setTab("brands");
+      }
+    });
+  }, [authed]);
+
   // Toast helpers
   const addToast = useCallback((type: ToastType, text: string) => {
     const id = ++toastCounter;
@@ -93,20 +115,26 @@ export function App() {
     ? (() => { try { return new URL(pageUrl).hostname; } catch { return ""; } })()
     : "";
 
-  const runScan = useCallback(() => {
+  const runScan = useCallback((config?: ProductScrapeConfig) => {
+    const cfg = config ?? productConfig;
+    const hasConfig = cfg.productSelector || cfg.paginationSelector || cfg.autoScroll;
     scanCancelledRef.current = false;
     setScanStatus("scanning");
     setScanOffers([]);
     setScanSelected(new Set());
-    setScanProgress({ ...IDLE_PROGRESS, operation: "Scanning page…", percent: 10 });
+    setScanProgress({ ...IDLE_PROGRESS, operation: hasConfig ? "Product scan…" : "Scanning page…", percent: 10 });
 
     let pct = 10;
     progressRef.current = setInterval(() => {
-      pct = Math.min(pct + 8, 85);
+      pct = Math.min(pct + (hasConfig ? 3 : 8), 85);
       setScanProgress((p) => ({ ...p, percent: pct }));
-    }, 250);
+    }, hasConfig ? 600 : 250);
 
-    chrome.runtime.sendMessage({ type: "SCRAPE_PAGE", url: pageUrl }, (response) => {
+    const msg = hasConfig
+      ? { type: "SCRAPE_PAGE_PRODUCT" as const, url: pageUrl, config: cfg }
+      : { type: "SCRAPE_PAGE" as const, url: pageUrl };
+
+    chrome.runtime.sendMessage(msg, (response) => {
       if (progressRef.current) clearInterval(progressRef.current);
       if (scanCancelledRef.current) return;
       if (chrome.runtime.lastError || !response || response.error) {
@@ -171,7 +199,7 @@ export function App() {
 
   if (authed === null) {
     return (
-      <div className="flex items-center justify-center h-full bg-white">
+      <div className="flex items-center justify-center h-full bg-dark">
         <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -182,7 +210,7 @@ export function App() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-dark">
       <Header onSettingsClick={() => setTab("settings")} connStatus={connStatus} />
       <Toast toasts={toasts} onDismiss={dismissToast} />
 
@@ -195,6 +223,8 @@ export function App() {
             scanOffers={scanOffers}
             scanSelected={scanSelected}
             scanSaving={scanSaving}
+            productConfig={productConfig}
+            onProductConfigChange={setProductConfig}
             onScanPage={runScan}
             onCrawl={runCrawl}
             onStopScan={stopScan}

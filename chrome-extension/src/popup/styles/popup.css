@@ -17,7 +17,7 @@
     width: 400px;
     height: 600px;
     font-family: "Montserrat", system-ui, sans-serif;
-    background: #f5f5f5;
+    background: #0D0D11;
     overflow: hidden;
   }
 
@@ -52,10 +52,28 @@
     background: transparent;
   }
   .scrollable::-webkit-scrollbar-thumb {
-    background: #d1d5db;
+    background: #27272F;
     border-radius: 2px;
   }
   .scrollable::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    background: #5A5A68;
+  }
+
+  /* Progress / job panel shimmer top bar */
+  .shimmer-panel {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #E7000B, transparent);
+    animation: shimmer-slide 1.8s ease-in-out infinite;
+  }
+  @keyframes shimmer-slide {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 }

@@ -5,13 +5,13 @@ import { getHistory } from "../../services/storage";
 import { getBrandOffers } from "../../services/brandsApi";
 
 const STATUS_COLOR: Record<string, string> = {
-  done: "bg-green-100 text-green-600",
-  completed: "bg-green-100 text-green-600",
-  running: "bg-blue-100 text-blue-700",
-  failed: "bg-red-100 text-red-500",
-  pending: "bg-yellow-100 text-yellow-700",
-  cancelled: "bg-gray-100 text-gray-500",
-  cancelling: "bg-orange-100 text-orange-600",
+  done: "bg-green-500/[0.08] text-green-400 border border-green-500/20",
+  completed: "bg-green-500/[0.08] text-green-400 border border-green-500/20",
+  running: "bg-blue-500/[0.08] text-blue-400 border border-blue-500/20",
+  failed: "bg-red-500/[0.08] text-red-400 border border-red-500/20",
+  pending: "bg-amber-500/[0.08] text-amber-400 border border-amber-500/20",
+  cancelled: "bg-t3/[0.08] text-t3 border border-line",
+  cancelling: "bg-orange-500/[0.08] text-orange-400 border border-orange-500/20",
 };
 
 const JOB_TYPE_LABEL: Record<string, string> = {
@@ -91,13 +91,13 @@ export function HistoryTab() {
   return (
     <div className="flex flex-col h-full">
       {/* Main tab switcher */}
-      <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
+      <div className="flex border-b border-line bg-surface flex-shrink-0">
         {(["jobs", "sessions"] as MainTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setMainTab(t)}
             className={`flex-1 py-2 text-[10px] font-bold transition relative ${
-              mainTab === t ? "text-primary" : "text-gray-400 hover:text-gray-600"
+              mainTab === t ? "text-primary" : "text-t2 hover:text-t1"
             }`}
           >
             {mainTab === t && (
@@ -115,10 +115,10 @@ export function HistoryTab() {
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
-            className={`flex-shrink-0 px-2.5 py-1 text-[10px] font-bold rounded-full transition ${
+            className={`flex-shrink-0 px-2.5 py-1 text-[10px] font-bold rounded-full transition border ${
               filter === f.id
-                ? "bg-primary text-white"
-                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                ? "bg-primary border-primary text-white"
+                : "bg-transparent border-line text-t3 hover:border-t2 hover:text-t2"
             }`}
           >
             {f.label}
@@ -137,28 +137,45 @@ export function HistoryTab() {
           ) : sessions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center px-4">
               <span className="text-3xl mb-2">🕐</span>
-              <p className="text-xs font-semibold text-gray-500">No scrape sessions yet</p>
-              <p className="text-[10px] text-gray-400 mt-1">Sessions appear after you scan a page.</p>
+              <p className="text-xs font-semibold text-t2">No scrape sessions yet</p>
+              <p className="text-[10px] text-t2 mt-1">Sessions appear after you scan a page.</p>
             </div>
           ) : (
-            <div className="flex flex-col divide-y divide-gray-100">
+            <div className="flex flex-col divide-y divide-line">
               {sessions.map((s) => (
-                <div key={s.id} className="px-3 py-2.5 bg-white hover:bg-gray-50 transition">
+                <div key={s.id} className="px-3 py-2.5 bg-surface hover:bg-surface-2 transition">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold text-dark truncate">{s.domain || s.url}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(s.startedAt)}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[10px] font-semibold text-t1 truncate">{s.domain || s.url}</p>
+                        {(s.url || s.domain) && (
+                          <button
+                            onClick={() => window.open(s.url || `https://${s.domain}`, "_blank")}
+                            aria-label={`Visit ${s.domain || s.url}`}
+                            className="flex-shrink-0 text-t3 hover:text-t1 transition"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                              <polyline points="15 3 21 3 21 9"/>
+                              <line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-t2 mt-0.5">{formatDate(s.startedAt)}</p>
                     </div>
-                    <span className={`flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold ${
-                      s.status === "done" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"
+                    <span className={`flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${
+                      s.status === "done"
+                        ? "bg-green-500/[0.08] text-green-400 border-green-500/20"
+                        : "bg-red-500/[0.08] text-red-400 border-red-500/20"
                     }`}>
                       {s.status}
                     </span>
                   </div>
-                  <div className="flex gap-2.5 mt-1 text-[10px] text-gray-400">
+                  <div className="flex gap-2.5 mt-1 text-[10px] text-t2">
                     <span className="uppercase font-semibold">{s.mode}</span>
                     {s.offersFound > 0 && <span>{s.offersFound} found</span>}
-                    {s.offersSaved > 0 && <span className="text-green-500">{s.offersSaved} saved</span>}
+                    {s.offersSaved > 0 && <span className="text-green-400">{s.offersSaved} saved</span>}
                   </div>
                 </div>
               ))}
@@ -177,10 +194,10 @@ export function HistoryTab() {
         ) : jobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center px-4">
             <span className="text-3xl mb-2">📋</span>
-            <p className="text-xs font-semibold text-gray-500">No jobs found</p>
+            <p className="text-xs font-semibold text-t2">No jobs found</p>
           </div>
         ) : (
-          <div className="flex flex-col divide-y divide-gray-100">
+          <div className="flex flex-col divide-y divide-line">
             {jobs.map((job) => {
               const brandName = (job.payload?.brand_name as string | undefined)
                 ?? (job.payload?.brand_id != null ? `Brand #${job.payload.brand_id}` : null);
@@ -188,38 +205,38 @@ export function HistoryTab() {
               const offers = jobOffers[job.id];
               const hasBrand = job.payload?.brand_id != null;
               return (
-                <div key={job.id} className="bg-white">
+                <div key={job.id} className="bg-surface">
                   <button
                     onClick={() => toggleJobExpand(job)}
-                    className="w-full text-left px-3 py-2.5 hover:bg-gray-50 transition"
+                    className="w-full text-left px-3 py-2.5 hover:bg-surface-2 transition"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-semibold text-dark">
+                          <span className="text-[10px] font-semibold text-t1">
                             {JOB_TYPE_LABEL[job.job_type] ?? job.job_type}
                           </span>
                           {brandName && (
-                            <span className="text-[10px] text-gray-500 truncate">— {brandName}</span>
+                            <span className="text-[10px] text-t2 truncate">— {brandName}</span>
                           )}
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(job.started_at ?? job.created_at)}</p>
+                        <p className="text-[10px] text-t2 mt-0.5">{formatDate(job.started_at ?? job.created_at)}</p>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${STATUS_COLOR[job.status] ?? "bg-gray-100 text-gray-500"}`}>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${STATUS_COLOR[job.status] ?? "bg-surface-3 text-t2"}`}>
                           {job.status}
                         </span>
                         {hasBrand && (
-                          <span className="text-[10px] text-gray-400">{isExpanded ? "▲" : "▼"}</span>
+                          <span className="text-[10px] text-t2">{isExpanded ? "▲" : "▼"}</span>
                         )}
                       </div>
                     </div>
                     {/* Stats */}
-                    <div className="flex gap-2.5 mt-1 text-[10px] text-gray-400">
+                    <div className="flex gap-2.5 mt-1 text-[10px] text-t2">
                       {job.progress_percentage != null && job.status !== "done" && (
                         <span>{Math.round(job.progress_percentage)}%</span>
                       )}
-                      {(job.successful ?? 0) > 0 && <span className="text-green-500">{job.successful} saved</span>}
+                      {(job.successful ?? 0) > 0 && <span className="text-green-400">{job.successful} saved</span>}
                       {(job.processed_items ?? 0) > 0 && <span>{job.processed_items} processed</span>}
                       {(job.failed ?? 0) > 0 && <span className="text-red-400">{job.failed} failed</span>}
                     </div>
@@ -230,7 +247,7 @@ export function HistoryTab() {
 
                   {/* Expanded offers panel */}
                   {isExpanded && (
-                    <div className="border-t border-gray-100 bg-gray-50 px-3 py-2">
+                    <div className="border-t border-line bg-surface-2 px-3 py-2">
                       {offers === "loading" && (
                         <div className="flex justify-center py-4">
                           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -240,16 +257,16 @@ export function HistoryTab() {
                         <p className="text-[10px] text-red-400 text-center py-2">Failed to load offers.</p>
                       )}
                       {!offers && !hasBrand && (
-                        <p className="text-[10px] text-gray-400 text-center py-2">No brand linked to this job.</p>
+                        <p className="text-[10px] text-t2 text-center py-2">No brand linked to this job.</p>
                       )}
                       {Array.isArray(offers) && offers.length === 0 && (
-                        <p className="text-[10px] text-gray-400 text-center py-2">No offers saved for this brand yet.</p>
+                        <p className="text-[10px] text-t2 text-center py-2">No offers saved for this brand yet.</p>
                       )}
                       {Array.isArray(offers) && offers.length > 0 && (
                         <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
                           {offers.map((o) => (
-                            <div key={o.id} className="bg-white rounded-lg p-2 border border-gray-100">
-                              <p className="text-[10px] font-semibold text-dark truncate">{o.title ?? "Untitled offer"}</p>
+                            <div key={o.id} className="bg-surface-3 rounded-lg p-2 border border-line">
+                              <p className="text-[10px] font-semibold text-t1 truncate">{o.title ?? "Untitled offer"}</p>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {o.discount_percentage && (
                                   <span className="px-1.5 py-0.5 bg-primary text-white text-[9px] font-bold rounded">
@@ -257,17 +274,17 @@ export function HistoryTab() {
                                   </span>
                                 )}
                                 {o.coupon_code && (
-                                  <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] font-bold rounded font-mono">
+                                  <span className="px-1.5 py-0.5 bg-yellow-900/20 text-yellow-400 text-[9px] font-bold rounded font-mono">
                                     {o.coupon_code}
                                   </span>
                                 )}
                                 {o.category && (
-                                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[9px] rounded">
+                                  <span className="px-1.5 py-0.5 bg-surface-3 text-t2 text-[9px] rounded">
                                     {o.category}
                                   </span>
                                 )}
                                 <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${
-                                  o.is_active ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"
+                                  o.is_active ? "bg-green-900/20 text-green-400" : "bg-surface-3 text-t2"
                                 }`}>
                                   {o.is_active ? "active" : "inactive"}
                                 </span>
@@ -287,11 +304,11 @@ export function HistoryTab() {
 
       {/* Pagination */}
       {total > PAGE && (
-        <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 flex-shrink-0 text-[10px] text-gray-400">
+        <div className="flex items-center justify-between px-3 py-2 border-t border-line flex-shrink-0 text-[10px] text-t2">
           <button
             disabled={offset === 0}
             onClick={() => { const o = Math.max(0, offset - PAGE); setOffset(o); load(filter, o); }}
-            className="disabled:opacity-40 font-semibold hover:text-dark transition"
+            className="disabled:opacity-40 font-semibold hover:text-t1 transition"
           >
             ← Prev
           </button>
@@ -299,7 +316,7 @@ export function HistoryTab() {
           <button
             disabled={offset + PAGE >= total}
             onClick={() => { const o = offset + PAGE; setOffset(o); load(filter, o); }}
-            className="disabled:opacity-40 font-semibold hover:text-dark transition"
+            className="disabled:opacity-40 font-semibold hover:text-t1 transition"
           >
             Next →
           </button>

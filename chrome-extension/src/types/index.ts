@@ -123,8 +123,9 @@ export type BrandSubTab = "list" | "discover" | "scan";
 export type ScanStatus = "idle" | "scanning" | "done" | "error";
 
 export interface ScrapeMessage {
-  type: "SCRAPE_PAGE" | "SCRAPE_PAGE_OVERVIEW";
+  type: "SCRAPE_PAGE" | "SCRAPE_PAGE_OVERVIEW" | "SCRAPE_PAGE_PRODUCT";
   url: string;
+  config?: ProductScrapeConfig;
 }
 
 export interface ScrapeResponse {
@@ -157,6 +158,13 @@ export interface CrawlConfig {
   depth: number;
   delay: number;
   maxOffers: number;
+}
+
+export interface ProductScrapeConfig {
+  productSelector?: string;
+  paginationSelector?: string;
+  autoScroll?: boolean;
+  maxPages?: number;
 }
 
 export interface ScrapeProgress {

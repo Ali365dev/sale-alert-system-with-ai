@@ -17,7 +17,7 @@ export function OfferList({ offers, selected, onToggle, onSelectAll, onClearAll,
     <div className="flex flex-col gap-2">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3">
-        <p className="text-xs font-semibold text-gray-600">
+        <p className="text-xs font-semibold text-t1">
           {offers.length} offer{offers.length !== 1 ? "s" : ""} found
         </p>
         <button

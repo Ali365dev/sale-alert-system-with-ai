@@ -39,8 +39,8 @@ export function BrandCard({ brand, selected, onToggle, onScrape }: Props) {
 
   return (
     <div
-      className={`flex items-center gap-2.5 px-3 py-2.5 border-b border-gray-100 transition ${
-        selected ? "bg-primary/5" : "bg-white hover:bg-gray-50"
+      className={`flex items-center gap-2.5 px-3 py-2.5 border-b border-line transition ${
+        selected ? "bg-primary/5" : "hover:bg-surface-2"
       }`}
     >
       {/* Checkbox */}
@@ -53,12 +53,12 @@ export function BrandCard({ brand, selected, onToggle, onScrape }: Props) {
       />
 
       {/* Logo / initials */}
-      <div className="w-8 h-8 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+      <div className="w-[34px] h-[34px] flex-shrink-0 rounded-lg bg-surface-2 border border-line flex items-center justify-center overflow-hidden">
         {brand.logo_url ? (
           <img src={brand.logo_url} alt={brand.name} className="w-full h-full object-contain p-0.5" />
         ) : (
-          <span className="text-[11px] font-bold text-gray-400">
-            {brand.name.slice(0, 2).toUpperCase()}
+          <span className="text-[11px] font-black text-primary">
+            {brand.name.slice(0, 1).toUpperCase()}
           </span>
         )}
       </div>
@@ -66,40 +66,53 @@ export function BrandCard({ brand, selected, onToggle, onScrape }: Props) {
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <p className="text-xs font-semibold text-dark truncate">{brand.name}</p>
+          <p className="text-[11px] font-bold text-t1 truncate">{brand.name}</p>
           {flag && <span className="text-xs flex-shrink-0">{flag}</span>}
           {!brand.is_active && (
-            <span className="text-[9px] px-1 py-0.5 bg-gray-100 text-gray-400 rounded font-bold flex-shrink-0">
+            <span className="text-[9px] px-1 py-0.5 bg-surface-3 text-t2 rounded font-bold flex-shrink-0">
               inactive
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 mt-0.5">
-          {domain && (
-            <button
-              onClick={() => window.open(`https://${domain}`, "_blank")}
-              className="text-[10px] text-primary hover:underline truncate"
-            >
-              {domain}
-            </button>
-          )}
-          <span className="text-[10px] text-gray-400 flex-shrink-0">
-            {formatLastScraped(brand.last_searched)}
-          </span>
-        </div>
+        <p className="text-[10px] text-t2 mt-0.5 truncate">
+          {formatLastScraped(brand.last_searched)}
+          {domain && <span> · {domain}</span>}
+        </p>
       </div>
 
-      {/* Scrape button */}
-      <Tooltip text={brand.website_scraping_enabled ? `Scrape ${brand.name}` : "Scraping disabled"} position="left">
-        <button
-          onClick={onScrape}
-          disabled={!brand.website_scraping_enabled}
-          aria-label={`Scrape ${brand.name}`}
-          className="flex-shrink-0 px-2.5 py-1.5 text-[10px] font-bold bg-primary hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition"
-        >
-          ⚡
-        </button>
-      </Tooltip>
+      {/* Right side: offer chip + visit + scrape */}
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        {typeof (brand as Brand & { offer_count?: number }).offer_count === "number" && (
+          <span className="px-1.5 py-0.5 text-[8.5px] font-bold rounded-md bg-green-500/[0.07] border border-green-500/20 text-green-400">
+            {(brand as Brand & { offer_count?: number }).offer_count}
+          </span>
+        )}
+        {domain && (
+          <Tooltip text={`Visit ${domain}`} position="left">
+            <button
+              onClick={() => window.open(`https://${domain}`, "_blank")}
+              aria-label={`Visit ${domain}`}
+              className="w-[26px] h-[26px] flex items-center justify-center bg-surface-2 border border-line rounded-md text-t2 hover:text-t1 hover:border-t3 transition"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </button>
+          </Tooltip>
+        )}
+        <Tooltip text={brand.website_scraping_enabled ? `Scrape ${brand.name}` : "Scraping disabled"} position="left">
+          <button
+            onClick={onScrape}
+            disabled={!brand.website_scraping_enabled}
+            aria-label={`Scrape ${brand.name}`}
+            className="px-2 py-[5px] text-[8.5px] font-black bg-primary hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-md transition uppercase tracking-wide"
+          >
+            Scrape
+          </button>
+        </Tooltip>
+      </div>
     </div>
   );
 }

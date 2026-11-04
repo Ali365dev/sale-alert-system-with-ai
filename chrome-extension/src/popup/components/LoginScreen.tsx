@@ -43,13 +43,13 @@ export function LoginScreen({ onLogin }: Props) {
         <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">
           <span className="text-white font-black text-xl">D</span>
         </div>
-        <h1 className="text-lg font-black text-dark tracking-tight">Deals More</h1>
-        <p className="text-xs text-gray-500">Admin Sign In</p>
+        <h1 className="text-lg font-black text-t1 tracking-tight">Deals More</h1>
+        <p className="text-xs text-t2">Admin Sign In</p>
       </div>
 
       <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">
+          <label className="block text-xs font-semibold text-t2 mb-1">
             Admin Password
           </label>
           <input
@@ -58,7 +58,7 @@ export function LoginScreen({ onLogin }: Props) {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter admin password"
             required
-            className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
+            className="w-full px-3 py-2.5 text-sm rounded-lg border border-line bg-surface-2 text-t1 placeholder-t3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition"
           />
         </div>
 
@@ -66,14 +66,14 @@ export function LoginScreen({ onLogin }: Props) {
         <button
           type="button"
           onClick={() => setShowAdvanced((v) => !v)}
-          className="text-xs text-gray-400 hover:text-gray-600 text-left transition"
+          className="text-xs text-t3 hover:text-t1 text-left transition"
         >
           {showAdvanced ? "▲" : "▼"} Advanced settings
         </button>
 
         {showAdvanced && (
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
+            <label className="block text-xs font-semibold text-t2 mb-1">
               Server URL
             </label>
             <input
@@ -81,13 +81,13 @@ export function LoginScreen({ onLogin }: Props) {
               value={serverUrl}
               onChange={(e) => setServerUrl(e.target.value)}
               placeholder="http://localhost:8000"
-              className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition font-mono"
+              className="w-full px-3 py-2 text-xs rounded-lg border border-line bg-surface-2 text-t1 placeholder-t3 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition font-mono"
             />
           </div>
         )}
 
         {error && (
-          <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          <p className="text-xs text-red-400 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>
         )}
 
         <button

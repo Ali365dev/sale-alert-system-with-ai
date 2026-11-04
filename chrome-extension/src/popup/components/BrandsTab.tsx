@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Brand, BrandSubTab, Job } from "../../types";
+import type { Brand, BrandSubTab, Job, ProductScrapeConfig } from "../../types";
 import { listBrands, triggerBrandScrape, triggerMultiBrandScrape } from "../../services/brandsApi";
 import { getJob, storeActiveJobId, clearActiveJobId, loadActiveJobId, isJobTerminal, cancelJob } from "../../services/jobsApi";
 import { BrandCard } from "./BrandCard";
@@ -20,7 +20,9 @@ interface Props {
   scanOffers: ScrapedOffer[];
   scanSelected: Set<string>;
   scanSaving: boolean;
-  onScanPage: () => void;
+  productConfig: ProductScrapeConfig;
+  onProductConfigChange: (c: ProductScrapeConfig) => void;
+  onScanPage: (config?: ProductScrapeConfig) => void;
   onCrawl: (c: CrawlConfig) => void;
   onStopScan: () => void;
   onSelectElements: () => void;
@@ -37,6 +39,7 @@ const POLL_MS = 4000;
 
 export function BrandsTab({
   pageUrl, scanStatus, scanProgress, scanOffers, scanSelected, scanSaving,
+  productConfig, onProductConfigChange,
   onScanPage, onCrawl, onStopScan, onSelectElements,
   onToggleOffer, onSelectAll, onClearAll, onOfferChange, onSave, onToast, onViewHistory,
 }: Props) {
@@ -186,13 +189,13 @@ export function BrandsTab({
   return (
     <div className="flex flex-col h-full">
       {/* Sub-nav */}
-      <div className="flex border-b border-gray-200 bg-white flex-shrink-0">
+      <div className="flex border-b border-line bg-surface flex-shrink-0 h-9">
         {SUB_TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setSubTab(t.id)}
-            className={`flex-1 py-2 text-[10px] font-bold transition relative ${
-              subTab === t.id ? "text-primary" : "text-gray-400 hover:text-gray-600"
+            className={`flex-1 h-full text-[8.5px] font-bold uppercase tracking-[0.07em] transition relative ${
+              subTab === t.id ? "text-primary" : "text-t2 hover:text-t1"
             }`}
           >
             {subTab === t.id && (
@@ -201,7 +204,7 @@ export function BrandsTab({
             {t.label}
           </button>
         ))}
-        {/* Global stop button — visible from any sub-tab when a scrape is running */}
+        {/* Global stop button */}
         {isAnyScrapeActive && (
           <Tooltip text={tabState.active ? "Cancel browser scrape" : `Cancel job #${activeJob?.id}`} position="bottom">
             <button
@@ -209,7 +212,7 @@ export function BrandsTab({
                 if (tabState.active) cancelBrowserScrape();
                 else if (activeJob) handleCancelJob();
               }}
-              className="px-3 py-2 text-[10px] font-bold text-red-500 hover:text-red-700 flex items-center gap-1 flex-shrink-0"
+              className="px-3 h-full text-[8.5px] font-bold text-red-500 hover:text-red-400 flex items-center gap-1 flex-shrink-0 bg-red-500/[0.07] border-l border-red-500/[0.18]"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
               Stop
@@ -228,13 +231,13 @@ export function BrandsTab({
               placeholder="Search brands…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 text-xs px-2.5 py-1.5 border border-gray-200 rounded-lg outline-none focus:border-primary bg-gray-50"
+              className="flex-1 text-xs px-2.5 py-1.5 border border-line rounded-lg outline-none focus:border-primary bg-surface-2 text-t1 placeholder-t3"
             />
             {countries.length > 0 && (
               <select
                 value={countryFilter}
                 onChange={(e) => setCountryFilter(e.target.value)}
-                className="text-xs px-2 py-1.5 border border-gray-200 rounded-lg outline-none focus:border-primary bg-gray-50"
+                className="text-xs px-2 py-1.5 border border-line rounded-lg outline-none focus:border-primary bg-surface-2 text-t1"
                 aria-label="Filter by country"
               >
                 <option value="">All</option>
@@ -255,7 +258,7 @@ export function BrandsTab({
               aria-label="Select all brands"
               className="w-3.5 h-3.5 accent-primary cursor-pointer"
             />
-            <span className="text-[10px] text-gray-500 flex-1">
+            <span className="text-[10px] text-t2 flex-1">
               {selected.size > 0 ? `${selected.size} selected` : `${filtered.length} brands`}
             </span>
             {selected.size > 0 && (
@@ -268,7 +271,7 @@ export function BrandsTab({
             )}
             <button
               onClick={handleScrapeAll}
-              className="px-2.5 py-1 text-[10px] font-bold bg-dark text-white rounded-lg hover:bg-gray-800 transition"
+              className="px-2.5 py-1 text-[10px] font-bold bg-surface-3 text-t1 rounded-lg hover:opacity-80 transition"
             >
               All
             </button>
@@ -277,8 +280,8 @@ export function BrandsTab({
                 onClick={() => setOverviewMode((v) => !v)}
                 className={`px-2 py-1 text-[10px] font-bold rounded-lg transition border ${
                   overviewMode
-                    ? "bg-purple-100 text-purple-700 border-purple-300"
-                    : "bg-gray-100 text-gray-500 border-gray-200"
+                    ? "bg-purple-900/30 text-purple-400 border-purple-500/30"
+                    : "bg-surface-3 text-t2 border-line"
                 }`}
               >
                 {overviewMode ? "OVR" : "PRD"}
@@ -296,15 +299,51 @@ export function BrandsTab({
                 aria-label="Scrape via browser tabs"
                 className="px-2.5 py-1 text-[10px] font-bold bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                🌐
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
               </button>
             </Tooltip>
             <Tooltip text="Refresh brands">
-              <button onClick={fetchBrands} aria-label="Refresh brands" className="text-gray-400 hover:text-gray-600 text-sm">
+              <button onClick={fetchBrands} aria-label="Refresh brands" className="text-t2 hover:text-t1 text-sm">
                 ↻
               </button>
             </Tooltip>
           </div>
+
+          {/* Batch scrape panel — shown when list is idle */}
+          {!loading && filtered.length > 0 && !activeJob && !tabState.active && tabState.offers.length === 0 && (
+            <div className="mx-3 mb-1 mt-1 bg-surface border border-line rounded-xl p-3 flex-shrink-0">
+              <div className="flex items-center justify-between mb-2.5">
+                <div>
+                  <p className="text-[9px] font-black text-t1 uppercase tracking-[0.08em]">Batch Scrape All</p>
+                  <p className="text-[9px] text-t2 mt-0.5">Queue all scrape-enabled brands</p>
+                </div>
+                <button
+                  onClick={handleScrapeAll}
+                  className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white text-[9px] font-black rounded-lg transition"
+                >
+                  Scrape All {filtered.filter((b) => b.website_scraping_enabled).length}
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1 text-center bg-surface-2 rounded-lg py-1.5">
+                  <p className="text-[13px] font-black text-t1">{filtered.length}</p>
+                  <p className="text-[8px] text-t2 uppercase tracking-wide">Brands</p>
+                </div>
+                <div className="flex-1 text-center bg-surface-2 rounded-lg py-1.5">
+                  <p className="text-[13px] font-black text-t1">{filtered.filter((b) => b.website_scraping_enabled).length}</p>
+                  <p className="text-[8px] text-t2 uppercase tracking-wide">Enabled</p>
+                </div>
+                <div className="flex-1 text-center bg-surface-2 rounded-lg py-1.5">
+                  <p className="text-[13px] font-black text-t1">~{Math.max(1, Math.ceil(filtered.filter((b) => b.website_scraping_enabled).length * 0.5))}m</p>
+                  <p className="text-[8px] text-t2 uppercase tracking-wide">Est.</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Active backend job panel */}
           {activeJob && (
@@ -324,11 +363,11 @@ export function BrandsTab({
           {!tabState.active && tabState.offers.length > 0 && (
             <div className="flex flex-col flex-1 min-h-0">
               {/* Review header */}
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 flex-shrink-0">
-                <span className="text-[10px] font-bold text-green-600 flex-1">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-line flex-shrink-0">
+                <span className="text-[10px] font-bold text-green-400 flex-1">
                   🌐 {tabState.offers.length} offers collected
                 </span>
-                <label className="flex items-center gap-1 text-[10px] text-gray-500 cursor-pointer">
+                <label className="flex items-center gap-1 text-[10px] text-t2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={reviewSelected.size === tabState.offers.length && tabState.offers.length > 0}
@@ -353,7 +392,7 @@ export function BrandsTab({
                   <button
                     onClick={dismissCollected}
                     aria-label="Discard collected offers"
-                    className="text-gray-400 hover:text-red-500 transition text-sm font-bold"
+                    className="text-t2 hover:text-red-400 transition text-sm font-bold"
                   >
                     ✕
                   </button>
@@ -385,7 +424,7 @@ export function BrandsTab({
                           });
                         }}
                         aria-label="Remove offer"
-                        className="absolute top-2 right-8 text-[10px] text-red-300 hover:text-red-500 transition font-bold"
+                        className="absolute top-2 right-8 text-[10px] text-red-400/60 hover:text-red-400 transition font-bold"
                       >
                         ✕
                       </button>
@@ -393,6 +432,16 @@ export function BrandsTab({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Section label */}
+          {!tabState.active && tabState.offers.length === 0 && (
+            <div className="flex items-center justify-between px-3 pt-1.5 pb-1 flex-shrink-0">
+              <span className="text-[8.5px] font-black text-t2 uppercase tracking-[0.1em]">Tracked Brands</span>
+              {!loading && (
+                <span className="text-[9px] font-bold bg-surface-2 text-t2 px-1.5 py-0.5 rounded-md">{filtered.length}</span>
+              )}
             </div>
           )}
 
@@ -405,8 +454,8 @@ export function BrandsTab({
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center py-10 text-center px-4">
                 <span className="text-2xl mb-2">🏪</span>
-                <p className="text-xs font-semibold text-gray-500">No brands found</p>
-                <p className="text-[10px] text-gray-400 mt-1">
+                <p className="text-xs font-semibold text-t2">No brands found</p>
+                <p className="text-[10px] text-t2 mt-1">
                   {search ? "Try a different search." : "Add brands in the Discover tab."}
                 </p>
               </div>
@@ -443,6 +492,8 @@ export function BrandsTab({
           offers={scanOffers}
           selected={scanSelected}
           saving={scanSaving}
+          productConfig={productConfig}
+          onProductConfigChange={onProductConfigChange}
           onScanPage={onScanPage}
           onCrawl={onCrawl}
           onStopScan={onStopScan}

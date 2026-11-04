@@ -95,18 +95,18 @@ export function DiscoverTab({ brands, pageUrl, onBrandAdded, onToast }: Props) {
     }
   };
 
-  const inputCls = "w-full text-xs px-2.5 py-2 border border-gray-200 rounded-lg outline-none focus:border-primary bg-gray-50";
+  const inputCls = "w-full text-xs px-2.5 py-2 border border-line rounded-lg outline-none focus:border-primary bg-surface-2 text-t1 placeholder-t3";
 
   return (
     <div className="scrollable px-3 py-3 flex flex-col gap-3">
       {/* Mode toggle */}
-      <div className="flex bg-gray-100 rounded-xl p-0.5">
+      <div className="flex bg-surface-2 rounded-xl p-0.5">
         {(["current", "manual"] as const).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
             className={`flex-1 py-1.5 text-[10px] font-bold rounded-[10px] transition ${
-              mode === m ? "bg-white shadow-sm text-dark" : "text-gray-500"
+              mode === m ? "bg-surface-3 text-t1" : "text-t2"
             }`}
           >
             {m === "current" ? "Current Page" : "Add Manually"}
@@ -115,25 +115,25 @@ export function DiscoverTab({ brands, pageUrl, onBrandAdded, onToast }: Props) {
       </div>
 
       {mode === "current" && (
-        <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col gap-2.5">
-          <p className="text-xs font-bold text-dark">Discover Current Website</p>
+        <div className="bg-surface border border-line rounded-xl p-3 flex flex-col gap-2.5">
+          <p className="text-xs font-bold text-t1">Discover Current Website</p>
           {!currentDomain ? (
-            <p className="text-[10px] text-gray-400">Open a website in your browser first.</p>
+            <p className="text-[10px] text-t2">Open a website in your browser first.</p>
           ) : existingBrand ? (
             <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 p-2 bg-green-900/20 border border-green-500/30 rounded-lg">
                 {existingBrand.logo_url && (
                   <img src={existingBrand.logo_url} alt="" className="w-6 h-6 object-contain rounded" />
                 )}
                 <div>
-                  <p className="text-xs font-semibold text-dark">{existingBrand.name}</p>
-                  <p className="text-[10px] text-green-600">Already registered</p>
+                  <p className="text-xs font-semibold text-t1">{existingBrand.name}</p>
+                  <p className="text-[10px] text-green-400">Already registered</p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-center gap-2 p-2 bg-surface-2 border border-line rounded-lg">
                 <img
                   src={`https://www.google.com/s2/favicons?domain=${currentDomain}&sz=32`}
                   alt=""
@@ -141,8 +141,8 @@ export function DiscoverTab({ brands, pageUrl, onBrandAdded, onToast }: Props) {
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-dark truncate">{currentTitle}</p>
-                  <p className="text-[10px] text-gray-400 truncate">{currentDomain}</p>
+                  <p className="text-xs font-semibold text-t1 truncate">{currentTitle}</p>
+                  <p className="text-[10px] text-t2 truncate">{currentDomain}</p>
                 </div>
               </div>
               <input
@@ -172,8 +172,8 @@ export function DiscoverTab({ brands, pageUrl, onBrandAdded, onToast }: Props) {
       )}
 
       {mode === "manual" && (
-        <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col gap-2.5">
-          <p className="text-xs font-bold text-dark">Add Brand Manually</p>
+        <div className="bg-surface border border-line rounded-xl p-3 flex flex-col gap-2.5">
+          <p className="text-xs font-bold text-t1">Add Brand Manually</p>
           <input type="text" placeholder="Brand name *" value={manualName}
             onChange={(e) => setManualName(e.target.value)} className={inputCls} />
           <input type="url" placeholder="Website URL * (https://...)" value={manualUrl}

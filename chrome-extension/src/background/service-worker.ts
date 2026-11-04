@@ -148,6 +148,10 @@ chrome.runtime.onMessage.addListener(
       message.type === "SELECTOR_PICKED" ||
       message.type === "SELECTOR_MODE_CANCELLED"
     ) {
+      // Persist result so popup can read it after reopening
+      if (message.type === "SELECTOR_PICKED") {
+        chrome.storage.local.set({ dm_pending_selector: message });
+      }
       if (popupPort) {
         try { popupPort.postMessage(message); } catch { /* popup closed */ }
       }
@@ -158,14 +162,16 @@ chrome.runtime.onMessage.addListener(
     // ── Messages from popup → forward to content script ───────────────────
     if (
       message.type === "SCRAPE_PAGE" ||
+      message.type === "SCRAPE_PAGE_PRODUCT" ||
       message.type === "START_SELECTOR_MODE" ||
       message.type === "STOP_SELECTOR_MODE"
     ) {
       const scrapeMsg = message as ScrapeMessage;
 
       getActiveTab().then(async (tab) => {
+        const isScrape = message.type === "SCRAPE_PAGE" || message.type === "SCRAPE_PAGE_PRODUCT";
         if (!tab?.id) {
-          if (message.type === "SCRAPE_PAGE") {
+          if (isScrape) {
             sendResponse({ type: "SCRAPE_RESULT", offers: [], error: "No active tab" });
           } else {
             sendResponse({ ok: false, error: "No active tab" });
@@ -186,7 +192,7 @@ chrome.runtime.onMessage.addListener(
           response = await sendToTab(tab.id, scrapeMsg);
         }
 
-        if (message.type === "SCRAPE_PAGE") {
+        if (isScrape) {
           sendResponse(response ?? { type: "SCRAPE_RESULT", offers: [], error: "Injection failed" });
         } else {
           sendResponse(response ?? { ok: false });

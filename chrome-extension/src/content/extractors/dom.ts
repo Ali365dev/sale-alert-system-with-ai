@@ -280,6 +280,74 @@ function extractCouponCodes(sourceUrl: string): ScrapedOffer[] {
   return results;
 }
 
+/**
+ * Extract offers from elements matching a user-supplied CSS selector.
+ * Works like extractPricePairs but scoped to the matched containers.
+ */
+export function extractWithProductSelector(sourceUrl: string, productSelector: string): ScrapedOffer[] {
+  const results: ScrapedOffer[] = [];
+  let elements: NodeListOf<Element>;
+  try {
+    elements = document.querySelectorAll(productSelector);
+  } catch {
+    return results;
+  }
+
+  elements.forEach((container) => {
+    let salePrice: number | undefined;
+    let salePriceText = "";
+    let originalPrice: number | undefined;
+
+    for (const sel of PRICE_ELEMENT_SELECTORS) {
+      const el = container.querySelector(sel);
+      if (el) {
+        salePriceText = getText(el);
+        salePrice = parsePrice(salePriceText);
+        if (salePrice) break;
+      }
+    }
+
+    if (!salePrice) {
+      const delEl = container.querySelector("s, del");
+      if (delEl) {
+        const op = parsePrice(getText(delEl));
+        if (op) {
+          for (const child of container.querySelectorAll("span, div, p, strong, bdi")) {
+            if (child === delEl || delEl.contains(child) || child.contains(delEl)) continue;
+            const p = parsePrice(getText(child));
+            if (p && p > 0 && p < op) { salePrice = p; salePriceText = getText(child); originalPrice = op; break; }
+          }
+        }
+      }
+    }
+
+    if (!salePrice) return;
+
+    for (const sel of ORIGINAL_PRICE_SELECTORS) {
+      const origEl = container.querySelector(sel);
+      if (origEl) {
+        const op = parsePrice(getText(origEl));
+        if (op && op > salePrice) { originalPrice = op; break; }
+      }
+    }
+
+    results.push({
+      title: getTitle(container),
+      sale_price: salePrice,
+      original_price: originalPrice,
+      discount_percentage: originalPrice ? calcDiscount(originalPrice, salePrice) : undefined,
+      currency: parseCurrency(salePriceText),
+      image_url: getImage(container),
+      offer_url: getLink(container),
+      source_url: sourceUrl,
+      no_expiry: true,
+      scraped_at: new Date().toISOString(),
+    });
+  });
+
+  return results;
+}
+
 export function extractBannerAndCouponOffers(sourceUrl: string): ScrapedOffer[] {
   return [
     ...extractBannerOffers(sourceUrl),

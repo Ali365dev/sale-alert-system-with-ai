@@ -20,9 +20,9 @@ const ICONS: Record<ToastType, string> = {
 };
 
 const COLORS: Record<ToastType, string> = {
-  success: "bg-green-50 border-green-200 text-green-800",
-  error: "bg-red-50 border-red-200 text-red-800",
-  info: "bg-blue-50 border-blue-200 text-blue-800",
+  success: "bg-green-900/20 border-green-500/30 text-green-400",
+  error: "bg-red-900/20 border-red-500/30 text-red-400",
+  info: "bg-blue-900/20 border-blue-500/30 text-blue-400",
 };
 
 function ToastItem({ toast, onDismiss }: { toast: ToastMessage; onDismiss: () => void }) {
