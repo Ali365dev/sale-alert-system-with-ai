@@ -15,9 +15,9 @@ from bs4 import BeautifulSoup
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 DealPulseBrandDiscovery/1.0"
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
-REQUEST_TIMEOUT_SECONDS = 10
+REQUEST_TIMEOUT_SECONDS = 20
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_EXTRA_PAGES = 2  # about + contact, on top of the homepage
 
@@ -52,7 +52,14 @@ def fetch_page(url: str) -> ParsedPage | None:
     try:
         resp = requests.get(
             url,
-            headers={"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"},
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Cache-Control": "no-cache",
+                "Upgrade-Insecure-Requests": "1",
+            },
             timeout=REQUEST_TIMEOUT_SECONDS,
             stream=True,
             allow_redirects=True,
@@ -110,6 +117,14 @@ def crawl_site(base_url: str) -> dict[str, ParsedPage | None]:
     "contact": ParsedPage|None} — "home" is None only if the site is
     entirely unreachable, in which case the other two are always None too."""
     home = fetch_page(base_url)
+    if home is None:
+        # Try toggling www. — many sites only answer on one variant
+        parsed = urlparse(_normalize_url(base_url))
+        if parsed.netloc.startswith("www."):
+            alt = parsed._replace(netloc=parsed.netloc[4:]).geturl()
+        else:
+            alt = parsed._replace(netloc=f"www.{parsed.netloc}").geturl()
+        home = fetch_page(alt)
     if home is None:
         return {"home": None, "about": None, "contact": None}
 

@@ -20,6 +20,13 @@ async function scraperClient() {
   });
 }
 
+export async function listCategories(): Promise<string[]> {
+  const client = await appClient();
+  const res = await client.get("/categories");
+  const cats = (res.data as { categories: { name: string }[] }).categories ?? [];
+  return cats.map((c) => c.name);
+}
+
 export async function listBrands(): Promise<Brand[]> {
   const client = await appClient();
   const res = await client.get("/brands");
@@ -63,13 +70,16 @@ export async function triggerMultiBrandScrape(brandIds: number[]): Promise<numbe
 }
 
 /** Start a brand discovery job from a URL (async pipeline on scraper server). */
-export async function startBrandDiscovery(website: string, seedName?: string): Promise<{ discoveryId: number; jobId: number }> {
+export async function startBrandDiscovery(
+  website: string,
+  seedName?: string,
+  pageHtml?: string,
+): Promise<{ discoveryId: number; jobId: number }> {
   const client = await scraperClient();
-  const res = await client.post("/brand-discovery/start", {
-    mode: "scan_website",
-    website,
-    seed_name: seedName || undefined,
-  });
+  const res = await client.post("/brand-discovery/start", pageHtml
+    ? { mode: "html_content", website, seed_name: seedName || undefined, page_html: pageHtml }
+    : { mode: "scan_website", website, seed_name: seedName || undefined },
+  );
   return res.data as { discoveryId: number; jobId: number };
 }
 

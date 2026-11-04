@@ -66,12 +66,30 @@ export function App() {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Read active tab URL after auth
+  // Read active tab URL after auth, and keep it in sync when the user switches tabs
   useEffect(() => {
     if (!authed) return;
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      setPageUrl(tabs[0]?.url ?? "");
-    });
+
+    function readActiveTab() {
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+        const url = tabs.find((t) => t.url && !t.url.startsWith("chrome-extension://"))?.url ?? "";
+        setPageUrl(url);
+      });
+    }
+
+    readActiveTab();
+
+    function onActivated() { readActiveTab(); }
+    function onUpdated(_id: number, info: chrome.tabs.TabChangeInfo) {
+      if (info.status === "complete") readActiveTab();
+    }
+
+    chrome.tabs.onActivated.addListener(onActivated);
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    return () => {
+      chrome.tabs.onActivated.removeListener(onActivated);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+    };
   }, [authed]);
 
   // Recover pending selector result from previous popup session (ScrapeTab picker only)

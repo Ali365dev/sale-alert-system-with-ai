@@ -92,10 +92,14 @@ def start_discovery(body: dict = Body(default={})):
     seed_name = (body.get("seed_name") or "").strip() or None
     brand_request_id = body.get("brand_request_id")
 
-    if mode not in ("search_name", "scan_website"):
-        return JSONResponse({"error": "mode must be 'search_name' or 'scan_website'"}, status_code=400)
+    if mode not in ("search_name", "scan_website", "html_content"):
+        return JSONResponse({"error": "mode must be 'search_name', 'scan_website', or 'html_content'"}, status_code=400)
     if not website:
         return JSONResponse({"error": "website is required"}, status_code=400)
+
+    page_html = (body.get("page_html") or "").strip() if mode == "html_content" else ""
+    if mode == "html_content" and not page_html:
+        return JSONResponse({"error": "page_html is required for html_content mode"}, status_code=400)
 
     with get_session() as session:
         if brand_request_id is not None and session.query(BrandRequest).filter(BrandRequest.id == brand_request_id).first() is None:
@@ -115,8 +119,16 @@ def start_discovery(body: dict = Body(default={})):
         if row is not None:
             row.job_id = job["id"]
 
-    config = job_runner.get_runner("brand_discovery")
-    threading.Thread(target=config.run, args=(job["id"], job["payload"]), daemon=True).start()
+    if mode == "html_content":
+        from services.brand_discovery import pipeline
+        threading.Thread(
+            target=pipeline.run_from_html,
+            args=(job["id"], discovery_id, page_html),
+            daemon=True,
+        ).start()
+    else:
+        config = job_runner.get_runner("brand_discovery")
+        threading.Thread(target=config.run, args=(job["id"], job["payload"]), daemon=True).start()
 
     return JSONResponse({"discoveryId": discovery_id, "jobId": job["id"]}, status_code=202)
 
