@@ -18,6 +18,8 @@ const SecondaryButton = ({ label, onPress, style, icon, variant = 'muted' }) => 
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
+        accessibilityRole="button"
+        accessibilityLabel={label}
         style={[styles.button, outline && styles.outline]}>
         {icon && <Icon name={icon} size={16} color={outline ? colors.primary : colors.text} />}
         <Text style={outline ? styles.labelOutline : styles.label}>{label}</Text>

@@ -116,6 +116,7 @@ const CouponsScreen = () => {
         title="Coupons"
         hideBorder
         rightIcon="search-outline"
+        rightIconLabel="Search"
         onPressRight={() => navigation.navigate('SearchScreen')}
       />
 

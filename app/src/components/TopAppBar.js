@@ -8,7 +8,7 @@ import useDataStore from '../state/dataStore';
 
 /** Top inset is owned by `Screen` (SafeAreaView). Do not add insets.top here
  * or headers double-pad under the status bar. */
-const TopAppBar = ({ title, showBack, onBack, hideProfile, hideBorder, rightIcon, onPressRight, rightSlot, titleAlign = 'center', style }) => {
+const TopAppBar = ({ title, showBack, onBack, hideProfile, hideBorder, rightIcon, rightIconLabel, onPressRight, rightSlot, titleAlign = 'center', style }) => {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -24,7 +24,11 @@ const TopAppBar = ({ title, showBack, onBack, hideProfile, hideBorder, rightIcon
           titleStart && !showBack && styles.sideCollapsed,
         ]}>
         {showBack ? (
-          <Pressable hitSlop={8} onPress={onBack ?? (() => navigation.goBack())}>
+          <Pressable
+            hitSlop={8}
+            onPress={onBack ?? (() => navigation.goBack())}
+            accessibilityRole="button"
+            accessibilityLabel="Go back">
             <Icon name="chevron-back" size={24} color={colors.text} />
           </Pressable>
         ) : null}
@@ -42,12 +46,21 @@ const TopAppBar = ({ title, showBack, onBack, hideProfile, hideBorder, rightIcon
         {rightSlot ? (
           rightSlot
         ) : rightIcon ? (
-          <Pressable hitSlop={8} onPress={onPressRight}>
+          <Pressable
+            hitSlop={8}
+            onPress={onPressRight}
+            accessibilityRole="button"
+            accessibilityLabel={rightIconLabel ?? 'More options'}>
             <Icon name={rightIcon} size={22} color={colors.text} />
           </Pressable>
         ) : (
           !hideProfile && (
-            <Pressable hitSlop={8} onPress={() => navigation.navigate('NotificationsScreen')} style={styles.bellWrap}>
+            <Pressable
+              hitSlop={8}
+              onPress={() => navigation.navigate('NotificationsScreen')}
+              style={styles.bellWrap}
+              accessibilityRole="button"
+              accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}>
               <Icon name="notifications-outline" size={23} color={colors.text} />
               {unreadCount > 0 && <View style={styles.badgeDot} />}
             </Pressable>

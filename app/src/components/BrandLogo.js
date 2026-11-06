@@ -175,15 +175,13 @@ const BrandLogo = ({
             lineHeight: size * (bare ? 0.38 : 0.38),
             fontWeight: '800',
             letterSpacing: 0.4,
-            color: bare ? '#10233F' : isFilled && !plain ? '#FFFFFF' : colors.text,
+            color: isFilled && !plain ? colors.onPrimary : colors.text,
           }}>
           {resolvedInitials || '?'}
         </Text>
       </View>
     );
   })();
-
-  // console.log(uri,source)
 
   if (!elevated) return mark;
 
@@ -208,15 +206,15 @@ const createStyles = (colors) =>
       backgroundColor: '#10233F',
     },
     imageWrap: {
-      backgroundColor: '#F3F4F6',
+      backgroundColor: colors.backgroundElement,
       borderWidth: 1,
       borderColor: colors.border,
     },
     coverWrap: {
-      backgroundColor: '#F3F4F6',
+      backgroundColor: colors.backgroundElement,
     },
     plainWrap: {
-      backgroundColor: '#F8F9FB',
+      backgroundColor: colors.backgroundElement,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
     },
@@ -225,16 +223,16 @@ const createStyles = (colors) =>
     },
     lift: Platform.select({
       ios: {
-        shadowColor: '#10233F',
+        shadowColor: colors.text,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.2,
         shadowRadius: 10,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.surface,
       },
       default: {
         elevation: 8,
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#10233F',
+        backgroundColor: colors.surface,
+        shadowColor: colors.text,
       },
     }),
   });

@@ -13,20 +13,22 @@ import { copyCode } from '../utils/copyCode';
 import { channelTag, formatExpiryShort, formatFlatOffer } from '../utils/dealAdapters';
 import { toggleFavoriteDeal } from '../utils/authGate';
 
-const TILE_COLORS = ['#FFF6DF', '#FFF0F3', '#EEF4FF', '#FDECEF', '#EAF8F1', '#F3F5F8'];
+// Reuses the theme's existing soft-background tokens (each has a dark-mode
+// counterpart already) instead of a separate hardcoded light-only palette,
+// so logo placeholder tiles stay legible in dark mode too.
+const TILE_COLOR_KEYS = ['warningBg', 'accentPink', 'infoBg', 'tagBackground', 'successBg', 'backgroundElement'];
 
-const CHANNEL = {
-  ONLINE: { bg: '#E8F8F2', dot: '#059669', text: '#059669', label: 'Online' },
-  'IN-STORE': { bg: '#FEF3C7', dot: '#D97706', text: '#D97706', label: 'In-Store' },
-};
-
-const tileColorFor = (name = '') => {
+const tileColorFor = (colors, name = '') => {
   let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = (hash + name.charCodeAt(i) * (i + 1)) % TILE_COLORS.length;
-  return TILE_COLORS[hash];
+  for (let i = 0; i < name.length; i += 1) hash = (hash + name.charCodeAt(i) * (i + 1)) % TILE_COLOR_KEYS.length;
+  return colors[TILE_COLOR_KEYS[hash]];
 };
 
-const ChannelBadge = ({ deal }) => {
+const ChannelBadge = ({ deal, colors }) => {
+  const CHANNEL = {
+    ONLINE: { bg: colors.successBg, dot: colors.success, text: colors.success, label: 'Online' },
+    'IN-STORE': { bg: colors.warningBg, dot: colors.warning, text: colors.warning, label: 'In-Store' },
+  };
   const channel = CHANNEL[channelTag(deal)] || CHANNEL.ONLINE;
   return (
     <View style={[badgeStyles.pill, { backgroundColor: channel.bg }]}>
@@ -70,7 +72,6 @@ const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo
   useEffect(() => setLogoIndex(0), [brand?.logoUrl, brand?.website]);
   const logoUri = candidates[logoIndex] ?? null;
   const favorite = useFavoritesStore((state) => state.favoriteIds.includes(deal.id));
-console.log({logoUri})
 
   const onCopy = () => {
     if (!code) return;
@@ -90,7 +91,7 @@ console.log({logoUri})
           style={[styles.offerCard, grid && styles.offerCardGrid]}
           accessibilityRole="button"
           accessibilityLabel={`${headline}. ${subtitle}`}>
-          <View style={[styles.logoBox, grid && styles.logoBoxGrid, { backgroundColor: tileColorFor(name) }]}>
+          <View style={[styles.logoBox, grid && styles.logoBoxGrid, { backgroundColor: tileColorFor(colors, name) }]}>
             <BrandLogo
               brand={brand}
               initials={brand?.initials ?? letter}
@@ -111,7 +112,7 @@ console.log({logoUri})
               {subtitle}
             </Text>
             <View style={styles.offerMeta}>
-              <ChannelBadge deal={deal} />
+              <ChannelBadge deal={deal} colors={colors} />
               <Text style={styles.offerExp} numberOfLines={1}>
                 {formatExpiryShort(deal.expiresAt)}
               </Text>
@@ -133,7 +134,7 @@ console.log({logoUri})
   return (
     <Animated.View style={[animatedStyle, styles.card, style]} sharedTransitionTag={transitionTag}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.row}>
-        <View style={[styles.mark, { backgroundColor: tileColorFor(name) }]}>
+        <View style={[styles.mark, { backgroundColor: tileColorFor(colors, name) }]}>
           {logoUri ? (
             <FastImage
               source={{ uri: logoUri, cache: FastImage.cacheControl.immutable }}
@@ -182,10 +183,10 @@ export default DealCard;
 const createStyles = (colors) =>
   StyleSheet.create({
     card: {
-      backgroundColor: '#FFFFFF',
+      backgroundColor: colors.surface,
       borderRadius: 16,
       borderWidth: 1,
-      borderColor: '#EEF1F4',
+      borderColor: colors.border,
       ...SHADOWS.card,
     },
     row: {
@@ -210,7 +211,7 @@ const createStyles = (colors) =>
     markLetter: {
       fontSize: 20,
       fontWeight: '800',
-      color: '#0F172A',
+      color: colors.text,
     },
     body: {
       flex: 1,
@@ -221,13 +222,13 @@ const createStyles = (colors) =>
     },
     title: {
       ...TYPOGRAPHY.smallBold,
-      color: '#0F172A',
+      color: colors.text,
       fontSize: 15,
       lineHeight: 20,
     },
     subtitle: {
       ...TYPOGRAPHY.small,
-      color: '#8E9AA8',
+      color: colors.textSecondary,
       fontSize: 13,
       lineHeight: 16,
     },
@@ -245,7 +246,7 @@ const createStyles = (colors) =>
       justifyContent: 'center',
     },
     copyLabel: {
-      color: '#FFFFFF',
+      color: colors.onPrimary,
       fontSize: 12,
       fontWeight: '700',
     },

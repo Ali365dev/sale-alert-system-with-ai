@@ -19,6 +19,9 @@ const PrimaryButton = ({ label, onPress, disabled, loading, style, icon, iconPos
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         disabled={disabled || loading}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: disabled || loading, busy: loading }}
         style={[styles.button, pill && styles.pill, (disabled || loading) && styles.disabled]}>
         {iconPosition === 'left' && iconEl}
         {loading

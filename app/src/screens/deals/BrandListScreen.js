@@ -136,6 +136,7 @@ const BrandListScreen = () => {
         hideBorder
         style={{ backgroundColor: colors.surface }}
         rightIcon={searchOpen ? 'close-outline' : 'search-outline'}
+        rightIconLabel={searchOpen ? 'Close search' : 'Search'}
         onPressRight={toggleSearch}
       />
 
