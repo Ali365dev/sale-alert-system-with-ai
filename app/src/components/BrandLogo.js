@@ -122,8 +122,9 @@ const BrandLogo = ({
     return {
       uri,
       priority: FastImage.priority.normal,
-      // Prefer fresh bytes when admins change the logo URL/CDN asset.
-      cache: FastImage.cacheControl.web,
+      // Immutable: URL is the identity — admins change the URL when the logo
+      // changes, so the same URL always resolves to the same bytes.
+      cache: FastImage.cacheControl.immutable,
     };
   }, [uri]);
 
@@ -181,6 +182,8 @@ const BrandLogo = ({
       </View>
     );
   })();
+
+  // console.log(uri,source)
 
   if (!elevated) return mark;
 

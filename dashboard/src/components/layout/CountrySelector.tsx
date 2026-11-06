@@ -106,7 +106,7 @@ export function CountrySelector() {
 
           <div style={{ height: 1, background: "var(--border)", margin: "4px 4px" }} />
 
-          {COUNTRIES.map((c) => (
+          {COUNTRIES.filter((c) => c.code !== "INTL").map((c) => (
             <button
               key={c.code}
               type="button"

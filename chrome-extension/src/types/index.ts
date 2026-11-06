@@ -115,6 +115,7 @@ export interface ScrapeNowResult {
 
 // ── Navigation types ──────────────────────────────────────────────────────────
 
+export type AppMode = "sale" | "bank";
 export type TabId = "brands" | "selectors" | "history" | "settings";
 export type BrandSubTab = "list" | "discover" | "scan";
 
@@ -151,6 +152,7 @@ export interface AppSettings {
   appServerUrl: string;
   scraperServerUrl: string;
   sessionToken: string | null;
+  appMode: AppMode;
 }
 
 export interface CrawlConfig {
@@ -250,4 +252,30 @@ export interface SimilarSelectorResult {
   allMatchesSel: string;
   containerCount: number;
   fieldCount: number;
+}
+
+// ── Bank Offers mode (visual picker, single-page scan) ───────────────────────
+
+export interface BankOfferFieldSelector {
+  css: string;
+  attr?: string;
+}
+
+export interface BankOfferListingConfig {
+  containerSelector: string;
+  fields: {
+    placeName?: BankOfferFieldSelector;
+    bankName?: BankOfferFieldSelector;
+    cardName?: BankOfferFieldSelector;
+    discount?: BankOfferFieldSelector;
+    expiry?: BankOfferFieldSelector;
+  };
+}
+
+export interface ExtractedBankOffer {
+  placeName?: string;
+  bankName?: string;
+  cardName?: string;
+  discount?: string;
+  expiry?: string;
 }

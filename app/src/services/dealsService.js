@@ -1,3 +1,4 @@
+import FastImage from '@d11/react-native-fast-image';
 import { appAxios } from './apiInterceptors';
 import { handleApiError } from '../utils/handleApiError';
 import { deriveAlerts, deriveBrandsAndDeals, deriveCategories } from '../utils/dealAdapters';
@@ -5,6 +6,7 @@ import useDataStore from '../state/dataStore';
 import usePreferencesStore from '../state/preferencesStore';
 import { fetchInterests } from './preferencesApi';
 import regionStore from '../state/regionStore';
+import { logoCandidateUris } from '../components/BrandLogo';
 
 const CATALOG_TIMEOUT_MS = 15000;
 // Hosted API (Render) cold-starts past 15s. One longer retry covers that
@@ -87,6 +89,14 @@ const loadDealsOnce = async () => {
     const alerts = [...pushAlerts, ...derivedAlerts];
 
     useDataStore.setState({ brands, deals, brandsById, categories, alerts, loading: false });
+
+    // Warm up the FastImage disk cache for every brand logo so they render
+    // instantly when the user scrolls — fire-and-forget, never blocks UI.
+    const preloadSources = brands
+      .map((b) => logoCandidateUris(b.logoUrl, b.website)[0])
+      .filter(Boolean)
+      .map((uri) => ({ uri, cache: FastImage.cacheControl.immutable }));
+    if (preloadSources.length) FastImage.preload(preloadSources);
 
     // Best-effort sync of saved interests — keeps this device's local prefs
     // aligned with the backend without blocking (or failing) the deals load.

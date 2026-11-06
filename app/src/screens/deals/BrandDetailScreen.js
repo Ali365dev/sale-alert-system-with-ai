@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,9 @@ import { SCREEN_WIDTH } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
+import useBankCardsStore from '../../state/bankCardsStore';
+import useBankOffersStore from '../../state/bankOffersStore';
+import { loadBankCardOffers } from '../../services/bankOffersApi';
 import { toggleFollowStore } from '../../utils/authGate';
 import AnimatedListItem from '../../components/AnimatedListItem';
 import BrandLogo from '../../components/BrandLogo';
@@ -16,6 +19,7 @@ import { useCouponSheet } from '../../components/CouponSheet';
 import EmptyState from '../../components/EmptyState';
 import ViewSwitcher from '../../components/ViewSwitcher';
 import useViewMode from '../../hooks/useViewMode';
+import { BANK_CARD_OFFERS, CARD_TYPE_LABELS, getBankById, getOffersForBrand } from '../../config/banks';
 
 const PAD = 20;
 const GRID_GAP = 16;
@@ -31,12 +35,41 @@ const BrandDetailScreen = () => {
   const brands = useDataStore((state) => state.brands);
   const deals = useDataStore((state) => state.deals);
   const followedBrands = usePreferencesStore((state) => state.followedBrands);
+  const savedCards = useBankCardsStore((s) => s.cards);
+  const fetchedBankOffers = useBankOffersStore((s) => s.offers);
   const [gridView, setGridView] = useViewMode(false);
   const { openCoupon, couponSheet } = useCouponSheet();
+
+  useEffect(() => {
+    loadBankCardOffers();
+  }, []);
 
   const brand = useMemo(() => brands.find((b) => b.id === id), [brands, id]);
   const brandDeals = useMemo(() => deals.filter((d) => d.brandId === id), [deals, id]);
   const isFollowing = brand ? followedBrands.includes(brand.name) : false;
+
+  // Live, scraped offers (takhfif.app) layered on top of the static seed
+  // array — see services/bankOffersApi.js.
+  const combinedOffers = useMemo(
+    () => [...BANK_CARD_OFFERS, ...fetchedBankOffers],
+    [fetchedBankOffers],
+  );
+  const bankOffers = useMemo(
+    () => (brand ? getOffersForBrand(brand.id, combinedOffers) : []),
+    [brand, combinedOffers],
+  );
+
+  // Personalized banner: find the first saved card that matches a bank offer
+  const qualifyingCard = useMemo(() => {
+    if (!bankOffers.length || !savedCards.length) return null;
+    const offerBankIds = new Set(bankOffers.map((o) => o.bankId));
+    return savedCards.find((c) => offerBankIds.has(c.bankId)) ?? null;
+  }, [bankOffers, savedCards]);
+
+  const qualifyingBank = qualifyingCard ? getBankById(qualifyingCard.bankId) : null;
+  const qualifyingOffer = qualifyingCard
+    ? bankOffers.find((o) => o.bankId === qualifyingCard.bankId)
+    : null;
 
   const handleToggleFollow = () => {
     if (!brand) return;
@@ -116,6 +149,78 @@ const BrandDetailScreen = () => {
                 )}
               </View>
             </View>
+
+            {/* Personalized qualifying card banner */}
+            {qualifyingCard && qualifyingBank && qualifyingOffer && (
+              <Pressable
+                onPress={() => navigation.navigate('MyCardsScreen')}
+                style={styles.qualifyBanner}
+                accessibilityRole="button">
+                <Icon name="card-outline" size={20} color="#FFFFFF" />
+                <View style={styles.qualifyText}>
+                  <Text style={styles.qualifyTitle}>
+                    Your {qualifyingBank.name} {qualifyingCard.cardType} card qualifies!
+                  </Text>
+                  <Text style={styles.qualifySub}>
+                    Get up to {qualifyingOffer.discountPercent}% cashback on your next visit
+                  </Text>
+                </View>
+                <Icon name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
+              </Pressable>
+            )}
+
+            {/* Bank card offers section */}
+            {bankOffers.length > 0 && (
+              <View style={styles.bankOffersSection}>
+                <Text style={styles.bankOffersTitle}>All Card Offers</Text>
+                {bankOffers.map((offer) => {
+                  const bank = getBankById(offer.bankId);
+                  if (!bank) return null;
+                  const expiryLabel = offer.expiryDate
+                    ? `Expires ${new Date(offer.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                    : null;
+                  const daysLabel =
+                    offer.daysValid === 'all'
+                      ? 'All days'
+                      : Array.isArray(offer.daysValid) && offer.daysValid.length
+                        ? offer.daysValid.length <= 2
+                          ? offer.daysValid.join(' & ')
+                          : 'Weekends only'
+                        : null;
+                  return (
+                    <View key={offer.id} style={styles.bankOfferRow}>
+                      <View style={[styles.bankInitials, { backgroundColor: bank.color }]}>
+                        <Text style={styles.bankInitialsText}>{bank.initials}</Text>
+                      </View>
+                      <View style={styles.bankOfferBody}>
+                        <View style={styles.bankOfferHeader}>
+                          <View>
+                            <Text style={styles.bankOfferName}>{bank.name}</Text>
+                            <Text style={styles.bankOfferCardType}>
+                              {CARD_TYPE_LABELS[offer.cardType] ?? offer.cardType}
+                            </Text>
+                          </View>
+                          <Text style={styles.bankOfferDiscount}>{offer.discountPercent}% OFF</Text>
+                        </View>
+                        <Text style={styles.bankOfferDesc} numberOfLines={2}>{offer.description}</Text>
+                        <View style={styles.bankOfferTags}>
+                          {expiryLabel && (
+                            <View style={styles.tagExpiry}>
+                              <Text style={styles.tagExpiryText}>{expiryLabel}</Text>
+                            </View>
+                          )}
+                          {daysLabel && (
+                            <View style={styles.tagDays}>
+                              <Text style={styles.tagDaysText}>{daysLabel}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Available Coupons</Text>
@@ -230,6 +335,67 @@ const createStyles = (colors) =>
       lineHeight: 18,
       color: colors.textSecondary,
     },
+    qualifyBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginHorizontal: PAD,
+      marginTop: 16,
+      backgroundColor: '#1A5276',
+      borderRadius: 14,
+      padding: 14,
+    },
+    qualifyText: { flex: 1 },
+    qualifyTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+    qualifySub: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 },
+    bankOffersSection: {
+      marginHorizontal: PAD,
+      marginTop: 20,
+    },
+    bankOffersTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    bankOfferRow: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    bankInitials: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    bankInitialsText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+    bankOfferBody: { flex: 1 },
+    bankOfferHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 6,
+    },
+    bankOfferName: { fontSize: 15, fontWeight: '700', color: colors.text },
+    bankOfferCardType: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+    bankOfferDiscount: { fontSize: 15, fontWeight: '900', color: '#F20D38' },
+    bankOfferDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+    bankOfferTags: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
+    tagExpiry: {
+      paddingHorizontal: 8, paddingVertical: 3,
+      backgroundColor: '#FFF3CD', borderRadius: 6,
+    },
+    tagExpiryText: { fontSize: 11, fontWeight: '600', color: '#856404' },
+    tagDays: {
+      paddingHorizontal: 8, paddingVertical: 3,
+      backgroundColor: '#E8D5FF', borderRadius: 6,
+    },
+    tagDaysText: { fontSize: 11, fontWeight: '600', color: '#6B2DA8' },
     sectionHead: {
       flexDirection: 'row',
       alignItems: 'center',

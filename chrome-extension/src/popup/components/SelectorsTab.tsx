@@ -4,6 +4,7 @@ import type {
   ExtractedProduct, SimilarSelectorResult,
 } from "../../types";
 import { getOrCreateScraperConfig, saveListingConfig } from "../../services/brandsApi";
+import { getSitePreset } from "../../config/sitePresets";
 
 // ── types ──────────────────────────────────────────────────────────────────────
 
@@ -161,8 +162,19 @@ export function SelectorsTab({ pageUrl }: Props) {
 
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+  const [presetApplied, setPresetApplied] = useState(false);
 
   const domain = pageUrl ? (() => { try { return new URL(pageUrl).hostname.replace("www.", ""); } catch { return ""; } })() : "";
+
+  // Auto-load a built-in preset for known sites — only when nothing has
+  // been picked yet, so it never clobbers an in-progress manual config.
+  useEffect(() => {
+    if (!domain || configRef.current.containerSelector) return;
+    const preset = getSitePreset(domain);
+    if (!preset) { setPresetApplied(false); return; }
+    setConfig(preset);
+    setPresetApplied(true);
+  }, [domain]);
 
   const applyPickedMessage = (
     msg: { selector?: string; similar?: SimilarSelectorResult | null },
@@ -306,7 +318,16 @@ export function SelectorsTab({ pageUrl }: Props) {
         <div className="px-3 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
           <div>
             <p className="text-xs font-black text-t1 uppercase tracking-[0.08em]">Listing Config</p>
-            {domain && <p className="text-[10px] text-t2 mt-0.5">{domain}</p>}
+            {domain && (
+              <p className="text-[10px] text-t2 mt-0.5 flex items-center gap-1.5">
+                {domain}
+                {presetApplied && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30">
+                    Preset loaded
+                  </span>
+                )}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {saveMsg && <span className="text-[10px] text-green-400 font-bold">{saveMsg}</span>}

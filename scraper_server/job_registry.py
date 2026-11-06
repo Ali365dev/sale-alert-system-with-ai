@@ -11,6 +11,7 @@ def register_scraper_jobs() -> None:
     from jobs.discover_brand import DiscoverBrandJob
     from jobs.fetch_sales_web import FetchSalesWebJob
     from jobs.research_brands import ResearchBrandsJob
+    from jobs.scrape_takhfif import ScrapeTakhfifJob
     from jobs.social_offer_scrape import SocialOfferScrapeJob
     from jobs.website_scrape_brand import WebsiteScrapeBrandJob
 
@@ -20,3 +21,4 @@ def register_scraper_jobs() -> None:
     job_runner.register(DiscoverBrandJob())
     job_runner.register(FetchSalesWebJob())
     job_runner.register(ResearchBrandsJob())
+    job_runner.register(ScrapeTakhfifJob())

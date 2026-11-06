@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     ? "http://localhost:8001"
     : "https://sale-alert-system-with-ai-1.onrender.com",
   sessionToken: null,
+  appMode: "sale",
 };
 
 export async function getSettings(): Promise<AppSettings> {

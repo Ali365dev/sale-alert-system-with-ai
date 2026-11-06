@@ -797,3 +797,32 @@ class SettingsAuditLog(Base):
 
     def __repr__(self) -> str:
         return f"<SettingsAuditLog action={self.action!r} entity={self.entity_type}:{self.entity_id}>"
+
+
+class BankCardOffer(Base):
+    """One bank/card discount row scraped from a takhfif.app place page
+    (scraper_server/services/takhfif_scraper.py). Read-only here — this
+    server only serves rows with a matched brand_id via
+    routers/bank_offers.py. See scraper_server/database/models.py for the
+    write side."""
+    __tablename__ = "bank_card_offers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_url = Column(String(500), nullable=False, index=True)
+    place_name = Column(String(255), nullable=False)
+    place_website = Column(String(500), nullable=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
+
+    bank_name = Column(String(100), nullable=False, index=True)
+    card_name = Column(String(255), nullable=True)
+    discount_percentage = Column(Float, nullable=True)
+    currency = Column(String(10), nullable=True)
+    expiry_date = Column(DateTime, nullable=True)
+    description = Column(Text, nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<BankCardOffer place={self.place_name!r} bank={self.bank_name!r} discount={self.discount_percentage}%>"

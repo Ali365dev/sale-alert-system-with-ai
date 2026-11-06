@@ -190,7 +190,11 @@ export async function saveListingConfig(config: ListingConfig): Promise<void> {
 /** Update editable fields on a BrandDiscovery row. */
 export async function updateBrandDiscovery(
   id: number,
-  patch: Partial<{ name: string; website: string; logo_url: string; description: string; category: string; subcategory: string; country: string }>,
+  patch: Partial<{
+    name: string; website: string; logo_url: string; description: string;
+    category: string; subcategory: string; country: string;
+    categories: string[]; promo_emails: string[]; sale_urls: string[];
+  }>,
 ): Promise<void> {
   const client = await scraperClient();
   await client.put(`/brand-discovery/${id}`, patch);

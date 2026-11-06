@@ -52,9 +52,12 @@ def _discovery_to_dict(row: BrandDiscovery) -> dict:
         "description": row.description,
         "category": row.category,
         "subcategory": row.subcategory,
+        "categories": json.loads(row.categories) if getattr(row, "categories", None) else [],
         "country": row.country,
         "field_sources": json.loads(row.field_sources) if row.field_sources else {},
         "social_links": json.loads(row.social_links) if row.social_links else {},
+        "promo_emails": json.loads(row.promo_emails) if getattr(row, "promo_emails", None) else [],
+        "sale_urls": json.loads(row.sale_urls) if getattr(row, "sale_urls", None) else [],
         "confidence": row.confidence,
         "duplicate_brand_id": row.duplicate_brand_id,
         "duplicate_score": row.duplicate_score,
@@ -177,6 +180,15 @@ def update_discovery(discovery_id: int, body: dict = Body(default={})):
             setattr(row, field, new_value)
         row.field_sources = json.dumps(field_sources)
 
+        # Multi-value JSON fields
+        if "categories" in body and isinstance(body["categories"], list):
+            cats = [c.strip() for c in body["categories"] if isinstance(c, str) and c.strip()]
+            row.categories = json.dumps(cats)
+        if "promo_emails" in body and isinstance(body["promo_emails"], list):
+            row.promo_emails = json.dumps([e.strip() for e in body["promo_emails"] if isinstance(e, str) and e.strip()])
+        if "sale_urls" in body and isinstance(body["sale_urls"], list):
+            row.sale_urls = json.dumps([u.strip() for u in body["sale_urls"] if isinstance(u, str) and u.strip()])
+
         if "social_links" in body:
             existing_social = json.loads(row.social_links) if row.social_links else {}
             merged = {}
@@ -209,7 +221,11 @@ def save_discovery(discovery_id: int, body: dict = Body(default={})):
 
         social_links = json.loads(row.social_links) if row.social_links else {}
         flat_social = {platform: entry["url"] for platform, entry in social_links.items() if entry.get("url")}
-        categories = [c for c in (row.category, row.subcategory) if c]
+        # Prefer the multi-category list; fall back to single category + subcategory
+        raw_cats = json.loads(row.categories) if getattr(row, "categories", None) else []
+        categories = raw_cats or [c for c in (row.category, row.subcategory) if c]
+        promo_emails = json.loads(row.promo_emails) if getattr(row, "promo_emails", None) else []
+        sale_urls = json.loads(row.sale_urls) if getattr(row, "sale_urls", None) else []
 
         if action == "merge":
             if not target_brand_id:
@@ -230,6 +246,11 @@ def save_discovery(discovery_id: int, body: dict = Body(default={})):
             for platform, url in flat_social.items():
                 existing_social.setdefault(platform, url)
             brand.social_links = json.dumps(existing_social) if existing_social else brand.social_links
+            existing_emails = json.loads(brand.emails) if brand.emails else []
+            if not existing_emails and promo_emails:
+                brand.emails = json.dumps(promo_emails)
+            if not brand.promotions_page_url and sale_urls:
+                brand.promotions_page_url = sale_urls[0]
         elif action == "create":
             if session.query(Brand).filter(Brand.name == row.name).first() is not None:
                 return JSONResponse(
@@ -243,6 +264,8 @@ def save_discovery(discovery_id: int, body: dict = Body(default={})):
                 description=row.description,
                 country=_iso_country(row.country),
                 social_links=json.dumps(flat_social) if flat_social else None,
+                emails=json.dumps(promo_emails) if promo_emails else None,
+                promotions_page_url=sale_urls[0] if sale_urls else None,
                 is_active=True,
             )
             session.add(brand)

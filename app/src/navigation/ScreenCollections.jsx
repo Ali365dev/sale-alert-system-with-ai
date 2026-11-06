@@ -1,4 +1,5 @@
 import BrandDetailScreen from '../screens/deals/BrandDetailScreen';
+import MyCardsScreen from '../screens/bankOffers/MyCardsScreen';
 import ForYouScreen from '../screens/home/ForYouScreen';
 import CategoryDealsScreen from '../screens/categories/CategoryDealsScreen';
 import CategoriesScreen from '../screens/categories/CategoriesScreen';
@@ -84,6 +85,11 @@ export const homeStack = [
     options: { ...stackoptions, headerShown: false },
     name: 'BrandDetailScreen',
     component: BrandDetailScreen,
+  },
+  {
+    options: { ...stackoptions, headerShown: false },
+    name: 'MyCardsScreen',
+    component: MyCardsScreen,
   },
   {
     options: { ...stackoptions, headerShown: false },

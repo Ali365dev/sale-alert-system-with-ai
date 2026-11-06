@@ -36,16 +36,21 @@ _SUBCATEGORY_KEYWORDS = {
 
 
 def detect_category(text: str) -> dict:
-    """`text` should already combine title + description + visible page
-    text. Falls back to "General" with no subcategory when nothing matches
-    — never returns an empty/None category."""
+    """`text` should already combine title + description + visible page text.
+    Returns the best single category (for compat) plus all matched categories
+    ranked by hit count. Falls back to ["General"] when nothing matches."""
     lowered = f" {(text or '').lower()} "
 
-    best_category, best_hits = "General", 0
+    scores: list[tuple[int, str]] = []
     for category, keywords in _CATEGORY_KEYWORDS.items():
         hits = sum(1 for kw in keywords if kw in lowered)
-        if hits > best_hits:
-            best_category, best_hits = category, hits
+        if hits:
+            scores.append((hits, category))
+
+    scores.sort(reverse=True)
+    matched = [cat for _, cat in scores]
+    best_hits = scores[0][0] if scores else 0
+    best_category = scores[0][1] if scores else "General"
 
     subcategory = None
     if best_category in _SUBCATEGORY_KEYWORDS:
@@ -60,6 +65,7 @@ def detect_category(text: str) -> dict:
 
     return {
         "category": best_category,
+        "categories": matched if matched else ["General"],
         "subcategory": subcategory,
         "source": SOURCE if best_hits else None,
         "confidence": round(confidence, 2),

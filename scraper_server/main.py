@@ -72,6 +72,7 @@ from routers.health import router as health_router  # noqa: E402
 from routers import (  # noqa: E402
     analytics,
     automation,
+    bank_offers,
     brand_discovery,
     brand_requests,
     emails,
@@ -105,3 +106,4 @@ app.include_router(social_scraper.router)
 app.include_router(brand_discovery.router)
 app.include_router(scraper_configs.router)
 app.include_router(schedules.router)
+app.include_router(bank_offers.router)

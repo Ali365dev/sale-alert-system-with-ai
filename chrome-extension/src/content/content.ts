@@ -1,4 +1,7 @@
-import type { ScrapeResponse, ProductScrapeConfig, ListingConfig, ExtractedProduct } from "../types";
+import type {
+  ScrapeResponse, ProductScrapeConfig, ListingConfig, ExtractedProduct,
+  BankOfferListingConfig, ExtractedBankOffer,
+} from "../types";
 import { extractAllOffers, extractOverviewOffers, extractProductOffers } from "./extractors";
 import { deduplicateOffers } from "../utils/dedupe";
 import { startSelectorMode, stopSelectorMode } from "./selector-mode";
@@ -47,6 +50,28 @@ function extractListingProducts(config: ListingConfig, pageUrl: string): Extract
       sku: get(f.sku),
     } as ExtractedProduct;
   }).filter((p) => p.title || p.url || p.currentPrice);
+}
+
+function extractBankOfferRows(config: BankOfferListingConfig): ExtractedBankOffer[] {
+  const containers = Array.from(document.querySelectorAll(config.containerSelector));
+  return containers.map((container) => {
+    const get = (field?: { css: string; attr?: string }) => {
+      if (!field?.css) return undefined;
+      try {
+        const el = container.querySelector(field.css);
+        if (!el) return undefined;
+        return extractAttr(el, field.attr) || undefined;
+      } catch { return undefined; }
+    };
+    const f = config.fields;
+    return {
+      placeName: get(f.placeName),
+      bankName: get(f.bankName),
+      cardName: get(f.cardName),
+      discount: get(f.discount),
+      expiry: get(f.expiry),
+    } as ExtractedBankOffer;
+  }).filter((r) => r.bankName || r.discount);
 }
 
 /** Scroll down in steps to trigger lazy-loaded content, then scroll back up. */
@@ -128,6 +153,17 @@ chrome.runtime.onMessage.addListener(
         sendResponse({ products, count: products.length });
       } catch (err) {
         sendResponse({ products: [], count: 0, error: err instanceof Error ? err.message : "Failed" });
+      }
+      return true;
+    }
+
+    if (message.type === "EXTRACT_BANK_OFFERS") {
+      try {
+        const config = message.config as BankOfferListingConfig;
+        const rows = extractBankOfferRows(config);
+        sendResponse({ rows, count: rows.length });
+      } catch (err) {
+        sendResponse({ rows: [], count: 0, error: err instanceof Error ? err.message : "Failed" });
       }
       return true;
     }

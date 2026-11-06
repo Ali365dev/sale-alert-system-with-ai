@@ -192,6 +192,7 @@ chrome.runtime.onMessage.addListener(
       message.type === "SCRAPE_PAGE" ||
       message.type === "SCRAPE_PAGE_PRODUCT" ||
       message.type === "EXTRACT_LISTING" ||
+      message.type === "EXTRACT_BANK_OFFERS" ||
       message.type === "START_SELECTOR_MODE" ||
       message.type === "STOP_SELECTOR_MODE"
     ) {

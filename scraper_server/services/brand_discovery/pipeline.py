@@ -18,7 +18,9 @@ from services import job_service
 from services.brand_discovery.category_detector import detect_category
 from services.brand_discovery.crawler import ParsedPage, crawl_site
 from services.brand_discovery.duplicate_detector import find_brand_duplicate
+from services.brand_discovery.email_extractor import extract_promo_emails
 from services.brand_discovery.logo_extractor import extract_logo
+from services.brand_discovery.sale_url_extractor import extract_sale_urls
 from services.brand_discovery.social_link_extractor import extract_social_links
 from services.brand_discovery.website_info_extractor import extract_country, extract_description, extract_name
 
@@ -54,57 +56,11 @@ def run(job_id: int, discovery_id: int) -> str:
         return "failed"
 
     job_service.set_stage(job_id, "extracting_website_info")
-    name_result = extract_name(home)
-    description_result = extract_description(home)
-    country_result = extract_country(home)
-    category_result = detect_category(f"{name_result['value']} {description_result['value'] or ''} {home.text}")
-
     job_service.set_stage(job_id, "finding_logo")
-    logo_result = extract_logo(home)
-
     job_service.set_stage(job_id, "discovering_social_accounts")
-    social_links = extract_social_links(pages)
-
-    # Verification is folded into the extractors' own filtering (social_link_
-    # extractor's share-button/generic-page exclusion, official_site_finder's
-    # domain blocklist for Method 1) — this stage exists for progress-UI
-    # visibility, nothing further to compute here.
     job_service.set_stage(job_id, "verifying_results")
-
     job_service.set_stage(job_id, "checking_duplicates")
-    final_name = seed_name or name_result["value"]
-    duplicate_brand_id, duplicate_score, duplicate_reason = find_brand_duplicate(final_name, home.url, social_links)
-
-    field_sources = {
-        "name": "official_website" if seed_name else (name_result["source"] or "manual_entry"),
-        "website": "official_website",
-        "logo_url": logo_result["source"],
-        "description": description_result["source"],
-        "category": category_result["source"],
-        "subcategory": category_result["source"],
-        "country": country_result["source"],
-    }
-
-    with get_session() as session:
-        row = session.query(BrandDiscovery).filter(BrandDiscovery.id == discovery_id).first()
-        if row is None:
-            return "failed"
-        row.name = final_name
-        row.website = home.url
-        row.logo_url = logo_result["value"]
-        row.description = description_result["value"]
-        row.category = category_result["category"]
-        row.subcategory = category_result["subcategory"]
-        row.country = country_result["value"]
-        row.field_sources = json.dumps(field_sources)
-        row.social_links = json.dumps(social_links)
-        row.confidence = category_result["confidence"]
-        row.duplicate_brand_id = duplicate_brand_id
-        row.duplicate_score = duplicate_score
-        row.duplicate_reason = duplicate_reason
-        row.status = "review"
-        row.updated_at = _utcnow()
-
+    _extract_and_save(discovery_id, website, seed_name, home, pages)
     return "successful"
 
 
@@ -116,6 +72,8 @@ def _extract_and_save(discovery_id: int, website: str, seed_name: str | None, ho
     category_result = detect_category(f"{name_result['value']} {description_result['value'] or ''} {home.text}")
     logo_result = extract_logo(home)
     social_links = extract_social_links(pages)
+    promo_emails = extract_promo_emails(pages)
+    sale_urls = extract_sale_urls(pages)
     final_name = seed_name or name_result["value"]
     duplicate_brand_id, duplicate_score, duplicate_reason = find_brand_duplicate(final_name, home.url, social_links)
 
@@ -139,9 +97,12 @@ def _extract_and_save(discovery_id: int, website: str, seed_name: str | None, ho
         row.description = description_result["value"]
         row.category = category_result["category"]
         row.subcategory = category_result["subcategory"]
+        row.categories = json.dumps(category_result["categories"])
         row.country = country_result["value"]
         row.field_sources = json.dumps(field_sources)
         row.social_links = json.dumps(social_links)
+        row.promo_emails = json.dumps(promo_emails)
+        row.sale_urls = json.dumps(sale_urls)
         row.confidence = category_result["confidence"]
         row.duplicate_brand_id = duplicate_brand_id
         row.duplicate_score = duplicate_score

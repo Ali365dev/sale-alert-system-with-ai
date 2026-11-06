@@ -201,9 +201,12 @@ class BrandDiscovery(Base):
     website     = Column(String(500), nullable=True)
     logo_url    = Column(String(500), nullable=True)
     description = Column(Text, nullable=True)
-    category    = Column(String(100), nullable=True)
+    category    = Column(String(100), nullable=True)   # kept for compat; use categories below
     subcategory = Column(String(100), nullable=True)
+    categories  = Column(Text, nullable=True)           # JSON array, e.g. ["Fashion","Beauty"]
     country     = Column(String(100), nullable=True)
+    promo_emails = Column(Text, nullable=True)          # JSON array of promotional email addresses
+    sale_urls    = Column(Text, nullable=True)          # JSON array of sale/deals/outlet page URLs
 
     # Per-field provenance: {"name": "website_metadata", "logo_url": "website_metadata", ...}
     # — "official_website" | "search_result" | "website_metadata" | "website_footer" | "manual_entry".
@@ -892,3 +895,33 @@ class SettingsAuditLog(Base):
 
     def __repr__(self) -> str:
         return f"<SettingsAuditLog action={self.action!r} entity={self.entity_type}:{self.entity_id}>"
+
+
+class BankCardOffer(Base):
+    """One bank/card discount row scraped from a takhfif.app place page
+    (services/takhfif_scraper.py, jobs/scrape_takhfif.py). brand_id is set
+    via the existing brand_discovery duplicate-detector when the place
+    matches a known Brand — null otherwise (e.g. a hotel/restaurant outside
+    this app's catalog). Re-scraping a place deletes its old rows here and
+    reinserts the fresh set, so this table always reflects the last scrape."""
+    __tablename__ = "bank_card_offers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_url = Column(String(500), nullable=False, index=True)
+    place_name = Column(String(255), nullable=False)
+    place_website = Column(String(500), nullable=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
+
+    bank_name = Column(String(100), nullable=False, index=True)
+    card_name = Column(String(255), nullable=True)
+    discount_percentage = Column(Float, nullable=True)
+    currency = Column(String(10), nullable=True)
+    expiry_date = Column(DateTime, nullable=True)
+    description = Column(Text, nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<BankCardOffer place={self.place_name!r} bank={self.bank_name!r} discount={self.discount_percentage}%>"

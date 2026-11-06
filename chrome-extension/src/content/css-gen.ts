@@ -1,3 +1,38 @@
+/** Escapes a value for use inside a quoted CSS attribute-selector string
+ * (e.g. `a[href^="VALUE"]`) — not the same escaping as CSS.escape, which is
+ * for bare identifiers like class names, not string-literal contents. */
+function escapeAttrValue(value: string): string {
+  return value.replace(/["\\]/g, (c) => `\\${c}`);
+}
+
+/** The longest leading URL-path prefix (e.g. "/place/") shared by `el` and
+ * at least one same-tag sibling anchor, excluding the final (unique-slug)
+ * segment. Many sites — especially Tailwind-utility ones — give every card
+ * in a listing identical, non-semantic classes (or none at all) but a
+ * stable `/category/slug` href pattern; that pattern is a far more robust
+ * signal for "this is a repeating card" than any class name. Returns null
+ * when `el` isn't an internal-link anchor or no sibling shares a prefix. */
+function sharedHrefPrefix(el: Element): string | null {
+  if (el.tagName !== "A") return null;
+  const href = el.getAttribute("href");
+  if (!href || !href.startsWith("/")) return null;
+
+  const parent = el.parentElement;
+  if (!parent) return null;
+  const siblingHrefs = Array.from(parent.children)
+    .filter((c) => c !== el && c.tagName === "A")
+    .map((c) => c.getAttribute("href") || "")
+    .filter((h) => h.startsWith("/"));
+  if (!siblingHrefs.length) return null;
+
+  const segments = href.split("/").filter(Boolean);
+  for (let len = segments.length - 1; len >= 1; len--) {
+    const prefix = `/${segments.slice(0, len).join("/")}/`;
+    if (siblingHrefs.some((h) => h.startsWith(prefix))) return prefix;
+  }
+  return null;
+}
+
 /**
  * Generate a CSS selector for a given DOM element.
  * For repeating items (product cards) this returns a general selector
@@ -16,7 +51,15 @@ export function generateSelector(el: Element): string {
     if (val) return `${el.tagName.toLowerCase()}[${attr}="${CSS.escape(val)}"]`;
   }
 
-  // 3. Class-based selector — NO positional pseudo-classes.
+  // 3. Shared href prefix (card links) — preferred over a long, fragile
+  //    utility-class chain whenever the page's own URL structure gives us
+  //    a cleaner signal.
+  const hrefPrefix = sharedHrefPrefix(el);
+  if (hrefPrefix) {
+    return `a[href^="${escapeAttrValue(hrefPrefix)}"]`;
+  }
+
+  // 4. Class-based selector — NO positional pseudo-classes.
   //    If the element has stable classes, build `parent > tag.cls1.cls2`
   //    so picking one product card selects ALL cards of the same type.
   const stableClasses = Array.from(el.classList).filter(
@@ -45,7 +88,7 @@ export function generateSelector(el: Element): string {
     if (document.querySelectorAll(tagCls).length >= 1) return tagCls;
   }
 
-  // 4. Last resort: nth-of-type path (preserves uniqueness for single elements)
+  // 5. Last resort: nth-of-type path (preserves uniqueness for single elements)
   const parts: string[] = [];
   let node: Element | null = el;
 
@@ -100,6 +143,14 @@ export function findSimilarSelector(el: Element): SimilarResult | null {
     // Count siblings with same tag
     const siblings = Array.from(parent.children).filter((c) => c.tagName === node!.tagName);
     if (siblings.length >= 2) {
+      // Shared href prefix beats class matching — it's the stronger signal
+      // (see generateSelector), and this catches the case where the user
+      // clicked a child of the card, not the anchor itself.
+      if (sharedHrefPrefix(node)) {
+        containerNode = node;
+        break;
+      }
+
       // Check enough share the same classes
       const nodeClasses = Array.from(node.classList)
         .filter((c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c));
@@ -122,14 +173,20 @@ export function findSimilarSelector(el: Element): SimilarResult | null {
 
   if (!containerNode) return null;
 
-  // Build a stable container selector (no nth-of-type)
+  // Build a stable container selector (no nth-of-type) — href prefix first.
   const ctag = containerNode.tagName.toLowerCase();
-  const cClasses = Array.from(containerNode.classList)
-    .filter((c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c))
-    .slice(0, 2);
-  const containerSelector = cClasses.length
-    ? `${ctag}.${cClasses.map(CSS.escape).join(".")}`
-    : ctag;
+  const containerHrefPrefix = sharedHrefPrefix(containerNode);
+  let containerSelector: string;
+  if (containerHrefPrefix) {
+    containerSelector = `a[href^="${escapeAttrValue(containerHrefPrefix)}"]`;
+  } else {
+    const cClasses = Array.from(containerNode.classList)
+      .filter((c) => !/^\d|is-|has-|active|hover|focus|selected|loading/.test(c))
+      .slice(0, 2);
+    containerSelector = cClasses.length
+      ? `${ctag}.${cClasses.map(CSS.escape).join(".")}`
+      : ctag;
+  }
   const containerCount = document.querySelectorAll(containerSelector).length;
 
   // Build a relative selector for `el` inside `containerNode`

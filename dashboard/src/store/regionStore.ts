@@ -3,14 +3,15 @@ import { create } from "zustand";
 const STORAGE_KEY = "dashboard:region";
 
 export const COUNTRIES = [
-  { code: "PK", name: "Pakistan",     flag: "🇵🇰" },
-  { code: "SA", name: "Saudi Arabia", flag: "🇸🇦" },
-  { code: "AE", name: "UAE",          flag: "🇦🇪" },
-  { code: "QA", name: "Qatar",        flag: "🇶🇦" },
-  { code: "KW", name: "Kuwait",       flag: "🇰🇼" },
-  { code: "OM", name: "Oman",         flag: "🇴🇲" },
-  { code: "BH", name: "Bahrain",      flag: "🇧🇭" },
-  { code: "EG", name: "Egypt",        flag: "🇪🇬" },
+  { code: "PK",   name: "Pakistan",      flag: "🇵🇰" },
+  { code: "SA",   name: "Saudi Arabia",  flag: "🇸🇦" },
+  { code: "AE",   name: "UAE",           flag: "🇦🇪" },
+  { code: "QA",   name: "Qatar",         flag: "🇶🇦" },
+  { code: "KW",   name: "Kuwait",        flag: "🇰🇼" },
+  { code: "OM",   name: "Oman",          flag: "🇴🇲" },
+  { code: "BH",   name: "Bahrain",       flag: "🇧🇭" },
+  { code: "EG",   name: "Egypt",         flag: "🇪🇬" },
+  { code: "INTL", name: "International", flag: "🌍" },
 ] as const;
 
 export type CountryCode = (typeof COUNTRIES)[number]["code"];

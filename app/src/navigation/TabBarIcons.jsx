@@ -138,10 +138,48 @@ export function ProfileTabIcon({ color, size = 25 }) {
   );
 }
 
+/** Bank Offers tab — credit card outline. */
+export function BankOffersTabIcon({ color, size = 24 }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M2 8.5H22"
+        stroke={color}
+        strokeWidth={2.1}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M6 16.5H8"
+        stroke={color}
+        strokeWidth={2.1}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M11 16.5H13"
+        stroke={color}
+        strokeWidth={2.1}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M20.5 4.5H3.5C2.67157 4.5 2 5.17157 2 6V18C2 18.8284 2.67157 19.5 3.5 19.5H20.5C21.3284 19.5 22 18.8284 22 18V6C22 5.17157 21.3284 4.5 20.5 4.5Z"
+        stroke={color}
+        strokeWidth={2.1}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function TabBarIcon({ name, color }) {
   switch (name) {
     case 'Home':
       return <HomeTabIcon color={color} size={26} />;
+    case 'BankOffers':
+      return <BankOffersTabIcon color={color} size={24} />;
     case 'Explore':
       return <ExploreTabIcon color={color} size={24} />;
     case 'Track':

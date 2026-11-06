@@ -70,6 +70,7 @@ const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo
   useEffect(() => setLogoIndex(0), [brand?.logoUrl, brand?.website]);
   const logoUri = candidates[logoIndex] ?? null;
   const favorite = useFavoritesStore((state) => state.favoriteIds.includes(deal.id));
+console.log({logoUri})
 
   const onCopy = () => {
     if (!code) return;
@@ -129,14 +130,13 @@ const DealCard = ({ deal, brand, onPress, style, transitionTag, variant = 'promo
       </Animated.View>
     );
   }
-
   return (
     <Animated.View style={[animatedStyle, styles.card, style]} sharedTransitionTag={transitionTag}>
       <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut} style={styles.row}>
         <View style={[styles.mark, { backgroundColor: tileColorFor(name) }]}>
           {logoUri ? (
             <FastImage
-              source={{ uri: logoUri }}
+              source={{ uri: logoUri, cache: FastImage.cacheControl.immutable }}
               onError={() => setLogoIndex((i) => i + 1)}
               style={styles.markImage}
               resizeMode={FastImage.resizeMode.contain}

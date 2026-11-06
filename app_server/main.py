@@ -77,6 +77,7 @@ def user_auth_error_handler(request: Request, exc: UserAuthError):
 from routers.health import router as health_router  # noqa: E402
 from routers import (  # noqa: E402
     auth,
+    bank_offers,
     brands,
     categories,
     offers,
@@ -95,3 +96,4 @@ app.include_router(brands.router)
 app.include_router(categories.router)
 app.include_router(preferences.router)
 app.include_router(sale_alerts.router)
+app.include_router(bank_offers.router)

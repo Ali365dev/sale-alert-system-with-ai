@@ -7,18 +7,14 @@ import {
 } from "../../services/brandsApi";
 
 const COUNTRIES: { code: string; name: string }[] = [
-  { code: "PK", name: "Pakistan" }, { code: "SA", name: "Saudi Arabia" },
-  { code: "AE", name: "UAE" }, { code: "EG", name: "Egypt" },
-  { code: "QA", name: "Qatar" }, { code: "KW", name: "Kuwait" },
-  { code: "OM", name: "Oman" }, { code: "BH", name: "Bahrain" },
-  { code: "US", name: "United States" }, { code: "GB", name: "United Kingdom" },
-  { code: "TR", name: "Turkey" }, { code: "IN", name: "India" },
-  { code: "SG", name: "Singapore" }, { code: "AU", name: "Australia" },
-  { code: "CA", name: "Canada" }, { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" }, { code: "IT", name: "Italy" },
-  { code: "JP", name: "Japan" }, { code: "CN", name: "China" },
-  { code: "BR", name: "Brazil" }, { code: "MX", name: "Mexico" },
-  { code: "ZA", name: "South Africa" }, { code: "NG", name: "Nigeria" },
+  { code: "PK", name: "🇵🇰 Pakistan" },
+  { code: "SA", name: "🇸🇦 Saudi Arabia" },
+  { code: "AE", name: "🇦🇪 UAE" },
+  { code: "QA", name: "🇶🇦 Qatar" },
+  { code: "KW", name: "🇰🇼 Kuwait" },
+  { code: "OM", name: "🇴🇲 Oman" },
+  { code: "BH", name: "🇧🇭 Bahrain" },
+  { code: "EG", name: "🇪🇬 Egypt" },
 ];
 
 interface Props {
@@ -37,11 +33,15 @@ interface Discovery {
   description: string | null;
   category: string | null;
   subcategory: string | null;
+  categories: string[];
   country: string | null;
   confidence: number | null;
   duplicate_brand_id: number | null;
   duplicate_brand?: { id: number; name: string; website: string | null } | null;
   error: string | null;
+  social_links: Record<string, { url: string; source?: string; verified?: boolean }>;
+  promo_emails: string[];
+  sale_urls: string[];
 }
 
 function normalizeDomain(url: string): string {
@@ -123,11 +123,15 @@ function ReviewForm({
   const [website, setWebsite] = useState(initial.website ?? "");
   const [logoUrl, setLogoUrl] = useState(initial.logo_url ?? "");
   const [description, setDescription] = useState(initial.description ?? "");
-  const [category, setCategory] = useState(initial.category ?? "");
-  const [categorySearch, setCategorySearch] = useState(initial.category ?? "");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initial.categories?.length ? initial.categories : (initial.category ? [initial.category] : [])
+  );
+  const [categorySearch, setCategorySearch] = useState("");
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [dbCategories, setDbCategories] = useState<string[]>([]);
   const [country, setCountry] = useState(initial.country ?? "");
+  const [promoEmails, setPromoEmails] = useState<string[]>(initial.promo_emails ?? []);
+  const [saleUrls, setSaleUrls] = useState<string[]>(initial.sale_urls ?? []);
   const [saving, setSaving] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [skipDuplicate, setSkipDuplicate] = useState(false);
@@ -136,17 +140,31 @@ function ReviewForm({
     listCategories().then(setDbCategories).catch(() => {});
   }, []);
 
-  const filteredCats = dbCategories.filter((c) =>
-    c.toLowerCase().includes(categorySearch.toLowerCase()),
+  const filteredCats = dbCategories.filter(
+    (c) => c.toLowerCase().includes(categorySearch.toLowerCase()) && !selectedCategories.includes(c),
   );
 
+  const toggleCategory = (cat: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
+    );
+  };
+
   const showDuplicate = !!initial.duplicate_brand_id && !skipDuplicate;
+
+  const socialEntries = Object.entries(initial.social_links ?? {}).filter(([, v]) => v?.url);
 
   const patchAndSave = async (action: "create" | "merge", targetId?: number) => {
     setSaving(true);
     try {
-      // Patch any edits back to the discovery record first
-      await updateBrandDiscovery(initial.id, { name, website, logo_url: logoUrl, description, category, country });
+      await updateBrandDiscovery(initial.id, {
+        name, website, logo_url: logoUrl, description,
+        category: selectedCategories[0] ?? "",
+        categories: selectedCategories,
+        country,
+        promo_emails: promoEmails,
+        sale_urls: saleUrls,
+      });
       const result = await saveBrandDiscovery(initial.id, action, targetId);
       onSaved(result.brand_name);
     } catch (err) {
@@ -229,17 +247,27 @@ function ReviewForm({
 
         <Field label="Brand Name" value={name} onChange={setName} placeholder="e.g. Nike" />
 
-        <div className="grid grid-cols-2 gap-2">
-          {/* Category — searchable dropdown */}
+        {/* Categories — multi-select with chips */}
+        <div>
+          <p className="text-[9.5px] font-semibold text-t2 uppercase tracking-wider mb-1">Categories</p>
+          {selectedCategories.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {selectedCategories.map((cat) => (
+                <span key={cat} className="flex items-center gap-1 px-2 py-0.5 bg-primary/15 border border-primary/30 rounded-full text-[9.5px] text-primary font-semibold">
+                  {cat}
+                  <button type="button" onClick={() => toggleCategory(cat)} className="text-primary/70 hover:text-primary leading-none">×</button>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="relative">
-            <p className="text-[9.5px] font-semibold text-t2 uppercase tracking-wider mb-1">Category</p>
             <input
               type="text"
               value={categorySearch}
               onChange={(e) => { setCategorySearch(e.target.value); setCategoryOpen(true); }}
               onFocus={() => setCategoryOpen(true)}
               onBlur={() => setTimeout(() => setCategoryOpen(false), 150)}
-              placeholder="Search…"
+              placeholder="Add category…"
               className="w-full text-[11px] px-2.5 py-2 border border-line rounded-lg bg-surface-2 text-t1 placeholder-t3 outline-none focus:border-primary"
             />
             {categoryOpen && filteredCats.length > 0 && (
@@ -248,8 +276,8 @@ function ReviewForm({
                   <button
                     key={c}
                     type="button"
-                    onMouseDown={() => { setCategory(c); setCategorySearch(c); setCategoryOpen(false); }}
-                    className={`w-full text-left px-2.5 py-1.5 text-[10.5px] hover:bg-surface-2 transition ${category === c ? "text-primary font-semibold" : "text-t1"}`}
+                    onMouseDown={() => { toggleCategory(c); setCategorySearch(""); setCategoryOpen(false); }}
+                    className="w-full text-left px-2.5 py-1.5 text-[10.5px] hover:bg-surface-2 transition text-t1"
                   >
                     {c}
                   </button>
@@ -257,21 +285,21 @@ function ReviewForm({
               </div>
             )}
           </div>
+        </div>
 
-          {/* Country — select dropdown */}
-          <div>
-            <p className="text-[9.5px] font-semibold text-t2 uppercase tracking-wider mb-1">Country</p>
-            <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="w-full text-[11px] px-2.5 py-2 border border-line rounded-lg bg-surface-2 text-t1 outline-none focus:border-primary appearance-none"
-            >
-              <option value="">—</option>
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
-              ))}
-            </select>
-          </div>
+        {/* Country */}
+        <div>
+          <p className="text-[9.5px] font-semibold text-t2 uppercase tracking-wider mb-1">Country</p>
+          <select
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            className="w-full text-[11px] px-2.5 py-2 border border-line rounded-lg bg-surface-2 text-t1 outline-none focus:border-primary appearance-none"
+          >
+            <option value="">—</option>
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
         <Field label="Website" value={website} onChange={setWebsite} placeholder="https://…" type="url" />
@@ -281,6 +309,72 @@ function ReviewForm({
           <div>
             <p className="text-[9.5px] font-semibold text-t2 uppercase tracking-wider mb-1">Description</p>
             <p className="text-[10px] text-t2 leading-relaxed">{description}</p>
+          </div>
+        )}
+
+        {/* Social links */}
+        {socialEntries.length > 0 && (
+          <div>
+            <p className="text-[9.5px] font-semibold text-t2 uppercase tracking-wider mb-1.5">Social Links</p>
+            <div className="flex flex-col gap-1">
+              {socialEntries.map(([platform, entry]) => (
+                <a
+                  key={platform}
+                  href={entry.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-[10px] text-primary hover:underline truncate"
+                >
+                  <span className="capitalize font-semibold text-t2 w-16 flex-shrink-0">{platform}</span>
+                  <span className="truncate">{entry.url}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Promo emails */}
+        {promoEmails.length > 0 && (
+          <div>
+            <p className="text-[9.5px] font-semibold text-t2 uppercase tracking-wider mb-1.5">Promo Emails</p>
+            <div className="flex flex-col gap-1">
+              {promoEmails.map((email, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <span className="flex-1 text-[10px] text-t1 truncate font-mono">{email}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPromoEmails((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-t3 hover:text-red-400 text-[11px] flex-shrink-0"
+                    aria-label="Remove email"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Sale URLs */}
+        {saleUrls.length > 0 && (
+          <div>
+            <p className="text-[9.5px] font-semibold text-t2 uppercase tracking-wider mb-1.5">Sale / Deals Pages</p>
+            <div className="flex flex-col gap-1">
+              {saleUrls.map((url, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 text-[10px] text-primary hover:underline truncate"
+                  >{url}</a>
+                  <button
+                    type="button"
+                    onClick={() => setSaleUrls((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-t3 hover:text-red-400 text-[11px] flex-shrink-0"
+                    aria-label="Remove URL"
+                  >×</button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

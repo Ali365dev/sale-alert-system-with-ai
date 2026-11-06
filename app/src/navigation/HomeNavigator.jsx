@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/home/HomeScreen';
 import CouponsScreen from '../screens/home/CouponsScreen';
+import BankOffersScreen from '../screens/bankOffers/BankOffersScreen';
 import SaleAlertsScreen from '../screens/saleAlerts/SaleAlertsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import CustomTabBar from './CustomTabBar';
@@ -17,6 +18,7 @@ function HomeNavigator() {
       tabBar={(props) => <CustomTabBar {...props} />}>
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Explore" component={CouponsScreen} options={{ title: 'Explore' }} />
+      <Tab.Screen name="BankOffers" component={BankOffersScreen} options={{ title: 'Bank Offers' }} />
       <Tab.Screen name="Track" component={SaleAlertsScreen} options={{ title: 'Track' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>

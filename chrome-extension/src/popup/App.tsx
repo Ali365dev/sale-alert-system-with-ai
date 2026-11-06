@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
-  ScrapedOffer, ScanStatus, TabId, CrawlConfig,
+  ScrapedOffer, ScanStatus, TabId, CrawlConfig, AppMode,
   ScrapeProgress, ConnectionStatus, ProductScrapeConfig,
 } from "../types";
-import { isAuthenticated, clearSession, addHistoryEntry } from "../services/storage";
+import { isAuthenticated, clearSession, addHistoryEntry, getSettings, saveSettings } from "../services/storage";
 import { checkSession, saveOffers, triggerServerScrape } from "../services/api";
 import { LoginScreen } from "./components/LoginScreen";
 import { Header } from "./components/Header";
+import { ModeToggle } from "./components/ModeToggle";
 import { BottomNav } from "./components/BottomNav";
 import { BrandsTab } from "./components/BrandsTab";
 import { SelectorsTab } from "./components/SelectorsTab";
+import { BankOffersTab } from "./components/BankOffersTab";
 import { HistoryTab } from "./components/HistoryTab";
 import { SettingsTab } from "./components/SettingsTab";
 import { Toast } from "./components/Toast";
@@ -28,6 +30,7 @@ const IDLE_PROGRESS: ScrapeProgress = {
 
 export function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [mode, setMode] = useState<AppMode>("sale");
   const [tab, setTab] = useState<TabId>("brands");
   const [pageUrl, setPageUrl] = useState("");
   const [connStatus, setConnStatus] = useState<ConnectionStatus>({
@@ -64,6 +67,21 @@ export function App() {
       }
     })();
     return () => clearTimeout(timeout);
+  }, []);
+
+  // Restore the last-used Sale Offers / Bank Offers mode
+  useEffect(() => {
+    if (!authed) return;
+    getSettings().then((s) => setMode(s.appMode));
+  }, [authed]);
+
+  const handleModeChange = useCallback((m: AppMode) => {
+    setMode(m);
+    saveSettings({ appMode: m });
+    // Always land on that mode's main screen — otherwise clicking a mode
+    // pill while on Settings (which has no bottom nav in Bank mode) would
+    // leave the user stuck there.
+    setTab((t) => (t === "settings" ? "brands" : t));
   }, []);
 
   // Read active tab URL after auth, and keep it in sync when the user switches tabs
@@ -233,9 +251,16 @@ export function App() {
     <div className="flex flex-col h-full bg-dark">
       <Header onSettingsClick={() => setTab("settings")} connStatus={connStatus} />
       <Toast toasts={toasts} onDismiss={dismissToast} />
+      <ModeToggle mode={mode} onChange={handleModeChange} />
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {tab === "brands" && (
+        {tab === "settings" && (
+          <SettingsTab onLogout={() => setAuthed(false)} onConnStatusChange={setConnStatus} />
+        )}
+        {tab !== "settings" && mode === "bank" && (
+          <BankOffersTab pageUrl={pageUrl} onToast={addToast} />
+        )}
+        {mode === "sale" && tab === "brands" && (
           <BrandsTab
             pageUrl={pageUrl}
             scanStatus={scanStatus}
@@ -260,14 +285,11 @@ export function App() {
             onViewHistory={() => setTab("history")}
           />
         )}
-        {tab === "selectors" && <SelectorsTab pageUrl={pageUrl} />}
-        {tab === "history" && <HistoryTab />}
-        {tab === "settings" && (
-          <SettingsTab onLogout={() => setAuthed(false)} onConnStatusChange={setConnStatus} />
-        )}
+        {mode === "sale" && tab === "selectors" && <SelectorsTab pageUrl={pageUrl} />}
+        {mode === "sale" && tab === "history" && <HistoryTab />}
       </div>
 
-      <BottomNav activeTab={tab} onTabChange={setTab} />
+      {mode === "sale" && <BottomNav activeTab={tab} onTabChange={setTab} />}
     </div>
   );
 }

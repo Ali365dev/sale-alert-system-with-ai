@@ -66,6 +66,9 @@ def _migrate() -> None:
         ("emails", "filter_status",                 "VARCHAR(20)"),
         ("emails", "filter_reason",                 "TEXT"),
         ("brand_discoveries", "brand_request_id",   "INTEGER"),
+        ("brand_discoveries", "categories",          "TEXT"),   # JSON array, replaces single category
+        ("brand_discoveries", "promo_emails",        "TEXT"),   # JSON array of promotional email addresses
+        ("brand_discoveries", "sale_urls",           "TEXT"),   # JSON array of sale/deals page URLs
         # Website Sale Scraper (services/website_scraper/)
         ("brands", "homepage_url",                  "VARCHAR(500)"),
         ("brands", "sale_page_url",                 "VARCHAR(500)"),

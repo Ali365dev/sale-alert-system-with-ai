@@ -96,10 +96,10 @@ def list_brands(region: str | None = Query(default=None)):
     with get_session() as session:
         q = session.query(Brand)
         if region:
-            # Include brands tagged for this country OR brands with no country
-            # (null = global/international brand that operates in all markets).
+            # Include brands tagged for this country, brands with no country,
+            # or brands explicitly marked "INTL" (all show in every region).
             q = q.filter(
-                (Brand.country == region.upper()) | Brand.country.is_(None)
+                (Brand.country == region.upper()) | Brand.country.is_(None) | (Brand.country == "INTL")
             )
         brands = q.order_by(Brand.name.asc()).all()
         rows = [_brand_to_dict(b) for b in brands]
