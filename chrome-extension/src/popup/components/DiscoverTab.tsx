@@ -588,7 +588,7 @@ export function DiscoverTab({ brands, pageUrl, onBrandAdded, onToast }: Props) {
               {!currentDomain ? (
                 <p className="text-[10px] text-t2">Open a website in your browser first.</p>
               ) : existingBrand ? (
-                <div className="flex items-center gap-2.5 p-2.5 bg-green-900/20 border border-green-500/30 rounded-xl">
+                <div className="flex items-center gap-2.5 p-2.5 bg-green-500/[0.08] border border-green-500/20 rounded-xl">
                   {existingBrand.logo_url && (
                     <img src={existingBrand.logo_url} alt="" className="w-8 h-8 rounded-lg object-contain flex-shrink-0" />
                   )}

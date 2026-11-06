@@ -46,3 +46,5 @@ frontend/*.local
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+graphify-out/

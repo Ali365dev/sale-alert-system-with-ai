@@ -39,7 +39,7 @@ export function Tooltip({ text, children, position = "top" }: Props) {
           className={`absolute z-50 pointer-events-none whitespace-nowrap ${posClasses[position]}`}
           role="tooltip"
         >
-          <span className="block px-2 py-1 text-[10px] font-semibold leading-tight text-white bg-gray-800 rounded-lg shadow-lg">
+          <span className="block px-2 py-1 text-[10px] font-semibold leading-tight text-t1 bg-surface-3 border border-line rounded-lg shadow-lg">
             {text}
           </span>
         </span>

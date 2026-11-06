@@ -411,7 +411,10 @@ export function ScrapeTab({
         {/* Empty states */}
         {!isScanning && offers.length === 0 && status === "done" && (
           <div className="flex flex-col items-center py-10 px-4 text-center">
-            <span className="text-3xl mb-2">🔍</span>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-t3 mb-2" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
             <p className="text-xs font-semibold text-t2">No offers found</p>
             <p className="text-[10px] text-t2 mt-1">Try a deals or sale page, or use the Crawl option.</p>
           </div>
@@ -419,7 +422,11 @@ export function ScrapeTab({
 
         {!isScanning && status === "idle" && (
           <div className="flex flex-col items-center py-10 px-4 text-center">
-            <span className="text-3xl mb-2">🛍</span>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-t3 mb-2" aria-hidden="true">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
             <p className="text-xs font-semibold text-t2">Ready to scrape</p>
             <p className="text-[10px] text-t2 mt-1">Open a deals page and tap Scan Page.</p>
           </div>
@@ -427,7 +434,11 @@ export function ScrapeTab({
 
         {!isScanning && status === "error" && offers.length === 0 && (
           <div className="flex flex-col items-center py-10 px-4 text-center">
-            <span className="text-3xl mb-2">⚠️</span>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-red-400 mb-2" aria-hidden="true">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
             <p className="text-xs font-semibold text-t2">Scan failed</p>
             <p className="text-[10px] text-t2 mt-1">Reload the page and try again.</p>
           </div>

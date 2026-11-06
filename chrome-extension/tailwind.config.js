@@ -16,6 +16,9 @@ export default {
         t2: "#9898A8",
         t3: "#5A5A68",
       },
+      // Status badges/toasts use Tailwind's green/red/orange/amber/blue-500
+      // at ~8% bg opacity + 20% border opacity + 400 text — keep new status
+      // UI on this one convention instead of ad-hoc 900/20 or raw hex.
       fontFamily: {
         sans: ["Montserrat", "system-ui", "sans-serif"],
       },

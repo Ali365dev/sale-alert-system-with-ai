@@ -15,9 +15,9 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const JOB_TYPE_LABEL: Record<string, string> = {
-  website_scrape_brand: "🕷 Brand Scrape",
-  brand_discovery: "🔍 Discovery",
-  email_sync: "📧 Email Sync",
+  website_scrape_brand: "Brand Scrape",
+  brand_discovery: "Discovery",
+  email_sync: "Email Sync",
 };
 
 function formatDate(iso: string | null): string {
@@ -274,7 +274,7 @@ export function HistoryTab() {
                                   </span>
                                 )}
                                 {o.coupon_code && (
-                                  <span className="px-1.5 py-0.5 bg-yellow-900/20 text-yellow-400 text-[9px] font-bold rounded font-mono">
+                                  <span className="px-1.5 py-0.5 bg-amber-500/[0.08] border border-amber-500/20 text-amber-400 text-[9px] font-bold rounded font-mono">
                                     {o.coupon_code}
                                   </span>
                                 )}
@@ -284,7 +284,7 @@ export function HistoryTab() {
                                   </span>
                                 )}
                                 <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${
-                                  o.is_active ? "bg-green-900/20 text-green-400" : "bg-surface-3 text-t2"
+                                  o.is_active ? "bg-green-500/[0.08] border border-green-500/20 text-green-400" : "bg-surface-3 text-t2"
                                 }`}>
                                   {o.is_active ? "active" : "inactive"}
                                 </span>

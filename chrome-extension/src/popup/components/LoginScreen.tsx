@@ -87,7 +87,7 @@ export function LoginScreen({ onLogin }: Props) {
         )}
 
         {error && (
-          <p className="text-xs text-red-400 bg-red-900/20 px-3 py-2 rounded-lg">{error}</p>
+          <p className="text-xs text-red-400 bg-red-500/[0.08] border border-red-500/20 px-3 py-2 rounded-lg">{error}</p>
         )}
 
         <button

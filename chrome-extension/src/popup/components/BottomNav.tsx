@@ -68,7 +68,7 @@ export function BottomNav({ activeTab, onTabChange }: Props) {
               <span className="absolute top-0 left-3 right-3 h-[2px] bg-primary rounded-b-full" />
             )}
             <tab.Icon />
-            <span className="text-[7.5px] font-bold uppercase tracking-[0.05em] leading-none">{tab.label}</span>
+            <span className="text-[8px] font-bold uppercase tracking-[0.05em] leading-none">{tab.label}</span>
           </button>
         );
       })}

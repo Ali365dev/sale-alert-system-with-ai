@@ -89,12 +89,24 @@ export function OfferCard({ offer, selected, onToggle, onChange }: Props) {
       onClick={onToggle}
     >
       {/* Checkbox */}
-      <div className="flex-shrink-0 mt-0.5">
-        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition ${
+      <div
+        role="checkbox"
+        aria-checked={selected}
+        aria-label={offer.title ? `Select ${offer.title}` : "Select offer"}
+        tabIndex={0}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggle(); }
+        }}
+        className={`flex-shrink-0 mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center transition cursor-pointer ${
           selected ? "border-primary bg-primary" : "border-t3"
-        }`}>
-          {selected && <span className="text-white text-[9px] font-bold">✓</span>}
-        </div>
+        }`}
+      >
+        {selected && (
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        )}
       </div>
 
       {/* Image */}
@@ -132,12 +144,12 @@ export function OfferCard({ offer, selected, onToggle, onChange }: Props) {
             </span>
           )}
           {offer.sale_price && (
-            <span className="px-1.5 py-0.5 bg-green-900/20 text-green-400 text-[10px] font-semibold rounded-md">
+            <span className="px-1.5 py-0.5 bg-green-500/[0.08] border border-green-500/20 text-green-400 text-[10px] font-semibold rounded-md">
               {offer.currency ?? ""}{offer.sale_price}
             </span>
           )}
           {offer.expiry_date && (
-            <span className="px-1.5 py-0.5 bg-orange-900/20 text-orange-400 text-[10px] rounded-md">
+            <span className="px-1.5 py-0.5 bg-orange-500/[0.08] border border-orange-500/20 text-orange-400 text-[10px] rounded-md">
               Exp {offer.expiry_date.slice(0, 10)}
             </span>
           )}
@@ -151,9 +163,12 @@ export function OfferCard({ offer, selected, onToggle, onChange }: Props) {
       <Tooltip text="Edit offer" position="left">
         <button
           onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-          className="flex-shrink-0 text-t3 hover:text-t2 text-sm transition mt-0.5"
+          aria-label="Edit offer"
+          className="flex-shrink-0 text-t3 hover:text-t2 transition mt-0.5"
         >
-          ✎
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+          </svg>
         </button>
       </Tooltip>
     </div>
