@@ -21,6 +21,8 @@ import { loadBankCardOffers } from '../../services/bankOffersApi';
 import Geolocation from '@react-native-community/geolocation';
 import BrandLogo from '../../components/BrandLogo';
 import FilterPickerSheet from '../../components/FilterPickerSheet';
+import ViewSwitcher from '../../components/ViewSwitcher';
+import useViewMode from '../../hooks/useViewMode';
 import { requestLocationPermission } from '../../services/regionDetection';
 import {
   SUPPORTED_BANKS,
@@ -80,8 +82,9 @@ const CITY_OPTIONS = [
 
 function BrandOfferCard({ brand, maxDiscount, offers = BANK_CARD_OFFERS, onPress }) {
   const { colors } = useTheme();
-
-  const badge = maxDiscount ? `Up to ${maxDiscount}% OFF` : 'Up to 20% OFF';
+  const discountText = maxDiscount ? `Up to ${maxDiscount}% off` : 'Up to 20% off';
+  const bankCount = offers.filter((o) => o.brandSlug === brand.id).length || '8+';
+  const cardOffers = brand.dealCount || bankCount;
 
   return (
     <Pressable
@@ -89,6 +92,7 @@ function BrandOfferCard({ brand, maxDiscount, offers = BANK_CARD_OFFERS, onPress
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${brand.name} bank card offers`}>
+
       {/* Cover image */}
       <View style={styles.coverWrap}>
         <Image
@@ -96,34 +100,94 @@ function BrandOfferCard({ brand, maxDiscount, offers = BANK_CARD_OFFERS, onPress
           style={styles.coverImage}
           resizeMode="cover"
         />
-        <View style={styles.coverOverlay} />
-        <Text style={styles.watermark} numberOfLines={1}>{brand.name.toUpperCase()}</Text>
+        {/* Bottom scrim so discount text is readable */}
+        <View style={styles.coverScrim} />
 
-        {/* Discount badge */}
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{badge}</Text>
+        {/* Discount — bottom left */}
+        <Text style={styles.discountText}>{discountText}</Text>
+
+        {/* Banks count pill — bottom right */}
+        <View style={styles.banksPill}>
+          <Text style={styles.banksPillText}>{bankCount} banks</Text>
         </View>
       </View>
 
-      {/* Card footer */}
+      {/* Footer */}
       <View style={[styles.cardFooter, { backgroundColor: colors.surface }]}>
-        <BrandLogo brand={brand} size={40} tone="filled" fit="cover" elevated />
-        <View style={styles.cardInfo}>
-          <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>{brand.name}</Text>
-          <Text style={[styles.cardMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+        {/* Row 1: logo + name */}
+        <View style={styles.footerRow}>
+          <BrandLogo brand={brand} size={36} tone="filled" fit="cover" elevated />
+          <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
+            {brand.name}
+          </Text>
+        </View>
+
+        {/* Row 2: category meta */}
+        <View style={styles.metaRow}>
+          <Icon name="pricetag-outline" size={12} color={colors.textSecondary} />
+          <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
             {brand.category}
           </Text>
         </View>
-        <View style={styles.offerCount}>
-          <Icon name="card-outline" size={12} color={colors.textSecondary} />
-          <Text style={styles.offerCountText}>
-            {offers.filter((o) => o.brandSlug === brand.id).length || '8+'} banks
+
+        {/* Divider */}
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+        {/* Row 3: card offers count */}
+        <View style={styles.metaRow}>
+          <Icon name="card-outline" size={13} color={colors.textSecondary} />
+          <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+            {cardOffers} card offers
           </Text>
         </View>
       </View>
     </Pressable>
   );
 }
+
+function BrandOfferCardGrid({ brand, maxDiscount, onPress }) {
+  const { colors } = useTheme();
+  const discountText = maxDiscount ? `Up to ${maxDiscount}% off` : 'Up to 20% off';
+  return (
+    <Pressable
+      style={[stylesGrid.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${brand.name} bank card offers`}>
+      {/* Mini cover */}
+      <View style={stylesGrid.cover}>
+        <Image source={{ uri: brand.coverImage }} style={stylesGrid.coverImg} resizeMode="cover" />
+        <View style={stylesGrid.scrim} />
+        <Text style={stylesGrid.discountText} numberOfLines={1}>{discountText}</Text>
+      </View>
+      {/* Footer */}
+      <View style={stylesGrid.footer}>
+        <BrandLogo brand={brand} size={28} tone="filled" fit="cover" elevated />
+        <Text style={[stylesGrid.name, { color: colors.text }]} numberOfLines={1}>{brand.name}</Text>
+      </View>
+      <Text style={[stylesGrid.meta, { color: colors.textSecondary }]} numberOfLines={1}>{brand.category}</Text>
+    </Pressable>
+  );
+}
+
+const GRID_COL_GAP = 10;
+const GRID_COLS = 2;
+
+const stylesGrid = StyleSheet.create({
+  card: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cover: { width: '100%', height: 100, position: 'relative' },
+  coverImg: { width: '100%', height: '100%' },
+  scrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 48, backgroundColor: 'rgba(0,0,0,0.5)' },
+  discountText: { position: 'absolute', bottom: 6, left: 8, fontSize: 11, fontWeight: '800', color: '#FFF' },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingTop: 8 },
+  name: { fontSize: 12, fontWeight: '800', flex: 1 },
+  meta: { fontSize: 11, paddingHorizontal: 10, paddingBottom: 8, marginTop: 2 },
+});
 
 export default function BankOffersScreen() {
   const navigation = useNavigation();
@@ -135,6 +199,7 @@ export default function BankOffersScreen() {
   const savedCards = useBankCardsStore((s) => s.cards);
   const fetchedBankOffers = useBankOffersStore((s) => s.offers);
 
+  const [gridView, onViewChange] = useViewMode(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeBank, setActiveBank] = useState(null);
   const [sortMode, setSortMode] = useState('popular');
@@ -385,24 +450,36 @@ export default function BankOffersScreen() {
         <Text style={[styles.countText, { color: colors.textSecondary }]}>
           <Text style={{ fontWeight: '700', color: colors.text }}>{filteredBrands.length}</Text> places with card offers
         </Text>
+        <ViewSwitcher gridView={gridView} onChange={onViewChange} />
       </View>
 
-      {/* Brand list */}
+      {/* Brand list / grid */}
       <FlatList
+        key={gridView ? 'grid' : 'list'}
         data={filteredBrands}
         keyExtractor={(b) => b.id}
+        numColumns={gridView ? GRID_COLS : 1}
+        columnWrapperStyle={gridView ? styles.gridRow : undefined}
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <View style={styles.cardWrap}>
-            <BrandOfferCard
+        renderItem={({ item }) =>
+          gridView ? (
+            <BrandOfferCardGrid
               brand={item}
               maxDiscount={getMaxDiscount(item)}
-              offers={combinedOffers}
               onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })}
             />
-          </View>
-        )}
+          ) : (
+            <View style={styles.cardWrap}>
+              <BrandOfferCard
+                brand={item}
+                maxDiscount={getMaxDiscount(item)}
+                offers={combinedOffers}
+                onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })}
+              />
+            </View>
+          )
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Icon name="card-outline" size={40} color={colors.border} />
@@ -500,52 +577,60 @@ const styles = StyleSheet.create({
   },
   filterPillText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
   countRow: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: PAD, paddingVertical: 10,
     borderBottomWidth: 1,
   },
   countText: { fontSize: 13 },
-  list: { paddingHorizontal: PAD, paddingTop: 14, },
+  list: { paddingHorizontal: PAD, paddingTop: 14 },
+  gridRow: { gap: GRID_COL_GAP, marginBottom: GRID_COL_GAP },
   cardWrap: { marginBottom: 14 },
   card: {
     borderRadius: 18,
     overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
   coverWrap: {
     width: '100%', height: CARD_H,
     position: 'relative', overflow: 'hidden',
   },
   coverImage: { width: '100%', height: '100%' },
-  coverOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10,20,40,0.55)',
-  },
-  watermark: {
+  coverScrim: {
     position: 'absolute',
-    alignSelf: 'center',
-    top: '30%',
-    fontSize: 42,
-    fontWeight: '900',
-    color: 'rgba(255,255,255,0.14)',
-    letterSpacing: 2,
+    bottom: 0, left: 0, right: 0,
+    height: 90,
+    backgroundColor: 'rgba(0,0,0,0.48)',
   },
-  badge: {
-    position: 'absolute', top: 12, right: 12,
-    backgroundColor: PRIMARY,
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 10,
+  discountText: {
+    position: 'absolute',
+    bottom: 14,
+    left: 14,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
-  badgeText: { fontSize: 11, fontWeight: '800', color: '#FFF' },
+  banksPill: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  banksPillText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
   cardFooter: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 14, paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
+    gap: 8,
   },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '800' },
-  cardMeta: { fontSize: 12, marginTop: 2 },
-  offerCount: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  offerCountText: { fontSize: 11, color: '#6B7C93', fontWeight: '600' },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardName: { fontSize: 16, fontWeight: '800', flex: 1 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaText: { fontSize: 13 },
+  divider: { height: 1, marginVertical: 2 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
 });
