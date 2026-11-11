@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -18,7 +18,10 @@ import useDataStore from '../../state/dataStore';
 import useBankCardsStore from '../../state/bankCardsStore';
 import useBankOffersStore from '../../state/bankOffersStore';
 import { loadBankCardOffers } from '../../services/bankOffersApi';
+import Geolocation from '@react-native-community/geolocation';
 import BrandLogo from '../../components/BrandLogo';
+import FilterPickerSheet from '../../components/FilterPickerSheet';
+import { requestLocationPermission } from '../../services/regionDetection';
 import {
   SUPPORTED_BANKS,
   BANK_CARD_OFFERS,
@@ -32,20 +35,48 @@ const CARD_H = 170;
 
 const CATEGORIES = [
   { id: 'all', label: 'All', icon: null },
-  { id: 'dining', label: 'Dining', icon: '🍴' },
-  { id: 'shopping', label: 'Shopping', icon: '🛍' },
-  { id: 'health', label: 'Health', icon: '🏥' },
-  { id: 'grocery', label: 'Grocery', icon: '🛒' },
-  { id: 'travel', label: 'Travel', icon: '✈️' },
+  { id: 'dining', label: 'Dining', icon: 'restaurant-outline' },
+  { id: 'grocery', label: 'Grocery', icon: 'cart-outline' },
+  { id: 'travel', label: 'Travel', icon: 'airplane-outline' },
+  { id: 'shopping', label: 'Shopping', icon: 'bag-outline' },
+  { id: 'health', label: 'Health', icon: 'heart-outline' },
+  { id: 'entertainment', label: 'Entertainment', icon: 'tv-outline' },
+  { id: 'other', label: 'Other', icon: 'pricetag-outline' },
 ];
 
 const CATEGORY_MATCH = {
   dining: /dining|food|restaurant|cafe|bakery/i,
-  shopping: /fashion|apparel|clothing|retail|shopping|accessories/i,
-  health: /health|pharma|beauty|cosmetic|wellness/i,
   grocery: /grocery|supermarket|hypermarket/i,
   travel: /travel|hotel|flight/i,
+  shopping: /fashion|apparel|clothing|retail|shopping|accessories/i,
+  health: /health|pharma|beauty|cosmetic|wellness/i,
+  entertainment: /entertainment|cinema|movie|gaming|leisure|sport/i,
 };
+
+const isOtherCategory = (category) =>
+  !Object.values(CATEGORY_MATCH).some((pattern) => pattern.test(category || ''));
+
+const SORT_OPTIONS = [
+  { id: 'popular', label: 'Popular (most reviews)' },
+  { id: 'discount', label: 'Most discount' },
+];
+
+const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
+
+const CITY_OPTIONS = [
+  { id: null,         label: 'All cities' },
+  { id: 'nearby',     label: 'Near me',    icon: 'navigate-outline' },
+  { id: 'karachi',    label: 'Karachi',    count: 1116 },
+  { id: 'lahore',     label: 'Lahore',     count: 956 },
+  { id: 'islamabad',  label: 'Islamabad',  count: 660 },
+  { id: 'faisalabad', label: 'Faisalabad', count: 344 },
+  { id: 'multan',     label: 'Multan',     count: 331 },
+  { id: 'rawalpindi', label: 'Rawalpindi', count: 290 },
+  { id: 'hyderabad',  label: 'Hyderabad',  count: 198 },
+  { id: 'peshawar',   label: 'Peshawar',   count: 176 },
+  { id: 'quetta',     label: 'Quetta',     count: 134 },
+  { id: 'sialkot',    label: 'Sialkot',    count: 118 },
+];
 
 function BrandOfferCard({ brand, maxDiscount, offers = BANK_CARD_OFFERS, onPress }) {
   const { colors } = useTheme();
@@ -106,6 +137,63 @@ export default function BankOffersScreen() {
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeBank, setActiveBank] = useState(null);
+  const [sortMode, setSortMode] = useState('popular');
+  const [onlyMyCards, setOnlyMyCards] = useState(false);
+  const [activeCity, setActiveCity] = useState(null);
+  const [nearbyCity, setNearbyCity] = useState(null); // resolved city id when "nearby" is active
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const citySheetRef = useRef(null);
+  const bankSheetRef = useRef(null);
+  const sortSheetRef = useRef(null);
+
+  const resolveNearbyCity = useCallback(async () => {
+    setNearbyLoading(true);
+    try {
+      const granted = await requestLocationPermission();
+      if (!granted) { setNearbyLoading(false); return; }
+      await new Promise((resolve) => {
+        Geolocation.getCurrentPosition(
+          async ({ coords: { latitude, longitude } }) => {
+            try {
+              const res = await fetch(
+                `${REVERSE_GEOCODE_URL}?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
+              );
+              if (res.ok) {
+                const data = await res.json();
+                const city = (data?.city || data?.locality || '').toLowerCase();
+                const match = CITY_OPTIONS.find(
+                  (c) => c.id && c.id !== 'nearby' && city.includes(c.id),
+                );
+                setNearbyCity(match?.id ?? null);
+              }
+            } catch { /* silent */ }
+            resolve();
+          },
+          () => resolve(),
+          { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false },
+        );
+      });
+    } finally {
+      setNearbyLoading(false);
+    }
+  }, []);
+
+  const handleCitySelect = useCallback((id) => {
+    setActiveCity(id);
+    if (id === 'nearby') {
+      resolveNearbyCity();
+    } else {
+      setNearbyCity(null);
+    }
+  }, [resolveNearbyCity]);
+
+  const bankOptions = useMemo(
+    () => [
+      { id: null, label: 'All banks' },
+      ...SUPPORTED_BANKS.map((b) => ({ id: b.id, label: b.name, color: b.color })),
+    ],
+    [],
+  );
 
   useEffect(() => {
     loadBankCardOffers();
@@ -118,6 +206,11 @@ export default function BankOffersScreen() {
     [fetchedBankOffers],
   );
 
+  const qualifyingCardBanks = useMemo(
+    () => new Set(savedCards.map((c) => c.bankId)),
+    [savedCards],
+  );
+
   const filteredBrands = useMemo(() => {
     let list = brands;
 
@@ -127,16 +220,36 @@ export default function BankOffersScreen() {
       list = list.filter((b) => allowedSlugs.has(b.id));
     }
 
+    // Only my cards filter
+    if (onlyMyCards) {
+      list = list.filter((b) =>
+        combinedOffers.some(
+          (o) => o.brandSlug === b.id && qualifyingCardBanks.has(o.bankId),
+        ),
+      );
+    }
+
     // Category filter
-    if (activeCategory !== 'all') {
+    if (activeCategory === 'other') {
+      list = list.filter((b) => isOtherCategory(b.category));
+    } else if (activeCategory !== 'all') {
       const pattern = CATEGORY_MATCH[activeCategory];
       if (pattern) {
         list = list.filter((b) => pattern.test(b.category));
       }
     }
 
+    // Sort
+    if (sortMode === 'discount') {
+      list = [...list].sort((a, b) => {
+        const da = getMaxDiscountForBrand(a.id, activeBank, combinedOffers) || 0;
+        const db = getMaxDiscountForBrand(b.id, activeBank, combinedOffers) || 0;
+        return db - da;
+      });
+    }
+
     return list;
-  }, [brands, activeBank, activeCategory, combinedOffers]);
+  }, [brands, activeBank, activeCategory, combinedOffers, onlyMyCards, sortMode, qualifyingCardBanks]);
 
   const getMaxDiscount = (brand) => {
     const specific = getMaxDiscountForBrand(brand.id, activeBank || null, combinedOffers);
@@ -149,11 +262,6 @@ export default function BankOffersScreen() {
     }
     return null;
   };
-
-  const qualifyingCardBanks = useMemo(
-    () => new Set(savedCards.map((c) => c.bankId)),
-    [savedCards],
-  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -185,15 +293,14 @@ export default function BankOffersScreen() {
         </View>
       </View>
 
-<View>
       {/* Category chips */}
       <ScrollView
         horizontal
+        style={styles.chipsScroll}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipsRow}>
         {CATEGORIES.map((cat) => {
           const active = activeCategory === cat.id;
-          const label = cat.icon ? `${cat.icon}  ${cat.label}` : cat.label;
           return (
             <Pressable
               key={cat.id}
@@ -202,71 +309,82 @@ export default function BankOffersScreen() {
                 styles.chip,
                 { backgroundColor: active ? PRIMARY : colors.surface, borderColor: active ? PRIMARY : colors.border },
               ]}>
+              {cat.icon ? (
+                <Icon name={cat.icon} size={12} color={active ? '#FFFFFF' : colors.text} style={{ marginRight: 4 }} />
+              ) : null}
               <Text style={[styles.chipLabel, { color: active ? '#FFFFFF' : colors.text }]}>
-                {label}
+                {cat.label}
               </Text>
             </Pressable>
           );
         })}
       </ScrollView>
-      </View>
 
-<View>
-
-      {/* Bank chips */}
+      {/* Filter bar: banks | sort | only my cards */}
       <ScrollView
         horizontal
+        style={styles.filterScroll}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}>
-        <Pressable
-          onPress={() => setActiveBank(null)}
-          style={[
-            styles.bankChip,
-            {
-              backgroundColor: !activeBank ? '#1A1A2E' : colors.surface,
-              borderColor: !activeBank ? '#1A1A2E' : colors.border,
-            },
-          ]}>
-          <Text style={[styles.bankChipLabel, { color: !activeBank ? '#FFFFFF' : colors.text }]}>
-            All Banks
-          </Text>
-        </Pressable>
-        {SUPPORTED_BANKS.map((bank) => {
-          const isActive = activeBank === bank.id;
-          const userHasCard = qualifyingCardBanks.has(bank.id);
-          return (
-            <Pressable
-              key={bank.id}
-              onPress={() => setActiveBank(isActive ? null : bank.id)}
-              style={[
-                styles.bankChip,
-                {
-                  backgroundColor: isActive ? bank.color : colors.surface,
-                  borderColor: isActive ? bank.color : colors.border,
-                },
-              ]}>
-              <View style={[styles.bankDot, { backgroundColor: isActive ? '#FFFFFF' : bank.color }]} />
-              <Text style={[styles.bankChipLabel, { color: isActive ? '#FFFFFF' : colors.text }]}>
-                {bank.name}
-              </Text>
-              {userHasCard && !isActive ? (
-                <View style={[styles.myCardDot, { backgroundColor: colors.primary }]} />
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-      </View>
+        contentContainerStyle={styles.filterBar}>
 
-      {/* Count + Sort row */}
+        {/* City picker */}
+        <Pressable
+          onPress={() => citySheetRef.current?.present()}
+          accessibilityRole="button"
+          accessibilityLabel="Filter by city"
+          style={[styles.filterPill, { borderColor: activeCity ? PRIMARY : colors.border, backgroundColor: colors.surface }]}>
+          {activeCity === 'nearby' ? (
+            <Icon name={nearbyLoading ? 'sync-outline' : 'navigate'} size={12} color={PRIMARY} style={{ marginRight: 4 }} />
+          ) : null}
+          <Text style={[styles.filterPillText, { color: activeCity ? PRIMARY : colors.text }]} numberOfLines={1}>
+            {activeCity === 'nearby'
+              ? (nearbyLoading ? 'Locating…' : nearbyCity ? CITY_OPTIONS.find((c) => c.id === nearbyCity)?.label ?? 'Near me' : 'Near me')
+              : activeCity ? CITY_OPTIONS.find((c) => c.id === activeCity)?.label : 'All cities'}
+          </Text>
+          <Icon name="chevron-down" size={12} color={activeCity ? PRIMARY : colors.textSecondary} />
+        </Pressable>
+
+        {/* Bank picker */}
+        <Pressable
+          onPress={() => bankSheetRef.current?.present()}
+          accessibilityRole="button"
+          accessibilityLabel="Filter by bank"
+          style={[styles.filterPill, { borderColor: activeBank ? PRIMARY : colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.filterPillText, { color: activeBank ? PRIMARY : colors.text }]} numberOfLines={1}>
+            {activeBank ? SUPPORTED_BANKS.find((b) => b.id === activeBank)?.name : 'All banks'}
+          </Text>
+          <Icon name="chevron-down" size={12} color={activeBank ? PRIMARY : colors.textSecondary} />
+        </Pressable>
+
+        {/* Sort picker */}
+        <Pressable
+          onPress={() => sortSheetRef.current?.present()}
+          accessibilityRole="button"
+          accessibilityLabel="Sort offers"
+          style={[styles.filterPill, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.filterPillText, { color: colors.text }]} numberOfLines={1}>
+            {SORT_OPTIONS.find((o) => o.id === sortMode)?.label}
+          </Text>
+          <Icon name="chevron-down" size={12} color={colors.textSecondary} />
+        </Pressable>
+
+        {/* Only my cards toggle */}
+        <Pressable
+          onPress={() => setOnlyMyCards((v) => !v)}
+          style={[
+            styles.filterPill,
+            { borderColor: onlyMyCards ? PRIMARY : colors.border, backgroundColor: onlyMyCards ? PRIMARY + '22' : colors.surface },
+          ]}>
+          <Icon name="card-outline" size={13} color={onlyMyCards ? PRIMARY : colors.textSecondary} style={{ marginRight: 4 }} />
+          <Text style={[styles.filterPillText, { color: onlyMyCards ? PRIMARY : colors.text }]}>Only my cards</Text>
+        </Pressable>
+      </ScrollView>
+
+      {/* Count row */}
       <View style={[styles.countRow, { borderBottomColor: colors.border }]}>
         <Text style={[styles.countText, { color: colors.textSecondary }]}>
-          <Text style={{ fontWeight: '700', color: colors.text }}>{filteredBrands.length}</Text> places
+          <Text style={{ fontWeight: '700', color: colors.text }}>{filteredBrands.length}</Text> places with card offers
         </Text>
-        <Pressable style={styles.sortBtn} hitSlop={8}>
-          <Icon name="funnel-outline" size={14} color={colors.textSecondary} />
-          <Text style={[styles.sortLabel, { color: colors.textSecondary }]}>Sort</Text>
-        </Pressable>
       </View>
 
       {/* Brand list */}
@@ -294,6 +412,34 @@ export default function BankOffersScreen() {
           </View>
         }
       />
+
+      <FilterPickerSheet
+        ref={citySheetRef}
+        title="Cities"
+        subtitle="Show offers in your city"
+        options={CITY_OPTIONS}
+        selected={activeCity}
+        onSelect={handleCitySelect}
+        snapPoint="65%"
+      />
+      <FilterPickerSheet
+        ref={bankSheetRef}
+        title="Banks"
+        subtitle="Show offers for a specific bank"
+        options={bankOptions}
+        selected={activeBank}
+        onSelect={setActiveBank}
+        snapPoint="70%"
+      />
+      <FilterPickerSheet
+        ref={sortSheetRef}
+        title="Sort by"
+        subtitle="Order places by"
+        options={SORT_OPTIONS}
+        selected={sortMode}
+        onSelect={setSortMode}
+        snapPoint="35%"
+      />
     </View>
   );
 }
@@ -317,49 +463,48 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
+  chipsScroll: { height: 44, flexGrow: 0, flexShrink: 0 },
+  filterScroll: { height: 48, flexGrow: 0, flexShrink: 0 },
   chipsRow: {
     paddingHorizontal: PAD,
-    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
     marginRight: 8,
     flexShrink: 0,
     height: 32,
-    marginBottom: 8,
   },
   chipLabel: { fontSize: 10, fontWeight: '600' },
-  bankChip: {
+  filterBar: {
+    paddingHorizontal: PAD,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 12,
-    paddingVertical: 7,
     borderRadius: 18,
     borderWidth: 1,
-    marginRight: 8,
     flexShrink: 0,
-    height: 32,
-
+    height: 36,
+    maxWidth: 200,
   },
-  bankDot: { width: 8, height: 8, borderRadius: 4, marginRight: 5 },
-  bankChipLabel: { fontSize: 12, fontWeight: '600' },
-  myCardDot: {
-    width: 6, height: 6, borderRadius: 3,
-    marginLeft: 4,
-  },
+  filterPillText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
   countRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: PAD, paddingVertical: 10,
     borderBottomWidth: 1,
   },
   countText: { fontSize: 13 },
-  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  sortLabel: { fontSize: 13, fontWeight: '600' },
   list: { paddingHorizontal: PAD, paddingTop: 14, },
   cardWrap: { marginBottom: 14 },
   card: {

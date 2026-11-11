@@ -15,7 +15,7 @@ import json
 from datetime import datetime
 
 from database.db import get_session
-from database.models import Email, EmailAutomationRun, Offer
+from database.models import Email, EmailAutomationRun
 from services.jobs.base import BackgroundJob, WorkItem
 from services.retry import retry_with_backoff
 

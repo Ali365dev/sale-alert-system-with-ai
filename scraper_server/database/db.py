@@ -361,7 +361,6 @@ def _seed_settings() -> None:
     from services import settings_service
 
     with SessionLocal() as session:
-        from database.models import Prompt
         # Always run this loop, not just when the table is empty:
         # seed_prompt_if_missing() is already idempotent per-key, so this is
         # what lets a newly-added prompt (like brand_identification) actually

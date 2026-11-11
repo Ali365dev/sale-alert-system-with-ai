@@ -130,13 +130,18 @@ class NotifyMatchingOfferJob(BackgroundJob):
 
         if sent_devices:
             with get_session() as session:
-                for recipient in sent_devices:
-                    exists = (
-                        session.query(OfferNotification.id)
-                        .filter_by(device_id=recipient["device_id"], offer_id=offer_id)
-                        .first()
+                already_notified = {
+                    device_id for (device_id,) in (
+                        session.query(OfferNotification.device_id)
+                        .filter(
+                            OfferNotification.offer_id == offer_id,
+                            OfferNotification.device_id.in_([r["device_id"] for r in sent_devices]),
+                        )
+                        .all()
                     )
-                    if exists:
+                }
+                for recipient in sent_devices:
+                    if recipient["device_id"] in already_notified:
                         continue
                     session.add(OfferNotification(
                         device_id=recipient["device_id"],

@@ -8,7 +8,7 @@ import time)."""
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.routers.health import router
+from routers.health import router
 
 
 def make_test_app() -> FastAPI:

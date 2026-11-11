@@ -18,7 +18,6 @@ MANUALLY_CLOSED is only ever set by an explicit admin action (the API's
 PATCH /offers/{id}/close), never by this module."""
 from __future__ import annotations
 
-from datetime import datetime
 from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session

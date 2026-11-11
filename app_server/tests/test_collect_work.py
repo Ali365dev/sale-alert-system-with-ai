@@ -3,7 +3,7 @@ new messages, and the idempotency claim (spec scenario 11: duplicate offer
 prevented; scenario 3: duplicate notification doesn't create a duplicate
 job — this is the collect_work half of that guarantee, the job-dispatch
 half is covered in tests/test_automation_webhook.py)."""
-from services.jobs.email_automation import EmailAutomationJob
+from jobs.email_automation import EmailAutomationJob
 
 
 def test_collect_work_returns_empty_when_automation_disabled(mocker):
@@ -31,7 +31,7 @@ def test_collect_work_claims_new_messages_and_skips_already_run(mocker, mock_get
         return {"automatic_email_processing": True, "gmail_last_history_id": "1000"}.get(key, default)
     mocker.patch("services.settings_service.get_setting", side_effect=get_setting_side_effect)
     mocker.patch("services.settings_service.set_setting")
-    mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
+    mocker.patch("jobs.email_automation.get_session", mock_get_session)
     mocker.patch("gmail.gmail_service._get_session", return_value=mocker.Mock())
 
     history_records = [

@@ -13,7 +13,7 @@ import json
 from datetime import datetime, timezone
 
 from database.db import get_session
-from database.models import Brand, Offer, SocialPost
+from database.models import Brand, SocialPost
 from services import job_service
 from services.social_scraper.offer_builder import build_offer_from_social
 

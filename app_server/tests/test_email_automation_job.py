@@ -11,7 +11,7 @@ All Gmail/AI/FCM/DB calls are mocked — see tests/conftest.py's module
 docstring for why (no test-database infrastructure exists in this repo)."""
 import types
 
-from services.jobs.email_automation import EmailAutomationJob
+from jobs.email_automation import EmailAutomationJob
 
 
 def _existing_email(email_id=42, subject="50% Off Everything"):
@@ -31,7 +31,7 @@ def test_process_item_fetches_existing_email_and_analyzes(mocker, mock_get_sessi
     already stored as an Email row is reused, not re-fetched from Gmail,
     and reprocess_email is called with that email's id."""
     _patch_job_logging(mocker)
-    mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
+    mocker.patch("jobs.email_automation.get_session", mock_get_session)
     mock_session.query.return_value.filter.return_value.first.return_value = _existing_email()
 
     mocker.patch("gmail.gmail_service._get_session", return_value=mocker.Mock())
@@ -66,7 +66,7 @@ def test_process_item_records_ai_failure_without_notifying(mocker, mock_get_sess
     """Scenario 10: a failed analysis is recorded (outcome "failed"), and no
     notification is ever attempted for it."""
     _patch_job_logging(mocker)
-    mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
+    mocker.patch("jobs.email_automation.get_session", mock_get_session)
     mock_session.query.return_value.filter.return_value.first.return_value = _existing_email()
     mocker.patch("gmail.gmail_service._get_session", return_value=mocker.Mock())
     mocker.patch("gmail.gmail_labels.get_or_create_label_id", return_value="Label_1")
@@ -91,7 +91,7 @@ def test_process_item_treats_unmatched_brand_as_skipped_not_failed(mocker, mock_
     (matches process_pending.py's own "skipped" outcome for the same gate),
     not a pipeline failure."""
     _patch_job_logging(mocker)
-    mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
+    mocker.patch("jobs.email_automation.get_session", mock_get_session)
     mock_session.query.return_value.filter.return_value.first.return_value = _existing_email()
     mocker.patch("gmail.gmail_service._get_session", return_value=mocker.Mock())
     mocker.patch("gmail.gmail_labels.get_or_create_label_id", return_value="Label_1")
@@ -121,7 +121,7 @@ def test_process_item_fetch_failure_is_recoverable_not_fatal(mocker, mock_get_se
     services/jobs/base.py's critical/recoverable split), which would stop
     every other message in the same batch too."""
     _patch_job_logging(mocker)
-    mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
+    mocker.patch("jobs.email_automation.get_session", mock_get_session)
     mock_session.query.return_value.filter.return_value.first.return_value = None  # not already fetched
     mocker.patch("gmail.gmail_service._get_session", return_value=mocker.Mock())
     mocker.patch("gmail.gmail_service.fetch_single_message", side_effect=RuntimeError("Gmail API 503"))
@@ -136,7 +136,7 @@ def test_process_item_label_failure_does_not_block_offer_creation(mocker, mock_g
     """Labeling is not fatal to the pipeline (spec section 4 doesn't
     require it to be) — an offer with no label is still a real offer."""
     _patch_job_logging(mocker)
-    mocker.patch("services.jobs.email_automation.get_session", mock_get_session)
+    mocker.patch("jobs.email_automation.get_session", mock_get_session)
     mock_session.query.return_value.filter.return_value.first.return_value = _existing_email()
     mocker.patch("gmail.gmail_service._get_session", return_value=mocker.Mock())
     mocker.patch("gmail.gmail_labels.get_or_create_label_id", side_effect=RuntimeError("label API down"))

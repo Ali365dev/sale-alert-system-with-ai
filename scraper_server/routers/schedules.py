@@ -1,7 +1,6 @@
 """Scraping Schedule CRUD — per-brand automatic scraping schedules using
 standard 5-field cron expressions. The APScheduler integration is in
 job_registry.py (scraper_server); this router only manages the schedule rows."""
-import json
 from datetime import datetime, timezone
 
 from croniter import croniter

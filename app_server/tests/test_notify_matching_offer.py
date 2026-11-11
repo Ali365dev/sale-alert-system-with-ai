@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from database.models import DeviceToken, Offer
-from services.jobs.notify_matching_offer import NotifyMatchingOfferJob
+from jobs.notify_matching_offer import NotifyMatchingOfferJob
 from services.offer_matching import offer_matches_preferences
 from services.offer_notifications import notification_copy
 
@@ -26,7 +26,7 @@ def test_collect_work_empty_without_offer_id():
 
 
 def test_collect_work_empty_when_offer_missing(mocker, mock_get_session, mock_session):
-    mocker.patch("services.jobs.notify_matching_offer.get_session", mock_get_session)
+    mocker.patch("jobs.notify_matching_offer.get_session", mock_get_session)
     mock_session.query.return_value.filter.return_value.first.return_value = None
     assert NotifyMatchingOfferJob().collect_work({"payload": {"offer_id": 99}}) == []
 
@@ -50,9 +50,9 @@ def test_spec_matrix_and_mode():
 
 def test_collect_work_only_tokens_for_matching_devices(mocker, mock_get_session, mock_session):
     offer = _offer()
-    mocker.patch("services.jobs.notify_matching_offer.get_session", mock_get_session)
+    mocker.patch("jobs.notify_matching_offer.get_session", mock_get_session)
     mocker.patch(
-        "services.jobs.notify_matching_offer.matching_profile_rows",
+        "jobs.notify_matching_offer.matching_profile_rows",
         return_value=[
             ("device-match", "user-1"),
             ("device-no-token", "user-2"),
@@ -83,8 +83,8 @@ def test_collect_work_only_tokens_for_matching_devices(mocker, mock_get_session,
 
 
 def test_collect_work_empty_when_no_matching_profiles(mocker, mock_get_session, mock_session):
-    mocker.patch("services.jobs.notify_matching_offer.get_session", mock_get_session)
-    mocker.patch("services.jobs.notify_matching_offer.matching_profile_rows", return_value=[])
+    mocker.patch("jobs.notify_matching_offer.get_session", mock_get_session)
+    mocker.patch("jobs.notify_matching_offer.matching_profile_rows", return_value=[])
     mock_session.query.return_value.filter.return_value.first.return_value = _offer()
     assert NotifyMatchingOfferJob().collect_work({"payload": {"offer_id": 9}}) == []
 
@@ -92,9 +92,9 @@ def test_collect_work_empty_when_no_matching_profiles(mocker, mock_get_session, 
 def test_collect_work_logs_when_matches_have_no_active_tokens(mocker, mock_get_session, mock_session):
     """Matching prefs with no live DeviceToken must explain why notify is empty."""
     offer = _offer()
-    mocker.patch("services.jobs.notify_matching_offer.get_session", mock_get_session)
+    mocker.patch("jobs.notify_matching_offer.get_session", mock_get_session)
     mocker.patch(
-        "services.jobs.notify_matching_offer.matching_profile_rows",
+        "jobs.notify_matching_offer.matching_profile_rows",
         return_value=[("device-a", "user-1"), ("device-b", "user-2")],
     )
     append_log = mocker.patch("services.job_service.append_log")
@@ -127,7 +127,7 @@ def test_collect_work_logs_when_matches_have_no_active_tokens(mocker, mock_get_s
 
 def test_process_item_sends_personalized_copy_and_records(mocker, mock_get_session, mock_session):
     offer = _offer()
-    mocker.patch("services.jobs.notify_matching_offer.get_session", mock_get_session)
+    mocker.patch("jobs.notify_matching_offer.get_session", mock_get_session)
     mocker.patch(
         "services.job_service.get_job",
         return_value={"payload": {"offer_id": 9}},

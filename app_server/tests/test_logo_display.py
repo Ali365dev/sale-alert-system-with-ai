@@ -1,5 +1,5 @@
 """Tests for brand logo transform helpers and category CRUD basics."""
-from app.api.logo_display import (
+from api.logo_display import (
     LOGO_SCALE_DEFAULT,
     apply_logo_body,
     clamp_logo_offset,

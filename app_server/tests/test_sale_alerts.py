@@ -4,7 +4,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from app.api.routers import sale_alerts as sale_alerts_router
+from routers import sale_alerts as sale_alerts_router
 from services.sale_alert_analyze import analyze_product_url, friendly_fetch_error
 from services.sale_alert_validation import (
     is_http_url,

@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 
 from services.sale_alert_matching import (
     brand_condition_met,
