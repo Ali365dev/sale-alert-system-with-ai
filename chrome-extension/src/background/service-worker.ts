@@ -1,4 +1,13 @@
 import type { ExtensionMessage, ScrapeMessage } from "../types";
+import type { TakhfifConfigSnapshot } from "../types/takhfif";
+import {
+  startTakhfifListing, pauseTakhfifListing, resumeTakhfifListing,
+  stopTakhfifListing, clearTakhfifSession, recoverTakhfifSession,
+} from "./takhfif-listing";
+
+// Runs on every service-worker start: surfaces a loop killed by a worker
+// restart as a paused (resumable) session instead of a stuck "running" one.
+recoverTakhfifSession();
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Deals More Scraper installed.");
@@ -171,6 +180,25 @@ function sendToTab(tabId: number, message: object): Promise<unknown> {
 // Relay messages between popup and content script
 chrome.runtime.onMessage.addListener(
   (message: ExtensionMessage & Record<string, unknown>, _sender, sendResponse) => {
+    // ── Takhfif automated listing scraper (Bank Offers) ────────────────────
+    const msgType = message.type as string;
+    if (msgType.startsWith("TAKHFIF_")) {
+      if (msgType === "TAKHFIF_LISTING_START") {
+        startTakhfifListing(message.config as TakhfifConfigSnapshot).then(sendResponse);
+      } else if (msgType === "TAKHFIF_LISTING_PAUSE") {
+        pauseTakhfifListing().then(sendResponse);
+      } else if (msgType === "TAKHFIF_LISTING_RESUME") {
+        resumeTakhfifListing().then(sendResponse);
+      } else if (msgType === "TAKHFIF_LISTING_STOP") {
+        stopTakhfifListing().then(sendResponse);
+      } else if (msgType === "TAKHFIF_SESSION_CLEAR") {
+        clearTakhfifSession().then(sendResponse);
+      } else {
+        sendResponse({ ok: false, error: `Unknown command: ${msgType}` });
+      }
+      return true;
+    }
+
     // ── Messages from content script → forward to popup ───────────────────
     if (
       message.type === "SELECTOR_PICKED" ||

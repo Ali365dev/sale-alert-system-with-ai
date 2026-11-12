@@ -3,6 +3,7 @@ import type {
   BankOfferListingConfig, ExtractedBankOffer,
 } from "../types";
 import { extractAllOffers, extractOverviewOffers, extractProductOffers } from "./extractors";
+import { extractTakhfifListingPage } from "./extractors/takhfif";
 import { deduplicateOffers } from "../utils/dedupe";
 import { startSelectorMode, stopSelectorMode } from "./selector-mode";
 
@@ -165,6 +166,16 @@ chrome.runtime.onMessage.addListener(
       } catch (err) {
         sendResponse({ rows: [], count: 0, error: err instanceof Error ? err.message : "Failed" });
       }
+      return true;
+    }
+
+    if (message.type === "EXTRACT_TAKHFIF_LISTING_PAGE") {
+      extractTakhfifListingPage()
+        .then(sendResponse)
+        .catch((err: unknown) => sendResponse({
+          listings: [], currentPage: null, totalPages: null, nextUrl: null,
+          error: err instanceof Error ? err.message : "Extraction failed",
+        }));
       return true;
     }
 

@@ -324,7 +324,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = dealplusApp/dealplusApp.Debug.entitlements;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = HK5JYLV26Z;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = dealplusApp/Info.plist;
@@ -361,8 +361,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = dealplusApp/dealplusApp.entitlements;
-				CURRENT_PROJECT_VERSION = 8;
-				DEVELOPMENT_TEAM = HK5JYLV26Z;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 10;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = HK5JYLV26Z;
 				INFOPLIST_FILE = dealplusApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Deals More";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.shopping";
@@ -379,6 +383,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.app.dealsmore;
 				PRODUCT_NAME = dealplusApp;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Deals More";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;

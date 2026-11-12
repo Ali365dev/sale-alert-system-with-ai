@@ -35,23 +35,23 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<!-- Dev API is plain HTTP on the LAN (http://192.168.x.x:8000). -->
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<!-- iOS 14+: without this, HTTP to the Mac LAN IP fails on a physical device. -->
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Deals More uses the local network to reach the development server on your computer.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp.</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Deals More uses the local network to reach the development server on your computer.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Allow access to your location to show deals and offers near you.</string>
 	<key>RCTNewArchEnabled</key>
@@ -62,11 +62,10 @@
 		<string>MaterialCommunityIcons.ttf</string>
 		<string>FontAwesome5_Solid.ttf</string>
 	</array>
-	<key>FirebaseAppDelegateProxyEnabled</key>
-	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>fetch</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>BootSplash</string>
@@ -88,6 +87,8 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>
 </plist>

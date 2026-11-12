@@ -229,8 +229,6 @@ const navigateFromNotification = (remoteMessage) => {
 export const setupPushListeners = () => {
   const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
     if (remoteMessage.notification) {
-      // App-icon banner (not the generic success toast with a check/?) so
-      // foreground pushes look like a real system notification.
       showToast.push(
         remoteMessage.notification.body ?? '',
         remoteMessage.notification.title ?? 'Deals More',

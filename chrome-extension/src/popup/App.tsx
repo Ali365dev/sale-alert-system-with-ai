@@ -258,7 +258,7 @@ export function App() {
           <SettingsTab onLogout={() => setAuthed(false)} onConnStatusChange={setConnStatus} />
         )}
         {tab !== "settings" && mode === "bank" && (
-          <BankOffersTab pageUrl={pageUrl} onToast={addToast} />
+          <BankOffersTab onToast={addToast} />
         )}
         {mode === "sale" && tab === "brands" && (
           <BrandsTab
