@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { TakhfifBusinessDetail, TakhfifListing, TakhfifQueueItem } from "../../../types/takhfif";
+import type { TakhfifBusinessDetail, TakhfifQueueItem } from "../../../types/takhfif";
 import type { FlatOffer } from "./exporters";
 import { DealDetailExpanded, syncState } from "./DealDetail";
 import { ChevronDownIcon, ChevronUpIcon, DatabaseIcon, ExternalLinkIcon, ScrapeIcon } from "./icons";
@@ -20,13 +20,16 @@ function EmptyState({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-function DealRow({ listing, detail, hasDetail, detailsEnabled, canScrape, onScrapeOne, busy, onPushOne }: {
-  listing: TakhfifListing; detail?: TakhfifBusinessDetail; hasDetail: boolean; detailsEnabled: boolean;
+function DealRow({ detail, detailsEnabled, canScrape, onScrapeOne, busy, onPushOne }: {
+  detail: TakhfifBusinessDetail;
+  detailsEnabled: boolean;
   canScrape: boolean; onScrapeOne: (url: string) => void;
   busy: boolean; onPushOne: (slug: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const canExpand = hasDetail && !!detail;
+  const hasOffers = detail.banks.length > 0;
+  const canExpand = hasOffers;
+  const cardCount = detail.banks.reduce((n, b) => n + b.tiers.reduce((m, t) => m + t.cards.length, 0), 0);
 
   return (
     <div>
@@ -36,26 +39,26 @@ function DealRow({ listing, detail, hasDetail, detailsEnabled, canScrape, onScra
         role={canExpand ? "button" : undefined}
         aria-expanded={canExpand ? expanded : undefined}
       >
-        {listing.logo_url
-          ? <img src={listing.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover bg-surface-2 flex-shrink-0" />
+        {detail.logoImage
+          ? <img src={detail.logoImage} alt="" className="w-8 h-8 rounded-lg object-cover bg-surface-2 flex-shrink-0" />
           : <div className="w-8 h-8 rounded-lg bg-surface-2 flex-shrink-0" />}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="text-[11px] font-bold text-t1 truncate">{listing.business_name}</p>
-            {listing.rating != null && (
-              <span className="text-[9px] text-amber-400 font-bold flex-shrink-0">★ {listing.rating}</span>
+            <p className="text-[11px] font-bold text-t1 truncate">{detail.name}</p>
+            {detail.rating != null && (
+              <span className="text-[9px] text-amber-400 font-bold flex-shrink-0">★ {detail.rating}</span>
             )}
           </div>
           <p className="text-[9px] text-t3 truncate">
-            {[listing.category, listing.location].filter(Boolean).join(" · ")}
+            {[detail.category, detail.city].filter(Boolean).join(" · ")}
           </p>
           <div className="flex gap-2 mt-0.5 text-[9px]">
-            {listing.discount_text && <span className="text-green-400 font-semibold">{listing.discount_text}</span>}
-            {listing.card_offer_count != null && <span className="text-t2">{listing.card_offer_count} card offers</span>}
-            <span className={hasDetail ? "text-green-400" : "text-t3"}>
-              {hasDetail ? "Details ✓" : detailsEnabled ? "Details pending" : "Details skipped"}
+            {detail.topDiscountText && <span className="text-green-400 font-semibold">{detail.topDiscountText}</span>}
+            {cardCount > 0 && <span className="text-t2">{cardCount} card offers</span>}
+            <span className={hasOffers ? "text-green-400" : "text-t3"}>
+              {hasOffers ? "Details ✓" : detailsEnabled ? "Details pending" : "Details skipped"}
             </span>
-            {detail && (
+            {hasOffers && (
               <span className={SYNC_CHIP[syncState(detail)].cls}>
                 {SYNC_CHIP[syncState(detail)].label}
               </span>
@@ -68,26 +71,26 @@ function DealRow({ listing, detail, hasDetail, detailsEnabled, canScrape, onScra
           </span>
         )}
         <button
-          onClick={(e) => { e.stopPropagation(); onScrapeOne(listing.detail_url); }}
+          onClick={(e) => { e.stopPropagation(); onScrapeOne(detail.canonicalUrl); }}
           disabled={!canScrape}
-          aria-label={`${hasDetail ? "Re-scrape" : "Scrape"} details for ${listing.business_name}`}
+          aria-label={`${hasOffers ? "Re-scrape" : "Scrape"} details for ${detail.name}`}
           title={canScrape
-            ? `${hasDetail ? "Re-scrape" : "Scrape"} this business's bank offers`
+            ? `${hasOffers ? "Re-scrape" : "Scrape"} this business's bank offers`
             : "Wait for the current scrape to finish"}
           className="flex-shrink-0 text-t3 hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition p-1.5"
         >
           <ScrapeIcon />
         </button>
         <a
-          href={listing.detail_url} target="_blank" rel="noreferrer"
+          href={detail.canonicalUrl} target="_blank" rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Open ${listing.business_name} on takhfif.app`}
+          aria-label={`Open ${detail.name} on takhfif.app`}
           className="flex-shrink-0 text-t3 hover:text-primary transition p-1.5"
         >
           <ExternalLinkIcon />
         </a>
       </div>
-      {expanded && detail && (
+      {expanded && (
         <div className="border-t border-line bg-surface-2/30">
           <DealDetailExpanded detail={detail} busy={busy} onPush={onPushOne} />
         </div>
@@ -152,15 +155,13 @@ const SHOW_LIMIT = 60;
 type ResultTab = "all" | "offers" | "failed";
 
 export function ResultsPanel({
-  listings, offers, details, failedPages, failedItems, completedSlugs,
+  offers, details, failedPages, failedItems,
   detailsEnabled, canScrape, onRetryFailed, onScrapeOne, busy, onPushOne, onPushAll,
 }: {
-  listings: TakhfifListing[];
   offers: FlatOffer[];
   details: Record<string, TakhfifBusinessDetail>;
   failedPages: number[];
   failedItems: TakhfifQueueItem[];
-  completedSlugs: Set<string>;
   detailsEnabled: boolean;
   canScrape: boolean;
   onRetryFailed: () => void;
@@ -170,10 +171,10 @@ export function ResultsPanel({
   onPushAll: () => void;
 }) {
   const [tab, setTab] = useState<ResultTab>("all");
-  const shown = listings.slice(0, SHOW_LIMIT);
+  const businesses = Object.values(details);
+  const shown = businesses.slice(0, SHOW_LIMIT);
   const failedCount = failedPages.length + failedItems.length;
-  const slugOf = (url: string) => url.split("/place/")[1]?.split(/[/?#]/)[0] ?? "";
-  const unsynced = Object.values(details).filter((d) => syncState(d) !== "synced").length;
+  const unsynced = businesses.filter((d) => syncState(d) !== "synced").length;
 
   return (
     <div className="mx-3 mb-2.5">
@@ -199,32 +200,28 @@ export function ResultsPanel({
               tab === t ? "text-t1 border-primary" : "text-t3 border-transparent hover:text-t2"
             }`}
           >
-            {t === "all" ? `All Deals${listings.length ? ` (${listings.length})` : ""}`
+            {t === "all" ? `All Deals${businesses.length ? ` (${businesses.length})` : ""}`
               : t === "offers" ? `Bank Offers${offers.length ? ` (${offers.length})` : ""}`
               : `Failed${failedCount ? ` (${failedCount})` : ""}`}
           </button>
         ))}
       </div>
 
-      {tab === "all" && (listings.length === 0
+      {tab === "all" && (businesses.length === 0
         ? <EmptyState title="No extracted deals yet" hint="Start listing scraping to populate results." />
         : (
           <div className="bg-surface border border-line rounded-xl overflow-hidden">
             <div className="flex flex-col divide-y divide-line max-h-80 overflow-y-auto">
-              {shown.map((l) => {
-                const slug = slugOf(l.detail_url);
-                return (
-                  <DealRow key={l.detail_url} listing={l}
-                    detail={details[slug]}
-                    hasDetail={completedSlugs.has(slug)} detailsEnabled={detailsEnabled}
-                    canScrape={canScrape} onScrapeOne={onScrapeOne}
-                    busy={busy} onPushOne={onPushOne} />
-                );
-              })}
+              {shown.map((d) => (
+                <DealRow key={d.canonicalUrl} detail={d}
+                  detailsEnabled={detailsEnabled}
+                  canScrape={canScrape} onScrapeOne={onScrapeOne}
+                  busy={busy} onPushOne={onPushOne} />
+              ))}
             </div>
-            {listings.length > SHOW_LIMIT && (
+            {businesses.length > SHOW_LIMIT && (
               <p className="px-3 py-2 border-t border-line text-[9px] text-t3">
-                Showing {SHOW_LIMIT} of {listings.length} — export to get the complete dataset.
+                Showing {SHOW_LIMIT} of {businesses.length} — export to get the complete dataset.
               </p>
             )}
           </div>

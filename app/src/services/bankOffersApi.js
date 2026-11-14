@@ -67,6 +67,18 @@ export const fetchScrapedBusinesses = async () => {
   return res.data?.businesses ?? [];
 };
 
+/** Fetches full detail for one business — powers BankOfferDetailScreen. */
+export const fetchBusinessDetail = async (businessId) => {
+  const res = await appAxios.get(`/bank-offers/businesses/${businessId}`);
+  return res.data;
+};
+
+/** Fetches real offer counts per bank_name — powers the Supported Banks list. */
+export const fetchBankOfferCounts = async () => {
+  const res = await appAxios.get('/bank-offers/bank-counts');
+  return res.data?.counts ?? {};
+};
+
 let inflight = null;
 
 /** Fire-and-forget load into bankOffersStore — safe to call from every

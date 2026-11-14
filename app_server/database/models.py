@@ -799,48 +799,10 @@ class SettingsAuditLog(Base):
         return f"<SettingsAuditLog action={self.action!r} entity={self.entity_type}:{self.entity_id}>"
 
 
-class BankCardOffer(Base):
-    """One bank/card discount row scraped from a takhfif.app place page
-    (scraper_server/services/takhfif_scraper.py). Read-only here — this
-    server only serves rows with a matched brand_id via
-    routers/bank_offers.py. See scraper_server/database/models.py for the
-    write side."""
-    __tablename__ = "bank_card_offers"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    source_url = Column(String(500), nullable=False, index=True)
-    place_name = Column(String(255), nullable=False)
-    place_website = Column(String(500), nullable=True)
-    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
-
-    bank_name = Column(String(100), nullable=False, index=True)
-    card_name = Column(String(255), nullable=True)
-    discount_percentage = Column(Float, nullable=True)
-    currency = Column(String(10), nullable=True)
-    expiry_date = Column(DateTime, nullable=True)
-    description = Column(Text, nullable=True)
-
-    # Rich fields written by scraper_server's /bank-offers/import — see the
-    # scraper_server copy of this model for details. Read-only here.
-    business_id = Column(Integer, ForeignKey("scraped_businesses.id"), nullable=True, index=True)
-    max_discount_text = Column(String(100), nullable=True)
-    max_discount_amount = Column(Float, nullable=True)
-    valid_days = Column(Text, nullable=True)   # JSON array
-    terms = Column(Text, nullable=True)        # JSON array
-
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=_utcnow, nullable=False)
-    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<BankCardOffer place={self.place_name!r} bank={self.bank_name!r} discount={self.discount_percentage}%>"
-
-
-class ScrapedBusiness(Base):
-    """Mirror of scraper_server's scraped_businesses table (one takhfif.app
-    business imported from the chrome extension). Read-only on this server —
-    the write side lives in scraper_server/services/scraped_business_store.py."""
-    __tablename__ = "scraped_businesses"
+class Business(Base):
+    """Read-only mirror of scraper_server's businesses table.
+    Write side lives in scraper_server/services/business_store.py."""
+    __tablename__ = "businesses"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     slug = Column(String(255), unique=True, nullable=False, index=True)
@@ -857,10 +819,10 @@ class ScrapedBusiness(Base):
     source_url = Column(String(500), nullable=False)
     brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
 
-    branches = Column(Text, nullable=True)        # JSON array of branch objects
-    opening_hours = Column(Text, nullable=True)   # JSON array of {day, hours}
-    gallery = Column(Text, nullable=True)         # JSON array of image URLs
-    social_links = Column(Text, nullable=True)    # JSON object
+    branches = Column(Text, nullable=True)
+    opening_hours = Column(Text, nullable=True)
+    gallery = Column(Text, nullable=True)
+    social_links = Column(Text, nullable=True)
     menu_pages = Column(Integer, nullable=True)
 
     is_active = Column(Boolean, default=True, nullable=False)
@@ -869,4 +831,56 @@ class ScrapedBusiness(Base):
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
 
     def __repr__(self) -> str:
-        return f"<ScrapedBusiness id={self.id} slug={self.slug!r} brand_id={self.brand_id}>"
+        return f"<Business id={self.id} slug={self.slug!r} brand_id={self.brand_id}>"
+
+
+ScrapedBusiness = Business
+
+
+class BusinessBranch(Base):
+    """Read-only mirror of business_branches table (written by scraper_server)."""
+    __tablename__ = "business_branches"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=True)
+    address = Column(String(500), nullable=True)
+    city = Column(String(100), nullable=True)
+    area = Column(String(100), nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    phone = Column(String(50), nullable=True)
+    opening_hours = Column(String(255), nullable=True)
+    directions_url = Column(String(500), nullable=True)
+    place_id = Column(String(255), nullable=True)
+
+
+class BankCardOffer(Base):
+    """Read-only mirror of bank_card_offers. Write side is scraper_server."""
+    __tablename__ = "bank_card_offers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True, index=True)
+    source_url = Column(String(500), nullable=True, index=True)
+    place_name = Column(String(255), nullable=True)
+    place_website = Column(String(500), nullable=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
+
+    bank_name = Column(String(100), nullable=False, index=True)
+    bank_logo = Column(String(500), nullable=True)
+    card_name = Column(String(255), nullable=True)
+    discount_percentage = Column(Float, nullable=True)
+    max_discount_text = Column(String(100), nullable=True)
+    max_discount_amount = Column(Float, nullable=True)
+    currency = Column(String(10), nullable=True)
+    expiry_date = Column(DateTime, nullable=True)
+    description = Column(Text, nullable=True)
+    valid_days = Column(Text, nullable=True)
+    terms = Column(Text, nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<BankCardOffer business_id={self.business_id} bank={self.bank_name!r} card={self.card_name!r}>"

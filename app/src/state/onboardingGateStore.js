@@ -3,6 +3,7 @@ import { Storage } from './storage';
 
 const HAS_ONBOARDED_KEY = 'dealpulse:hasOnboarded';
 const HAS_SELECTED_COUNTRY_KEY = 'dealpulse:hasSelectedCountry';
+const IS_GUEST_KEY = 'dealpulse:isGuest';
 
 /** Whether the user has completed the onboarding flow — gates which screen the app boots into.
  * Reads MMKV synchronously so the gate is correct on the very first render (no flash of onboarding
@@ -10,6 +11,7 @@ const HAS_SELECTED_COUNTRY_KEY = 'dealpulse:hasSelectedCountry';
 const useOnboardingGateStore = create((set) => ({
   hasOnboarded: Storage.getString(HAS_ONBOARDED_KEY) === 'true',
   hasSelectedCountry: Storage.getString(HAS_SELECTED_COUNTRY_KEY) === 'true',
+  isGuest: Storage.getString(IS_GUEST_KEY) === 'true',
   completeOnboarding: () => {
     Storage.set(HAS_ONBOARDED_KEY, 'true');
     set({ hasOnboarded: true });
@@ -17,6 +19,10 @@ const useOnboardingGateStore = create((set) => ({
   completeCountrySelection: () => {
     Storage.set(HAS_SELECTED_COUNTRY_KEY, 'true');
     set({ hasSelectedCountry: true });
+  },
+  setGuest: (value) => {
+    Storage.set(IS_GUEST_KEY, value ? 'true' : 'false');
+    set({ isGuest: value });
   },
 }));
 

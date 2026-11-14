@@ -93,6 +93,7 @@ def _migrate() -> None:
         ("bank_card_offers", "max_discount_amount",   "FLOAT"),
         ("bank_card_offers", "valid_days",            "TEXT"),
         ("bank_card_offers", "terms",                 "TEXT"),
+        ("bank_card_offers", "bank_logo",             "VARCHAR(500)"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -252,6 +253,90 @@ def _migrate() -> None:
                 conn.commit()
             except Exception:
                 conn.rollback()
+
+        # Migrate scraped_businesses → businesses.
+        # create_all may have already created an empty 'businesses' table from
+        # the renamed model, so we copy rows instead of renaming.
+        try:
+            old_exists = conn.execute(text(
+                "SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='scraped_businesses'"
+            )).fetchone()
+            if old_exists:
+                # Copy any rows from scraped_businesses not yet in businesses
+                conn.execute(text("""
+                    INSERT INTO businesses
+                    SELECT * FROM scraped_businesses
+                    WHERE id NOT IN (SELECT id FROM businesses)
+                """))
+                # Align the sequence so new inserts don't collide
+                conn.execute(text("""
+                    SELECT setval(
+                        pg_get_serial_sequence('businesses','id'),
+                        GREATEST((SELECT COALESCE(MAX(id),0) FROM businesses),
+                                 (SELECT COALESCE(MAX(id),0) FROM scraped_businesses))
+                    )
+                """))
+                conn.commit()
+                logger.info("Migration: copied scraped_businesses rows into businesses")
+                # Drop old table (FK on bank_card_offers now points to businesses)
+                conn.execute(text("DROP TABLE IF EXISTS scraped_businesses"))
+                conn.commit()
+                logger.info("Migration: dropped scraped_businesses")
+        except Exception as e:
+            conn.rollback()
+            logger.warning("Migration: scraped_businesses copy failed — %s", e)
+
+        # Create business_branches table
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS business_branches (
+                    id SERIAL PRIMARY KEY,
+                    business_id INTEGER NOT NULL REFERENCES businesses(id),
+                    name VARCHAR(255),
+                    address VARCHAR(500),
+                    city VARCHAR(100),
+                    area VARCHAR(100),
+                    latitude FLOAT,
+                    longitude FLOAT,
+                    phone VARCHAR(50),
+                    opening_hours VARCHAR(255),
+                    directions_url VARCHAR(500),
+                    place_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_business_branches_business_id ON business_branches (business_id)"
+            ))
+            conn.commit()
+            logger.info("Migration: created business_branches table")
+        except Exception:
+            conn.rollback()
+
+        # Make businesses.source_url nullable (new standard-format import may omit it)
+        try:
+            conn.execute(text("ALTER TABLE businesses ALTER COLUMN source_url DROP NOT NULL"))
+            conn.commit()
+            logger.info("Migration: businesses.source_url is now nullable")
+        except Exception:
+            conn.rollback()
+
+        # Make bank_card_offers.source_url nullable (new import path may omit it)
+        try:
+            conn.execute(text("ALTER TABLE bank_card_offers ALTER COLUMN source_url DROP NOT NULL"))
+            conn.commit()
+            logger.info("Migration: bank_card_offers.source_url is now nullable")
+        except Exception:
+            conn.rollback()
+
+        # Make bank_card_offers.place_name nullable (deprecated field)
+        try:
+            conn.execute(text("ALTER TABLE bank_card_offers ALTER COLUMN place_name DROP NOT NULL"))
+            conn.commit()
+            logger.info("Migration: bank_card_offers.place_name is now nullable")
+        except Exception:
+            conn.rollback()
 
     _backfill_delete_after()
 

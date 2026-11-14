@@ -897,52 +897,14 @@ class SettingsAuditLog(Base):
         return f"<SettingsAuditLog action={self.action!r} entity={self.entity_type}:{self.entity_id}>"
 
 
-class BankCardOffer(Base):
-    """One bank/card discount row scraped from a takhfif.app place page
-    (services/takhfif_scraper.py, jobs/scrape_takhfif.py). brand_id is set
-    via the existing brand_discovery duplicate-detector when the place
-    matches a known Brand — null otherwise (e.g. a hotel/restaurant outside
-    this app's catalog). Re-scraping a place deletes its old rows here and
-    reinserts the fresh set, so this table always reflects the last scrape."""
-    __tablename__ = "bank_card_offers"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    source_url = Column(String(500), nullable=False, index=True)
-    place_name = Column(String(255), nullable=False)
-    place_website = Column(String(500), nullable=True)
-    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
-
-    bank_name = Column(String(100), nullable=False, index=True)
-    card_name = Column(String(255), nullable=True)
-    discount_percentage = Column(Float, nullable=True)
-    currency = Column(String(10), nullable=True)
-    expiry_date = Column(DateTime, nullable=True)
-    description = Column(Text, nullable=True)
-
-    # Rich fields from the chrome extension's full detail scrape — null on
-    # rows written by the older flat scrape paths.
-    business_id = Column(Integer, ForeignKey("scraped_businesses.id"), nullable=True, index=True)
-    max_discount_text = Column(String(100), nullable=True)
-    max_discount_amount = Column(Float, nullable=True)
-    valid_days = Column(Text, nullable=True)   # JSON array, e.g. ["Every Saturday"]
-    terms = Column(Text, nullable=True)        # JSON array of the bank's T&C points
-
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=_utcnow, nullable=False)
-    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<BankCardOffer place={self.place_name!r} bank={self.bank_name!r} discount={self.discount_percentage}%>"
-
-
-class ScrapedBusiness(Base):
-    """One takhfif.app business (restaurant/hotel/store) imported from the
-    chrome extension's reviewed detail scrape. Identity + once-per-place data;
-    its per-card discount rows live in bank_card_offers (business_id FK).
-    brand_id links the place to the app's Brand catalog when the duplicate
-    detector (or an admin override) matches it — the merge is a query-time
-    join, brands itself is never written to."""
-    __tablename__ = "scraped_businesses"
+class Business(Base):
+    """One business imported via the chrome extension's detail scrape or any
+    other import source. Source-agnostic — identity + display data only.
+    Per-card discount rows live in bank_card_offers (business_id FK).
+    Per-branch rows live in business_branches (business_id FK).
+    brand_id links to the app's Brand catalog when the duplicate detector
+    or an admin override matches it."""
+    __tablename__ = "businesses"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     slug = Column(String(255), unique=True, nullable=False, index=True)
@@ -959,10 +921,10 @@ class ScrapedBusiness(Base):
     source_url = Column(String(500), nullable=False)
     brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
 
-    branches = Column(Text, nullable=True)        # JSON array of branch objects
+    branches = Column(Text, nullable=True)        # JSON array — legacy, superseded by business_branches rows
     opening_hours = Column(Text, nullable=True)   # JSON array of {day, hours}
     gallery = Column(Text, nullable=True)         # JSON array of image URLs
-    social_links = Column(Text, nullable=True)    # JSON object {facebook, instagram, maps}
+    social_links = Column(Text, nullable=True)    # JSON object {facebook, instagram, website}
     menu_pages = Column(Integer, nullable=True)
 
     is_active = Column(Boolean, default=True, nullable=False)
@@ -971,4 +933,66 @@ class ScrapedBusiness(Base):
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
 
     def __repr__(self) -> str:
-        return f"<ScrapedBusiness id={self.id} slug={self.slug!r} brand_id={self.brand_id}>"
+        return f"<Business id={self.id} slug={self.slug!r} brand_id={self.brand_id}>"
+
+
+# Backward-compat alias — remove once all references are updated
+ScrapedBusiness = Business
+
+
+class BusinessBranch(Base):
+    """One physical location of a Business."""
+    __tablename__ = "business_branches"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False, index=True)
+
+    name = Column(String(255), nullable=True)
+    address = Column(String(500), nullable=True)
+    city = Column(String(100), nullable=True)
+    area = Column(String(100), nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    phone = Column(String(50), nullable=True)
+    opening_hours = Column(String(255), nullable=True)
+    directions_url = Column(String(500), nullable=True)
+    place_id = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<BusinessBranch id={self.id} business_id={self.business_id} name={self.name!r}>"
+
+
+class BankCardOffer(Base):
+    """One bank/card discount offer linked to a Business."""
+    __tablename__ = "bank_card_offers"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True, index=True)
+    source_url = Column(String(500), nullable=True, index=True)
+
+    # Legacy flat-scrape fields — kept for backward compat, not written by new import path
+    place_name = Column(String(255), nullable=True)
+    place_website = Column(String(500), nullable=True)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
+
+    bank_name = Column(String(100), nullable=False, index=True)
+    bank_logo = Column(String(500), nullable=True)
+    card_name = Column(String(255), nullable=True)
+    discount_percentage = Column(Float, nullable=True)
+    max_discount_text = Column(String(100), nullable=True)
+    max_discount_amount = Column(Float, nullable=True)
+    currency = Column(String(10), nullable=True)
+    expiry_date = Column(DateTime, nullable=True)
+    description = Column(Text, nullable=True)
+    valid_days = Column(Text, nullable=True)   # JSON array
+    terms = Column(Text, nullable=True)        # JSON array
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<BankCardOffer business_id={self.business_id} bank={self.bank_name!r} card={self.card_name!r}>"

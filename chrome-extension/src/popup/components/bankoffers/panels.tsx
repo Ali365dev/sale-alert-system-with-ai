@@ -1,12 +1,10 @@
 import { useState } from "react";
 import type {
-  TakhfifBusinessDetail, TakhfifDetailMode, TakhfifHealth, TakhfifListing,
+  TakhfifBusinessDetail, TakhfifDetailMode, TakhfifHealth,
   TakhfifLogEntry, TakhfifSession,
 } from "../../../types/takhfif";
 import { ChevronDownIcon, ChevronUpIcon, ExternalLinkIcon, GlobeIcon } from "./icons";
-import {
-  exportBusinessesJson, exportFullJson, exportListingsCsv, exportListingsJson, exportOffersCsv, flattenOffers,
-} from "./exporters";
+import { exportBusinessesJson, exportOffersCsv, flattenOffers } from "./exporters";
 
 const HEALTH_META: Record<TakhfifHealth["status"], { label: string; cls: string }> = {
   healthy:               { label: "Healthy",               cls: "bg-green-500/10 text-green-400 border-green-500/20" },
@@ -73,8 +71,7 @@ export function SourceCard() {
   );
 }
 
-export function ExportBar({ listings, details }: {
-  listings: TakhfifListing[];
+export function ExportBar({ details }: {
   details: Record<string, TakhfifBusinessDetail>;
 }) {
   const btn = "px-2.5 py-1.5 text-[10px] font-bold bg-surface border border-line rounded-lg text-t2 hover:border-primary/40 hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition";
@@ -83,16 +80,10 @@ export function ExportBar({ listings, details }: {
     <div className="mx-3 mb-2.5 flex items-center justify-between gap-2">
       <span className="text-[10px] font-semibold text-t2 flex-shrink-0">Export</span>
       <div className="flex gap-1.5 flex-wrap justify-end">
-        <button disabled={!listings.length} onClick={() => exportListingsJson(listings)}
-          title="Export listings as JSON" className={btn}>Listings JSON</button>
-        <button disabled={!listings.length} onClick={() => exportListingsCsv(listings)}
-          title="Export listings as CSV" className={btn}>Listings CSV</button>
         <button disabled={!hasDetails} onClick={() => exportOffersCsv(flattenOffers(details))}
           title={hasDetails ? "Export all card offers as CSV" : "Run detail scraping first"} className={btn}>Offers CSV</button>
         <button disabled={!hasDetails} onClick={() => exportBusinessesJson(details)}
-          title={hasDetails ? "Export businesses in the normalized schema" : "Run detail scraping first"} className={btn}>Businesses JSON</button>
-        <button disabled={!hasDetails} onClick={() => exportFullJson(listings, details)}
-          title={hasDetails ? "Export the complete dataset as JSON" : "Run detail scraping first"} className={btn}>Full JSON</button>
+          title={hasDetails ? "Export businesses JSON" : "Run detail scraping first"} className={btn}>Businesses JSON</button>
       </div>
     </div>
   );

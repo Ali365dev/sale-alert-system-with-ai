@@ -1,9 +1,9 @@
 import type {
   TakhfifBusinessDetail, TakhfifDetailMode, TakhfifDetailResult,
-  TakhfifListing, TakhfifQueueItem, TakhfifSession,
+  TakhfifQueueItem, TakhfifSession,
 } from "../types/takhfif";
 import { bumpDelay, pauseFor, politeDelayMs, recordFailure, recordOk, waitInterruptible } from "./takhfif-health";
-import { KEYS, get, log, saveSession, set } from "./takhfif-store";
+import { KEYS, get, log, normUrl, saveSession, set, slugOf } from "./takhfif-store";
 import { beginRun, closeScraperTab, ctl, endRun, interrupted, loadPage } from "./takhfif-tab";
 
 type DetailsStore = Record<string, TakhfifBusinessDetail>;
@@ -24,9 +24,6 @@ function mergeDetail(prev: TakhfifBusinessDetail | undefined, next: TakhfifBusin
   return { ...prev, ...next, banks, branches, gallery: next.gallery.length ? next.gallery : prev.gallery };
 }
 
-function slugOf(url: string): string {
-  return url.split("/place/")[1]?.split(/[/?#]/)[0] ?? url;
-}
 
 async function runDetails(session: TakhfifSession, queue: TakhfifQueueItem[], only?: Set<string>): Promise<void> {
   const p2 = session.phase2;
@@ -183,11 +180,11 @@ export async function startTakhfifSingleDetail(detailUrl: string): Promise<{ ok:
   const queue = (await get<TakhfifQueueItem[]>(KEYS.queue)) ?? [];
   let item = queue.find((q) => q.detailUrl === detailUrl);
   if (!item) {
-    const listings = (await get<TakhfifListing[]>(KEYS.listings)) ?? [];
-    const listing = listings.find((l) => l.detail_url === detailUrl);
+    const store = (await get<DetailsStore>(KEYS.details)) ?? {};
+    const existing = Object.values(store).find((d) => normUrl(d.canonicalUrl) === normUrl(detailUrl));
     item = {
       detailUrl,
-      businessName: listing?.business_name ?? slugOf(detailUrl).replace(/-/g, " "),
+      businessName: existing?.name ?? slugOf(detailUrl).replace(/-/g, " "),
       status: "pending", retries: 0, error: null,
     };
     queue.push(item);

@@ -253,6 +253,83 @@ def _migrate() -> None:
             except Exception:
                 conn.rollback()
 
+        # Migrate scraped_businesses → businesses (create_all may have created
+        # an empty businesses table already, so copy rows rather than rename)
+        try:
+            old_exists = conn.execute(text(
+                "SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='scraped_businesses'"
+            )).fetchone()
+            if old_exists:
+                conn.execute(text("""
+                    INSERT INTO businesses
+                    SELECT * FROM scraped_businesses
+                    WHERE id NOT IN (SELECT id FROM businesses)
+                """))
+                conn.execute(text("""
+                    SELECT setval(
+                        pg_get_serial_sequence('businesses','id'),
+                        GREATEST((SELECT COALESCE(MAX(id),0) FROM businesses),
+                                 (SELECT COALESCE(MAX(id),0) FROM scraped_businesses))
+                    )
+                """))
+                conn.commit()
+                logger.info("Migration: copied scraped_businesses rows into businesses")
+                conn.execute(text("DROP TABLE IF EXISTS scraped_businesses"))
+                conn.commit()
+                logger.info("Migration: dropped scraped_businesses")
+        except Exception as e:
+            conn.rollback()
+            logger.warning("Migration: scraped_businesses copy failed — %s", e)
+
+        # Create business_branches table
+        try:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS business_branches (
+                    id SERIAL PRIMARY KEY,
+                    business_id INTEGER NOT NULL REFERENCES businesses(id),
+                    name VARCHAR(255),
+                    address VARCHAR(500),
+                    city VARCHAR(100),
+                    area VARCHAR(100),
+                    latitude FLOAT,
+                    longitude FLOAT,
+                    phone VARCHAR(50),
+                    opening_hours VARCHAR(255),
+                    directions_url VARCHAR(500),
+                    place_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_business_branches_business_id ON business_branches (business_id)"
+            ))
+            conn.commit()
+            logger.info("Migration: created business_branches table")
+        except Exception:
+            conn.rollback()
+
+        # Make businesses.source_url nullable
+        try:
+            conn.execute(text("ALTER TABLE businesses ALTER COLUMN source_url DROP NOT NULL"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        # Make bank_card_offers.source_url nullable
+        try:
+            conn.execute(text("ALTER TABLE bank_card_offers ALTER COLUMN source_url DROP NOT NULL"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+        # Make bank_card_offers.place_name nullable
+        try:
+            conn.execute(text("ALTER TABLE bank_card_offers ALTER COLUMN place_name DROP NOT NULL"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
     _backfill_delete_after()
 
 

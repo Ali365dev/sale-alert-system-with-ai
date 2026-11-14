@@ -39,10 +39,13 @@ export async function requestLocationPermission() {
       return false;
     }
   }
-  // iOS — triggers the native "Allow location?" system alert.
-  // The return value here is just the trigger; actual grant is determined when
-  // getCurrentPosition fires (it succeeds if granted, errors if denied).
-  Geolocation.requestAuthorization('whenInUse');
+  // iOS — configure the authorization level then let getCurrentPosition trigger
+  // the system alert. requestAuthorization(string) crashes on some native builds;
+  // setRNConfiguration is the v3.x-safe way to declare 'whenInUse'.
+  Geolocation.setRNConfiguration({
+    skipPermissionRequests: false,
+    authorizationLevel: 'whenInUse',
+  });
   return true;
 }
 

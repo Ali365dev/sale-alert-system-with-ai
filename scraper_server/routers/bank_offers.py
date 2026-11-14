@@ -96,13 +96,28 @@ def save_manual_offers(body: dict = Body(...)):
 
 @router.post("/import")
 def import_business(body: dict = Body(...)):
-    """Imports one reviewed business from the chrome extension's Takhfif
-    detail scrape — the body is the extension's native TakhfifBusinessDetail
-    JSON. Upserts scraped_businesses by slug and replaces that business's
-    bank_card_offers rows."""
-    if not (body.get("slug") or "").strip() or not (body.get("name") or "").strip():
-        return JSONResponse({"error": "slug and name are required"}, status_code=400)
+    """Imports businesses from the chrome extension.
+
+    Accepts two formats:
+      - Bulk standard: { "businesses": [{business_id, name, banks, branches}, ...] }
+      - Legacy single: TakhfifBusinessDetail JSON (has "slug" key)
+    """
+    # Bulk standard format
+    if "businesses" in body:
+        businesses = body["businesses"]
+        if not isinstance(businesses, list) or not businesses:
+            return JSONResponse({"error": "businesses must be a non-empty list"}, status_code=400)
+        result = scraped_business_store.upsert_businesses_bulk(businesses)
+        return JSONResponse(result, status_code=201)
+
+    # Legacy single format
+    if not (body.get("slug") or body.get("business_id") or "").strip():
+        return JSONResponse({"error": "slug/business_id and name are required"}, status_code=400)
+    if not (body.get("name") or "").strip():
+        return JSONResponse({"error": "name is required"}, status_code=400)
     result = scraped_business_store.upsert_business(body)
+    if "error" in result:
+        return JSONResponse(result, status_code=400)
     return JSONResponse(result, status_code=201)
 
 

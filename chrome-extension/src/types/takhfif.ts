@@ -229,3 +229,50 @@ export interface TakhfifDetailResult {
   warnings: string[];
   error?: string;
 }
+
+// ── Standard import format (pushed to backend) ────────────────────────────────
+
+export interface BusinessCard {
+  card_name: string;
+  discount_percentage: number | null;
+  maximum_discount?: number | null;
+  valid_days?: string;
+  terms_and_conditions?: string;
+  currency?: string;
+}
+
+export interface BusinessBank {
+  bank_name: string;
+  bank_logo?: string;
+  cards: BusinessCard[];
+}
+
+export interface BusinessBranch {
+  name?: string;
+  address?: string;
+  city?: string;
+  area?: string;
+  latitude?: number;
+  longitude?: number;
+  phone?: string;
+  opening_hours?: string;
+  directions_url?: string;
+  place_id?: string;
+}
+
+export interface BusinessDetail {
+  business_id: string;
+  name: string;
+  category?: string;
+  city?: string;
+  description?: string;
+  rating?: number;
+  review_count?: number;
+  phone?: string;
+  website?: string;
+  logo_url?: string;
+  cover_image_url?: string;
+  source_url?: string;
+  banks: BusinessBank[];
+  branches: BusinessBranch[];
+}

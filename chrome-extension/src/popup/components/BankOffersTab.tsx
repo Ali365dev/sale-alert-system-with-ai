@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
   TakhfifBusinessDetail, TakhfifConfigSnapshot, TakhfifDetailMode,
-  TakhfifListing, TakhfifLogEntry, TakhfifQueueItem, TakhfifSession,
+  TakhfifLogEntry, TakhfifQueueItem, TakhfifSession,
 } from "../../types/takhfif";
 import { PhaseCard, StatCard } from "./bankoffers/primitives";
 import type { PhaseStatus } from "./bankoffers/primitives";
@@ -17,7 +17,6 @@ import { AlertIcon, BankIcon, BuildingIcon, CardIcon } from "./bankoffers/icons"
 // the shared types module must stay type-only for content-script bundling).
 const KEYS = {
   session: "dm_takhfif_session",
-  listings: "dm_takhfif_listings",
   queue: "dm_takhfif_detail_queue",
   details: "dm_takhfif_details",
   logs: "dm_takhfif_logs",
@@ -64,7 +63,6 @@ function saneSession(s: unknown): TakhfifSession | null {
 export function BankOffersTab({ onToast }: Props) {
   const [options, setOptions] = useState<TakhfifOptions>(DEFAULT_OPTIONS);
   const [session, setSession] = useState<TakhfifSession | null>(null);
-  const [listings, setListings] = useState<TakhfifListing[]>([]);
   const [queue, setQueue] = useState<TakhfifQueueItem[]>([]);
   const [details, setDetails] = useState<DetailsStore>({});
   const [logs, setLogs] = useState<TakhfifLogEntry[]>([]);
@@ -75,7 +73,6 @@ export function BankOffersTab({ onToast }: Props) {
     chrome.storage.local.get([OPTIONS_KEY, ...Object.values(KEYS)], (r) => {
       if (r[OPTIONS_KEY]) setOptions((prev) => ({ ...prev, ...(r[OPTIONS_KEY] as Partial<TakhfifOptions>) }));
       setSession(saneSession(r[KEYS.session]));
-      setListings((r[KEYS.listings] as TakhfifListing[]) ?? []);
       setQueue((r[KEYS.queue] as TakhfifQueueItem[]) ?? []);
       setDetails((r[KEYS.details] as DetailsStore) ?? {});
       setLogs((r[KEYS.logs] as TakhfifLogEntry[]) ?? []);
@@ -83,7 +80,6 @@ export function BankOffersTab({ onToast }: Props) {
     const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== "local") return;
       if (changes[KEYS.session]) setSession(saneSession(changes[KEYS.session].newValue));
-      if (changes[KEYS.listings]) setListings((changes[KEYS.listings].newValue as TakhfifListing[]) ?? []);
       if (changes[KEYS.queue]) setQueue((changes[KEYS.queue].newValue as TakhfifQueueItem[]) ?? []);
       if (changes[KEYS.details]) setDetails((changes[KEYS.details].newValue as DetailsStore) ?? {});
       if (changes[KEYS.logs]) setLogs((changes[KEYS.logs].newValue as TakhfifLogEntry[]) ?? []);
@@ -114,7 +110,7 @@ export function BankOffersTab({ onToast }: Props) {
 
   const handleStart = () => {
     if (session && window.confirm(
-      "Starting a new session replaces the existing one and its extracted listings. Export them first if you need them. Continue?",
+      "Starting a new session replaces the existing one and all its extracted data. Export first if you need it. Continue?",
     ) === false) return;
     const config: TakhfifConfigSnapshot = {
       scrapeAllPages: options.scrapeAllPages,
@@ -189,7 +185,6 @@ export function BankOffersTab({ onToast }: Props) {
     : "Page 0";
 
   const offers = useMemo(() => flattenOffers(details), [details]);
-  const completedSlugs = useMemo(() => new Set(Object.keys(details)), [details]);
   const failedItems = useMemo(() => queue.filter((q) => q.status === "failed"), [queue]);
   const totalTiers = useMemo(
     () => Object.values(details).reduce((n, d) => n + d.banks.reduce((m, b) => m + b.tiers.length, 0), 0),
@@ -285,19 +280,17 @@ export function BankOffersTab({ onToast }: Props) {
 
         {/* ── Stats grid ── */}
         <div className="mx-3 mb-2.5 grid grid-cols-2 gap-2">
-          <StatCard icon={<BuildingIcon />} label="Places Scraped" value={completedSlugs.size || listings.length} />
+          <StatCard icon={<BuildingIcon />} label="Places Scraped" value={Object.keys(details).length} />
           <StatCard icon={<BankIcon />} label="Bank Offers" value={detailsEnabled ? totalTiers : "N/A"} faded={!detailsEnabled} />
           <StatCard icon={<CardIcon />} label="Cards Found" value={detailsEnabled ? offers.length : "N/A"} faded={!detailsEnabled} />
           <StatCard icon={<AlertIcon />} label="Failed" value={(p1?.failedPages.length ?? 0) + failedItems.length} />
         </div>
 
         <ResultsPanel
-          listings={listings}
           offers={offers}
           details={details}
           failedPages={p1?.failedPages ?? []}
           failedItems={failedItems}
-          completedSlugs={completedSlugs}
           detailsEnabled={detailsEnabled}
           canScrape={!busy && effStatus !== "running"}
           onRetryFailed={() => handleStartDetails("failed")}
@@ -307,7 +300,7 @@ export function BankOffersTab({ onToast }: Props) {
           onPushAll={handlePushAll}
         />
 
-        <ExportBar listings={listings} details={details} />
+        <ExportBar details={details} />
 
         <LogsPanel logs={logs} />
 

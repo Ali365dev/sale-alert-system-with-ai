@@ -1,11 +1,14 @@
 import type {
-  TakhfifConfigSnapshot, TakhfifListing, TakhfifPageResult, TakhfifQueueItem, TakhfifSession,
+  TakhfifBusinessDetail, TakhfifConfigSnapshot, TakhfifQueueItem, TakhfifSession,
 } from "../types/takhfif";
+import type { TakhfifPageResult } from "../types/takhfif";
 import { newHealth, politeDelayMs, waitInterruptible } from "./takhfif-health";
 import { scrapeListingPage } from "./takhfif-steps";
 import type { StepIo } from "./takhfif-steps";
 import { KEYS, get, log, normUrl, saveSession, set } from "./takhfif-store";
 import { beginRun, closeScraperTab, ctl, endRun, interrupted, loadPage } from "./takhfif-tab";
+
+type DetailsStore = Record<string, TakhfifBusinessDetail>;
 
 async function finalize(session: TakhfifSession): Promise<void> {
   const p1 = session.phase1;
@@ -15,10 +18,15 @@ async function finalize(session: TakhfifSession): Promise<void> {
     await log("success",
       `Listing extraction completed — ${p1.pagesCompleted} page(s), ${p1.saved} unique businesses, ${p1.duplicates} duplicates skipped, ${p1.failedPages.length} failed page(s).`);
     if (session.config.detailsEnabled) {
-      const listings = (await get<TakhfifListing[]>(KEYS.listings)) ?? [];
-      const queue: TakhfifQueueItem[] = listings.map((l) => ({
-        detailUrl: l.detail_url, businessName: l.business_name,
-        status: "pending", retries: 0, error: null,
+      // Build queue from the details store (every entry is either a skeleton
+      // from phase 1 or a full record from a previous detail run)
+      const details = (await get<DetailsStore>(KEYS.details)) ?? {};
+      const queue: TakhfifQueueItem[] = Object.values(details).map((d) => ({
+        detailUrl: d.canonicalUrl,
+        businessName: d.name,
+        status: "pending" as const,
+        retries: 0,
+        error: null,
       }));
       await set({ [KEYS.queue]: queue });
       session.phase2.status = "ready";
@@ -32,8 +40,6 @@ async function finalize(session: TakhfifSession): Promise<void> {
     p1.finishedAt = new Date().toISOString();
   }
   await saveSession(session);
-  // Keep the tab open on verification/access pauses so the user can resolve
-  // the challenge in it; close it otherwise.
   const keepTab = p1.status === "paused"
     && (session.health.status === "verification_required" || session.health.status === "access_restricted");
   if (!keepTab) closeScraperTab();
@@ -48,8 +54,6 @@ async function run(session: TakhfifSession, seen: Set<string>): Promise<void> {
       loadPage<TakhfifPageResult>(url, cfg.navTimeoutMs, { type: "EXTRACT_TAKHFIF_LISTING_PAGE" }, interrupted),
     interrupted,
   };
-  // Resume continues at the page AFTER the last fully completed one, so an
-  // interrupted page is retried, never skipped.
   let page = Math.max(cfg.startPage, p1.lastCompletedPage + 1);
   const endPage = cfg.scrapeAllPages ? null : cfg.endPage;
 
@@ -70,8 +74,6 @@ async function run(session: TakhfifSession, seen: Set<string>): Promise<void> {
       if (outcome === "interrupted") break;
 
       if (outcome === "ok") {
-        // The site reporting a different page than requested (redirect) or no
-        // next link means the catalog ended here — even if endPage is higher.
         const reportedPage = result?.currentPage ?? page;
         const noNext = !result?.nextUrl;
         const pastEnd = p1.totalPages != null && page >= p1.totalPages;
@@ -83,8 +85,6 @@ async function run(session: TakhfifSession, seen: Set<string>): Promise<void> {
           break;
         }
       }
-      // outcome === "failed": page recorded in failedPages — move on if more
-      // pages are known to exist, otherwise finish with what we have.
       if (outcome === "failed" && p1.totalPages == null) {
         p1.status = p1.saved > 0 ? "completed" : "failed";
         if (p1.status === "failed") p1.error = `Page ${page} failed and no further pages are known.`;
@@ -118,7 +118,7 @@ async function run(session: TakhfifSession, seen: Set<string>): Promise<void> {
   }
 }
 
-// ── Public API (called from the service worker's message handler) ─────────────
+// ── Public API ────────────────────────────────────────────────────────────────
 
 export async function startTakhfifListing(config: TakhfifConfigSnapshot): Promise<{ ok: boolean; error?: string }> {
   const startPage = Math.max(1, Math.floor(config.startPage) || 1);
@@ -149,7 +149,7 @@ export async function startTakhfifListing(config: TakhfifConfigSnapshot): Promis
     },
     updatedAt: now,
   };
-  await set({ [KEYS.session]: session, [KEYS.listings]: [], [KEYS.queue]: [], [KEYS.details]: {}, [KEYS.logs]: [] });
+  await set({ [KEYS.session]: session, [KEYS.queue]: [], [KEYS.details]: {}, [KEYS.logs]: [] });
   await log("info",
     `Listing scraping started — ${cfg.scrapeAllPages ? "all pages" : `pages ${startPage}–${endPage ?? "end"}`}, details ${cfg.detailsEnabled ? "enabled" : "disabled"}.`);
   void run(session, new Set());
@@ -184,8 +184,8 @@ export async function resumeTakhfifListing(): Promise<{ ok: boolean; error?: str
     return { ok: false, error: "Session was created by an older version — start a new session." };
   }
   if (!beginRun("listing")) return { ok: false, error: "A scraping session is already running." };
-  const listings = (await get<TakhfifListing[]>(KEYS.listings)) ?? [];
-  const seen = new Set(listings.map((l) => normUrl(l.detail_url)));
+  const details = (await get<DetailsStore>(KEYS.details)) ?? {};
+  const seen = new Set(Object.values(details).map((d) => normUrl(d.canonicalUrl)));
   session.phase1.status = "running";
   session.phase1.pauseReason = null;
   session.phase1.error = null;
@@ -201,7 +201,7 @@ export async function clearTakhfifSession(): Promise<{ ok: boolean; error?: stri
   if (ctl.running !== "idle") return { ok: false, error: "Stop the running session first." };
   closeScraperTab();
   await new Promise<void>((res) =>
-    chrome.storage.local.remove([KEYS.session, KEYS.listings, KEYS.queue, KEYS.details, KEYS.logs], () => res()));
+    chrome.storage.local.remove([KEYS.session, KEYS.queue, KEYS.details, KEYS.logs], () => res()));
   return { ok: true };
 }
 

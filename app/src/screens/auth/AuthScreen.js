@@ -27,6 +27,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import GoogleLogo from '../../components/GoogleLogo';
 import CountryPicker from '../../components/CountryPicker';
 import regionStore from '../../state/regionStore';
+import useOnboardingGateStore from '../../state/onboardingGateStore';
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -65,6 +66,7 @@ const AuthScreen = ({ initialMode = 'login' }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const setAuth = useAuthStore((state) => state.setAuth);
+  const setGuest = useOnboardingGateStore((state) => state.setGuest);
 
   const [mode, setMode] = useState(initialMode === 'signup' ? 'signup' : 'login');
   const isSignup = mode === 'signup';
@@ -99,7 +101,8 @@ const AuthScreen = ({ initialMode = 'login' }) => {
   }, []);
 
   /** Skip / successful auth → Home with a clean stack (no back to Sign In). */
-  const enterHome = () => {
+  const enterHome = (asGuest = false) => {
+    setGuest(asGuest);
     navigation.reset({
       index: 0,
       routes: [
@@ -259,7 +262,7 @@ const AuthScreen = ({ initialMode = 'login' }) => {
       <AuthChrome
         mode={mode}
         compact={keyboardVisible}
-        onSkip={enterHome}
+        onSkip={() => enterHome(true)}
         onSwitchMode={switchMode}>
         <ScrollView
           style={styles.scroll}

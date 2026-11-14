@@ -20,9 +20,9 @@ const readPersistedAuthToken = () => {
   }
 };
 
-const resolveInitialRoute = (hasOnboarded, token) => {
+const resolveInitialRoute = (hasOnboarded, token, isGuest) => {
   if (!hasOnboarded) return 'OnboardingWelcomeScreen';
-  if (!token) return 'SignInScreen';
+  if (!token && !isGuest) return 'SignInScreen';
   return 'MainTabs';
 };
 
@@ -30,9 +30,10 @@ function MainNavigator() {
   const { colors } = useTheme();
   // MMKV-backed and sync — correct on first paint (no splash gate / route flash).
   const hasOnboarded = useOnboardingGateStore((state) => state.hasOnboarded);
+  const isGuest = useOnboardingGateStore((state) => state.isGuest);
   const liveToken = useAuthStore((state) => state.token);
   const token = liveToken ?? readPersistedAuthToken();
-  const initialRouteName = resolveInitialRoute(hasOnboarded, token);
+  const initialRouteName = resolveInitialRoute(hasOnboarded, token, isGuest);
 
   return (
     <Stack.Navigator

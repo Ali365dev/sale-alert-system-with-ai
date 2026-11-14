@@ -1,14 +1,51 @@
-import type { TakhfifBusinessDetail } from "../types/takhfif";
+import type { BusinessDetail, TakhfifBusinessDetail } from "../types/takhfif";
 import { KEYS, get, log, set } from "./takhfif-store";
 
 type DetailsStore = Record<string, TakhfifBusinessDetail>;
 
 interface PushResult { ok: boolean; error?: string; saved?: number }
 
-/** POSTs one reviewed business (native detail JSON) to the scraper server's
- * /api/bank-offers/import. Uses fetch — axios' XHR adapter doesn't exist in
- * a MV3 service worker. */
-async function postBusiness(detail: TakhfifBusinessDetail): Promise<{ ok: boolean; error?: string }> {
+/** Maps the internal TakhfifBusinessDetail (camelCase, nested tiers) to the
+ * standard BusinessDetail payload (snake_case, flat cards) for backend import. */
+function detailToStandardPayload(detail: TakhfifBusinessDetail): BusinessDetail {
+  return {
+    business_id: detail.slug,
+    name: detail.name,
+    category: detail.category,
+    city: detail.city,
+    description: detail.description,
+    rating: detail.rating,
+    phone: detail.phone,
+    website: detail.website,
+    logo_url: detail.logoImage,
+    cover_image_url: detail.coverImage,
+    source_url: detail.canonicalUrl || detail.sourceUrl,
+    banks: (detail.banks || []).map((bank) => ({
+      bank_name: bank.bankName,
+      bank_logo: undefined,
+      cards: (bank.tiers || []).flatMap((tier) =>
+        (tier.cards || []).map((card) => ({
+          card_name: card.cardName,
+          discount_percentage: card.discountPercentage ?? tier.discountPercentage ?? null,
+          maximum_discount: card.maxDiscountAmount ?? null,
+          valid_days: tier.title && !/\%\s*off/i.test(tier.title) ? tier.title : undefined,
+          terms_and_conditions: (bank.terms || []).join("; ") || undefined,
+          currency: card.currency,
+        }))
+      ),
+    })),
+    branches: (detail.branches || []).map((br) => ({
+      name: br.name,
+      address: br.address,
+      latitude: br.latitude,
+      longitude: br.longitude,
+      directions_url: br.directionsUrl,
+      place_id: br.placeId,
+    })),
+  };
+}
+
+async function postBusinesses(payload: BusinessDetail[]): Promise<{ ok: boolean; error?: string; saved?: number }> {
   const settings = await get<{ scraperServerUrl?: string; sessionToken?: string }>("dm_settings");
   if (!settings?.scraperServerUrl || !settings.sessionToken) {
     return { ok: false, error: "Backend not configured — set server URL and session token in Settings." };
@@ -17,13 +54,11 @@ async function postBusiness(detail: TakhfifBusinessDetail): Promise<{ ok: boolea
     const res = await fetch(`${settings.scraperServerUrl}/api/bank-offers/import`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Session-Token": settings.sessionToken },
-      body: JSON.stringify(detail),
+      body: JSON.stringify({ businesses: payload }),
     });
-    const data = await res.json().catch(() => null) as { error?: string; offers_saved?: number; brand_name?: string | null } | null;
+    const data = await res.json().catch(() => null) as { error?: string; saved?: number; errors?: string[] } | null;
     if (!res.ok) return { ok: false, error: data?.error ?? `Backend save failed (HTTP ${res.status}).` };
-    await log("success",
-      `${detail.name} saved to backend — ${data?.offers_saved ?? 0} offer row(s)${data?.brand_name ? `, matched brand "${data.brand_name}"` : ""}.`);
-    return { ok: true };
+    return { ok: true, saved: data?.saved ?? payload.length };
   } catch (err) {
     return { ok: false, error: `Backend save failed: ${err instanceof Error ? err.message : "network error"}.` };
   }
@@ -33,11 +68,14 @@ export async function pushTakhfifBusiness(slug: string): Promise<PushResult> {
   const store = (await get<DetailsStore>(KEYS.details)) ?? {};
   const detail = store[slug];
   if (!detail) return { ok: false, error: "No scraped details for this business yet." };
-  const res = await postBusiness(detail);
+
+  const payload = detailToStandardPayload(detail);
+  const res = await postBusinesses([payload]);
   if (!res.ok) {
     await log("error", `${detail.name}: ${res.error}`);
     return { ok: false, error: res.error };
   }
+  await log("success", `${detail.name} saved to backend — ${res.saved ?? 1} business(es).`);
   detail.pushedAt = new Date().toISOString();
   await set({ [KEYS.details]: store });
   return { ok: true, saved: 1 };
@@ -49,23 +87,18 @@ export async function pushAllTakhfifBusinesses(): Promise<PushResult> {
     .filter((d) => !d.pushedAt || d.scrapedAt > d.pushedAt);
   if (!pending.length) return { ok: false, error: "Everything is already synced." };
 
-  let saved = 0;
-  let lastError: string | undefined;
-  for (const detail of pending) {
-    const res = await postBusiness(detail);
-    if (res.ok) {
-      detail.pushedAt = new Date().toISOString();
-      saved++;
-      await set({ [KEYS.details]: store }); // incremental — badges update live
-    } else {
-      lastError = res.error;
-      await log("error", `${detail.name}: ${res.error}`);
-      if (res.error?.includes("not configured")) break; // no point retrying the rest
-    }
+  const payload = pending.map(detailToStandardPayload);
+  const res = await postBusinesses(payload);
+  if (!res.ok) {
+    await log("error", `Backend sync failed: ${res.error}`);
+    return { ok: false, error: res.error };
   }
-  await log(saved ? "success" : "error",
-    `Backend sync finished — ${saved}/${pending.length} business(es) saved.`);
-  return saved
-    ? { ok: true, saved }
-    : { ok: false, error: lastError ?? "No businesses were saved." };
+
+  const now = new Date().toISOString();
+  for (const detail of pending) {
+    detail.pushedAt = now;
+  }
+  await set({ [KEYS.details]: store });
+  await log("success", `Backend sync finished — ${res.saved ?? pending.length}/${pending.length} business(es) saved.`);
+  return { ok: true, saved: res.saved ?? pending.length };
 }
