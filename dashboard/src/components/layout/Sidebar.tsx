@@ -46,6 +46,7 @@ const AUTOMATION_ITEMS: NavItem[] = [
 
 const OFFERS_ITEMS: NavItem[] = [
   { to: "/offers", label: "All Offers", icon: Icon.offer },
+  { to: "/bank-offers", label: "Bank Offers", icon: Icon.offer },
   { to: "/offer-discovery", label: "Offer Discovery", icon: Icon.sparkle },
   { to: "/search", label: "Search", icon: Icon.search },
 ];

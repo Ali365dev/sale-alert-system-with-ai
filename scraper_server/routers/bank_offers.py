@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from core.security import require_admin
 from database.db import get_session
 from database.models import BankCardOffer, Brand
-from services import bank_offers_store, job_runner, job_service
+from services import bank_offers_store, job_runner, job_service, scraped_business_store
 
 router = APIRouter(prefix="/api/bank-offers", tags=["bank_offers"], dependencies=[Depends(require_admin)])
 
@@ -92,6 +92,64 @@ def save_manual_offers(body: dict = Body(...)):
 
     count = bank_offers_store.upsert_place_offers(source_url, place_name, place_website, None, offers)
     return JSONResponse({"saved": count}, status_code=201)
+
+
+@router.post("/import")
+def import_business(body: dict = Body(...)):
+    """Imports one reviewed business from the chrome extension's Takhfif
+    detail scrape — the body is the extension's native TakhfifBusinessDetail
+    JSON. Upserts scraped_businesses by slug and replaces that business's
+    bank_card_offers rows."""
+    if not (body.get("slug") or "").strip() or not (body.get("name") or "").strip():
+        return JSONResponse({"error": "slug and name are required"}, status_code=400)
+    result = scraped_business_store.upsert_business(body)
+    return JSONResponse(result, status_code=201)
+
+
+@router.get("/businesses")
+def list_businesses(
+    q: str | None = Query(default=None),
+    matched_only: bool = Query(default=False),
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0, ge=0),
+):
+    return scraped_business_store.list_businesses(limit, offset, q, matched_only)
+
+
+@router.get("/businesses/{business_id}")
+def get_business(business_id: int):
+    detail = scraped_business_store.get_business(business_id)
+    if detail is None:
+        return JSONResponse({"error": "business not found"}, status_code=404)
+    return detail
+
+
+@router.patch("/businesses/{business_id}/brand")
+def set_business_brand(business_id: int, body: dict = Body(...)):
+    """Admin override of the brand match. {"brand_id": N} links, null clears."""
+    result = scraped_business_store.set_business_brand(business_id, body.get("brand_id"))
+    if result is None:
+        return JSONResponse({"error": "business not found"}, status_code=404)
+    if "error" in result:
+        return JSONResponse(result, status_code=400)
+    return result
+
+
+@router.delete("/businesses/{business_id}")
+def delete_business(business_id: int):
+    if not scraped_business_store.delete_business(business_id):
+        return JSONResponse({"error": "business not found"}, status_code=404)
+    return {"deleted": True}
+
+
+@router.get("/combined/{brand_id}")
+def combined_offers(brand_id: int):
+    """Merged view for a catalog brand: its sale offers + bank-card offers
+    + linked scraped businesses."""
+    result = scraped_business_store.combined_offers(brand_id)
+    if result is None:
+        return JSONResponse({"error": "brand not found"}, status_code=404)
+    return result
 
 
 @router.get("")

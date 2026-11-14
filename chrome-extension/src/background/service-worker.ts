@@ -4,10 +4,19 @@ import {
   startTakhfifListing, pauseTakhfifListing, resumeTakhfifListing,
   stopTakhfifListing, clearTakhfifSession, recoverTakhfifSession,
 } from "./takhfif-listing";
+import {
+  startTakhfifDetails, startTakhfifSingleDetail,
+  pauseTakhfifDetails, resumeTakhfifDetails, stopTakhfifDetails,
+} from "./takhfif-details";
+import { pushAllTakhfifBusinesses, pushTakhfifBusiness } from "./takhfif-push";
+import { initTakhfifWatchdog } from "./takhfif-watchdog";
+import type { TakhfifDetailMode } from "../types/takhfif";
 
 // Runs on every service-worker start: surfaces a loop killed by a worker
 // restart as a paused (resumable) session instead of a stuck "running" one.
 recoverTakhfifSession();
+// …and the watchdog auto-resumes interrupted runs (never protection pauses).
+initTakhfifWatchdog();
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Deals More Scraper installed.");
@@ -81,7 +90,7 @@ async function scrapeTabUrl(tabId: number, url: string, overview = false): Promi
     await new Promise<void>((res) => {
       chrome.scripting.executeScript(
         { target: { tabId }, files: ["content.js"] },
-        () => setTimeout(res, 500),
+        () => { void chrome.runtime.lastError; setTimeout(res, 500); },
       );
     });
     response = await sendToTab(tabId, { type: msgType, url });
@@ -193,6 +202,20 @@ chrome.runtime.onMessage.addListener(
         stopTakhfifListing().then(sendResponse);
       } else if (msgType === "TAKHFIF_SESSION_CLEAR") {
         clearTakhfifSession().then(sendResponse);
+      } else if (msgType === "TAKHFIF_DETAILS_START") {
+        startTakhfifDetails((message.mode as TakhfifDetailMode) ?? "new").then(sendResponse);
+      } else if (msgType === "TAKHFIF_DETAILS_SINGLE") {
+        startTakhfifSingleDetail(message.url as string).then(sendResponse);
+      } else if (msgType === "TAKHFIF_PUSH_ONE") {
+        pushTakhfifBusiness(message.slug as string).then(sendResponse);
+      } else if (msgType === "TAKHFIF_PUSH_ALL") {
+        pushAllTakhfifBusinesses().then(sendResponse);
+      } else if (msgType === "TAKHFIF_DETAILS_PAUSE") {
+        pauseTakhfifDetails().then(sendResponse);
+      } else if (msgType === "TAKHFIF_DETAILS_RESUME") {
+        resumeTakhfifDetails().then(sendResponse);
+      } else if (msgType === "TAKHFIF_DETAILS_STOP") {
+        stopTakhfifDetails().then(sendResponse);
       } else {
         sendResponse({ ok: false, error: `Unknown command: ${msgType}` });
       }
@@ -244,7 +267,7 @@ chrome.runtime.onMessage.addListener(
           await new Promise<void>((res) => {
             chrome.scripting.executeScript(
               { target: { tabId: tab.id! }, files: ["content.js"] },
-              () => setTimeout(res, 300),
+              () => { void chrome.runtime.lastError; setTimeout(res, 300); },
             );
           });
           response = await sendToTab(tab.id, scrapeMsg);

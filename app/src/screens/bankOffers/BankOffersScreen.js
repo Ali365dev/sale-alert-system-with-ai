@@ -3,6 +3,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StatusBar,
@@ -14,26 +15,19 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import useTheme from '../../hooks/useTheme';
-import useDataStore from '../../state/dataStore';
 import useBankCardsStore from '../../state/bankCardsStore';
-import useBankOffersStore from '../../state/bankOffersStore';
-import { loadBankCardOffers } from '../../services/bankOffersApi';
+import { fetchScrapedBusinesses } from '../../services/bankOffersApi';
 import Geolocation from '@react-native-community/geolocation';
-import BrandLogo from '../../components/BrandLogo';
 import FilterPickerSheet from '../../components/FilterPickerSheet';
 import ViewSwitcher from '../../components/ViewSwitcher';
 import useViewMode from '../../hooks/useViewMode';
 import { requestLocationPermission } from '../../services/regionDetection';
-import {
-  SUPPORTED_BANKS,
-  BANK_CARD_OFFERS,
-  getBrandSlugsForBank,
-  getMaxDiscountForBrand,
-} from '../../config/banks';
+import { SUPPORTED_BANKS } from '../../config/banks';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PAD = 16;
 const CARD_H = 170;
+const PRIMARY = '#F20D38';
 
 const CATEGORIES = [
   { id: 'all', label: 'All', icon: null },
@@ -55,12 +49,13 @@ const CATEGORY_MATCH = {
   entertainment: /entertainment|cinema|movie|gaming|leisure|sport/i,
 };
 
-const isOtherCategory = (category) =>
-  !Object.values(CATEGORY_MATCH).some((pattern) => pattern.test(category || ''));
+const isOtherCategory = (cat) =>
+  !Object.values(CATEGORY_MATCH).some((p) => p.test(cat || ''));
 
 const SORT_OPTIONS = [
   { id: 'popular', label: 'Popular (most reviews)' },
   { id: 'discount', label: 'Most discount' },
+  { id: 'rating', label: 'Highest rated' },
 ];
 
 const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
@@ -68,76 +63,87 @@ const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-c
 const CITY_OPTIONS = [
   { id: null,         label: 'All cities' },
   { id: 'nearby',     label: 'Near me',    icon: 'navigate-outline' },
-  { id: 'karachi',    label: 'Karachi',    count: 1116 },
-  { id: 'lahore',     label: 'Lahore',     count: 956 },
-  { id: 'islamabad',  label: 'Islamabad',  count: 660 },
-  { id: 'faisalabad', label: 'Faisalabad', count: 344 },
-  { id: 'multan',     label: 'Multan',     count: 331 },
-  { id: 'rawalpindi', label: 'Rawalpindi', count: 290 },
-  { id: 'hyderabad',  label: 'Hyderabad',  count: 198 },
-  { id: 'peshawar',   label: 'Peshawar',   count: 176 },
-  { id: 'quetta',     label: 'Quetta',     count: 134 },
-  { id: 'sialkot',    label: 'Sialkot',    count: 118 },
+  { id: 'karachi',    label: 'Karachi' },
+  { id: 'lahore',     label: 'Lahore' },
+  { id: 'islamabad',  label: 'Islamabad' },
+  { id: 'faisalabad', label: 'Faisalabad' },
+  { id: 'multan',     label: 'Multan' },
+  { id: 'rawalpindi', label: 'Rawalpindi' },
+  { id: 'hyderabad',  label: 'Hyderabad' },
+  { id: 'peshawar',   label: 'Peshawar' },
+  { id: 'quetta',     label: 'Quetta' },
 ];
 
-function BrandOfferCard({ brand, maxDiscount, offers = BANK_CARD_OFFERS, onPress }) {
+// ── Business card (list view) ─────────────────────────────────────────────────
+
+function BusinessOfferCard({ business, onPress }) {
   const { colors } = useTheme();
-  const discountText = maxDiscount ? `Up to ${maxDiscount}% off` : 'Up to 20% off';
-  const bankCount = offers.filter((o) => o.brandSlug === brand.id).length || '8+';
-  const cardOffers = brand.dealCount || bankCount;
+  const discountText = business.max_discount ? `Up to ${business.max_discount}% off` : 'Bank card offers';
 
   return (
     <Pressable
       style={[styles.card, { backgroundColor: colors.surface }]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${brand.name} bank card offers`}>
+      accessibilityLabel={`${business.name} bank card offers`}>
 
-      {/* Cover image */}
       <View style={styles.coverWrap}>
-        <Image
-          source={{ uri: brand.coverImage }}
-          style={styles.coverImage}
-          resizeMode="cover"
-        />
-        {/* Bottom scrim so discount text is readable */}
+        {business.cover_image_url ? (
+          <Image source={{ uri: business.cover_image_url }} style={styles.coverImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.coverImage, { backgroundColor: colors.border }]} />
+        )}
         <View style={styles.coverScrim} />
-
-        {/* Discount — bottom left */}
         <Text style={styles.discountText}>{discountText}</Text>
-
-        {/* Banks count pill — bottom right */}
         <View style={styles.banksPill}>
-          <Text style={styles.banksPillText}>{bankCount} banks</Text>
+          <Text style={styles.banksPillText}>{business.bank_count} banks</Text>
         </View>
       </View>
 
-      {/* Footer */}
       <View style={[styles.cardFooter, { backgroundColor: colors.surface }]}>
-        {/* Row 1: logo + name */}
+        {/* Row 1: logo + name + rating */}
         <View style={styles.footerRow}>
-          <BrandLogo brand={brand} size={36} tone="filled" fit="cover" elevated />
+          {business.logo_url ? (
+            <Image source={{ uri: business.logo_url }} style={styles.logoImg} resizeMode="contain" />
+          ) : (
+            <View style={[styles.logoPlaceholder, { backgroundColor: PRIMARY + '22' }]}>
+              <Text style={[styles.logoInitial, { color: PRIMARY }]}>
+                {business.name?.[0]?.toUpperCase() ?? '?'}
+              </Text>
+            </View>
+          )}
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
-            {brand.name}
+            {business.name}
           </Text>
+          {business.rating != null && (
+            <View style={styles.ratingBadge}>
+              <Icon name="star" size={10} color="#F59E0B" />
+              <Text style={styles.ratingText}>{business.rating.toFixed(1)}</Text>
+            </View>
+          )}
         </View>
 
-        {/* Row 2: category meta */}
+        {/* Row 2: city + category */}
         <View style={styles.metaRow}>
-          <Icon name="pricetag-outline" size={12} color={colors.textSecondary} />
+          {business.city ? (
+            <>
+              <Icon name="location-outline" size={12} color={colors.textSecondary} />
+              <Text style={[styles.metaText, { color: colors.textSecondary }]}>{business.city}</Text>
+              <Text style={[styles.metaDot, { color: colors.textSecondary }]}>·</Text>
+            </>
+          ) : null}
           <Text style={[styles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
-            {brand.category}
+            {business.category || 'General'}
           </Text>
         </View>
 
-        {/* Divider */}
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-        {/* Row 3: card offers count */}
+        {/* Row 3: card count */}
         <View style={styles.metaRow}>
           <Icon name="card-outline" size={13} color={colors.textSecondary} />
           <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-            {cardOffers} card offers
+            {business.card_count} card offers
           </Text>
         </View>
       </View>
@@ -145,27 +151,41 @@ function BrandOfferCard({ brand, maxDiscount, offers = BANK_CARD_OFFERS, onPress
   );
 }
 
-function BrandOfferCardGrid({ brand, maxDiscount, onPress }) {
+// ── Business card (grid view) ─────────────────────────────────────────────────
+
+function BusinessOfferCardGrid({ business, onPress }) {
   const { colors } = useTheme();
-  const discountText = maxDiscount ? `Up to ${maxDiscount}% off` : 'Up to 20% off';
+  const discountText = business.max_discount ? `Up to ${business.max_discount}% off` : 'Card offers';
   return (
     <Pressable
       style={[stylesGrid.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${brand.name} bank card offers`}>
-      {/* Mini cover */}
+      accessibilityLabel={`${business.name} bank card offers`}>
       <View style={stylesGrid.cover}>
-        <Image source={{ uri: brand.coverImage }} style={stylesGrid.coverImg} resizeMode="cover" />
+        {business.cover_image_url ? (
+          <Image source={{ uri: business.cover_image_url }} style={stylesGrid.coverImg} resizeMode="cover" />
+        ) : (
+          <View style={[stylesGrid.coverImg, { backgroundColor: colors.border }]} />
+        )}
         <View style={stylesGrid.scrim} />
         <Text style={stylesGrid.discountText} numberOfLines={1}>{discountText}</Text>
       </View>
-      {/* Footer */}
       <View style={stylesGrid.footer}>
-        <BrandLogo brand={brand} size={28} tone="filled" fit="cover" elevated />
-        <Text style={[stylesGrid.name, { color: colors.text }]} numberOfLines={1}>{brand.name}</Text>
+        {business.logo_url ? (
+          <Image source={{ uri: business.logo_url }} style={stylesGrid.logoImg} resizeMode="contain" />
+        ) : (
+          <View style={[stylesGrid.logoPlaceholder, { backgroundColor: PRIMARY + '22' }]}>
+            <Text style={[stylesGrid.logoInitial, { color: PRIMARY }]}>
+              {business.name?.[0]?.toUpperCase() ?? '?'}
+            </Text>
+          </View>
+        )}
+        <Text style={[stylesGrid.name, { color: colors.text }]} numberOfLines={1}>{business.name}</Text>
       </View>
-      <Text style={[stylesGrid.meta, { color: colors.textSecondary }]} numberOfLines={1}>{brand.category}</Text>
+      <Text style={[stylesGrid.meta, { color: colors.textSecondary }]} numberOfLines={1}>
+        {business.city ? `${business.city} · ` : ''}{business.category || 'General'}
+      </Text>
     </Pressable>
   );
 }
@@ -173,43 +193,36 @@ function BrandOfferCardGrid({ brand, maxDiscount, onPress }) {
 const GRID_COL_GAP = 10;
 const GRID_COLS = 2;
 
-const stylesGrid = StyleSheet.create({
-  card: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  cover: { width: '100%', height: 100, position: 'relative' },
-  coverImg: { width: '100%', height: '100%' },
-  scrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 48, backgroundColor: 'rgba(0,0,0,0.5)' },
-  discountText: { position: 'absolute', bottom: 6, left: 8, fontSize: 11, fontWeight: '800', color: '#FFF' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingTop: 8 },
-  name: { fontSize: 12, fontWeight: '800', flex: 1 },
-  meta: { fontSize: 11, paddingHorizontal: 10, paddingBottom: 8, marginTop: 2 },
-});
+// ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function BankOffersScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
-  const brands = useDataStore((s) => s.brands);
-  const deals = useDataStore((s) => s.deals);
   const savedCards = useBankCardsStore((s) => s.cards);
-  const fetchedBankOffers = useBankOffersStore((s) => s.offers);
-
   const [gridView, onViewChange] = useViewMode(false);
+  const [businesses, setBusinesses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeBank, setActiveBank] = useState(null);
   const [sortMode, setSortMode] = useState('popular');
   const [onlyMyCards, setOnlyMyCards] = useState(false);
   const [activeCity, setActiveCity] = useState(null);
-  const [nearbyCity, setNearbyCity] = useState(null); // resolved city id when "nearby" is active
+  const [nearbyCity, setNearbyCity] = useState(null);
   const [nearbyLoading, setNearbyLoading] = useState(false);
+
   const citySheetRef = useRef(null);
   const bankSheetRef = useRef(null);
   const sortSheetRef = useRef(null);
+
+  useEffect(() => {
+    fetchScrapedBusinesses()
+      .then(setBusinesses)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const resolveNearbyCity = useCallback(async () => {
     setNearbyLoading(true);
@@ -245,53 +258,48 @@ export default function BankOffersScreen() {
 
   const handleCitySelect = useCallback((id) => {
     setActiveCity(id);
-    if (id === 'nearby') {
-      resolveNearbyCity();
-    } else {
-      setNearbyCity(null);
-    }
+    if (id === 'nearby') resolveNearbyCity();
+    else setNearbyCity(null);
   }, [resolveNearbyCity]);
 
-  const bankOptions = useMemo(
-    () => [
-      { id: null, label: 'All banks' },
-      ...SUPPORTED_BANKS.map((b) => ({ id: b.id, label: b.name, color: b.color })),
-    ],
-    [],
-  );
-
-  useEffect(() => {
-    loadBankCardOffers();
-  }, []);
-
-  // Live, scraped offers (takhfif.app) layered on top of the static seed
-  // array — see services/bankOffersApi.js.
-  const combinedOffers = useMemo(
-    () => [...BANK_CARD_OFFERS, ...fetchedBankOffers],
-    [fetchedBankOffers],
-  );
-
-  const qualifyingCardBanks = useMemo(
+  const savedBankIds = useMemo(
     () => new Set(savedCards.map((c) => c.bankId)),
     [savedCards],
   );
 
-  const filteredBrands = useMemo(() => {
-    let list = brands;
+  const bankOptions = useMemo(
+    () => [
+      { id: null, label: 'All banks' },
+      ...SUPPORTED_BANKS.map((b) => ({ id: b.id, label: b.name })),
+    ],
+    [],
+  );
 
-    // Bank filter: only brands that have offers for the selected bank
+  const filteredBusinesses = useMemo(() => {
+    let list = businesses;
+
+    // Bank filter — business.bank_names contains takhfif bank names
     if (activeBank) {
-      const allowedSlugs = new Set(getBrandSlugsForBank(activeBank, combinedOffers));
-      list = list.filter((b) => allowedSlugs.has(b.id));
+      const bankName = SUPPORTED_BANKS.find((b) => b.id === activeBank)?.takhfifName ?? '';
+      list = list.filter((b) =>
+        b.bank_names.some((n) => n.toLowerCase().includes(bankName.toLowerCase())),
+      );
     }
 
-    // Only my cards filter
-    if (onlyMyCards) {
+    // Only my cards
+    if (onlyMyCards && savedCards.length > 0) {
+      const myBankTakhfifNames = SUPPORTED_BANKS
+        .filter((b) => savedBankIds.has(b.id))
+        .map((b) => b.takhfifName.toLowerCase());
       list = list.filter((b) =>
-        combinedOffers.some(
-          (o) => o.brandSlug === b.id && qualifyingCardBanks.has(o.bankId),
-        ),
+        b.bank_names.some((n) => myBankTakhfifNames.some((t) => n.toLowerCase().includes(t))),
       );
+    }
+
+    // City filter
+    const effectiveCity = activeCity === 'nearby' ? nearbyCity : activeCity;
+    if (effectiveCity) {
+      list = list.filter((b) => b.city?.toLowerCase().includes(effectiveCity));
     }
 
     // Category filter
@@ -299,34 +307,27 @@ export default function BankOffersScreen() {
       list = list.filter((b) => isOtherCategory(b.category));
     } else if (activeCategory !== 'all') {
       const pattern = CATEGORY_MATCH[activeCategory];
-      if (pattern) {
-        list = list.filter((b) => pattern.test(b.category));
-      }
+      if (pattern) list = list.filter((b) => pattern.test(b.category || ''));
     }
 
     // Sort
     if (sortMode === 'discount') {
-      list = [...list].sort((a, b) => {
-        const da = getMaxDiscountForBrand(a.id, activeBank, combinedOffers) || 0;
-        const db = getMaxDiscountForBrand(b.id, activeBank, combinedOffers) || 0;
-        return db - da;
-      });
+      list = [...list].sort((a, b) => (b.max_discount ?? 0) - (a.max_discount ?? 0));
+    } else if (sortMode === 'rating') {
+      list = [...list].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     }
+    // 'popular' = default API order (review_count desc from backend)
 
     return list;
-  }, [brands, activeBank, activeCategory, combinedOffers, onlyMyCards, sortMode, qualifyingCardBanks]);
+  }, [businesses, activeBank, activeCategory, activeCity, nearbyCity, onlyMyCards, savedBankIds, savedCards.length, sortMode]);
 
-  const getMaxDiscount = (brand) => {
-    const specific = getMaxDiscountForBrand(brand.id, activeBank || null, combinedOffers);
-    if (specific) return specific;
-    // Fallback: max discount from existing deals
-    const brandDeals = deals.filter((d) => d.brandId === brand.id && d.isPercentageOff);
-    if (brandDeals.length) {
-      const max = Math.max(...brandDeals.map((d) => parseInt(String(d.discountLabel || '0').replace(/[^0-9]/g, ''), 10) || 0));
-      if (max > 0) return max;
+  const handlePress = useCallback((business) => {
+    if (business.brand_id) {
+      navigation.navigate('BrandDetailScreen', { id: business.brand_id });
+    } else if (business.source_url) {
+      Linking.openURL(business.source_url).catch(() => {});
     }
-    return null;
-  };
+  }, [navigation]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -375,9 +376,9 @@ export default function BankOffersScreen() {
                 { backgroundColor: active ? PRIMARY : colors.surface, borderColor: active ? PRIMARY : colors.border },
               ]}>
               {cat.icon ? (
-                <Icon name={cat.icon} size={12} color={active ? '#FFFFFF' : colors.text} style={{ marginRight: 4 }} />
+                <Icon name={cat.icon} size={12} color={active ? '#FFF' : colors.text} style={{ marginRight: 4 }} />
               ) : null}
-              <Text style={[styles.chipLabel, { color: active ? '#FFFFFF' : colors.text }]}>
+              <Text style={[styles.chipLabel, { color: active ? '#FFF' : colors.text }]}>
                 {cat.label}
               </Text>
             </Pressable>
@@ -385,14 +386,13 @@ export default function BankOffersScreen() {
         })}
       </ScrollView>
 
-      {/* Filter bar: banks | sort | only my cards */}
+      {/* Filter bar */}
       <ScrollView
         horizontal
         style={styles.filterScroll}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterBar}>
 
-        {/* City picker */}
         <Pressable
           onPress={() => citySheetRef.current?.present()}
           accessibilityRole="button"
@@ -409,7 +409,6 @@ export default function BankOffersScreen() {
           <Icon name="chevron-down" size={12} color={activeCity ? PRIMARY : colors.textSecondary} />
         </Pressable>
 
-        {/* Bank picker */}
         <Pressable
           onPress={() => bankSheetRef.current?.present()}
           accessibilityRole="button"
@@ -421,7 +420,6 @@ export default function BankOffersScreen() {
           <Icon name="chevron-down" size={12} color={activeBank ? PRIMARY : colors.textSecondary} />
         </Pressable>
 
-        {/* Sort picker */}
         <Pressable
           onPress={() => sortSheetRef.current?.present()}
           accessibilityRole="button"
@@ -433,7 +431,6 @@ export default function BankOffersScreen() {
           <Icon name="chevron-down" size={12} color={colors.textSecondary} />
         </Pressable>
 
-        {/* Only my cards toggle */}
         <Pressable
           onPress={() => setOnlyMyCards((v) => !v)}
           style={[
@@ -448,45 +445,45 @@ export default function BankOffersScreen() {
       {/* Count row */}
       <View style={[styles.countRow, { borderBottomColor: colors.border }]}>
         <Text style={[styles.countText, { color: colors.textSecondary }]}>
-          <Text style={{ fontWeight: '700', color: colors.text }}>{filteredBrands.length}</Text> places with card offers
+          {loading ? (
+            'Loading…'
+          ) : (
+            <>
+              <Text style={{ fontWeight: '700', color: colors.text }}>{filteredBusinesses.length}</Text>
+              {' places with card offers'}
+            </>
+          )}
         </Text>
         <ViewSwitcher gridView={gridView} onChange={onViewChange} />
       </View>
 
-      {/* Brand list / grid */}
+      {/* Business list / grid */}
       <FlatList
         key={gridView ? 'grid' : 'list'}
-        data={filteredBrands}
-        keyExtractor={(b) => b.id}
+        data={filteredBusinesses}
+        keyExtractor={(b) => String(b.id)}
         numColumns={gridView ? GRID_COLS : 1}
         columnWrapperStyle={gridView ? styles.gridRow : undefined}
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) =>
           gridView ? (
-            <BrandOfferCardGrid
-              brand={item}
-              maxDiscount={getMaxDiscount(item)}
-              onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })}
-            />
+            <BusinessOfferCardGrid business={item} onPress={() => handlePress(item)} />
           ) : (
             <View style={styles.cardWrap}>
-              <BrandOfferCard
-                brand={item}
-                maxDiscount={getMaxDiscount(item)}
-                offers={combinedOffers}
-                onPress={() => navigation.navigate('BrandDetailScreen', { id: item.id })}
-              />
+              <BusinessOfferCard business={item} onPress={() => handlePress(item)} />
             </View>
           )
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Icon name="card-outline" size={40} color={colors.border} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No bank card offers found
-            </Text>
-          </View>
+          !loading ? (
+            <View style={styles.empty}>
+              <Icon name="card-outline" size={40} color={colors.border} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                No bank card offers found
+              </Text>
+            </View>
+          ) : null
         }
       />
 
@@ -515,22 +512,17 @@ export default function BankOffersScreen() {
         options={SORT_OPTIONS}
         selected={sortMode}
         onSelect={setSortMode}
-        snapPoint="35%"
+        snapPoint="40%"
       />
     </View>
   );
 }
 
-const PRIMARY = '#F20D38';
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: PAD,
-    paddingBottom: 12,
+    flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
+    paddingHorizontal: PAD, paddingBottom: 12,
   },
   appName: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
   screenTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
@@ -542,95 +534,70 @@ const styles = StyleSheet.create({
   },
   chipsScroll: { height: 44, flexGrow: 0, flexShrink: 0 },
   filterScroll: { height: 48, flexGrow: 0, flexShrink: 0 },
-  chipsRow: {
-    paddingHorizontal: PAD,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  chipsRow: { paddingHorizontal: PAD, flexDirection: 'row', alignItems: 'center' },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-    flexShrink: 0,
-    height: 32,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, borderRadius: 20, borderWidth: 1,
+    marginRight: 8, flexShrink: 0, height: 32,
   },
   chipLabel: { fontSize: 10, fontWeight: '600' },
-  filterBar: {
-    paddingHorizontal: PAD,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  filterBar: { paddingHorizontal: PAD, flexDirection: 'row', alignItems: 'center', gap: 8 },
   filterPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    flexShrink: 0,
-    height: 36,
-    maxWidth: 200,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, borderRadius: 18, borderWidth: 1,
+    flexShrink: 0, height: 36, maxWidth: 200,
   },
   filterPillText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
   countRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: PAD, paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingHorizontal: PAD, paddingVertical: 10, borderBottomWidth: 1,
   },
   countText: { fontSize: 13 },
   list: { paddingHorizontal: PAD, paddingTop: 14 },
   gridRow: { gap: GRID_COL_GAP, marginBottom: GRID_COL_GAP },
   cardWrap: { marginBottom: 14 },
   card: {
-    borderRadius: 18,
-    overflow: 'hidden',
+    borderRadius: 18, overflow: 'hidden',
     shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4,
   },
-  coverWrap: {
-    width: '100%', height: CARD_H,
-    position: 'relative', overflow: 'hidden',
-  },
+  coverWrap: { width: '100%', height: CARD_H, position: 'relative', overflow: 'hidden' },
   coverImage: { width: '100%', height: '100%' },
-  coverScrim: {
-    position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    height: 90,
-    backgroundColor: 'rgba(0,0,0,0.48)',
-  },
-  discountText: {
-    position: 'absolute',
-    bottom: 14,
-    left: 14,
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.3,
-  },
+  coverScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 90, backgroundColor: 'rgba(0,0,0,0.48)' },
+  discountText: { position: 'absolute', bottom: 14, left: 14, fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.3 },
   banksPill: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    position: 'absolute', bottom: 12, right: 12,
+    backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
   },
-  banksPillText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
-  cardFooter: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    gap: 8,
-  },
+  banksPillText: { fontSize: 12, fontWeight: '700', color: '#FFF' },
+  cardFooter: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10, gap: 8 },
   footerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logoImg: { width: 36, height: 36, borderRadius: 10 },
+  logoPlaceholder: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  logoInitial: { fontSize: 16, fontWeight: '800' },
   cardName: { fontSize: 16, fontWeight: '800', flex: 1 },
+  ratingBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  ratingText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaText: { fontSize: 13 },
+  metaDot: { fontSize: 13 },
   divider: { height: 1, marginVertical: 2 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
+});
+
+const stylesGrid = StyleSheet.create({
+  card: { flex: 1, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  cover: { width: '100%', height: 100, position: 'relative' },
+  coverImg: { width: '100%', height: '100%' },
+  scrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 48, backgroundColor: 'rgba(0,0,0,0.5)' },
+  discountText: { position: 'absolute', bottom: 6, left: 8, fontSize: 11, fontWeight: '800', color: '#FFF' },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingTop: 8 },
+  logoImg: { width: 28, height: 28, borderRadius: 8 },
+  logoPlaceholder: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  logoInitial: { fontSize: 13, fontWeight: '800' },
+  name: { fontSize: 12, fontWeight: '800', flex: 1 },
+  meta: { fontSize: 11, paddingHorizontal: 10, paddingBottom: 8, marginTop: 2 },
 });

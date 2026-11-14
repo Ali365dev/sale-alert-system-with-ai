@@ -18,9 +18,9 @@ const inferCardType = (cardName) => {
 };
 
 /** Maps one scraped /api/bank-offers row onto the same shape as the static
- * BANK_CARD_OFFERS entries in config/banks.js. Returns null when the bank
- * isn't in SUPPORTED_BANKS yet, so an unrecognized name is skipped rather
- * than rendered with a broken bankId. */
+ * BANK_CARD_OFFERS entries in config/banks.js, plus the richer fields from
+ * the chrome-extension import (max discount, valid days, scraped business
+ * enrichment). Returns null when the bank isn't in SUPPORTED_BANKS yet. */
 const mapOffer = (row, index) => {
   const bankId = getBankIdByTakhfifName(row.bank_name);
   if (!bankId) return null;
@@ -31,9 +31,22 @@ const mapOffer = (row, index) => {
     cardType: inferCardType(row.card_name),
     discountPercent: row.discount_percentage ?? 0,
     maxDiscount: null,
+    // Rich fields from chrome-extension import
+    maxDiscountText: row.max_discount_text || null,
+    maxDiscountAmount: row.max_discount_amount || null,
+    validDays: row.valid_days || [],
+    terms: row.terms || [],
     description: row.description || row.card_name || '',
     expiryDate: row.expiry_date,
     daysValid: null,
+    // Scraped business enrichment (null when not yet imported via extension)
+    city: row.city || null,
+    coverImageUrl: row.cover_image_url || null,
+    logoUrl: row.logo_url || null,
+    rating: row.rating || null,
+    reviewCount: row.review_count || null,
+    category: row.category || null,
+    sourceUrl: row.source_url || null,
   };
 };
 
@@ -47,6 +60,13 @@ export const fetchBankCardOffers = async () => {
   return rows.map(mapOffer).filter(Boolean);
 };
 
+/** Fetches scraped businesses from takhfif.app with aggregated bank offer
+ * counts — the primary data source for the Bank Offers screen. */
+export const fetchScrapedBusinesses = async () => {
+  const res = await appAxios.get('/bank-offers/businesses');
+  return res.data?.businesses ?? [];
+};
+
 let inflight = null;
 
 /** Fire-and-forget load into bankOffersStore — safe to call from every
@@ -56,7 +76,6 @@ let inflight = null;
  * the store's static-only fallback in place. */
 export const loadBankCardOffers = () => {
   if (inflight) return inflight;
-  if (useBankOffersStore.getState().offers.length > 0) return Promise.resolve();
 
   useBankOffersStore.getState().setLoading(true);
   inflight = fetchBankCardOffers()

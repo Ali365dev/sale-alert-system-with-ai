@@ -87,6 +87,12 @@ def _migrate() -> None:
         ("sale_alerts", "watch_below_price",          "FLOAT"),
         ("sale_alerts", "check_fail_count",           "INTEGER DEFAULT 0"),
         ("sale_alerts", "last_check_error",           "TEXT"),
+        # Rich bank-offer fields from the chrome extension's detail scrape
+        ("bank_card_offers", "business_id",           "INTEGER"),
+        ("bank_card_offers", "max_discount_text",     "VARCHAR(100)"),
+        ("bank_card_offers", "max_discount_amount",   "FLOAT"),
+        ("bank_card_offers", "valid_days",            "TEXT"),
+        ("bank_card_offers", "terms",                 "TEXT"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:

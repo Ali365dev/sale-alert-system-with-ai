@@ -32,11 +32,13 @@
   ],
   "permissions": [
     "storage",
+    "unlimitedStorage",
     "activeTab",
     "tabs",
     "cookies",
     "scripting",
-    "sidePanel"
+    "sidePanel",
+    "alarms"
   ],
   "host_permissions": [
     "http://localhost:8000/*",

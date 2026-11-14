@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router";
 import { AppShell } from "./components/layout/AppShell";
 import { ToastContainer } from "./components/ui/ToastContainer";
 import { Analytics } from "./pages/Analytics";
+import { BankOffers } from "./pages/BankOffers";
 import { BrandRequests } from "./pages/BrandRequests";
 import { BrandsManager } from "./pages/BrandsManager";
 import { CategoriesManager } from "./pages/CategoriesManager";
@@ -70,6 +71,7 @@ function App() {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/search" element={<Search />} />
           <Route path="/offers" element={<OffersManager />} />
+          <Route path="/bank-offers" element={<BankOffers />} />
           <Route path="/brands" element={<BrandsManager />} />
           <Route path="/manage-categories" element={<CategoriesManager />} />
           <Route path="/discover-brand" element={<DiscoverBrand />} />

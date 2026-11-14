@@ -4,6 +4,7 @@ import type {
 } from "../types";
 import { extractAllOffers, extractOverviewOffers, extractProductOffers } from "./extractors";
 import { extractTakhfifListingPage } from "./extractors/takhfif";
+import { extractTakhfifDetailPage } from "./extractors/takhfif-detail";
 import { deduplicateOffers } from "../utils/dedupe";
 import { startSelectorMode, stopSelectorMode } from "./selector-mode";
 
@@ -174,6 +175,24 @@ chrome.runtime.onMessage.addListener(
         .then(sendResponse)
         .catch((err: unknown) => sendResponse({
           listings: [], currentPage: null, totalPages: null, nextUrl: null,
+          error: err instanceof Error ? err.message : "Extraction failed",
+        }));
+      return true;
+    }
+
+    if (message.type === "EXTRACT_TAKHFIF_DETAIL") {
+      // Race against an internal timeout so the background never waits on a
+      // wedged extraction — it answers with an error instead (retried there).
+      const timeout = new Promise((res) => setTimeout(() => res({
+        detail: null, warnings: [],
+        health: { httpStatus: null, kind: "empty", detail: "Extraction timed out" },
+        error: "Extraction timed out after 100s",
+      }), 100_000));
+      Promise.race([extractTakhfifDetailPage(), timeout])
+        .then(sendResponse)
+        .catch((err: unknown) => sendResponse({
+          detail: null, warnings: [],
+          health: { httpStatus: null, kind: "empty", detail: "Extraction crashed" },
           error: err instanceof Error ? err.message : "Extraction failed",
         }));
       return true;

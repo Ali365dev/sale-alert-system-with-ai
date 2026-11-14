@@ -1,10 +1,113 @@
 import { useState } from "react";
-import type { TakhfifListing, TakhfifLogEntry, TakhfifSession } from "../../../types/takhfif";
-import { ChevronDownIcon, ChevronUpIcon, DatabaseIcon, ExternalLinkIcon } from "./icons";
+import type {
+  TakhfifBusinessDetail, TakhfifDetailMode, TakhfifHealth, TakhfifListing,
+  TakhfifLogEntry, TakhfifSession,
+} from "../../../types/takhfif";
+import { ChevronDownIcon, ChevronUpIcon, ExternalLinkIcon, GlobeIcon } from "./icons";
+import {
+  exportBusinessesJson, exportFullJson, exportListingsCsv, exportListingsJson, exportOffersCsv, flattenOffers,
+} from "./exporters";
+
+const HEALTH_META: Record<TakhfifHealth["status"], { label: string; cls: string }> = {
+  healthy:               { label: "Healthy",               cls: "bg-green-500/10 text-green-400 border-green-500/20" },
+  slow:                  { label: "Slow Response",         cls: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  rate_limited:          { label: "Rate Limited",          cls: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  access_restricted:     { label: "Access Restricted",     cls: "bg-red-500/10 text-red-400 border-red-500/20" },
+  verification_required: { label: "Verification Required", cls: "bg-red-500/10 text-red-400 border-red-500/20" },
+  connection_error:      { label: "Connection Error",      cls: "bg-red-500/10 text-red-400 border-red-500/20" },
+};
+
+export function HealthPanel({ health, phaseLabel }: { health: TakhfifHealth; phaseLabel: string }) {
+  const meta = HEALTH_META[health.status] ?? HEALTH_META.healthy;
+  const rows: [string, string | number][] = [
+    ["Phase", phaseLabel],
+    ["Successful loads", health.okLoads],
+    ["Failed loads", health.failedLoads],
+    ["Rate-limit events", health.rateLimitEvents],
+    ["Current delay", `${(health.currentDelayMs / 1000).toFixed(1)}s`],
+    ["Last success", health.lastSuccessAt ? new Date(health.lastSuccessAt).toLocaleTimeString() : "—"],
+  ];
+  return (
+    <div className="mx-3 mb-2.5 bg-surface border border-line rounded-xl p-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-black text-t1 uppercase tracking-wider">Website Health</span>
+        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${meta.cls}`}>{meta.label}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between text-[10px]">
+            <span className="text-t2">{label}</span>
+            <span className="text-t1 font-semibold">{value}</span>
+          </div>
+        ))}
+      </div>
+      {health.lastError && (
+        <p className="mt-2 text-[9px] text-red-400 truncate" title={health.lastError}>
+          Last error: {health.lastError}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function SourceCard() {
+  return (
+    <div className="mx-3 mb-2.5 bg-surface border border-line rounded-xl p-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-t2"><GlobeIcon /></span>
+          <span className="text-[11px] font-bold text-t1">Takhfif.app</span>
+        </div>
+        <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20">
+          Configured · Automated
+        </span>
+      </div>
+      <a
+        href="https://takhfif.app/deals" target="_blank" rel="noreferrer"
+        className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline mt-1.5"
+      >
+        https://takhfif.app/deals
+        <ExternalLinkIcon />
+      </a>
+    </div>
+  );
+}
+
+export function ExportBar({ listings, details }: {
+  listings: TakhfifListing[];
+  details: Record<string, TakhfifBusinessDetail>;
+}) {
+  const btn = "px-2.5 py-1.5 text-[10px] font-bold bg-surface border border-line rounded-lg text-t2 hover:border-primary/40 hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition";
+  const hasDetails = Object.keys(details).length > 0;
+  return (
+    <div className="mx-3 mb-2.5 flex items-center justify-between gap-2">
+      <span className="text-[10px] font-semibold text-t2 flex-shrink-0">Export</span>
+      <div className="flex gap-1.5 flex-wrap justify-end">
+        <button disabled={!listings.length} onClick={() => exportListingsJson(listings)}
+          title="Export listings as JSON" className={btn}>Listings JSON</button>
+        <button disabled={!listings.length} onClick={() => exportListingsCsv(listings)}
+          title="Export listings as CSV" className={btn}>Listings CSV</button>
+        <button disabled={!hasDetails} onClick={() => exportOffersCsv(flattenOffers(details))}
+          title={hasDetails ? "Export all card offers as CSV" : "Run detail scraping first"} className={btn}>Offers CSV</button>
+        <button disabled={!hasDetails} onClick={() => exportBusinessesJson(details)}
+          title={hasDetails ? "Export businesses in the normalized schema" : "Run detail scraping first"} className={btn}>Businesses JSON</button>
+        <button disabled={!hasDetails} onClick={() => exportFullJson(listings, details)}
+          title={hasDetails ? "Export the complete dataset as JSON" : "Run detail scraping first"} className={btn}>Full JSON</button>
+      </div>
+    </div>
+  );
+}
+
+const MODES: { value: TakhfifDetailMode; label: string }[] = [
+  { value: "new", label: "Only new deals" },
+  { value: "existing", label: "Re-scrape existing deals" },
+  { value: "all", label: "All deals" },
+];
 
 export function CompletionPanel({ session, onStartDetails }: {
-  session: TakhfifSession; onStartDetails: () => void;
+  session: TakhfifSession; onStartDetails: (mode: TakhfifDetailMode) => void;
 }) {
+  const [mode, setMode] = useState<TakhfifDetailMode>("new");
   const p1 = session.phase1;
   const rows: [string, string | number][] = [
     ["Pages processed", p1.pagesCompleted],
@@ -14,6 +117,7 @@ export function CompletionPanel({ session, onStartDetails }: {
     ["Failed pages", p1.failedPages.length],
     ["Unique detail URLs", session.phase2.queueSize],
   ];
+  const detailsIdle = ["ready", "completed", "stopped", "failed"].includes(session.phase2.status);
   return (
     <div className="mx-3 mb-2.5 bg-green-500/5 border border-green-500/25 rounded-xl p-3">
       <p className="text-[10px] font-black text-green-400 uppercase tracking-wider">Listing scraping completed</p>
@@ -25,136 +129,32 @@ export function CompletionPanel({ session, onStartDetails }: {
           </div>
         ))}
       </div>
-      {session.phase2.status === "ready" ? (
+      {session.phase2.status === "disabled" ? (
+        <p className="text-[10px] text-t3 mt-2.5">
+          Listing extraction completed. Deal detail scraping was disabled.
+        </p>
+      ) : detailsIdle ? (
         <>
           <p className="text-[10px] text-t2 mt-2.5">Detail scraping queue prepared — waiting for your action.</p>
+          <div className="mt-2 flex items-center gap-2">
+            <label className="flex-shrink-0 text-[10px] text-t2" htmlFor="takhfif-detail-mode">Mode</label>
+            <select
+              id="takhfif-detail-mode"
+              value={mode}
+              onChange={(e) => setMode(e.target.value as TakhfifDetailMode)}
+              className="flex-1 text-[11px] px-2 py-1.5 border border-line rounded-lg bg-surface-2 text-t1 outline-none focus:border-primary"
+            >
+              {MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </div>
           <button
-            onClick={onStartDetails}
+            onClick={() => onStartDetails(mode)}
             className="mt-2 w-full py-2.5 bg-primary hover:bg-primary-dark text-white text-[11px] font-black rounded-xl transition tracking-wider"
           >
             START DETAIL SCRAPING
           </button>
         </>
-      ) : (
-        <p className="text-[10px] text-t3 mt-2.5">
-          Listing extraction completed. Deal detail scraping was disabled.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function DealRow({ listing, detailsEnabled }: { listing: TakhfifListing; detailsEnabled: boolean }) {
-  return (
-    <div className="flex gap-2.5 p-2.5 items-center">
-      {listing.logo_url
-        ? <img src={listing.logo_url} alt="" className="w-8 h-8 rounded-lg object-cover bg-surface-2 flex-shrink-0" />
-        : <div className="w-8 h-8 rounded-lg bg-surface-2 flex-shrink-0" />}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className="text-[11px] font-bold text-t1 truncate">{listing.business_name}</p>
-          {listing.rating != null && (
-            <span className="text-[9px] text-amber-400 font-bold flex-shrink-0">★ {listing.rating}</span>
-          )}
-        </div>
-        <p className="text-[9px] text-t3 truncate">
-          {[listing.category, listing.location].filter(Boolean).join(" · ")}
-        </p>
-        <div className="flex gap-2 mt-0.5 text-[9px]">
-          {listing.discount_text && <span className="text-green-400 font-semibold">{listing.discount_text}</span>}
-          {listing.card_offer_count != null && <span className="text-t2">{listing.card_offer_count} card offers</span>}
-          {listing.expiry_text && <span className="text-t3">{listing.expiry_text}</span>}
-          {!detailsEnabled && <span className="text-t3">Details skipped</span>}
-        </div>
-      </div>
-      <a
-        href={listing.detail_url} target="_blank" rel="noreferrer"
-        aria-label={`Open ${listing.business_name} on takhfif.app`}
-        className="flex-shrink-0 text-t3 hover:text-primary transition p-1.5"
-      >
-        <ExternalLinkIcon />
-      </a>
-    </div>
-  );
-}
-
-function EmptyState({ title, hint }: { title: string; hint: string }) {
-  return (
-    <div className="bg-surface border border-line rounded-xl p-6 flex flex-col items-center gap-2 text-center">
-      <span className="text-t3 opacity-40"><DatabaseIcon /></span>
-      <p className="text-[11px] font-semibold text-t2">{title}</p>
-      <p className="text-[10px] text-t3">{hint}</p>
-    </div>
-  );
-}
-
-const SHOW_LIMIT = 60;
-type ResultTab = "all" | "offers" | "failed";
-
-export function ResultsPanel({ listings, failedPages, detailsEnabled }: {
-  listings: TakhfifListing[]; failedPages: number[]; detailsEnabled: boolean;
-}) {
-  const [tab, setTab] = useState<ResultTab>("all");
-  const shown = listings.slice(0, SHOW_LIMIT);
-
-  return (
-    <div className="mx-3 mb-2.5">
-      <p className="text-[10px] font-black text-t1 uppercase tracking-wider mb-2">Extracted Results</p>
-      <div className="flex border-b border-line mb-3">
-        {(["all", "offers", "failed"] as ResultTab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-3 py-2 text-[10px] font-bold transition border-b-2 -mb-px ${
-              tab === t ? "text-t1 border-primary" : "text-t3 border-transparent hover:text-t2"
-            }`}
-          >
-            {t === "all" ? `All Deals${listings.length ? ` (${listings.length})` : ""}`
-              : t === "offers" ? "Bank Offers"
-              : `Failed${failedPages.length ? ` (${failedPages.length})` : ""}`}
-          </button>
-        ))}
-      </div>
-
-      {tab === "all" && (listings.length === 0
-        ? <EmptyState title="No extracted deals yet" hint="Start listing scraping to populate results." />
-        : (
-          <div className="bg-surface border border-line rounded-xl overflow-hidden">
-            <div className="flex flex-col divide-y divide-line max-h-80 overflow-y-auto">
-              {shown.map((l) => <DealRow key={l.detail_url} listing={l} detailsEnabled={detailsEnabled} />)}
-            </div>
-            {listings.length > SHOW_LIMIT && (
-              <p className="px-3 py-2 border-t border-line text-[9px] text-t3">
-                Showing {SHOW_LIMIT} of {listings.length} — export to get the complete dataset.
-              </p>
-            )}
-          </div>
-        ))}
-
-      {tab === "offers" && (
-        <EmptyState
-          title="No bank offers yet"
-          hint={detailsEnabled
-            ? "Bank/card offers are extracted in Phase 2 (detail scraping)."
-            : "Deal details scraping is disabled — no bank offers will be extracted."}
-        />
-      )}
-
-      {tab === "failed" && (failedPages.length === 0
-        ? <EmptyState title="No failures" hint="Failed listing pages will appear here." />
-        : (
-          <div className="bg-surface border border-line rounded-xl divide-y divide-line">
-            {failedPages.map((p) => (
-              <div key={p} className="flex items-center justify-between p-2.5">
-                <span className="text-[10px] text-t1 font-semibold">Listing page {p}</span>
-                <span className="text-[9px] text-red-400">Failed after retries</span>
-              </div>
-            ))}
-            <p className="p-2.5 text-[9px] text-t3">
-              Failed pages are retried automatically during the session. Start a new session to re-scrape them.
-            </p>
-          </div>
-        ))}
+      ) : null}
     </div>
   );
 }

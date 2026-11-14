@@ -1,4 +1,35 @@
-import type { TakhfifListing, TakhfifPageResult } from "../../types/takhfif";
+import type { TakhfifListing, TakhfifPageHealth, TakhfifPageResult } from "../../types/takhfif";
+
+const CAPTCHA_SELECTORS =
+  'iframe[src*="captcha"], iframe[src*="challenge"], .g-recaptcha, .h-captcha, #challenge-form, #challenge-running, [id^="cf-chl"]';
+const CAPTCHA_TEXT = /verify you are human|checking your browser|unusual traffic|are you a robot|security check to continue/i;
+const DENIED_TEXT = /access denied|you have been blocked|403 forbidden/i;
+const RATE_TEXT = /too many requests|rate limit/i;
+const SERVER_TEXT = /internal server error|service unavailable|bad gateway|gateway time-?out/i;
+
+/** Classifies the real navigation state + page content. Detection only —
+ * challenges are reported for manual review, never bypassed. */
+export function classifyPageHealth(): TakhfifPageHealth {
+  const nav = performance.getEntriesByType("navigation")[0] as
+    (PerformanceNavigationTiming & { responseStatus?: number }) | undefined;
+  const httpStatus = nav?.responseStatus ?? null;
+  const loadTimeMs = nav ? Math.round(nav.duration) : undefined;
+  const text = `${document.title}\n${(document.body?.innerText ?? "").slice(0, 3000)}`;
+
+  if (document.querySelector(CAPTCHA_SELECTORS) || CAPTCHA_TEXT.test(text)) {
+    return { httpStatus, kind: "captcha", detail: "Verification challenge detected", loadTimeMs };
+  }
+  if (httpStatus === 403 || DENIED_TEXT.test(text)) {
+    return { httpStatus, kind: "access_denied", detail: "Access restricted by the website", loadTimeMs };
+  }
+  if (httpStatus === 429 || RATE_TEXT.test(text)) {
+    return { httpStatus, kind: "rate_limited", detail: "Rate limit response", loadTimeMs };
+  }
+  if ((httpStatus != null && httpStatus >= 500) || SERVER_TEXT.test(text)) {
+    return { httpStatus, kind: "server_error", detail: `Server error${httpStatus ? ` (HTTP ${httpStatus})` : ""}`, loadTimeMs };
+  }
+  return { httpStatus, kind: "ok", loadTimeMs };
+}
 
 function absUrl(raw: string | null | undefined, base: string): string | undefined {
   if (!raw || raw.startsWith("data:")) return undefined;
@@ -136,6 +167,11 @@ function extractPagination(pageUrl: string): { currentPage: number; totalPages: 
 export async function extractTakhfifListingPage(): Promise<TakhfifPageResult> {
   const pageUrl = window.location.href;
 
+  const health = classifyPageHealth();
+  if (health.kind !== "ok") {
+    return { listings: [], currentPage: null, totalPages: null, nextUrl: null, health, error: health.detail };
+  }
+
   let cards = findCards();
   for (let i = 0; i < 3 && cards.length === 0; i++) {
     await new Promise((res) => setTimeout(res, 1200));
@@ -148,7 +184,11 @@ export async function extractTakhfifListingPage(): Promise<TakhfifPageResult> {
     .filter((l): l is TakhfifListing => l !== null);
 
   if (!listings.length) {
-    return { listings: [], currentPage, totalPages, nextUrl, error: "No deal cards found on this page" };
+    return {
+      listings: [], currentPage, totalPages, nextUrl,
+      health: { ...health, kind: "empty", detail: "No deal cards found on this page" },
+      error: "No deal cards found on this page",
+    };
   }
-  return { listings, currentPage, totalPages, nextUrl };
+  return { listings, currentPage, totalPages, nextUrl, health };
 }

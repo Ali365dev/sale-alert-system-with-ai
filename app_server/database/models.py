@@ -820,9 +820,53 @@ class BankCardOffer(Base):
     expiry_date = Column(DateTime, nullable=True)
     description = Column(Text, nullable=True)
 
+    # Rich fields written by scraper_server's /bank-offers/import — see the
+    # scraper_server copy of this model for details. Read-only here.
+    business_id = Column(Integer, ForeignKey("scraped_businesses.id"), nullable=True, index=True)
+    max_discount_text = Column(String(100), nullable=True)
+    max_discount_amount = Column(Float, nullable=True)
+    valid_days = Column(Text, nullable=True)   # JSON array
+    terms = Column(Text, nullable=True)        # JSON array
+
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=_utcnow, nullable=False)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
 
     def __repr__(self) -> str:
         return f"<BankCardOffer place={self.place_name!r} bank={self.bank_name!r} discount={self.discount_percentage}%>"
+
+
+class ScrapedBusiness(Base):
+    """Mirror of scraper_server's scraped_businesses table (one takhfif.app
+    business imported from the chrome extension). Read-only on this server —
+    the write side lives in scraper_server/services/scraped_business_store.py."""
+    __tablename__ = "scraped_businesses"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    slug = Column(String(255), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    category = Column(String(100), nullable=True)
+    city = Column(String(100), nullable=True)
+    description = Column(Text, nullable=True)
+    rating = Column(Float, nullable=True)
+    review_count = Column(Integer, nullable=True)
+    phone = Column(String(50), nullable=True)
+    website = Column(String(500), nullable=True)
+    logo_url = Column(String(500), nullable=True)
+    cover_image_url = Column(String(500), nullable=True)
+    source_url = Column(String(500), nullable=False)
+    brand_id = Column(Integer, ForeignKey("brands.id"), nullable=True, index=True)
+
+    branches = Column(Text, nullable=True)        # JSON array of branch objects
+    opening_hours = Column(Text, nullable=True)   # JSON array of {day, hours}
+    gallery = Column(Text, nullable=True)         # JSON array of image URLs
+    social_links = Column(Text, nullable=True)    # JSON object
+    menu_pages = Column(Integer, nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_scraped_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<ScrapedBusiness id={self.id} slug={self.slug!r} brand_id={self.brand_id}>"
