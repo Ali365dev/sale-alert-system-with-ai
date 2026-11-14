@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Image,
@@ -26,9 +27,262 @@ import { fetchBusinessDetail } from '../../services/bankOffersApi';
 import { getBankIdByTakhfifName } from '../../config/banks';
 import { BANK_CARDS } from '../../config/bankCards';
 import CARD_IMAGES from '../../config/cardImages';
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import Geolocation from '@react-native-community/geolocation';
+import Svg, { Circle, G, Line, Rect, Text as SvgText } from 'react-native-svg';
 
 const { width: W } = Dimensions.get('window');
 const COVER_H = 240;
+
+// ─── Geo helpers ─────────────────────────────────────────────────────────────
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function openBranchDirections(branch, bizName) {
+  const lat = branch.latitude ? parseFloat(branch.latitude) : null;
+  const lng = branch.longitude ? parseFloat(branch.longitude) : null;
+  const label = encodeURIComponent(branch.name || bizName || 'Branch');
+  if (lat && lng) {
+    const url =
+      Platform.OS === 'ios'
+        ? `maps:0,0?q=${label}@${lat},${lng}`
+        : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+    Linking.openURL(url).catch(() =>
+      Linking.openURL(`https://maps.google.com/?q=${lat},${lng}`),
+    );
+  } else if (branch.address) {
+    const q = encodeURIComponent(`${branch.name || ''} ${branch.address}`);
+    Linking.openURL(`https://maps.google.com/?q=${q}`).catch(() => {});
+  }
+}
+
+// ─── Mini SVG map ─────────────────────────────────────────────────────────────
+
+function MiniMap({ userLoc, branches, colors }) {
+  const MAP_W = W - 32;
+  const MAP_H = 200;
+  const PAD = 28;
+
+  const pts = useMemo(() => {
+    const list = [];
+    if (userLoc) list.push({ lat: userLoc.lat, lng: userLoc.lng, type: 'user' });
+    branches.forEach((b, i) => {
+      if (b.latitude && b.longitude)
+        list.push({ lat: parseFloat(b.latitude), lng: parseFloat(b.longitude), type: 'branch', idx: i });
+    });
+    return list;
+  }, [userLoc, branches]);
+
+  if (pts.length < 1) return null;
+
+  const lats = pts.map(p => p.lat);
+  const lngs = pts.map(p => p.lng);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const latR = Math.max(maxLat - minLat, 0.005);
+  const lngR = Math.max(maxLng - minLng, 0.005);
+  const toX = (lng) => PAD + ((lng - minLng) / lngR) * (MAP_W - 2 * PAD);
+  const toY = (lat) => MAP_H - PAD - ((lat - minLat) / latR) * (MAP_H - 2 * PAD);
+
+  const gridLines = 5;
+
+  return (
+    <View style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: colors.border }}>
+      <Svg width={MAP_W} height={MAP_H}>
+        <Rect width={MAP_W} height={MAP_H} fill={colors.surface} />
+        {/* Grid */}
+        {Array.from({ length: gridLines }).map((_, i) => (
+          <Line key={`h${i}`} x1={0} y1={(MAP_H / (gridLines - 1)) * i} x2={MAP_W} y2={(MAP_H / (gridLines - 1)) * i}
+            stroke={colors.border} strokeWidth={0.6} />
+        ))}
+        {Array.from({ length: gridLines }).map((_, i) => (
+          <Line key={`v${i}`} x1={(MAP_W / (gridLines - 1)) * i} y1={0} x2={(MAP_W / (gridLines - 1)) * i} y2={MAP_H}
+            stroke={colors.border} strokeWidth={0.6} />
+        ))}
+        {/* Branch markers */}
+        {pts.filter(p => p.type === 'branch').map((p) => (
+          <G key={`b${p.idx}`}>
+            <Circle cx={toX(p.lng)} cy={toY(p.lat)} r={14} fill={colors.primary} opacity={0.9} />
+            <SvgText x={toX(p.lng)} y={toY(p.lat) + 5} textAnchor="middle"
+              fontSize={11} fontWeight="bold" fill="#fff">
+              {p.idx + 1}
+            </SvgText>
+          </G>
+        ))}
+        {/* User dot */}
+        {userLoc && (
+          <G>
+            <Circle cx={toX(userLoc.lng)} cy={toY(userLoc.lat)} r={18} fill="#3B82F6" opacity={0.18} />
+            <Circle cx={toX(userLoc.lng)} cy={toY(userLoc.lat)} r={9} fill="#3B82F6" />
+            <Circle cx={toX(userLoc.lng)} cy={toY(userLoc.lat)} r={3.5} fill="#fff" />
+          </G>
+        )}
+      </Svg>
+      {/* Legend */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, backgroundColor: colors.surface }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#3B82F6' }} />
+          <Text style={{ fontSize: 11, color: colors.textSecondary }}>You</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />
+          <Text style={{ fontSize: 11, color: colors.textSecondary }}>Branch</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─── Near Me bottom sheet ─────────────────────────────────────────────────────
+
+function NearMeSheet({ sheetRef, branches, bizName, colors }) {
+  const [userLoc, setUserLoc] = useState(null);
+  const [locError, setLocError] = useState(null);
+  const [locLoading, setLocLoading] = useState(false);
+  const snapPoints = useMemo(() => ['55%', '92%'], []);
+
+  const requestLocation = useCallback(() => {
+    setLocLoading(true);
+    setLocError(null);
+    Geolocation.getCurrentPosition(
+      pos => {
+        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocLoading(false);
+      },
+      () => {
+        setLocError('Location permission denied or unavailable');
+        setLocLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
+
+  const handleSheetChange = useCallback(
+    (index) => { if (index >= 0 && !userLoc && !locLoading) requestLocation(); },
+    [userLoc, locLoading, requestLocation],
+  );
+
+  const sortedBranches = useMemo(() => {
+    return [...branches]
+      .map(b => ({
+        ...b,
+        dist:
+          userLoc && b.latitude && b.longitude
+            ? haversineKm(userLoc.lat, userLoc.lng, parseFloat(b.latitude), parseFloat(b.longitude))
+            : null,
+      }))
+      .sort((a, b) => {
+        if (a.dist == null) return 1;
+        if (b.dist == null) return -1;
+        return a.dist - b.dist;
+      });
+  }, [userLoc, branches]);
+
+  const hasCoordsAny = branches.some(b => b.latitude && b.longitude);
+
+  return (
+    <BottomSheet
+      ref={sheetRef}
+      index={-1}
+      snapPoints={snapPoints}
+      enablePanDownToClose
+      onChange={handleSheetChange}
+      backgroundStyle={{ backgroundColor: colors.surface }}
+      handleIndicatorStyle={{ backgroundColor: colors.textSecondary }}>
+      <BottomSheetScrollView contentContainerStyle={styles.nearMeContent}>
+        {/* Header */}
+        <View style={styles.nearMeHeader}>
+          <Icon name="location" size={18} color={colors.primary} />
+          <Text style={[styles.nearMeTitle, { color: colors.text }]}>Near Me</Text>
+          {locLoading && (
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
+          )}
+          {!locLoading && userLoc && (
+            <Pressable onPress={requestLocation} style={{ marginLeft: 'auto' }}>
+              <Icon name="refresh-outline" size={18} color={colors.textSecondary} />
+            </Pressable>
+          )}
+        </View>
+
+        {/* Error banner */}
+        {locError && (
+          <View style={[styles.nearMeError, { backgroundColor: `${colors.danger}18`, borderColor: `${colors.danger}40` }]}>
+            <Icon name="warning-outline" size={15} color={colors.danger} />
+            <Text style={[styles.nearMeErrorTxt, { color: colors.danger }]}>{locError}</Text>
+            <Pressable onPress={requestLocation}>
+              <Text style={[styles.nearMeRetry, { color: colors.danger }]}>Retry</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Map */}
+        {hasCoordsAny && userLoc && (
+          <MiniMap userLoc={userLoc} branches={sortedBranches} colors={colors} />
+        )}
+
+        {/* Branch count */}
+        <Text style={[styles.sectionLabel, { color: colors.textSecondary, marginTop: 4 }]}>
+          {sortedBranches.length} LOCATION{sortedBranches.length !== 1 ? 'S' : ''}
+        </Text>
+
+        {/* Branch cards */}
+        {sortedBranches.map((branch, i) => (
+          <View
+            key={branch.id ?? i}
+            style={[styles.nearMeCard, { borderColor: colors.border }]}>
+            <View style={[styles.nearMeIdx, { backgroundColor: `${colors.primary}18` }]}>
+              <Text style={[styles.nearMeIdxTxt, { color: colors.primary }]}>{i + 1}</Text>
+            </View>
+            <View style={styles.nearMeCardBody}>
+              <Text style={[styles.branchName, { color: colors.text }]} numberOfLines={1}>
+                {branch.name || `Branch ${i + 1}`}
+              </Text>
+              {(branch.area || branch.address) && (
+                <Text style={[styles.branchAddr, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {branch.area ? `${branch.area}${branch.address ? ' · ' : ''}` : ''}{branch.address ?? ''}
+                </Text>
+              )}
+            </View>
+            <View style={styles.nearMeCardRight}>
+              {branch.dist != null && (
+                <Text style={[styles.nearMeDist, { color: branch.dist < 2 ? colors.success ?? '#22C55E' : colors.textSecondary }]}>
+                  {branch.dist < 1
+                    ? `${Math.round(branch.dist * 1000)} m`
+                    : `${branch.dist.toFixed(1)} km`}
+                </Text>
+              )}
+              <Pressable
+                onPress={() => openBranchDirections(branch, bizName)}
+                style={[styles.dirBtn, { backgroundColor: colors.primary }]}
+                accessibilityLabel="Get directions">
+                <Icon name="navigate" size={14} color="#fff" />
+              </Pressable>
+            </View>
+          </View>
+        ))}
+
+        {!sortedBranches.length && (
+          <View style={styles.emptyTab}>
+            <Icon name="location-outline" size={40} color={colors.textSecondary} />
+            <Text style={[styles.emptyTxt, { color: colors.textSecondary }]}>No branches listed</Text>
+          </View>
+        )}
+      </BottomSheetScrollView>
+    </BottomSheet>
+  );
+}
 
 // ─── Card image lookup ────────────────────────────────────────────────────────
 
@@ -136,16 +390,16 @@ function CoverGallery({ images, colors }) {
   );
 }
 
-function ActionButtons({ phone, website, bizName, onMorePress, onShare }) {
+function ActionButtons({ phone, website, bizName, onNearMe, onShare }) {
   const { colors } = useTheme();
   const hasPhone = !!phone;
   const hasWeb = !!website;
 
   const actions = [
     {
-      icon: 'navigate', label: 'Directions',
+      icon: 'navigate', label: 'Near Me',
       filled: true,
-      onPress: onMorePress,
+      onPress: onNearMe,
     },
     {
       icon: 'call-outline', label: 'Call',
@@ -586,6 +840,8 @@ export default function BankOfferDetailScreen() {
 
   const savedCards = useBankCardsStore((s) => s.cards);
 
+  const nearMeRef = useRef(null);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -755,7 +1011,8 @@ export default function BankOfferDetailScreen() {
           <ActionButtons
             phone={biz.phone}
             website={biz.website}
-            onMorePress={() => handleTabChange(2)}
+            bizName={biz.name}
+            onNearMe={() => nearMeRef.current?.expand()}
             onShare={() => Share.share({ message: `${biz.name} — up to ${biz.max_discount ?? ''}% off with bank card offers!` }).catch(() => {})}
           />
           <StatBar biz={biz} bankOffers={bankOffers} colors={colors} />
@@ -840,6 +1097,14 @@ export default function BankOfferDetailScreen() {
         </View>
         </AnimatedListItem>
       )}
+
+      {/* Near Me bottom sheet */}
+      <NearMeSheet
+        sheetRef={nearMeRef}
+        branches={biz?.branches ?? []}
+        bizName={biz?.name}
+        colors={colors}
+      />
     </View>
   );
 }
@@ -1048,7 +1313,38 @@ const styles = StyleSheet.create({
   bottomBarSub: { fontSize: 11, marginTop: 2 },
   goBtn: {
     borderRadius: 50,
-    paddingHorizontal: 24, paddingVertical: 12,
+    width: 44, height: 44,
+    alignItems: 'center', justifyContent: 'center',
   },
   goBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '900' },
+
+  // Near Me sheet
+  nearMeContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  nearMeHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginBottom: 16, paddingTop: 4,
+  },
+  nearMeTitle: { fontSize: 17, fontWeight: '700' },
+  nearMeError: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 10, borderWidth: 1, padding: 10, marginBottom: 12,
+  },
+  nearMeErrorTxt: { flex: 1, fontSize: 13 },
+  nearMeRetry: { fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' },
+  nearMeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 10,
+  },
+  nearMeIdx: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  nearMeIdxTxt: { fontSize: 14, fontWeight: '800' },
+  nearMeCardBody: { flex: 1 },
+  nearMeCardRight: { alignItems: 'flex-end', gap: 6 },
+  nearMeDist: { fontSize: 13, fontWeight: '700' },
+  dirBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+  },
 });

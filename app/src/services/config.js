@@ -22,7 +22,7 @@ const LOCAL_API = LOCAL_LAN_API;
 
 // In development, talk to the local API (has Sale Alerts). Release builds keep
 // production. Flip USE_LOCAL_API to false to force production while developing.
-const USE_LOCAL_API = true;
+const USE_LOCAL_API = false;
 
 export const BASE_URL = USE_LOCAL_API ? LOCAL_API : PRODUCTION_API;
 

@@ -4,6 +4,7 @@ import {
   Dimensions,
   FlatList,
   Linking,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -23,6 +24,8 @@ import useTheme from '../../hooks/useTheme';
 import useBankCardsStore from '../../state/bankCardsStore';
 import { fetchScrapedBusinesses } from '../../services/bankOffersApi';
 import Geolocation from '@react-native-community/geolocation';
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import MapView, { Marker } from 'react-native-maps';
 import FilterPickerSheet from '../../components/FilterPickerSheet';
 import ViewSwitcher from '../../components/ViewSwitcher';
 import useViewMode from '../../hooks/useViewMode';
@@ -63,6 +66,33 @@ const SORT_OPTIONS = [
 ];
 
 const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
+
+// Known city center coordinates for proximity estimation on the listing screen
+const CITY_COORDS = {
+  karachi:    { lat: 24.8607, lng: 67.0104 },
+  lahore:     { lat: 31.5497, lng: 74.3436 },
+  islamabad:  { lat: 33.6844, lng: 73.0479 },
+  rawalpindi: { lat: 33.6007, lng: 73.0679 },
+  faisalabad: { lat: 31.4504, lng: 73.1350 },
+  multan:     { lat: 30.1575, lng: 71.5249 },
+  hyderabad:  { lat: 25.3960, lng: 68.3578 },
+  peshawar:   { lat: 34.0151, lng: 71.5249 },
+  quetta:     { lat: 30.1798, lng: 66.9750 },
+};
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, d2r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * d2r, dLng = (lng2 - lng1) * d2r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * d2r) * Math.cos(lat2 * d2r) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function cityDistKm(userLat, userLng, cityStr) {
+  if (!cityStr) return null;
+  const key = Object.keys(CITY_COORDS).find((k) => cityStr.toLowerCase().includes(k));
+  if (!key) return null;
+  return haversineKm(userLat, userLng, CITY_COORDS[key].lat, CITY_COORDS[key].lng);
+}
 
 const CITY_OPTIONS = [
   { id: null,         label: 'All cities' },
@@ -229,6 +259,232 @@ const PAGE_SIZE = 20;
 const CARD_W = SCREEN_W - 2 * PAD;
 const GRID_CARD_W = Math.floor((SCREEN_W - 2 * PAD - GRID_COL_GAP) / 2);
 
+// ── Near Me modal (full-screen map + bottom sheet) ────────────────────────────
+
+const { height: SCREEN_H } = Dimensions.get('window');
+
+function NearMeModal({ visible, onClose, businesses, onPress }) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const sheetRef = useRef(null);
+  const mapRef = useRef(null);
+
+  const [userLoc, setUserLoc] = useState(null);
+  const [locLoading, setLocLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const snapPoints = useMemo(() => ['38%', '75%'], []);
+
+  const requestLocation = useCallback(() => {
+    setLocLoading(true);
+    Geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const loc = { lat: coords.latitude, lng: coords.longitude };
+        setUserLoc(loc);
+        setLocLoading(false);
+        mapRef.current?.animateToRegion({
+          latitude: coords.latitude, longitude: coords.longitude,
+          latitudeDelta: 0.15, longitudeDelta: 0.15,
+        }, 800);
+      },
+      () => setLocLoading(false),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
+
+  useEffect(() => {
+    if (visible) requestLocation();
+    else { setUserLoc(null); setSelectedId(null); }
+  }, [visible, requestLocation]);
+
+  const sorted = useMemo(() => {
+    if (!userLoc) return businesses.map((b) => ({ ...b, _dist: null, _coord: bizCoord(b) }));
+    return [...businesses]
+      .map((b) => ({ ...b, _dist: cityDistKm(userLoc.lat, userLoc.lng, b.city), _coord: bizCoord(b) }))
+      .sort((a, b) => {
+        if (a._dist == null) return 1;
+        if (b._dist == null) return -1;
+        return a._dist - b._dist;
+      });
+  }, [userLoc, businesses]);
+
+  const handleMarkerPress = useCallback((biz) => {
+    setSelectedId(biz.id);
+    sheetRef.current?.snapToIndex(1);
+  }, []);
+
+  const handleCardPress = useCallback((biz) => {
+    onClose();
+    onPress(biz);
+  }, [onClose, onPress]);
+
+  const initialRegion = useMemo(() => ({
+    latitude: 30.3753, longitude: 69.3451, // Pakistan center
+    latitudeDelta: 15, longitudeDelta: 15,
+  }), []);
+
+  return (
+    <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+
+        {/* Map fills screen */}
+        <MapView
+          ref={mapRef}
+          style={StyleSheet.absoluteFill}
+          initialRegion={initialRegion}
+          showsUserLocation
+          showsMyLocationButton={false}>
+          {sorted.map((biz) =>
+            biz._coord ? (
+              <Marker
+                key={biz.id}
+                coordinate={{ latitude: biz._coord.lat, longitude: biz._coord.lng }}
+                onPress={() => handleMarkerPress(biz)}>
+                <View style={[nmStyles.markerPin, selectedId === biz.id && nmStyles.markerPinSelected]}>
+                  <Icon name="location" size={selectedId === biz.id ? 20 : 16} color="#fff" />
+                </View>
+              </Marker>
+            ) : null,
+          )}
+        </MapView>
+
+        {/* Close + recenter buttons */}
+        <View style={[nmStyles.mapBtns, { top: insets.top + 12 }]}>
+          <Pressable onPress={onClose} style={nmStyles.mapBtn} accessibilityLabel="Close">
+            <Icon name="close" size={20} color="#333" />
+          </Pressable>
+          <Pressable onPress={requestLocation} style={nmStyles.mapBtn} accessibilityLabel="My location">
+            {locLoading
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Icon name="navigate" size={18} color={colors.primary} />}
+          </Pressable>
+        </View>
+
+        {/* Bottom sheet over map */}
+        <BottomSheet
+          ref={sheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          backgroundStyle={{ backgroundColor: colors.surface }}
+          handleIndicatorStyle={{ backgroundColor: colors.textSecondary }}>
+          <BottomSheetScrollView contentContainerStyle={nmStyles.sheetContent}>
+
+            {/* Sheet header */}
+            <View style={nmStyles.sheetHeader}>
+              <Text style={[nmStyles.sheetTitle, { color: colors.text }]}>
+                List of {sorted.length} places
+              </Text>
+              {userLoc && (
+                <Text style={[nmStyles.sheetSub, { color: colors.textSecondary }]}>
+                  Sorted by distance from you
+                </Text>
+              )}
+            </View>
+
+            {/* Business cards */}
+            {sorted.map((biz) => (
+              <Pressable
+                key={biz.id}
+                onPress={() => handleCardPress(biz)}
+                style={[
+                  nmStyles.bizCard,
+                  { backgroundColor: colors.surface, borderColor: selectedId === biz.id ? colors.primary : colors.border },
+                  selectedId === biz.id && { borderWidth: 1.5 },
+                ]}>
+                {/* Cover image */}
+                {biz.cover_image_url ? (
+                  <FastImage
+                    source={{ uri: biz.cover_image_url, priority: FastImage.priority.normal }}
+                    style={nmStyles.bizThumb}
+                    resizeMode={FastImage.resizeMode.cover}
+                  />
+                ) : (
+                  <View style={[nmStyles.bizThumb, { backgroundColor: colors.primary + '22', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Text style={{ fontSize: 22, fontWeight: '800', color: colors.primary }}>{biz.name?.[0]}</Text>
+                  </View>
+                )}
+
+                {/* Info */}
+                <View style={nmStyles.bizInfo}>
+                  <Text style={[nmStyles.bizName, { color: colors.text }]} numberOfLines={1}>{biz.name}</Text>
+                  <Text style={[nmStyles.bizCategory, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {biz.category || 'General'}
+                  </Text>
+                  <View style={nmStyles.bizMeta}>
+                    {biz.rating != null && (
+                      <>
+                        <Icon name="star" size={11} color="#F59E0B" />
+                        <Text style={[nmStyles.bizMetaTxt, { color: colors.text }]}>{biz.rating.toFixed(1)}</Text>
+                        {biz.review_count != null && (
+                          <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>
+                            ({biz.review_count > 999 ? `${(biz.review_count / 1000).toFixed(1)}k` : biz.review_count})
+                          </Text>
+                        )}
+                        <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>·</Text>
+                      </>
+                    )}
+                    {biz._dist != null && (
+                      <Text style={[nmStyles.bizMetaTxt, { color: colors.primary, fontWeight: '700' }]}>
+                        {biz._dist < 1 ? `${Math.round(biz._dist * 1000)} m` : `${Math.round(biz._dist)} km`}
+                      </Text>
+                    )}
+                    {biz.max_discount != null && (
+                      <>
+                        <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>·</Text>
+                        <Text style={[nmStyles.bizMetaTxt, { color: colors.text, fontWeight: '600' }]}>
+                          Up to {biz.max_discount}% off
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+              </Pressable>
+            ))}
+          </BottomSheetScrollView>
+        </BottomSheet>
+      </View>
+    </Modal>
+  );
+}
+
+function bizCoord(biz) {
+  if (!biz.city) return null;
+  const key = Object.keys(CITY_COORDS).find((k) => biz.city.toLowerCase().includes(k));
+  return key ? CITY_COORDS[key] : null;
+}
+
+const nmStyles = StyleSheet.create({
+  mapBtns: {
+    position: 'absolute', left: 16, right: 16,
+    flexDirection: 'row', justifyContent: 'space-between',
+  },
+  mapBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4,
+  },
+  markerPin: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: '#FF6B35', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 4,
+  },
+  markerPinSelected: { backgroundColor: '#CC3300', width: 42, height: 42, borderRadius: 21 },
+  sheetContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  sheetHeader: { paddingVertical: 10, marginBottom: 6 },
+  sheetTitle: { fontSize: 17, fontWeight: '800' },
+  sheetSub: { fontSize: 12, marginTop: 2 },
+  bizCard: {
+    flexDirection: 'row', gap: 12, borderRadius: 14,
+    borderWidth: 1, marginBottom: 10, overflow: 'hidden',
+  },
+  bizThumb: { width: 80, height: 80 },
+  bizInfo: { flex: 1, paddingVertical: 10, paddingRight: 12, justifyContent: 'center', gap: 3 },
+  bizName: { fontSize: 14, fontWeight: '700' },
+  bizCategory: { fontSize: 12 },
+  bizMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  bizMetaTxt: { fontSize: 12 },
+});
+
 function SkeletonCard({ gridView }) {
   const { colors } = useTheme();
   if (gridView) {
@@ -298,6 +554,7 @@ export default function BankOffersScreen() {
   const citySheetRef = useRef(null);
   const bankSheetRef = useRef(null);
   const sortSheetRef = useRef(null);
+  const [nearMeVisible, setNearMeVisible] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -353,9 +610,12 @@ export default function BankOffersScreen() {
 
   const handleCitySelect = useCallback((id) => {
     setActiveCity(id);
-    if (id === 'nearby') resolveNearbyCity();
-    else setNearbyCity(null);
-  }, [resolveNearbyCity]);
+    if (id === 'nearby') {
+      setNearMeVisible(true);
+    } else {
+      setNearbyCity(null);
+    }
+  }, []);
 
   const savedBankIds = useMemo(
     () => new Set(savedCards.map((c) => c.bankId)),
@@ -746,6 +1006,13 @@ export default function BankOffersScreen() {
         selected={sortMode}
         onSelect={setSortMode}
         snapPoint="40%"
+      />
+
+      <NearMeModal
+        visible={nearMeVisible}
+        onClose={() => setNearMeVisible(false)}
+        businesses={businesses}
+        onPress={handlePress}
       />
     </View>
   );

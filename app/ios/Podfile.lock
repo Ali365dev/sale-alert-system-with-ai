@@ -1386,6 +1386,53 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-maps (1.29.11):
+    - react-native-maps/Maps (= 1.29.11)
+  - react-native-maps/Generated (1.29.11):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - react-native-maps/Maps (1.29.11):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-bridging
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - react-native-maps/Generated
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-mmkv (3.3.3):
     - hermes-engine
     - RCTRequired
@@ -2368,6 +2415,7 @@ DEPENDENCIES:
   - React-mutationobservernativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver`)
   - "react-native-clarity (from `../node_modules/@microsoft/react-native-clarity`)"
   - "react-native-geolocation (from `../node_modules/@react-native-community/geolocation`)"
+  - react-native-maps (from `../node_modules/react-native-maps`)
   - react-native-mmkv (from `../node_modules/react-native-mmkv`)
   - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
@@ -2558,6 +2606,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@microsoft/react-native-clarity"
   react-native-geolocation:
     :path: "../node_modules/@react-native-community/geolocation"
+  react-native-maps:
+    :path: "../node_modules/react-native-maps"
   react-native-mmkv:
     :path: "../node_modules/react-native-mmkv"
   react-native-netinfo:
@@ -2748,6 +2798,7 @@ SPEC CHECKSUMS:
   React-mutationobservernativemodule: 44fd38a55451f25ea5a2c74e74f18bf08f94d40a
   react-native-clarity: 080efb1f6ebf579feacae7c208d3e2e9ee0c0e8c
   react-native-geolocation: 1202caa7bc8dc4149458369179e45d42172b506a
+  react-native-maps: 98efcff5f30ce836b9a110b37b6920b07bd8099f
   react-native-mmkv: b27384836fd2faf09fda5fc823362e53c61d1909
   react-native-netinfo: 76dc2fda1e28f3b28422f9bb323f0a30910ca093
   react-native-safe-area-context: 276e80a088fdae79726b2df0ebba55e7a4fecce4

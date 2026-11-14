@@ -42,16 +42,8 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
+		<false/>
 	</dict>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_http._tcp.</string>
-	</array>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Deals More uses the local network to reach the development server on your computer.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Allow access to your location to show deals and offers near you.</string>
 	<key>RCTNewArchEnabled</key>
