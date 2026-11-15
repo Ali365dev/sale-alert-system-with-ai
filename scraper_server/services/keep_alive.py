@@ -12,7 +12,7 @@ _TIMEOUT  = 60       # 60 s — enough time for a cold-start wakeup
 def _ping(url: str) -> None:
     try:
         with urllib.request.urlopen(url, timeout=_TIMEOUT) as resp:
-            logger.debug("keep-alive ✓ %s  %s", url, resp.status)
+            logger.info("keep-alive ✓ %s  %s", url, resp.status)
     except Exception as exc:
         logger.warning("keep-alive ✗ %s  %s", url, exc)
 

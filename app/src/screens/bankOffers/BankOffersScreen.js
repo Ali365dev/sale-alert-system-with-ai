@@ -5,6 +5,7 @@ import {
   FlatList,
   Linking,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -322,12 +323,107 @@ function NearMeModal({ visible, onClose, businesses, onPress }) {
     latitudeDelta: 15, longitudeDelta: 15,
   }), []);
 
+  const bizCards = sorted.map((biz) => (
+    <Pressable
+      key={biz.id}
+      onPress={() => handleCardPress(biz)}
+      style={[
+        nmStyles.bizCard,
+        { backgroundColor: colors.surface, borderColor: selectedId === biz.id ? colors.primary : colors.border },
+        selectedId === biz.id && { borderWidth: 1.5 },
+      ]}>
+      {biz.cover_image_url ? (
+        <FastImage
+          source={{ uri: biz.cover_image_url, priority: FastImage.priority.normal }}
+          style={nmStyles.bizThumb}
+          resizeMode={FastImage.resizeMode.cover}
+        />
+      ) : (
+        <View style={[nmStyles.bizThumb, { backgroundColor: colors.primary + '22', alignItems: 'center', justifyContent: 'center' }]}>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.primary }}>{biz.name?.[0]}</Text>
+        </View>
+      )}
+      <View style={nmStyles.bizInfo}>
+        <Text style={[nmStyles.bizName, { color: colors.text }]} numberOfLines={1}>{biz.name}</Text>
+        <Text style={[nmStyles.bizCategory, { color: colors.textSecondary }]} numberOfLines={1}>
+          {biz.category || 'General'}
+        </Text>
+        <View style={nmStyles.bizMeta}>
+          {biz.rating != null && (
+            <>
+              <Icon name="star" size={11} color="#F59E0B" />
+              <Text style={[nmStyles.bizMetaTxt, { color: colors.text }]}>{biz.rating.toFixed(1)}</Text>
+              {biz.review_count != null && (
+                <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>
+                  ({biz.review_count > 999 ? `${(biz.review_count / 1000).toFixed(1)}k` : biz.review_count})
+                </Text>
+              )}
+              <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>·</Text>
+            </>
+          )}
+          {biz._dist != null && (
+            <Text style={[nmStyles.bizMetaTxt, { color: colors.primary, fontWeight: '700' }]}>
+              {biz._dist < 1 ? `${Math.round(biz._dist * 1000)} m` : `${Math.round(biz._dist)} km`}
+            </Text>
+          )}
+          {biz.max_discount != null && (
+            <>
+              <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>·</Text>
+              <Text style={[nmStyles.bizMetaTxt, { color: colors.text, fontWeight: '600' }]}>
+                Up to {biz.max_discount}% off
+              </Text>
+            </>
+          )}
+        </View>
+      </View>
+    </Pressable>
+  ));
+
+  const sheetHeader = (
+    <View style={nmStyles.sheetHeader}>
+      <Text style={[nmStyles.sheetTitle, { color: colors.text }]}>
+        {sorted.length} places near you
+      </Text>
+      {userLoc && (
+        <Text style={[nmStyles.sheetSub, { color: colors.textSecondary }]}>
+          Sorted by distance from you
+        </Text>
+      )}
+    </View>
+  );
+
+  if (Platform.OS === 'android') {
+    // Android: list-only modal (no Google Maps API key required)
+    return (
+      <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <View style={[nmStyles.androidModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
+          {/* Header bar */}
+          <View style={[nmStyles.androidHeader, { borderBottomColor: colors.border }]}>
+            <Pressable onPress={onClose} style={nmStyles.mapBtn} accessibilityLabel="Close">
+              <Icon name="close" size={20} color={colors.text} />
+            </Pressable>
+            <Text style={[nmStyles.androidTitle, { color: colors.text }]}>Near Me</Text>
+            <Pressable onPress={requestLocation} style={nmStyles.mapBtn} accessibilityLabel="My location">
+              {locLoading
+                ? <ActivityIndicator size="small" color={colors.primary} />
+                : <Icon name="navigate" size={18} color={colors.primary} />}
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={[nmStyles.sheetContent, { paddingBottom: insets.bottom + 24 }]}>
+            {sheetHeader}
+            {bizCards}
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  }
+
   return (
     <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-        {/* Map fills screen */}
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFill}
@@ -348,7 +444,6 @@ function NearMeModal({ visible, onClose, businesses, onPress }) {
           )}
         </MapView>
 
-        {/* Close + recenter buttons */}
         <View style={[nmStyles.mapBtns, { top: insets.top + 12 }]}>
           <Pressable onPress={onClose} style={nmStyles.mapBtn} accessibilityLabel="Close">
             <Icon name="close" size={20} color="#333" />
@@ -360,7 +455,6 @@ function NearMeModal({ visible, onClose, businesses, onPress }) {
           </Pressable>
         </View>
 
-        {/* Bottom sheet over map */}
         <BottomSheet
           ref={sheetRef}
           index={0}
@@ -368,78 +462,8 @@ function NearMeModal({ visible, onClose, businesses, onPress }) {
           backgroundStyle={{ backgroundColor: colors.surface }}
           handleIndicatorStyle={{ backgroundColor: colors.textSecondary }}>
           <BottomSheetScrollView contentContainerStyle={nmStyles.sheetContent}>
-
-            {/* Sheet header */}
-            <View style={nmStyles.sheetHeader}>
-              <Text style={[nmStyles.sheetTitle, { color: colors.text }]}>
-                List of {sorted.length} places
-              </Text>
-              {userLoc && (
-                <Text style={[nmStyles.sheetSub, { color: colors.textSecondary }]}>
-                  Sorted by distance from you
-                </Text>
-              )}
-            </View>
-
-            {/* Business cards */}
-            {sorted.map((biz) => (
-              <Pressable
-                key={biz.id}
-                onPress={() => handleCardPress(biz)}
-                style={[
-                  nmStyles.bizCard,
-                  { backgroundColor: colors.surface, borderColor: selectedId === biz.id ? colors.primary : colors.border },
-                  selectedId === biz.id && { borderWidth: 1.5 },
-                ]}>
-                {/* Cover image */}
-                {biz.cover_image_url ? (
-                  <FastImage
-                    source={{ uri: biz.cover_image_url, priority: FastImage.priority.normal }}
-                    style={nmStyles.bizThumb}
-                    resizeMode={FastImage.resizeMode.cover}
-                  />
-                ) : (
-                  <View style={[nmStyles.bizThumb, { backgroundColor: colors.primary + '22', alignItems: 'center', justifyContent: 'center' }]}>
-                    <Text style={{ fontSize: 22, fontWeight: '800', color: colors.primary }}>{biz.name?.[0]}</Text>
-                  </View>
-                )}
-
-                {/* Info */}
-                <View style={nmStyles.bizInfo}>
-                  <Text style={[nmStyles.bizName, { color: colors.text }]} numberOfLines={1}>{biz.name}</Text>
-                  <Text style={[nmStyles.bizCategory, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {biz.category || 'General'}
-                  </Text>
-                  <View style={nmStyles.bizMeta}>
-                    {biz.rating != null && (
-                      <>
-                        <Icon name="star" size={11} color="#F59E0B" />
-                        <Text style={[nmStyles.bizMetaTxt, { color: colors.text }]}>{biz.rating.toFixed(1)}</Text>
-                        {biz.review_count != null && (
-                          <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>
-                            ({biz.review_count > 999 ? `${(biz.review_count / 1000).toFixed(1)}k` : biz.review_count})
-                          </Text>
-                        )}
-                        <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>·</Text>
-                      </>
-                    )}
-                    {biz._dist != null && (
-                      <Text style={[nmStyles.bizMetaTxt, { color: colors.primary, fontWeight: '700' }]}>
-                        {biz._dist < 1 ? `${Math.round(biz._dist * 1000)} m` : `${Math.round(biz._dist)} km`}
-                      </Text>
-                    )}
-                    {biz.max_discount != null && (
-                      <>
-                        <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>·</Text>
-                        <Text style={[nmStyles.bizMetaTxt, { color: colors.text, fontWeight: '600' }]}>
-                          Up to {biz.max_discount}% off
-                        </Text>
-                      </>
-                    )}
-                  </View>
-                </View>
-              </Pressable>
-            ))}
+            {sheetHeader}
+            {bizCards}
           </BottomSheetScrollView>
         </BottomSheet>
       </View>
@@ -483,6 +507,12 @@ const nmStyles = StyleSheet.create({
   bizCategory: { fontSize: 12 },
   bizMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   bizMetaTxt: { fontSize: 12 },
+  androidModal: { flex: 1 },
+  androidHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  androidTitle: { fontSize: 17, fontWeight: '700' },
 });
 
 function SkeletonCard({ gridView }) {
