@@ -1,0 +1,15 @@
+.offer-row {
+  transition: background 0.1s;
+}
+
+.offer-row:hover {
+  background: var(--surface-sunken);
+}
+
+.offer-row--clickable {
+  cursor: pointer;
+}
+
+.offer-row--clickable:hover .offer-place-name {
+  color: var(--brand);
+}

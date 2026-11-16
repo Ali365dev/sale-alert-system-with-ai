@@ -94,6 +94,9 @@ def _migrate() -> None:
         ("bank_card_offers", "valid_days",            "TEXT"),
         ("bank_card_offers", "terms",                 "TEXT"),
         ("bank_card_offers", "bank_logo",             "VARCHAR(500)"),
+        ("bank_card_offers", "branch_valid_count",    "INTEGER"),
+        ("bank_card_offers", "branch_total_count",    "INTEGER"),
+        ("bank_card_offers", "valid_branches",        "TEXT"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:

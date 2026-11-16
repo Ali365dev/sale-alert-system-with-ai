@@ -21,6 +21,10 @@ async function finalize(session: TakhfifSession): Promise<void> {
       // Build queue from the details store (every entry is either a skeleton
       // from phase 1 or a full record from a previous detail run)
       const details = (await get<DetailsStore>(KEYS.details)) ?? {};
+      const detailCount = Object.keys(details).length;
+      if (detailCount !== p1.saved) {
+        await log("warn", `Details store has ${detailCount} entries but ${p1.saved} were saved — possible storage write failure during listing.`);
+      }
       const queue: TakhfifQueueItem[] = Object.values(details).map((d) => ({
         detailUrl: d.canonicalUrl,
         businessName: d.name,

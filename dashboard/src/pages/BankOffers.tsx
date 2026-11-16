@@ -1,23 +1,29 @@
 import { useState } from "react";
+import { Link } from "react-router";
 
 import { useScrapedBusinesses } from "../api/bankOffers";
-import { Icon } from "../components/icons";
+import { CardOffersTab } from "../components/bankoffers/CardOffersTab";
 import { BusinessDrawer } from "../components/bankoffers/BusinessDrawer";
+import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
 import { LoadingState } from "../components/ui/Spinner";
+import { Tabs } from "../components/ui/Tabs";
 
 const PAGE_SIZE = 50;
 
-const cell: React.CSSProperties = { font: "500 12.5px/1.4 var(--font-sans)", color: "var(--text-body)" };
+const cell: React.CSSProperties = {
+  font: "500 12.5px/1.4 var(--font-sans)",
+  color: "var(--text-body)",
+};
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString(undefined, { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-export function BankOffers() {
+function BusinessesTab() {
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [matchedOnly, setMatchedOnly] = useState(false);
@@ -25,8 +31,10 @@ export function BankOffers() {
   const [openId, setOpenId] = useState<number | null>(null);
 
   const { data, isLoading } = useScrapedBusinesses({
-    q: search || undefined, matched_only: matchedOnly || undefined,
-    limit: PAGE_SIZE, offset,
+    q: search || undefined,
+    matched_only: matchedOnly || undefined,
+    limit: PAGE_SIZE,
+    offset,
   });
   const total = data?.total ?? 0;
 
@@ -34,8 +42,8 @@ export function BankOffers() {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Card>
         <CardHeader
-          icon={<Icon.offer size={18} />}
-          title={`Bank Offers — scraped businesses${total ? ` (${total})` : ""}`}
+          icon={<Icon.store size={18} />}
+          title={`Scraped businesses${total ? ` (${total})` : ""}`}
           aside={
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <form
@@ -124,5 +132,34 @@ export function BankOffers() {
 
       {openId != null && <BusinessDrawer businessId={openId} onClose={() => setOpenId(null)} />}
     </div>
+  );
+}
+
+export function BankOffers() {
+  const [tab, setTab] = useState("offers");
+  const [lastJobId, setLastJobId] = useState<number | null>(null);
+
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
+        <Tabs
+          tabs={[
+            { id: "offers", label: "Card Offers" },
+            { id: "businesses", label: "Businesses" },
+          ]}
+          active={tab}
+          onChange={setTab}
+        />
+        {lastJobId != null && (
+          <Link to="/pipeline" style={{ font: "500 12px/1 var(--font-sans)", color: "var(--brand)" }}>
+            Scrape job #{lastJobId} running →
+          </Link>
+        )}
+      </div>
+
+      {tab === "offers"
+        ? <CardOffersTab onScrapeJobStart={setLastJobId} />
+        : <BusinessesTab />}
+    </>
   );
 }

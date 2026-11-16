@@ -28,6 +28,9 @@ export interface BankOfferRow {
   discount_percentage: number | null;
   max_discount_text: string | null;
   max_discount_amount: number | null;
+  branch_valid_count: number | null;
+  branch_total_count: number | null;
+  valid_branches: string[];
   valid_days: string[];
   terms: string[];
   currency: string | null;
@@ -35,6 +38,7 @@ export interface BankOfferRow {
   place_name: string;
   source_url: string;
   brand_id: number | null;
+  brand_name: string | null;
   business_id: number | null;
 }
 
@@ -60,6 +64,47 @@ export interface CombinedOffers {
   }>;
   bank_offers: BankOfferRow[];
   businesses: Array<{ id: number; slug: string; name: string; city: string | null }>;
+}
+
+export interface BankOfferListResponse {
+  total: number;
+  matched_count: number;
+  with_expiry_count: number;
+  with_max_disc_count: number;
+  offers: BankOfferRow[];
+  bank_names: string[];
+}
+
+export function useListBankOffers(params: {
+  q?: string;
+  brand_id?: number;
+  bank_name?: string;
+  matched_only?: boolean;
+  limit?: number;
+  offset?: number;
+}) {
+  return useQuery({
+    queryKey: ["bank-offers-list", params],
+    queryFn: async () => {
+      const { data } = await apiClient.get<BankOfferListResponse>("/bank-offers", { params });
+      return data;
+    },
+  });
+}
+
+export function useScrapeBankOffers() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (maxPages?: number) => {
+      const { data } = await apiClient.post<{ jobId: number }>("/bank-offers/scrape", maxPages ? { max_pages: maxPages } : {});
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bank-offers-list"] });
+      queryClient.invalidateQueries({ queryKey: ["bank-offer-businesses"] });
+      toast.success("Scrape job started.");
+    },
+  });
 }
 
 export function useScrapedBusinesses(params: { q?: string; matched_only?: boolean; limit?: number; offset?: number }) {

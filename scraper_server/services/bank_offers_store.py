@@ -4,6 +4,7 @@ given source_url with a fresh set. Used by both the takhfif.app scrape job
 (services/takhfif_scraper.py) and the chrome extension's manual Bank Offers
 scan (routers/bank_offers.py's /manual endpoint, for sites too unstructured
 for the takhfif job's JSON-LD parsing)."""
+import json
 from typing import Optional
 
 from database.db import get_session
@@ -19,8 +20,10 @@ def upsert_place_offers(
     offers: list[dict],
 ) -> int:
     """offers: list of {bank_name, card_name?, discount_percentage?,
-    currency?, expiry_date?, description?}. Returns the number of rows
-    written (0 clears out any previous rows for this source_url)."""
+    currency?, expiry_date?, description?, max_discount_*?,
+    branch_valid_count?, branch_total_count?, valid_branches?}. Returns the
+    number of rows written (0 clears out any previous rows for this
+    source_url)."""
     brand_id, _score, _reason = find_brand_duplicate(place_name, place_website, social_links or {})
 
     with get_session() as session:
@@ -37,6 +40,11 @@ def upsert_place_offers(
                 currency=offer.get("currency"),
                 expiry_date=offer.get("expiry_date"),
                 description=offer.get("description"),
+                max_discount_text=offer.get("max_discount_text"),
+                max_discount_amount=offer.get("max_discount_amount"),
+                branch_valid_count=offer.get("branch_valid_count"),
+                branch_total_count=offer.get("branch_total_count"),
+                valid_branches=json.dumps(offer["valid_branches"]) if offer.get("valid_branches") else None,
             ))
 
     return len(offers)

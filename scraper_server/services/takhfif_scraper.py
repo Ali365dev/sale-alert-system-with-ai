@@ -18,6 +18,16 @@ BASE_URL = "https://takhfif.app"
 
 _LD_JSON_RE = re.compile(r'<script type="application/ld\+json">(.*?)</script>', re.S)
 
+# Max discount is rendered only in the page HTML per card, never in the
+# JSON-LD offers[] block, so it has to be scraped from the markup.
+_CARD_NAME_RE = re.compile(r'<span class="text-sm font-medium text-foreground">([^<]+)</span>')
+_MAX_DISCOUNT_RE = re.compile(r'Max discount:</span>((?:<!-- -->|[^<])*)')
+
+# The Next.js RSC payload embeds the full per-bank card list — including banks
+# whose offer panel is NOT server-rendered (only the default bank's is), plus
+# cap_amount_pkr and branchCoverage, which the visible HTML lacks for them.
+_RSC_PUSH_RE = re.compile(r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)')
+
 _SOCIAL_DOMAIN_PLATFORMS = {
     "facebook.com": "facebook",
     "instagram.com": "instagram",
@@ -81,6 +91,64 @@ def _strip_description_prefix(description: str, discount, bank_name: str) -> str
     return description
 
 
+def _extract_max_discounts(html: str) -> dict[str, dict]:
+    """Returns {card_name: {"text", "amount"}} parsed from the rendered
+    card list markup."""
+    result: dict[str, dict] = {}
+    matches = list(_CARD_NAME_RE.finditer(html))
+    for i, m in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(html)
+        md = _MAX_DISCOUNT_RE.search(html, m.end(), end)
+        if not md:
+            continue
+        text = md.group(1).replace("<!-- -->", "").strip()
+        amt = re.search(r"([\d,]+)", text)
+        result[m.group(1).strip()] = {
+            "text": text or None,
+            "amount": float(amt.group(1).replace(",", "")) if amt else None,
+        }
+    return result
+
+
+def _extract_rsc_cards(html: str) -> dict[tuple, dict]:
+    """Returns {(bank_lower, card_lower, discount_percent): card} from the
+    page's streamed RSC payload. Each card carries cap_amount_pkr and
+    branchCoverage ({"c": valid, "t": total, "n": [branch names]} or null).
+    A (bank_lower, card_lower) fallback key is added when unambiguous."""
+    chunks = []
+    for m in _RSC_PUSH_RE.finditer(html):
+        try:
+            chunks.append(json.loads(f'"{m.group(1)}"'))
+        except json.JSONDecodeError:
+            continue
+    text = "".join(chunks)
+
+    decoder = json.JSONDecoder()
+    by_key: dict[tuple, dict] = {}
+    ambiguous: set[tuple] = set()
+    for m in re.finditer(r'\{"bankName":', text):
+        try:
+            bank, _ = decoder.raw_decode(text, m.start())
+        except json.JSONDecodeError:
+            continue
+        bank_name = (bank.get("bankName") or "").strip().lower()
+        if not bank_name or not isinstance(bank.get("cards"), list):
+            continue
+        for card in bank["cards"]:
+            card_name = (card.get("card_name") or "").strip().lower()
+            if not card_name:
+                continue
+            by_key[(bank_name, card_name, card.get("discount_percent"))] = card
+            short = (bank_name, card_name)
+            if short in by_key:
+                ambiguous.add(short)
+            else:
+                by_key[short] = card
+    for short in ambiguous:
+        by_key.pop(short, None)
+    return by_key
+
+
 def _parse_date(value: Optional[str]) -> Optional[datetime]:
     if not value:
         return None
@@ -119,19 +187,38 @@ def scrape_place(place_url: str) -> dict:
     name = business.get("name") or ""
     website, social_links = _split_same_as(business.get("sameAs") or [])
 
+    max_discounts = _extract_max_discounts(html)
+    rsc_cards = _extract_rsc_cards(html)
+
     offers = []
     for raw in business.get("offers") or []:
         bank_name = ((raw.get("offeredBy") or {}).get("name") or "").strip()
         if not bank_name:
             continue
         description = raw.get("description") or ""
+        card_name = _strip_description_prefix(description, raw.get("discount"), bank_name) or None
+        md = (max_discounts.get(card_name or "")
+              or max_discounts.get(f"{bank_name} {card_name}" if card_name else "")
+              or {})
+        rsc = {}
+        if card_name:
+            rsc = (rsc_cards.get((bank_name.lower(), card_name.lower(), raw.get("discount")))
+                   or rsc_cards.get((bank_name.lower(), card_name.lower()))
+                   or {})
+        cap = rsc.get("cap_amount_pkr")
+        coverage = rsc.get("branchCoverage") or {}
         offers.append({
             "bank_name": bank_name,
-            "card_name": _strip_description_prefix(description, raw.get("discount"), bank_name) or None,
+            "card_name": card_name,
             "discount_percentage": raw.get("discount"),
             "currency": raw.get("priceCurrency"),
             "expiry_date": _parse_date(raw.get("validThrough")),
             "description": description or None,
+            "max_discount_text": f"Rs {cap:,.0f}" if cap else md.get("text"),
+            "max_discount_amount": float(cap) if cap else md.get("amount"),
+            "branch_valid_count": coverage.get("c"),
+            "branch_total_count": coverage.get("t"),
+            "valid_branches": coverage.get("n") or None,
         })
 
     return {"name": name, "website": website, "social_links": social_links, "offers": offers}

@@ -989,6 +989,11 @@ class BankCardOffer(Base):
     description = Column(Text, nullable=True)
     valid_days = Column(Text, nullable=True)   # JSON array
     terms = Column(Text, nullable=True)        # JSON array
+    # Branch restriction ("Valid at 17 of 18 branches") — null when the offer
+    # covers every branch
+    branch_valid_count = Column(Integer, nullable=True)
+    branch_total_count = Column(Integer, nullable=True)
+    valid_branches = Column(Text, nullable=True)  # JSON array of branch names
 
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=_utcnow, nullable=False)

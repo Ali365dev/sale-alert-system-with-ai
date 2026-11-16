@@ -89,10 +89,9 @@ export function ExportBar({ details }: {
   );
 }
 
-const MODES: { value: TakhfifDetailMode; label: string }[] = [
-  { value: "new", label: "Only new deals" },
-  { value: "existing", label: "Re-scrape existing deals" },
-  { value: "all", label: "All deals" },
+const MODES: { value: TakhfifDetailMode; label: string; desc: string }[] = [
+  { value: "new", label: "Remaining only", desc: "Skip businesses that already have card offer details" },
+  { value: "all", label: "All deals", desc: "Re-scrape every business from the beginning" },
 ];
 
 export function CompletionPanel({ session, onStartDetails }: {
@@ -135,7 +134,7 @@ export function CompletionPanel({ session, onStartDetails }: {
               onChange={(e) => setMode(e.target.value as TakhfifDetailMode)}
               className="flex-1 text-[11px] px-2 py-1.5 border border-line rounded-lg bg-surface-2 text-t1 outline-none focus:border-primary"
             >
-              {MODES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+              {MODES.map((m) => <option key={m.value} value={m.value} title={m.desc}>{m.label}</option>)}
             </select>
           </div>
           <button

@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -29,7 +30,6 @@ import { BANK_CARDS } from '../../config/bankCards';
 import CARD_IMAGES from '../../config/cardImages';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Geolocation from '@react-native-community/geolocation';
-import Svg, { Circle, G, Line, Rect, Text as SvgText } from 'react-native-svg';
 
 const { width: W } = Dimensions.get('window');
 const COVER_H = 240;
@@ -64,85 +64,6 @@ function openBranchDirections(branch, bizName) {
     const q = encodeURIComponent(`${branch.name || ''} ${branch.address}`);
     Linking.openURL(`https://maps.google.com/?q=${q}`).catch(() => {});
   }
-}
-
-// ─── Mini SVG map ─────────────────────────────────────────────────────────────
-
-function MiniMap({ userLoc, branches, colors }) {
-  const MAP_W = W - 32;
-  const MAP_H = 200;
-  const PAD = 28;
-
-  const pts = useMemo(() => {
-    const list = [];
-    if (userLoc) list.push({ lat: userLoc.lat, lng: userLoc.lng, type: 'user' });
-    branches.forEach((b, i) => {
-      if (b.latitude && b.longitude)
-        list.push({ lat: parseFloat(b.latitude), lng: parseFloat(b.longitude), type: 'branch', idx: i });
-    });
-    return list;
-  }, [userLoc, branches]);
-
-  if (pts.length < 1) return null;
-
-  const lats = pts.map(p => p.lat);
-  const lngs = pts.map(p => p.lng);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-  const latR = Math.max(maxLat - minLat, 0.005);
-  const lngR = Math.max(maxLng - minLng, 0.005);
-  const toX = (lng) => PAD + ((lng - minLng) / lngR) * (MAP_W - 2 * PAD);
-  const toY = (lat) => MAP_H - PAD - ((lat - minLat) / latR) * (MAP_H - 2 * PAD);
-
-  const gridLines = 5;
-
-  return (
-    <View style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: colors.border }}>
-      <Svg width={MAP_W} height={MAP_H}>
-        <Rect width={MAP_W} height={MAP_H} fill={colors.surface} />
-        {/* Grid */}
-        {Array.from({ length: gridLines }).map((_, i) => (
-          <Line key={`h${i}`} x1={0} y1={(MAP_H / (gridLines - 1)) * i} x2={MAP_W} y2={(MAP_H / (gridLines - 1)) * i}
-            stroke={colors.border} strokeWidth={0.6} />
-        ))}
-        {Array.from({ length: gridLines }).map((_, i) => (
-          <Line key={`v${i}`} x1={(MAP_W / (gridLines - 1)) * i} y1={0} x2={(MAP_W / (gridLines - 1)) * i} y2={MAP_H}
-            stroke={colors.border} strokeWidth={0.6} />
-        ))}
-        {/* Branch markers */}
-        {pts.filter(p => p.type === 'branch').map((p) => (
-          <G key={`b${p.idx}`}>
-            <Circle cx={toX(p.lng)} cy={toY(p.lat)} r={14} fill={colors.primary} opacity={0.9} />
-            <SvgText x={toX(p.lng)} y={toY(p.lat) + 5} textAnchor="middle"
-              fontSize={11} fontWeight="bold" fill="#fff">
-              {p.idx + 1}
-            </SvgText>
-          </G>
-        ))}
-        {/* User dot */}
-        {userLoc && (
-          <G>
-            <Circle cx={toX(userLoc.lng)} cy={toY(userLoc.lat)} r={18} fill="#3B82F6" opacity={0.18} />
-            <Circle cx={toX(userLoc.lng)} cy={toY(userLoc.lat)} r={9} fill="#3B82F6" />
-            <Circle cx={toX(userLoc.lng)} cy={toY(userLoc.lat)} r={3.5} fill="#fff" />
-          </G>
-        )}
-      </Svg>
-      {/* Legend */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, backgroundColor: colors.surface }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#3B82F6' }} />
-          <Text style={{ fontSize: 11, color: colors.textSecondary }}>You</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />
-          <Text style={{ fontSize: 11, color: colors.textSecondary }}>Branch</Text>
-        </View>
-      </View>
-    </View>
-  );
 }
 
 // ─── Near Me bottom sheet ─────────────────────────────────────────────────────
@@ -190,8 +111,6 @@ function NearMeSheet({ sheetRef, branches, bizName, colors }) {
       });
   }, [userLoc, branches]);
 
-  const hasCoordsAny = branches.some(b => b.latitude && b.longitude);
-
   return (
     <BottomSheet
       ref={sheetRef}
@@ -225,11 +144,6 @@ function NearMeSheet({ sheetRef, branches, bizName, colors }) {
               <Text style={[styles.nearMeRetry, { color: colors.danger }]}>Retry</Text>
             </Pressable>
           </View>
-        )}
-
-        {/* Map */}
-        {hasCoordsAny && userLoc && (
-          <MiniMap userLoc={userLoc} branches={sortedBranches} colors={colors} />
         )}
 
         {/* Branch count */}
@@ -349,6 +263,16 @@ function openMap(address) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function formatExpiry(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  const now = new Date();
+  const expired = d < now;
+  const label = d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+  return { label, expired };
+}
 
 function CoverGallery({ images, colors }) {
   const [idx, setIdx] = useState(0);
@@ -578,6 +502,19 @@ function OffersTab({ bankOffers, colors, savedCards }) {
                   </Text>
                 ) : null}
 
+                {(() => {
+                  const earliest = b.cards
+                    .map((c) => c.expiry_date)
+                    .filter(Boolean)
+                    .sort()[0];
+                  const exp = formatExpiry(earliest);
+                  return exp ? (
+                    <Text style={[styles.bankOfferCap, exp.expired && { color: 'rgba(255,180,180,0.9)' }]} numberOfLines={1}>
+                      {exp.expired ? 'Expired ' : 'Valid until '}{exp.label}
+                    </Text>
+                  ) : null;
+                })()}
+
                 <View style={styles.bankOfferBadge}>
                   <Icon name="card-outline" size={10} color="rgba(255,255,255,0.9)" />
                   <Text style={styles.bankOfferBadgeTxt}>
@@ -642,17 +579,36 @@ function OffersTab({ bankOffers, colors, savedCards }) {
                       <Icon name="card" size={18} color={colors.primary} />
                     </View>
                   )}
-                  <Text style={[styles.eligibleCardName, { color: colors.text }]} numberOfLines={1}>
-                    {card.card_name || 'All cards'}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.eligibleCardName, { color: colors.text }]} numberOfLines={1}>
+                      {card.card_name || 'All cards'}
+                    </Text>
+                    {(() => {
+                      const exp = formatExpiry(card.expiry_date);
+                      return exp ? (
+                        <Text style={{ fontSize: 11, color: exp.expired ? '#EF4444' : colors.textSecondary, marginTop: 2 }}>
+                          {exp.expired ? 'Expired ' : 'Until '}{exp.label}
+                        </Text>
+                      ) : null;
+                    })()}
+                  </View>
                   {wallet ? (
                     <View style={styles.inWalletBadge}>
                       <Text style={styles.inWalletTxt}>In Wallet</Text>
                     </View>
                   ) : (
-                    <Text style={[styles.eligibleDisc, { color: colors.textSecondary }]}>
-                      {card.discount_percentage ? `${card.discount_percentage}%` : ''}
-                    </Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      {card.discount_percentage ? (
+                        <Text style={[styles.eligibleDisc, { color: colors.primary }]}>
+                          {card.discount_percentage}% off
+                        </Text>
+                      ) : null}
+                      {card.max_discount_amount ? (
+                        <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                          up to Rs. {Number(card.max_discount_amount).toLocaleString()}
+                        </Text>
+                      ) : null}
+                    </View>
                   )}
                 </View>
               );
@@ -672,24 +628,27 @@ function OffersTab({ bankOffers, colors, savedCards }) {
                     {selectedBank.bank_name}
                   </Text>
                 </View>
-                <Text
-                  style={[styles.termsBody, { color: colors.text }]}
-                  numberOfLines={termsExpanded ? undefined : 3}>
-                  {selectedBank.terms.join(' ')}
-                </Text>
-                <Pressable
-                  onPress={() => setTermsExpanded((v) => !v)}
-                  style={styles.termsToggle}
-                  hitSlop={8}>
-                  <Text style={[styles.termsToggleTxt, { color: colors.primary }]}>
-                    {termsExpanded ? 'Collapse' : 'Read more'}
-                  </Text>
-                  <Icon
-                    name={termsExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={14}
-                    color={colors.primary}
-                  />
-                </Pressable>
+                {(termsExpanded ? selectedBank.terms : selectedBank.terms.slice(0, 3)).map((term, i) => (
+                  <View key={i} style={styles.termBulletRow}>
+                    <View style={[styles.termBulletDot, { backgroundColor: colors.textSecondary }]} />
+                    <Text style={[styles.termsBody, { color: colors.text, flex: 1 }]}>{term}</Text>
+                  </View>
+                ))}
+                {selectedBank.terms.length > 3 && (
+                  <Pressable
+                    onPress={() => setTermsExpanded((v) => !v)}
+                    style={styles.termsToggle}
+                    hitSlop={8}>
+                    <Text style={[styles.termsToggleTxt, { color: colors.primary }]}>
+                      {termsExpanded ? 'Collapse' : `Show ${selectedBank.terms.length - 3} more`}
+                    </Text>
+                    <Icon
+                      name={termsExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={14}
+                      color={colors.primary}
+                    />
+                  </Pressable>
+                )}
               </View>
             </>
           )}
@@ -761,12 +720,58 @@ function BranchesTab({ branches, city, colors }) {
 
 // ── About tab ─────────────────────────────────────────────────────────────────
 
+function PhotoViewer({ images, startIndex, onClose }) {
+  const { width: PW, height: PH } = Dimensions.get('window');
+  const [current, setCurrent] = useState(startIndex);
+  return (
+    <Modal visible animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <FlatList
+          data={images}
+          horizontal
+          pagingEnabled
+          initialScrollIndex={startIndex}
+          getItemLayout={(_, i) => ({ length: PW, offset: PW * i, index: i })}
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(e) => setCurrent(Math.round(e.nativeEvent.contentOffset.x / PW))}
+          keyExtractor={(_, i) => String(i)}
+          renderItem={({ item }) => (
+            <View style={{ width: PW, height: PH, alignItems: 'center', justifyContent: 'center' }}>
+              <FastImage
+                source={{ uri: item, priority: FastImage.priority.high, cache: FastImage.cacheControl.web }}
+                style={{ width: PW, height: PH * 0.75 }}
+                resizeMode={FastImage.resizeMode.contain}
+              />
+            </View>
+          )}
+        />
+        {/* Counter */}
+        {images.length > 1 && (
+          <View style={{ position: 'absolute', bottom: 50, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 5 }}>
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{current + 1} / {images.length}</Text>
+          </View>
+        )}
+        {/* Close */}
+        <Pressable
+          onPress={onClose}
+          hitSlop={12}
+          style={{ position: 'absolute', top: 52, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}
+          accessibilityLabel="Close photo">
+          <Icon name="close" size={20} color="#fff" />
+        </Pressable>
+      </View>
+    </Modal>
+  );
+}
+
 function AboutTab({ biz, colors }) {
+  const [photoIdx, setPhotoIdx] = useState(null);
   const contacts = [
     biz.phone   && { icon: 'call',           label: 'Phone',     value: biz.phone,                     action: () => Linking.openURL(`tel:${biz.phone}`).catch(() => {}) },
     biz.website && { icon: 'globe',           label: 'Website',   value: biz.website,                   action: () => Linking.openURL(biz.website).catch(() => {}) },
-    biz.social_links?.instagram && { icon: 'logo-instagram', label: 'Instagram', value: `@${biz.social_links.instagram.replace(/.*\//, '')}`, action: () => Linking.openURL(biz.social_links.instagram).catch(() => {}) },
-    biz.social_links?.facebook  && { icon: 'logo-facebook',  label: 'Facebook',  value: 'Facebook',    action: () => Linking.openURL(biz.social_links.facebook).catch(() => {}) },
+    biz.social_links?.instagram && !biz.social_links.instagram.includes('takhfif') && { icon: 'logo-instagram', label: 'Instagram', value: `@${biz.social_links.instagram.replace(/.*instagram\.com\/?/, '').replace(/\/$/, '') || biz.social_links.instagram}`, action: () => Linking.openURL(biz.social_links.instagram).catch(() => {}) },
+    biz.social_links?.facebook  && !biz.social_links.facebook.includes('takhfif')  && { icon: 'logo-facebook',  label: 'Facebook',  value: 'Facebook',    action: () => Linking.openURL(biz.social_links.facebook).catch(() => {}) },
   ].filter(Boolean);
 
   return (
@@ -780,14 +785,18 @@ function AboutTab({ biz, colors }) {
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>PHOTOS</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 20 }}>
             {biz.gallery.map((url, i) => (
-              <FastImage
-                key={i}
-                source={{ uri: url, priority: FastImage.priority.low, cache: FastImage.cacheControl.web }}
-                style={styles.galleryImg}
-                resizeMode={FastImage.resizeMode.cover}
-              />
+              <Pressable key={i} onPress={() => setPhotoIdx(i)} accessibilityRole="button" accessibilityLabel={`View photo ${i + 1}`}>
+                <FastImage
+                  source={{ uri: url, priority: FastImage.priority.low, cache: FastImage.cacheControl.web }}
+                  style={styles.galleryImg}
+                  resizeMode={FastImage.resizeMode.cover}
+                />
+              </Pressable>
             ))}
           </ScrollView>
+          {photoIdx != null && (
+            <PhotoViewer images={biz.gallery} startIndex={photoIdx} onClose={() => setPhotoIdx(null)} />
+          )}
         </>
       )}
 
@@ -924,6 +933,23 @@ export default function BankOfferDetailScreen() {
           {[1, 2, 3].map((i) => (
             <View key={i} style={{ flex: 1, alignItems: 'center', paddingVertical: 12 }}>
               <Skeleton width={48} height={12} radius={6} />
+            </View>
+          ))}
+        </View>
+        {/* Offer cards skeleton — fills rest of screen */}
+        <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 16, gap: 12 }}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={[{ borderRadius: 16, padding: 16, gap: 10, backgroundColor: colors.surface }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Skeleton width={40} height={40} radius={10} />
+                <View style={{ flex: 1, gap: 7 }}>
+                  <Skeleton width={W * 0.45} height={13} />
+                  <Skeleton width={W * 0.3} height={10} />
+                </View>
+                <Skeleton width={60} height={26} radius={8} />
+              </View>
+              <Skeleton width={W - 64} height={9} />
+              <Skeleton width={(W - 64) * 0.7} height={9} />
             </View>
           ))}
         </View>
@@ -1246,6 +1272,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   termsCardTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
+  termBulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  termBulletDot: { width: 5, height: 5, borderRadius: 2.5, marginTop: 8, flexShrink: 0 },
   termsBody: { fontSize: 13, lineHeight: 22, letterSpacing: 0.1 },
   termsToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
   termsToggleTxt: { fontSize: 13, fontWeight: '700' },

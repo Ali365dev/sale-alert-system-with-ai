@@ -143,12 +143,15 @@ export async function startTakhfifDetails(mode: TakhfifDetailMode): Promise<{ ok
   let selected = 0;
   for (const item of queue) {
     if (item.status === "processing") item.status = "pending"; // recover interrupted
-    const hasDetail = !!details[slugOf(item.detailUrl)];
+    // A business is "fully scraped" only if it has bank-offer data — a listing
+    // skeleton (banks: []) means it was discovered but never detail-scraped.
+    const detail = details[slugOf(item.detailUrl)];
+    const isFullyScraped = !!(detail?.banks?.length || detail?.pushedAt);
     const pick =
       mode === "all" ? true :
       mode === "failed" ? item.status === "failed" :
-      mode === "existing" ? hasDetail :
-      /* new */ !hasDetail && item.status !== "completed";
+      mode === "existing" ? isFullyScraped :
+      /* new */ !isFullyScraped && item.status !== "completed";
     if (pick) {
       item.status = "pending";
       item.error = null;

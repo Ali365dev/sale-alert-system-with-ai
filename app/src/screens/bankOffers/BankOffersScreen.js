@@ -3,9 +3,6 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Linking,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -25,12 +22,9 @@ import useTheme from '../../hooks/useTheme';
 import useBankCardsStore from '../../state/bankCardsStore';
 import { fetchScrapedBusinesses } from '../../services/bankOffersApi';
 import Geolocation from '@react-native-community/geolocation';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import MapView, { Marker } from 'react-native-maps';
 import FilterPickerSheet from '../../components/FilterPickerSheet';
 import ViewSwitcher from '../../components/ViewSwitcher';
 import useViewMode from '../../hooks/useViewMode';
-import { requestLocationPermission } from '../../services/regionDetection';
 import { SUPPORTED_BANKS } from '../../config/banks';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -65,8 +59,6 @@ const SORT_OPTIONS = [
   { id: 'discount', label: 'Most discount' },
   { id: 'rating', label: 'Highest rated' },
 ];
-
-const REVERSE_GEOCODE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
 
 // Known city center coordinates for proximity estimation on the listing screen
 const CITY_COORDS = {
@@ -260,260 +252,6 @@ const PAGE_SIZE = 20;
 const CARD_W = SCREEN_W - 2 * PAD;
 const GRID_CARD_W = Math.floor((SCREEN_W - 2 * PAD - GRID_COL_GAP) / 2);
 
-// ── Near Me modal (full-screen map + bottom sheet) ────────────────────────────
-
-const { height: SCREEN_H } = Dimensions.get('window');
-
-function NearMeModal({ visible, onClose, businesses, onPress }) {
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const sheetRef = useRef(null);
-  const mapRef = useRef(null);
-
-  const [userLoc, setUserLoc] = useState(null);
-  const [locLoading, setLocLoading] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
-  const snapPoints = useMemo(() => ['38%', '75%'], []);
-
-  const requestLocation = useCallback(() => {
-    setLocLoading(true);
-    Geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const loc = { lat: coords.latitude, lng: coords.longitude };
-        setUserLoc(loc);
-        setLocLoading(false);
-        mapRef.current?.animateToRegion({
-          latitude: coords.latitude, longitude: coords.longitude,
-          latitudeDelta: 0.15, longitudeDelta: 0.15,
-        }, 800);
-      },
-      () => setLocLoading(false),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    );
-  }, []);
-
-  useEffect(() => {
-    if (visible) requestLocation();
-    else { setUserLoc(null); setSelectedId(null); }
-  }, [visible, requestLocation]);
-
-  const sorted = useMemo(() => {
-    if (!userLoc) return businesses.map((b) => ({ ...b, _dist: null, _coord: bizCoord(b) }));
-    return [...businesses]
-      .map((b) => ({ ...b, _dist: cityDistKm(userLoc.lat, userLoc.lng, b.city), _coord: bizCoord(b) }))
-      .sort((a, b) => {
-        if (a._dist == null) return 1;
-        if (b._dist == null) return -1;
-        return a._dist - b._dist;
-      });
-  }, [userLoc, businesses]);
-
-  const handleMarkerPress = useCallback((biz) => {
-    setSelectedId(biz.id);
-    sheetRef.current?.snapToIndex(1);
-  }, []);
-
-  const handleCardPress = useCallback((biz) => {
-    onClose();
-    onPress(biz);
-  }, [onClose, onPress]);
-
-  const initialRegion = useMemo(() => ({
-    latitude: 30.3753, longitude: 69.3451, // Pakistan center
-    latitudeDelta: 15, longitudeDelta: 15,
-  }), []);
-
-  const bizCards = sorted.map((biz) => (
-    <Pressable
-      key={biz.id}
-      onPress={() => handleCardPress(biz)}
-      style={[
-        nmStyles.bizCard,
-        { backgroundColor: colors.surface, borderColor: selectedId === biz.id ? colors.primary : colors.border },
-        selectedId === biz.id && { borderWidth: 1.5 },
-      ]}>
-      {biz.cover_image_url ? (
-        <FastImage
-          source={{ uri: biz.cover_image_url, priority: FastImage.priority.normal }}
-          style={nmStyles.bizThumb}
-          resizeMode={FastImage.resizeMode.cover}
-        />
-      ) : (
-        <View style={[nmStyles.bizThumb, { backgroundColor: colors.primary + '22', alignItems: 'center', justifyContent: 'center' }]}>
-          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.primary }}>{biz.name?.[0]}</Text>
-        </View>
-      )}
-      <View style={nmStyles.bizInfo}>
-        <Text style={[nmStyles.bizName, { color: colors.text }]} numberOfLines={1}>{biz.name}</Text>
-        <Text style={[nmStyles.bizCategory, { color: colors.textSecondary }]} numberOfLines={1}>
-          {biz.category || 'General'}
-        </Text>
-        <View style={nmStyles.bizMeta}>
-          {biz.rating != null && (
-            <>
-              <Icon name="star" size={11} color="#F59E0B" />
-              <Text style={[nmStyles.bizMetaTxt, { color: colors.text }]}>{biz.rating.toFixed(1)}</Text>
-              {biz.review_count != null && (
-                <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>
-                  ({biz.review_count > 999 ? `${(biz.review_count / 1000).toFixed(1)}k` : biz.review_count})
-                </Text>
-              )}
-              <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>·</Text>
-            </>
-          )}
-          {biz._dist != null && (
-            <Text style={[nmStyles.bizMetaTxt, { color: colors.primary, fontWeight: '700' }]}>
-              {biz._dist < 1 ? `${Math.round(biz._dist * 1000)} m` : `${Math.round(biz._dist)} km`}
-            </Text>
-          )}
-          {biz.max_discount != null && (
-            <>
-              <Text style={[nmStyles.bizMetaTxt, { color: colors.textSecondary }]}>·</Text>
-              <Text style={[nmStyles.bizMetaTxt, { color: colors.text, fontWeight: '600' }]}>
-                Up to {biz.max_discount}% off
-              </Text>
-            </>
-          )}
-        </View>
-      </View>
-    </Pressable>
-  ));
-
-  const sheetHeader = (
-    <View style={nmStyles.sheetHeader}>
-      <Text style={[nmStyles.sheetTitle, { color: colors.text }]}>
-        {sorted.length} places near you
-      </Text>
-      {userLoc && (
-        <Text style={[nmStyles.sheetSub, { color: colors.textSecondary }]}>
-          Sorted by distance from you
-        </Text>
-      )}
-    </View>
-  );
-
-  if (Platform.OS === 'android') {
-    // Android: list-only modal (no Google Maps API key required)
-    return (
-      <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-        <View style={[nmStyles.androidModal, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
-          {/* Header bar */}
-          <View style={[nmStyles.androidHeader, { borderBottomColor: colors.border }]}>
-            <Pressable onPress={onClose} style={nmStyles.mapBtn} accessibilityLabel="Close">
-              <Icon name="close" size={20} color={colors.text} />
-            </Pressable>
-            <Text style={[nmStyles.androidTitle, { color: colors.text }]}>Near Me</Text>
-            <Pressable onPress={requestLocation} style={nmStyles.mapBtn} accessibilityLabel="My location">
-              {locLoading
-                ? <ActivityIndicator size="small" color={colors.primary} />
-                : <Icon name="navigate" size={18} color={colors.primary} />}
-            </Pressable>
-          </View>
-          <ScrollView contentContainerStyle={[nmStyles.sheetContent, { paddingBottom: insets.bottom + 24 }]}>
-            {sheetHeader}
-            {bizCards}
-          </ScrollView>
-        </View>
-      </Modal>
-    );
-  }
-
-  return (
-    <Modal visible={visible} animationType="slide" statusBarTranslucent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
-        <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-
-        <MapView
-          ref={mapRef}
-          style={StyleSheet.absoluteFill}
-          initialRegion={initialRegion}
-          showsUserLocation
-          showsMyLocationButton={false}>
-          {sorted.map((biz) =>
-            biz._coord ? (
-              <Marker
-                key={biz.id}
-                coordinate={{ latitude: biz._coord.lat, longitude: biz._coord.lng }}
-                onPress={() => handleMarkerPress(biz)}>
-                <View style={[nmStyles.markerPin, selectedId === biz.id && nmStyles.markerPinSelected]}>
-                  <Icon name="location" size={selectedId === biz.id ? 20 : 16} color="#fff" />
-                </View>
-              </Marker>
-            ) : null,
-          )}
-        </MapView>
-
-        <View style={[nmStyles.mapBtns, { top: insets.top + 12 }]}>
-          <Pressable onPress={onClose} style={nmStyles.mapBtn} accessibilityLabel="Close">
-            <Icon name="close" size={20} color="#333" />
-          </Pressable>
-          <Pressable onPress={requestLocation} style={nmStyles.mapBtn} accessibilityLabel="My location">
-            {locLoading
-              ? <ActivityIndicator size="small" color={colors.primary} />
-              : <Icon name="navigate" size={18} color={colors.primary} />}
-          </Pressable>
-        </View>
-
-        <BottomSheet
-          ref={sheetRef}
-          index={0}
-          snapPoints={snapPoints}
-          backgroundStyle={{ backgroundColor: colors.surface }}
-          handleIndicatorStyle={{ backgroundColor: colors.textSecondary }}>
-          <BottomSheetScrollView contentContainerStyle={nmStyles.sheetContent}>
-            {sheetHeader}
-            {bizCards}
-          </BottomSheetScrollView>
-        </BottomSheet>
-      </View>
-    </Modal>
-  );
-}
-
-function bizCoord(biz) {
-  if (!biz.city) return null;
-  const key = Object.keys(CITY_COORDS).find((k) => biz.city.toLowerCase().includes(k));
-  return key ? CITY_COORDS[key] : null;
-}
-
-const nmStyles = StyleSheet.create({
-  mapBtns: {
-    position: 'absolute', left: 16, right: 16,
-    flexDirection: 'row', justifyContent: 'space-between',
-  },
-  mapBtn: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4,
-  },
-  markerPin: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: '#FF6B35', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 4,
-  },
-  markerPinSelected: { backgroundColor: '#CC3300', width: 42, height: 42, borderRadius: 21 },
-  sheetContent: { paddingHorizontal: 16, paddingBottom: 40 },
-  sheetHeader: { paddingVertical: 10, marginBottom: 6 },
-  sheetTitle: { fontSize: 17, fontWeight: '800' },
-  sheetSub: { fontSize: 12, marginTop: 2 },
-  bizCard: {
-    flexDirection: 'row', gap: 12, borderRadius: 14,
-    borderWidth: 1, marginBottom: 10, overflow: 'hidden',
-  },
-  bizThumb: { width: 80, height: 80 },
-  bizInfo: { flex: 1, paddingVertical: 10, paddingRight: 12, justifyContent: 'center', gap: 3 },
-  bizName: { fontSize: 14, fontWeight: '700' },
-  bizCategory: { fontSize: 12 },
-  bizMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
-  bizMetaTxt: { fontSize: 12 },
-  androidModal: { flex: 1 },
-  androidHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  androidTitle: { fontSize: 17, fontWeight: '700' },
-});
 
 function SkeletonCard({ gridView }) {
   const { colors } = useTheme();
@@ -572,7 +310,7 @@ export default function BankOffersScreen() {
   const [sortMode, setSortMode] = useState('popular');
   const [onlyMyCards, setOnlyMyCards] = useState(false);
   const [activeCity, setActiveCity] = useState(null);
-  const [nearbyCity, setNearbyCity] = useState(null);
+  const [userGPS, setUserGPS] = useState(null);
   const [nearbyLoading, setNearbyLoading] = useState(false);
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -584,7 +322,6 @@ export default function BankOffersScreen() {
   const citySheetRef = useRef(null);
   const bankSheetRef = useRef(null);
   const sortSheetRef = useRef(null);
-  const [nearMeVisible, setNearMeVisible] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -606,44 +343,20 @@ export default function BankOffersScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const resolveNearbyCity = useCallback(async () => {
-    setNearbyLoading(true);
-    try {
-      const granted = await requestLocationPermission();
-      if (!granted) { setNearbyLoading(false); return; }
-      await new Promise((resolve) => {
-        Geolocation.getCurrentPosition(
-          async ({ coords: { latitude, longitude } }) => {
-            try {
-              const res = await fetch(
-                `${REVERSE_GEOCODE_URL}?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
-              );
-              if (res.ok) {
-                const data = await res.json();
-                const city = (data?.city || data?.locality || '').toLowerCase();
-                const match = CITY_OPTIONS.find(
-                  (c) => c.id && c.id !== 'nearby' && city.includes(c.id),
-                );
-                setNearbyCity(match?.id ?? null);
-              }
-            } catch { /* silent */ }
-            resolve();
-          },
-          () => resolve(),
-          { timeout: 8000, maximumAge: 60000, enableHighAccuracy: false },
-        );
-      });
-    } finally {
-      setNearbyLoading(false);
-    }
-  }, []);
-
   const handleCitySelect = useCallback((id) => {
     setActiveCity(id);
     if (id === 'nearby') {
-      setNearMeVisible(true);
+      setNearbyLoading(true);
+      Geolocation.getCurrentPosition(
+        ({ coords }) => {
+          setUserGPS({ lat: coords.latitude, lng: coords.longitude });
+          setNearbyLoading(false);
+        },
+        () => setNearbyLoading(false),
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
+      );
     } else {
-      setNearbyCity(null);
+      setUserGPS(null);
     }
   }, []);
 
@@ -715,10 +428,9 @@ export default function BankOffersScreen() {
       );
     }
 
-    // City filter
-    const effectiveCity = activeCity === 'nearby' ? nearbyCity : activeCity;
-    if (effectiveCity) {
-      list = list.filter((b) => b.city?.toLowerCase().includes(effectiveCity));
+    // City filter — 'nearby' sorts by proximity instead of filtering to one city
+    if (activeCity && activeCity !== 'nearby') {
+      list = list.filter((b) => b.city?.toLowerCase().includes(activeCity));
     }
 
     // Category filter — preset regex match, 'other' fallback, or exact dynamic id
@@ -729,21 +441,27 @@ export default function BankOffersScreen() {
       if (pattern) {
         list = list.filter((b) => pattern.test(b.category || ''));
       } else {
-        // dynamic category id = lowercased category string
         list = list.filter((b) => (b.category ?? '').toLowerCase() === activeCategory);
       }
     }
 
-    // Sort
-    if (sortMode === 'discount') {
+    // Sort — nearby uses GPS distance, otherwise user-selected sort
+    if (activeCity === 'nearby' && userGPS) {
+      list = [...list]
+        .map((b) => ({ ...b, _dist: cityDistKm(userGPS.lat, userGPS.lng, b.city) }))
+        .sort((a, b) => {
+          if (a._dist == null) return 1;
+          if (b._dist == null) return -1;
+          return a._dist - b._dist;
+        });
+    } else if (sortMode === 'discount') {
       list = [...list].sort((a, b) => (b.max_discount ?? 0) - (a.max_discount ?? 0));
     } else if (sortMode === 'rating') {
       list = [...list].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     }
-    // 'popular' = default API order (review_count desc from backend)
 
     return list;
-  }, [businesses, searchQuery, activeBank, activeCategory, activeCity, nearbyCity, onlyMyCards, savedBankIds, savedCards.length, sortMode]);
+  }, [businesses, searchQuery, activeBank, activeCategory, activeCity, userGPS, onlyMyCards, savedBankIds, savedCards.length, sortMode]);
 
   // Reset visible slice whenever the filtered result set changes (reference changes on any filter update)
   useEffect(() => {
@@ -797,7 +515,6 @@ export default function BankOffersScreen() {
                 onChangeText={setSearchQuery}
                 autoFocus
                 returnKeyType="search"
-                clearButtonMode="while-editing"
               />
               {searchQuery.length > 0 && (
                 <Pressable hitSlop={8} onPress={() => setSearchQuery('')}>
@@ -885,7 +602,7 @@ export default function BankOffersScreen() {
           ) : null}
           <Text style={[styles.filterPillText, { color: activeCity ? colors.primary : colors.text }]} numberOfLines={1}>
             {activeCity === 'nearby'
-              ? (nearbyLoading ? 'Locating…' : nearbyCity ? CITY_OPTIONS.find((c) => c.id === nearbyCity)?.label ?? 'Near me' : 'Near me')
+              ? (nearbyLoading ? 'Locating…' : 'Near me')
               : activeCity ? CITY_OPTIONS.find((c) => c.id === activeCity)?.label : 'All cities'}
           </Text>
           <Icon name="chevron-down" size={12} color={activeCity ? colors.primary : colors.textSecondary} />
@@ -1038,12 +755,6 @@ export default function BankOffersScreen() {
         snapPoint="40%"
       />
 
-      <NearMeModal
-        visible={nearMeVisible}
-        onClose={() => setNearMeVisible(false)}
-        businesses={businesses}
-        onPress={handlePress}
-      />
     </View>
   );
 }

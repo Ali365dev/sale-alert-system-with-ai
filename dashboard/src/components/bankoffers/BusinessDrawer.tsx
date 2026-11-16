@@ -15,6 +15,15 @@ const label: React.CSSProperties = {
   textTransform: "uppercase", color: "var(--text-faint)", margin: "14px 0 6px",
 };
 
+function fmtDate(iso: string | null) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function isExpired(iso: string | null) {
+  return iso ? new Date(iso) < new Date() : false;
+}
+
 function BankGroup({ bank, rows }: { bank: string; rows: BankOfferRow[] }) {
   const terms = rows[0]?.terms ?? [];
   return (
@@ -23,22 +32,35 @@ function BankGroup({ bank, rows }: { bank: string; rows: BankOfferRow[] }) {
         <strong style={{ font: "700 12.5px/1 var(--font-sans)", color: "var(--text-strong)" }}>{bank}</strong>
         <Badge tone="brand">{rows.length} card{rows.length !== 1 ? "s" : ""}</Badge>
       </div>
-      {rows.map((o) => (
-        <div key={o.id} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "7px 12px", borderTop: "1px solid var(--border)" }}>
-          <span style={{ font: "500 12px/1.4 var(--font-sans)", color: "var(--text-body)", minWidth: 0 }}>
-            {o.card_name}
-            {o.valid_days.length > 0 && (
-              <span style={{ color: "var(--text-faint)", marginLeft: 6 }}>({o.valid_days.join(", ")})</span>
+      {rows.map((o) => {
+        const expired = isExpired(o.expiry_date);
+        const dateStr = fmtDate(o.expiry_date);
+        return (
+          <div key={o.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 10px", padding: "8px 12px", borderTop: "1px solid var(--border)" }}>
+            {/* Row 1: card name + discount */}
+            <span style={{ font: "500 12px/1.4 var(--font-sans)", color: "var(--text-body)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {o.card_name ?? "All cards"}
+              {o.valid_days.length > 0 && (
+                <span style={{ color: "var(--text-faint)", marginLeft: 6 }}>({o.valid_days.join(", ")})</span>
+              )}
+            </span>
+            <span style={{ font: "600 12px/1.4 var(--font-mono)", color: "var(--success)", whiteSpace: "nowrap", textAlign: "right" }}>
+              {o.discount_percentage != null ? `${o.discount_percentage}%` : "—"}
+              {o.max_discount_text && (
+                <span style={{ color: "var(--text-faint)", fontWeight: 400, marginLeft: 5 }}>max {o.max_discount_text}</span>
+              )}
+            </span>
+            {/* Row 2: expiry */}
+            {dateStr && (
+              <>
+                <span style={{ font: "400 11px/1 var(--font-sans)", color: expired ? "var(--danger)" : "var(--text-faint)", gridColumn: "1 / -1" }}>
+                  {expired ? "Expired" : "Valid until"} {dateStr}
+                </span>
+              </>
             )}
-          </span>
-          <span style={{ font: "600 12px/1.4 var(--font-mono)", color: "var(--success)", whiteSpace: "nowrap" }}>
-            {o.discount_percentage != null ? `${o.discount_percentage}%` : "—"}
-            {o.max_discount_text && (
-              <span style={{ color: "var(--text-faint)", marginLeft: 6 }}>max {o.max_discount_text}</span>
-            )}
-          </span>
-        </div>
-      ))}
+          </div>
+        );
+      })}
       {terms.length > 0 && (
         <details style={{ borderTop: "1px solid var(--border)" }}>
           <summary style={{ padding: "7px 12px", cursor: "pointer", font: "600 11.5px/1 var(--font-sans)", color: "var(--text-muted)" }}>

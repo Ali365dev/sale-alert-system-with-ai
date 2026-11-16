@@ -23,7 +23,12 @@ export function get<T>(key: string): Promise<T | undefined> {
 }
 
 export function set(items: Record<string, unknown>): Promise<void> {
-  return new Promise((res) => chrome.storage.local.set(items, () => res()));
+  return new Promise((res, rej) =>
+    chrome.storage.local.set(items, () => {
+      if (chrome.runtime.lastError) rej(new Error(chrome.runtime.lastError.message));
+      else res();
+    }),
+  );
 }
 
 export async function log(level: TakhfifLogEntry["level"], message: string): Promise<void> {

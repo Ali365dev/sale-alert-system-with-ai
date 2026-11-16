@@ -3,6 +3,7 @@ takhfif.app scrape job, and saving rows the chrome extension's Bank Offers
 mode extracted manually from some other, less-structured deal site. See
 services/takhfif_scraper.py, jobs/scrape_takhfif.py, and
 services/bank_offers_store.py (the write path both of these share)."""
+import json
 import threading
 from datetime import datetime
 
@@ -23,11 +24,17 @@ def _row_to_dict(row: BankCardOffer, brand_name: str | None) -> dict:
         "source_url": row.source_url,
         "place_name": row.place_name,
         "place_website": row.place_website,
+        "business_id": row.business_id,
         "brand_id": row.brand_id,
         "brand_name": brand_name,
         "bank_name": row.bank_name,
         "card_name": row.card_name,
         "discount_percentage": row.discount_percentage,
+        "max_discount_text": row.max_discount_text,
+        "max_discount_amount": row.max_discount_amount,
+        "branch_valid_count": row.branch_valid_count,
+        "branch_total_count": row.branch_total_count,
+        "valid_branches": json.loads(row.valid_branches) if row.valid_branches else [],
         "currency": row.currency,
         "expiry_date": row.expiry_date.isoformat() if row.expiry_date else None,
         "description": row.description,
@@ -169,6 +176,7 @@ def combined_offers(brand_id: int):
 
 @router.get("")
 def list_bank_offers(
+    q: str | None = Query(default=None),
     brand_id: int | None = Query(default=None),
     bank_name: str | None = Query(default=None),
     matched_only: bool = Query(default=False),
@@ -176,24 +184,40 @@ def list_bank_offers(
     offset: int = Query(default=0, ge=0),
 ):
     with get_session() as session:
-        q = session.query(BankCardOffer)
+        base = session.query(BankCardOffer)
+        if q:
+            base = base.filter(BankCardOffer.place_name.ilike(f"%{q}%"))
         if brand_id is not None:
-            q = q.filter(BankCardOffer.brand_id == brand_id)
+            base = base.filter(BankCardOffer.brand_id == brand_id)
         if bank_name:
-            q = q.filter(BankCardOffer.bank_name == bank_name)
+            base = base.filter(BankCardOffer.bank_name == bank_name)
         if matched_only:
-            q = q.filter(BankCardOffer.brand_id.isnot(None))
+            base = base.filter(BankCardOffer.brand_id.isnot(None))
 
-        total = q.count()
-        rows = q.order_by(BankCardOffer.created_at.desc()).offset(offset).limit(limit).all()
+        total = base.count()
+        matched_count = base.filter(BankCardOffer.brand_id.isnot(None)).count()
+        with_expiry_count = base.filter(BankCardOffer.expiry_date.isnot(None)).count()
+        with_max_disc_count = base.filter(BankCardOffer.max_discount_amount.isnot(None)).count()
+
+        rows = base.order_by(BankCardOffer.created_at.desc()).offset(offset).limit(limit).all()
 
         brand_ids = {r.brand_id for r in rows if r.brand_id is not None}
-        brand_names = {}
+        brand_map: dict[int, str] = {}
         if brand_ids:
             for b in session.query(Brand).filter(Brand.id.in_(brand_ids)).all():
-                brand_names[b.id] = b.name
+                brand_map[b.id] = b.name
+
+        all_banks = [
+            r[0] for r in session.query(BankCardOffer.bank_name)
+            .filter(BankCardOffer.bank_name.isnot(None))
+            .distinct().order_by(BankCardOffer.bank_name).all()
+        ]
 
         return {
             "total": total,
-            "offers": [_row_to_dict(r, brand_names.get(r.brand_id)) for r in rows],
+            "matched_count": matched_count,
+            "with_expiry_count": with_expiry_count,
+            "with_max_disc_count": with_max_disc_count,
+            "offers": [_row_to_dict(r, brand_map.get(r.brand_id)) for r in rows],
+            "bank_names": all_banks,
         }
