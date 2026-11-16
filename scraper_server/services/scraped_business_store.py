@@ -28,13 +28,16 @@ def _parse_review_count(text: Optional[str]) -> Optional[int]:
 
 
 def _parse_expiry(card: dict, bank: dict) -> Optional[datetime]:
-    iso = (card.get("validThrough") or "").strip()
+    # card-level ISO date — camelCase (legacy) or snake_case (standard)
+    iso = (card.get("validThrough") or card.get("valid_through") or "").strip()
     if iso:
         try:
             return datetime.fromisoformat(iso)
         except ValueError:
             pass
-    m = re.search(r"valid until\s+(.+)", bank.get("validityText") or "", re.I)
+    # bank-level validity text — camelCase (legacy) or snake_case (standard)
+    validity = bank.get("validityText") or bank.get("validity_text") or ""
+    m = re.search(r"valid until\s+(.+)", validity, re.I)
     if m:
         for fmt in ("%d %B %Y", "%B %d, %Y", "%d %b %Y"):
             try:
@@ -101,7 +104,7 @@ def _offer_rows_standard(detail: dict) -> list[dict]:
                 "card_name": card_name,
                 "discount_percentage": card.get("discount_percentage"),
                 "currency": card.get("currency"),
-                "expiry_date": None,
+                "expiry_date": _parse_expiry(card, bank),
                 "description": card_name,
                 "max_discount_text": None,
                 "max_discount_amount": card.get("maximum_discount"),

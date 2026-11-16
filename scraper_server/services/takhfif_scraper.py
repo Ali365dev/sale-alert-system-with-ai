@@ -110,11 +110,13 @@ def _extract_max_discounts(html: str) -> dict[str, dict]:
     return result
 
 
-def _extract_rsc_cards(html: str) -> dict[tuple, dict]:
-    """Returns {(bank_lower, card_lower, discount_percent): card} from the
-    page's streamed RSC payload. Each card carries cap_amount_pkr and
-    branchCoverage ({"c": valid, "t": total, "n": [branch names]} or null).
-    A (bank_lower, card_lower) fallback key is added when unambiguous."""
+def _extract_rsc_data(html: str) -> tuple[dict[tuple, dict], dict[str, Optional[datetime]]]:
+    """Returns (cards_by_key, bank_expiries) from the page's RSC payload.
+    cards_by_key: {(bank_lower, card_lower, discount_percent): card} — each
+      card carries cap_amount_pkr and branchCoverage.
+    bank_expiries: {bank_name_lower: expiry_datetime} — the "Valid until" date
+      shown per-bank in the UI (bankExpiry field), used as fallback when the
+      JSON-LD offer lacks validThrough."""
     chunks = []
     for m in _RSC_PUSH_RE.finditer(html):
         try:
@@ -126,27 +128,32 @@ def _extract_rsc_cards(html: str) -> dict[tuple, dict]:
     decoder = json.JSONDecoder()
     by_key: dict[tuple, dict] = {}
     ambiguous: set[tuple] = set()
+    bank_expiries: dict[str, Optional[datetime]] = {}
+
     for m in re.finditer(r'\{"bankName":', text):
         try:
             bank, _ = decoder.raw_decode(text, m.start())
         except json.JSONDecodeError:
             continue
-        bank_name = (bank.get("bankName") or "").strip().lower()
-        if not bank_name or not isinstance(bank.get("cards"), list):
+        bank_name = (bank.get("bankName") or "").strip()
+        bank_lower = bank_name.lower()
+        if not bank_lower or not isinstance(bank.get("cards"), list):
             continue
+        if bank_lower not in bank_expiries:
+            bank_expiries[bank_lower] = _parse_date(bank.get("bankExpiry"))
         for card in bank["cards"]:
             card_name = (card.get("card_name") or "").strip().lower()
             if not card_name:
                 continue
-            by_key[(bank_name, card_name, card.get("discount_percent"))] = card
-            short = (bank_name, card_name)
+            by_key[(bank_lower, card_name, card.get("discount_percent"))] = card
+            short = (bank_lower, card_name)
             if short in by_key:
                 ambiguous.add(short)
             else:
                 by_key[short] = card
     for short in ambiguous:
         by_key.pop(short, None)
-    return by_key
+    return by_key, bank_expiries
 
 
 def _parse_date(value: Optional[str]) -> Optional[datetime]:
@@ -188,7 +195,7 @@ def scrape_place(place_url: str) -> dict:
     website, social_links = _split_same_as(business.get("sameAs") or [])
 
     max_discounts = _extract_max_discounts(html)
-    rsc_cards = _extract_rsc_cards(html)
+    rsc_cards, bank_expiries = _extract_rsc_data(html)
 
     offers = []
     for raw in business.get("offers") or []:
@@ -207,12 +214,13 @@ def scrape_place(place_url: str) -> dict:
                    or {})
         cap = rsc.get("cap_amount_pkr")
         coverage = rsc.get("branchCoverage") or {}
+        expiry = _parse_date(raw.get("validThrough")) or bank_expiries.get(bank_name.lower())
         offers.append({
             "bank_name": bank_name,
             "card_name": card_name,
             "discount_percentage": raw.get("discount"),
             "currency": raw.get("priceCurrency"),
-            "expiry_date": _parse_date(raw.get("validThrough")),
+            "expiry_date": expiry,
             "description": description or None,
             "max_discount_text": f"Rs {cap:,.0f}" if cap else md.get("text"),
             "max_discount_amount": float(cap) if cap else md.get("amount"),

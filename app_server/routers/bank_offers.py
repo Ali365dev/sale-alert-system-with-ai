@@ -50,6 +50,7 @@ def list_scraped_businesses(
                 func.count(func.distinct(BankCardOffer.bank_name)).label("bank_count"),
                 func.count(BankCardOffer.id).label("card_count"),
                 func.string_agg(func.distinct(BankCardOffer.bank_name), ",").label("bank_names"),
+                func.min(BankCardOffer.expiry_date).label("earliest_expiry"),
             )
             .join(BankCardOffer, BankCardOffer.business_id == ScrapedBusiness.id)
             .filter(BankCardOffer.is_active.is_(True))
@@ -62,7 +63,7 @@ def list_scraped_businesses(
             q = q.filter(ScrapedBusiness.brand_id == brand_id)
 
         raw = []
-        for biz, max_discount, bank_count, card_count, bank_names_csv in q.all():
+        for biz, max_discount, bank_count, card_count, bank_names_csv, earliest_expiry in q.all():
             raw.append({
                 "id": biz.id,
                 "slug": biz.slug,
@@ -79,6 +80,7 @@ def list_scraped_businesses(
                 "bank_count": bank_count,
                 "card_count": card_count,
                 "bank_names": bank_names_csv.split(",") if bank_names_csv else [],
+                "earliest_expiry": earliest_expiry.isoformat() if earliest_expiry else None,
             })
 
         # Deduplicate by brand_id: keep the entry with the most card offers per brand.

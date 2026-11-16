@@ -23,6 +23,7 @@ function detailToStandardPayload(detail: TakhfifBusinessDetail): BusinessDetail 
     banks: (detail.banks || []).map((bank) => ({
       bank_name: bank.bankName,
       bank_logo: undefined,
+      validity_text: bank.validityText ?? undefined,
       cards: (bank.tiers || []).flatMap((tier) =>
         (tier.cards || []).map((card) => ({
           card_name: card.cardName,
@@ -31,6 +32,7 @@ function detailToStandardPayload(detail: TakhfifBusinessDetail): BusinessDetail 
           valid_days: tier.title && !/\%\s*off/i.test(tier.title) ? tier.title : undefined,
           terms_and_conditions: (bank.terms || []).join("; ") || undefined,
           currency: card.currency,
+          valid_through: card.validThrough ?? undefined,
         }))
       ),
     })),

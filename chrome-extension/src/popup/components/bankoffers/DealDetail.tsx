@@ -78,7 +78,11 @@ export function DealDetailExpanded({ detail, busy, onPush }: {
                 <span className="ml-1.5 text-green-400">up to {bank.maxDiscountPercentage}%</span>
               )}
             </p>
-            {bank.validityText && <span className="text-[8px] text-t3 truncate max-w-[110px] flex-shrink-0">{bank.validityText}</span>}
+            {bank.validityText && (
+              <span className="text-[9px] text-t3 flex-shrink-0 italic">
+                {bank.validityText}
+              </span>
+            )}
           </div>
           <div className="flex flex-col divide-y divide-line">
             {bank.tiers.flatMap((tier) =>

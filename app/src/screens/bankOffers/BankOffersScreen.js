@@ -103,6 +103,15 @@ const CITY_OPTIONS = [
 
 // ── Business card (list view) ─────────────────────────────────────────────────
 
+function formatExpiry(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  const expired = d < new Date();
+  const label = d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+  return { label, expired };
+}
+
 const BusinessOfferCard = memo(function BusinessOfferCard({ business, onPress }) {
   const { colors } = useTheme();
   const discountText = business.max_discount ? `Up to ${business.max_discount}% off` : 'Bank card offers';
@@ -181,6 +190,19 @@ const BusinessOfferCard = memo(function BusinessOfferCard({ business, onPress })
             </Text>
           </View>
         </View>
+
+        {/* Row 3: expiry date */}
+        {(() => {
+          const exp = formatExpiry(business.earliest_expiry);
+          return exp ? (
+            <View style={styles.expiryRow}>
+              <Icon name="time-outline" size={11} color={exp.expired ? colors.danger ?? '#EF4444' : colors.textSecondary} />
+              <Text style={[styles.expiryText, { color: exp.expired ? colors.danger ?? '#EF4444' : colors.textSecondary }]}>
+                {exp.expired ? 'Expired ' : 'Valid until '}{exp.label}
+              </Text>
+            </View>
+          ) : null;
+        })()}
       </View>
     </Pressable>
   );
@@ -239,6 +261,14 @@ const BusinessOfferCardGrid = memo(function BusinessOfferCardGrid({ business, on
       <Text style={[stylesGrid.meta, { color: colors.textSecondary }]} numberOfLines={1}>
         {business.city ? `${business.city} · ` : ''}{business.category || 'General'}
       </Text>
+      {(() => {
+        const exp = formatExpiry(business.earliest_expiry);
+        return exp ? (
+          <Text style={[stylesGrid.expiry, { color: exp.expired ? colors.danger ?? '#EF4444' : colors.textSecondary }]} numberOfLines={1}>
+            {exp.expired ? 'Expired ' : 'Until '}{exp.label}
+          </Text>
+        ) : null;
+      })()}
     </Pressable>
   );
 });
@@ -843,6 +873,8 @@ const styles = StyleSheet.create({
   metaDot: { fontSize: 13 },
   cardCountPill: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardCountText: { fontSize: 12, fontWeight: '600' },
+  expiryRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  expiryText: { fontSize: 11 },
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
   retryBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, marginTop: 4 },
@@ -876,5 +908,6 @@ const stylesGrid = StyleSheet.create({
   logoPlaceholder: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   logoInitial: { fontSize: 13, fontWeight: '800' },
   name: { fontSize: 12, fontWeight: '800', flex: 1 },
-  meta: { fontSize: 11, paddingHorizontal: 10, paddingBottom: 8, marginTop: 2 },
+  meta: { fontSize: 11, paddingHorizontal: 10, marginTop: 2 },
+  expiry: { fontSize: 10, paddingHorizontal: 10, paddingBottom: 8, marginTop: 1 },
 });

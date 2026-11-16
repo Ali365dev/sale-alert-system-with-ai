@@ -191,7 +191,11 @@ function bankFromButton(btn: HTMLElement): { name: string; maxPct: number | null
 
 function offerContainer(section: HTMLElement): HTMLElement | null {
   return Array.from(section.querySelectorAll<HTMLElement>("div"))
-    .find((d) => /cards? available/i.test(d.textContent ?? "") && d.querySelector("a[target]")) ?? null;
+    .find((d) =>
+      /cards? available/i.test(d.textContent ?? "") &&
+      (d.querySelector("a[target]") ||
+       Array.from(d.querySelectorAll("a")).some((a) => /view on bank site/i.test(a.textContent ?? "")))
+    ) ?? null;
 }
 
 function extractActiveBank(section: HTMLElement, bank: { name: string; maxPct: number | null }): TakhfifBankOffers | null {
