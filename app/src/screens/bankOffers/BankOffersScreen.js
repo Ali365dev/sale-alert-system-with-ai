@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   Dimensions,
   FlatList,
@@ -191,18 +192,6 @@ const BusinessOfferCard = memo(function BusinessOfferCard({ business, onPress })
           </View>
         </View>
 
-        {/* Row 3: expiry date */}
-        {(() => {
-          const exp = formatExpiry(business.earliest_expiry);
-          return exp ? (
-            <View style={styles.expiryRow}>
-              <Icon name="time-outline" size={11} color={exp.expired ? colors.danger ?? '#EF4444' : colors.textSecondary} />
-              <Text style={[styles.expiryText, { color: exp.expired ? colors.danger ?? '#EF4444' : colors.textSecondary }]}>
-                {exp.expired ? 'Expired ' : 'Valid until '}{exp.label}
-              </Text>
-            </View>
-          ) : null;
-        })()}
       </View>
     </Pressable>
   );
@@ -261,14 +250,6 @@ const BusinessOfferCardGrid = memo(function BusinessOfferCardGrid({ business, on
       <Text style={[stylesGrid.meta, { color: colors.textSecondary }]} numberOfLines={1}>
         {business.city ? `${business.city} · ` : ''}{business.category || 'General'}
       </Text>
-      {(() => {
-        const exp = formatExpiry(business.earliest_expiry);
-        return exp ? (
-          <Text style={[stylesGrid.expiry, { color: exp.expired ? colors.danger ?? '#EF4444' : colors.textSecondary }]} numberOfLines={1}>
-            {exp.expired ? 'Expired ' : 'Until '}{exp.label}
-          </Text>
-        ) : null;
-      })()}
     </Pressable>
   );
 });
@@ -661,7 +642,20 @@ export default function BankOffersScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => setOnlyMyCards((v) => !v)}
+          onPress={() => {
+            if (!onlyMyCards && savedCards.length === 0) {
+              Alert.alert(
+                'No cards added',
+                'Add a bank card first to filter offers by your cards.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Add card', onPress: () => navigation.navigate('MyCardsScreen') },
+                ],
+              );
+              return;
+            }
+            setOnlyMyCards((v) => !v);
+          }}
           style={[
             styles.filterPill,
             { borderColor: onlyMyCards ? colors.primary : colors.border, backgroundColor: onlyMyCards ? colors.primary + '22' : colors.surface },
@@ -908,6 +902,6 @@ const stylesGrid = StyleSheet.create({
   logoPlaceholder: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   logoInitial: { fontSize: 13, fontWeight: '800' },
   name: { fontSize: 12, fontWeight: '800', flex: 1 },
-  meta: { fontSize: 11, paddingHorizontal: 10, marginTop: 2 },
+  meta: { fontSize: 11, paddingHorizontal: 10, marginTop: 2, paddingTop: 5, paddingBottom: 10 },
   expiry: { fontSize: 10, paddingHorizontal: 10, paddingBottom: 8, marginTop: 1 },
 });

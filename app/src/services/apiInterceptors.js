@@ -4,7 +4,9 @@ import { BASE_URL } from './config';
 import { showErrorToast } from '../utils/CustomToast';
 import useAuthStore from '../state/authStore';
 
-const REQUEST_TIMEOUT_MS = 15000;
+// Render free-tier servers cold-start in 20-30s; iOS HTTP/3→HTTP/2 fallback
+// adds extra latency on first connection. 30s covers both cases.
+const REQUEST_TIMEOUT_MS = 30000;
 
 export const appAxios = axios.create({
   baseURL: BASE_URL,
@@ -38,7 +40,9 @@ appAxios.interceptors.response.use(
     // itself (not the raw axios instance) so it still gets the timeout
     // above and a fresh connectivity check — and the __isRetry flag means
     // this can never retry more than once even if it fails again.
-    if (error.message === 'Network Error' && error.config && !error.config.__isRetry) {
+    // Retry once on network error or timeout (iOS HTTP/3→HTTP/2 fallback or cold Render start)
+    const isRetriable = (error.message === 'Network Error' || error.code === 'ECONNABORTED') && error.config && !error.config.__isRetry;
+    if (isRetriable) {
       return appAxios({ ...error.config, __isRetry: true });
     }
     return Promise.reject(error);

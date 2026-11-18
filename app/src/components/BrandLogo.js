@@ -206,15 +206,15 @@ const createStyles = (colors) =>
       backgroundColor: '#10233F',
     },
     imageWrap: {
-      backgroundColor: colors.backgroundElement,
+      backgroundColor: colors.logoBackground,
       borderWidth: 1,
       borderColor: colors.border,
     },
     coverWrap: {
-      backgroundColor: colors.backgroundElement,
+      backgroundColor: colors.logoBackground,
     },
     plainWrap: {
-      backgroundColor: colors.backgroundElement,
+      backgroundColor: colors.logoBackground,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
     },

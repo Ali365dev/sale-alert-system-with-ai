@@ -179,6 +179,20 @@ const CARD_IMAGES = {
   176: require('../../assets/card_images/image-176.png'),
   177: require('../../assets/card_images/image-177.png'),
   178: require('../../assets/card_images/image-178.png'),
+  179: require('../../assets/card_images/image-179.png'),
+  180: require('../../assets/card_images/image-180.png'),
+  181: require('../../assets/card_images/image-181.png'),
+  182: require('../../assets/card_images/image-182.png'),
+  183: require('../../assets/card_images/image-183.png'),
+  184: require('../../assets/card_images/image-184.png'),
+  185: require('../../assets/card_images/image-185.png'),
+  186: require('../../assets/card_images/image-186.png'),
+  187: require('../../assets/card_images/image-187.png'),
+  188: require('../../assets/card_images/image-188.png'),
+  189: require('../../assets/card_images/image-189.png'),
+  190: require('../../assets/card_images/image-190.png'),
+  191: require('../../assets/card_images/image-191.png'),
+  192: require('../../assets/card_images/image-192.png'),
 };
 
 export default CARD_IMAGES;

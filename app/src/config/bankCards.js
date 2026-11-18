@@ -229,4 +229,21 @@ export const BANK_CARDS = {
     { name: 'EasyPaisa Debit Card',                                 type: 'debit',   network: 'easypaisa',  imageIdx: 177 },
     { name: 'EasyPaisa Pay Pak Debit Card',                         type: 'debit',   network: 'paypak',     imageIdx: 178 },
   ],
+
+  meezan: [
+    { name: 'Visa Infinite Debit Card',                             type: 'debit',   network: 'visa',       imageIdx: 179 },
+    { name: 'Mastercard World Debit Card',                          type: 'debit',   network: 'mastercard', imageIdx: 180 },
+    { name: 'Platinum Mastercard Debit Card',                       type: 'debit',   network: 'mastercard', imageIdx: 181 },
+    { name: 'Platinum Visa Debit Card',                             type: 'debit',   network: 'visa',       imageIdx: 182 },
+    { name: 'Titanium Mastercard Debit Card',                       type: 'debit',   network: 'mastercard', imageIdx: 183 },
+    { name: 'Visa Women First Debit Card',                          type: 'debit',   network: 'visa',       imageIdx: 184 },
+    { name: 'Gold Visa Debit Card',                                 type: 'debit',   network: 'visa',       imageIdx: 185 },
+    { name: 'Classic Mastercard Debit Card',                        type: 'debit',   network: 'mastercard', imageIdx: 186 },
+    { name: 'Classic Visa Debit Card',                              type: 'debit',   network: 'visa',       imageIdx: 187 },
+    { name: 'Visa Charge Card',                                     type: 'credit',  network: 'visa',       imageIdx: 188 },
+    { name: 'Visa Student Debit Card',                              type: 'debit',   network: 'visa',       imageIdx: 189 },
+    { name: 'Kids Club Visa Debit Card (Boys)',                     type: 'debit',   network: 'visa',       imageIdx: 190 },
+    { name: 'Kids Club Visa Debit Card (Girls)',                    type: 'debit',   network: 'visa',       imageIdx: 191 },
+    { name: 'PayPak Debit Card',                                    type: 'debit',   network: 'paypak',     imageIdx: 192 },
+  ],
 };

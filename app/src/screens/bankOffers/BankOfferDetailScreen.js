@@ -25,7 +25,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import useTheme from '../../hooks/useTheme';
 import useBankCardsStore from '../../state/bankCardsStore';
 import { fetchBusinessDetail } from '../../services/bankOffersApi';
-import { getBankIdByTakhfifName } from '../../config/banks';
+import { getBankIdByTakhfifName, SUPPORTED_BANKS } from '../../config/banks';
 import { BANK_CARDS } from '../../config/bankCards';
 import CARD_IMAGES from '../../config/cardImages';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -95,20 +95,26 @@ function NearMeSheet({ sheetRef, branches, bizName, colors }) {
     [userLoc, locLoading, requestLocation],
   );
 
+  const NEAR_ME_RADIUS_KM = 50;
+
   const sortedBranches = useMemo(() => {
-    return [...branches]
-      .map(b => ({
-        ...b,
-        dist:
-          userLoc && b.latitude && b.longitude
-            ? haversineKm(userLoc.lat, userLoc.lng, parseFloat(b.latitude), parseFloat(b.longitude))
-            : null,
-      }))
-      .sort((a, b) => {
-        if (a.dist == null) return 1;
-        if (b.dist == null) return -1;
-        return a.dist - b.dist;
-      });
+    const mapped = [...branches].map(b => ({
+      ...b,
+      dist:
+        userLoc && b.latitude && b.longitude
+          ? haversineKm(userLoc.lat, userLoc.lng, parseFloat(b.latitude), parseFloat(b.longitude))
+          : null,
+    }));
+
+    const filtered = userLoc
+      ? mapped.filter(b => b.dist == null || b.dist <= NEAR_ME_RADIUS_KM)
+      : mapped;
+
+    return filtered.sort((a, b) => {
+      if (a.dist == null) return 1;
+      if (b.dist == null) return -1;
+      return a.dist - b.dist;
+    });
   }, [userLoc, branches]);
 
   return (
@@ -149,6 +155,7 @@ function NearMeSheet({ sheetRef, branches, bizName, colors }) {
         {/* Branch count */}
         <Text style={[styles.sectionLabel, { color: colors.textSecondary, marginTop: 4 }]}>
           {sortedBranches.length} LOCATION{sortedBranches.length !== 1 ? 'S' : ''}
+          {userLoc ? ` WITHIN ${NEAR_ME_RADIUS_KM} KM` : ''}
         </Text>
 
         {/* Branch cards */}
@@ -190,7 +197,9 @@ function NearMeSheet({ sheetRef, branches, bizName, colors }) {
         {!sortedBranches.length && (
           <View style={styles.emptyTab}>
             <Icon name="location-outline" size={40} color={colors.textSecondary} />
-            <Text style={[styles.emptyTxt, { color: colors.textSecondary }]}>No branches listed</Text>
+            <Text style={[styles.emptyTxt, { color: colors.textSecondary }]}>
+              {userLoc ? `No branches within ${NEAR_ME_RADIUS_KM} km` : 'No branches listed'}
+            </Text>
           </View>
         )}
       </BottomSheetScrollView>
@@ -406,16 +415,55 @@ function StatBar({ biz, bankOffers, colors }) {
   );
 }
 
+// Strips a bank's name prefix from a card name so "MCB Visa Platinum Credit Card"
+// and "Visa Platinum Credit Card" normalize to the same string.
+function normalizeCardName(cardName, bankId) {
+  const bank = SUPPORTED_BANKS.find((b) => b.id === bankId);
+  if (!bank) return cardName.toLowerCase();
+  for (const prefix of [bank.name, bank.id.toUpperCase()]) {
+    const p = prefix.toLowerCase() + ' ';
+    const n = cardName.toLowerCase();
+    if (n.startsWith(p)) return n.slice(p.length);
+  }
+  return cardName.toLowerCase();
+}
+
 // ── Offers tab ────────────────────────────────────────────────────────────────
 
 function OffersTab({ bankOffers, colors, savedCards }) {
-  const [selectedBank, setSelectedBank] = useState(bankOffers[0] ?? null);
+  const defaultBankIndex = useMemo(() => {
+    if (!savedCards?.length) return 0;
+    const idx = bankOffers.findIndex((b) => {
+      const bankId = getBankIdByTakhfifName(b.bank_name);
+      if (!bankId) return false;
+      return b.cards?.some((card) =>
+        savedCards.some((c) => {
+          if (c.bankId !== bankId) return false;
+          if (c.cardName && card.card_name) {
+            return normalizeCardName(c.cardName, c.bankId) === normalizeCardName(card.card_name, c.bankId);
+          }
+          return true;
+        })
+      );
+    });
+    return idx >= 0 ? idx : 0;
+  }, [bankOffers, savedCards]);
+
+  const [selectedBank, setSelectedBank] = useState(bankOffers[defaultBankIndex] ?? null);
   const [termsExpanded, setTermsExpanded] = useState(false);
-  const [activeDot, setActiveDot] = useState(0);
+  const [activeDot, setActiveDot] = useState(defaultBankIndex);
   const bankScrollRef = useRef(null);
 
   const CARD_W = W * 0.48;
   const CARD_STEP = CARD_W + 10; // card width + gap
+
+  useEffect(() => {
+    if (defaultBankIndex > 0) {
+      setTimeout(() => {
+        bankScrollRef.current?.scrollTo({ x: defaultBankIndex * CARD_STEP, animated: false });
+      }, 0);
+    }
+  }, []);
 
   const handleBankScroll = useCallback((e) => {
     const x = e.nativeEvent.contentOffset.x;
@@ -444,7 +492,15 @@ function OffersTab({ bankOffers, colors, savedCards }) {
       ? getBankIdByTakhfifName(selectedBank.bank_name)
       : null;
     if (!bankId) return false;
-    return savedCards.some((c) => c.bankId === bankId);
+    return savedCards.some((c) => {
+      if (c.bankId !== bankId) return false;
+      // Match by exact card name when available
+      if (c.cardName && cardName) {
+        return normalizeCardName(c.cardName, c.bankId) === normalizeCardName(cardName, c.bankId);
+      }
+      // Fallback: bank-only match for cards saved without a name
+      return true;
+    });
   };
 
   return (
@@ -592,24 +648,23 @@ function OffersTab({ bankOffers, colors, savedCards }) {
                       ) : null;
                     })()}
                   </View>
-                  {wallet ? (
-                    <View style={styles.inWalletBadge}>
-                      <Text style={styles.inWalletTxt}>In Wallet</Text>
-                    </View>
-                  ) : (
-                    <View style={{ alignItems: 'flex-end' }}>
-                      {card.discount_percentage ? (
-                        <Text style={[styles.eligibleDisc, { color: colors.primary }]}>
-                          {card.discount_percentage}% off
-                        </Text>
-                      ) : null}
-                      {card.max_discount_amount ? (
-                        <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-                          up to Rs. {Number(card.max_discount_amount).toLocaleString()}
-                        </Text>
-                      ) : null}
-                    </View>
-                  )}
+                  <View style={{ alignItems: 'flex-end' }}>
+                    {wallet && (
+                      <View style={[styles.inWalletBadge, { marginBottom: 4 }]}>
+                        <Text style={styles.inWalletTxt}>In Wallet</Text>
+                      </View>
+                    )}
+                    {card.discount_percentage ? (
+                      <Text style={[styles.eligibleDisc, { color: colors.primary }]}>
+                        {card.discount_percentage}% off
+                      </Text>
+                    ) : null}
+                    {card.max_discount_amount ? (
+                      <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                        up to Rs. {Number(card.max_discount_amount).toLocaleString()}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               );
             })}
