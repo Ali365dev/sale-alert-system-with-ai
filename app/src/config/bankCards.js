@@ -230,6 +230,29 @@ export const BANK_CARDS = {
     { name: 'EasyPaisa Pay Pak Debit Card',                         type: 'debit',   network: 'paypak',     imageIdx: 178 },
   ],
 
+  scb: [
+    { name: 'Visa Infinite Credit Card',              type: 'credit',  network: 'visa',       imageIdx: null },
+    { name: 'Visa Platinum Credit Card',              type: 'credit',  network: 'visa',       imageIdx: null },
+    { name: 'Cashback Platinum Mastercard',           type: 'credit',  network: 'mastercard', imageIdx: null },
+    { name: 'Visa Gold Credit Card',                  type: 'credit',  network: 'visa',       imageIdx: null },
+    { name: 'Visa Classic Credit Card',               type: 'credit',  network: 'visa',       imageIdx: null },
+    { name: 'Visa Debit Card',                        type: 'debit',   network: 'visa',       imageIdx: null },
+  ],
+
+  dib: [
+    { name: 'Visa Infinite Debit Card',               type: 'debit',   network: 'visa',       imageIdx: null },
+    { name: 'Visa Platinum Debit Card',               type: 'debit',   network: 'visa',       imageIdx: null },
+    { name: 'Visa Classic Debit Card',                type: 'debit',   network: 'visa',       imageIdx: null },
+    { name: 'Mastercard Debit Card',                  type: 'debit',   network: 'mastercard', imageIdx: null },
+  ],
+
+  soneri: [
+    { name: 'Visa Platinum Debit Card',               type: 'debit',   network: 'visa',       imageIdx: null },
+    { name: 'Visa Gold Debit Card',                   type: 'debit',   network: 'visa',       imageIdx: null },
+    { name: 'Visa Classic Debit Card',                type: 'debit',   network: 'visa',       imageIdx: null },
+    { name: 'PayPak Debit Card',                      type: 'debit',   network: 'paypak',     imageIdx: null },
+  ],
+
   meezan: [
     { name: 'Visa Infinite Debit Card',                             type: 'debit',   network: 'visa',       imageIdx: 179 },
     { name: 'Mastercard World Debit Card',                          type: 'debit',   network: 'mastercard', imageIdx: 180 },
