@@ -1,13 +1,13 @@
-"""App Server — mobile app / user-facing backend.
+"""App Server — mobile app / user-facing backend. Pure CRUD: no background
+jobs, no scheduler, no Gmail fetching. See .claude/rules/server-routing.md.
 
 Handles all user-facing functionality:
   auth / brands / categories / offers / preferences /
   sale_alerts / overview / search
 
-Background scheduler runs here:
-  - Gmail polling / email automation
-  - Offer cleanup (daily)
-  - Sale alert checks (every 6h)
+When a CRUD action needs to kick off work that only runs on scraper_server
+(e.g. notify_matching_offer after a manually-created Offer), it does so over
+HTTP via SCRAPER_SERVER_URL — see services/offer_notifications.py.
 
 Run:
     uvicorn app_server.main:app --host 0.0.0.0 --port 8000 --workers 1
@@ -35,14 +35,8 @@ from database.db import init_db
 async def lifespan(app: FastAPI):
     init_db()
 
-    from job_registry import register_app_jobs
-    register_app_jobs()
-
     from services.offer_notifications import register_hooks
     register_hooks()
-
-    from services.scheduler import start_scheduler
-    start_scheduler()
 
     from services.keep_alive import start_keep_alive
     start_keep_alive()

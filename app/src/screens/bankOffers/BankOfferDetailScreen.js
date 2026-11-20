@@ -5,7 +5,6 @@ import {
   FlatList,
   Image,
   Linking,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +17,8 @@ import {
 import FastImage from '@d11/react-native-fast-image';
 import Skeleton from '../../components/Skeleton';
 import AnimatedListItem from '../../components/AnimatedListItem';
+import PhotoViewer from '../../components/PhotoViewer';
+import CoverGallery from '../../components/CoverGallery';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -281,46 +282,6 @@ function formatExpiry(dateStr) {
   const expired = d < now;
   const label = d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
   return { label, expired };
-}
-
-function CoverGallery({ images, colors }) {
-  const [idx, setIdx] = useState(0);
-  const list = images.length > 0 ? images : [null];
-
-  return (
-    <View style={styles.coverWrap}>
-      <FlatList
-        data={list}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => {
-          setIdx(Math.round(e.nativeEvent.contentOffset.x / W));
-        }}
-        keyExtractor={(_, i) => String(i)}
-        renderItem={({ item }) =>
-          item ? (
-            <FastImage
-              source={{ uri: item, priority: FastImage.priority.high, cache: FastImage.cacheControl.web }}
-              style={styles.coverImage}
-              resizeMode={FastImage.resizeMode.cover}
-            />
-          ) : (
-            <View style={[styles.coverImage, styles.coverPlaceholder]}>
-              <Icon name="image-outline" size={48} color="rgba(255,255,255,0.3)" />
-            </View>
-          )
-        }
-      />
-      {list.length > 1 && (
-        <View style={styles.dots}>
-          {list.map((_, i) => (
-            <View key={i} style={[styles.dot, i === idx && styles.dotActive]} />
-          ))}
-        </View>
-      )}
-    </View>
-  );
 }
 
 function ActionButtons({ phone, website, bizName, onNearMe, onShare }) {
@@ -775,51 +736,6 @@ function BranchesTab({ branches, city, colors }) {
 
 // ── About tab ─────────────────────────────────────────────────────────────────
 
-function PhotoViewer({ images, startIndex, onClose }) {
-  const { width: PW, height: PH } = Dimensions.get('window');
-  const [current, setCurrent] = useState(startIndex);
-  return (
-    <Modal visible animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-        <FlatList
-          data={images}
-          horizontal
-          pagingEnabled
-          initialScrollIndex={startIndex}
-          getItemLayout={(_, i) => ({ length: PW, offset: PW * i, index: i })}
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(e) => setCurrent(Math.round(e.nativeEvent.contentOffset.x / PW))}
-          keyExtractor={(_, i) => String(i)}
-          renderItem={({ item }) => (
-            <View style={{ width: PW, height: PH, alignItems: 'center', justifyContent: 'center' }}>
-              <FastImage
-                source={{ uri: item, priority: FastImage.priority.high, cache: FastImage.cacheControl.web }}
-                style={{ width: PW, height: PH * 0.75 }}
-                resizeMode={FastImage.resizeMode.contain}
-              />
-            </View>
-          )}
-        />
-        {/* Counter */}
-        {images.length > 1 && (
-          <View style={{ position: 'absolute', bottom: 50, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 5 }}>
-            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>{current + 1} / {images.length}</Text>
-          </View>
-        )}
-        {/* Close */}
-        <Pressable
-          onPress={onClose}
-          hitSlop={12}
-          style={{ position: 'absolute', top: 52, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}
-          accessibilityLabel="Close photo">
-          <Icon name="close" size={20} color="#fff" />
-        </Pressable>
-      </View>
-    </Modal>
-  );
-}
-
 function AboutTab({ biz, colors }) {
   const [photoIdx, setPhotoIdx] = useState(null);
   const contacts = [
@@ -1043,7 +959,7 @@ export default function BankOfferDetailScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}>
         {/* Cover gallery */}
-        <CoverGallery images={galleryImages} colors={colors} />
+        <CoverGallery images={galleryImages} height={COVER_H} />
 
         {/* Header overlay (absolute over cover) */}
         <View style={[styles.headerOverlay, { top: insets.top + 4 }]}>
@@ -1194,13 +1110,6 @@ export default function BankOfferDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-
-  coverWrap: { width: W, height: COVER_H, backgroundColor: '#1a2a3a' },
-  coverImage: { width: W, height: COVER_H },
-  coverPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  dots: { position: 'absolute', bottom: 32, alignSelf: 'center', flexDirection: 'row', gap: 6 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.4)' },
-  dotActive: { backgroundColor: '#fff', width: 18 },
 
   headerOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0,

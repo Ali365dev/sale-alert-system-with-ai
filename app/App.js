@@ -1,4 +1,4 @@
-import { StatusBar, AppState } from 'react-native';
+import { StatusBar, AppState, LogBox } from 'react-native';
 import React, { useEffect, useRef } from 'react';
 import { initialize as initializeClarity } from '@microsoft/react-native-clarity';
 import Navigation from './src/navigation/Navigation';
@@ -41,6 +41,11 @@ function hideNativeSplash() {
       console.warn('RNBootSplash is not in this native binary; rebuild the app to hide the native splash.', error?.message);
     }
   }
+}
+
+if (__DEV__) {
+  // In-app LogBox banner is dev-only noise — logs still reach Metro/Flipper.
+  LogBox.ignoreAllLogs();
 }
 
 const App = () => {

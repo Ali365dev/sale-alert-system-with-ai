@@ -1,7 +1,17 @@
-"""Enqueue personalized FCM alerts when a new Offer row is committed."""
+"""Enqueue personalized FCM alerts when a new Offer row is committed.
+
+app_server runs no background jobs of its own (see
+.claude/rules/server-routing.md) — the actual preference-matching + FCM
+fan-out (job type notify_matching_offer) only runs on scraper_server. This
+module still owns the SQLAlchemy hook, since an Offer can be created here
+directly (POST /offers, routers/brands.py), and just hands the job off to
+scraper_server over HTTP instead of running it in-process."""
 from __future__ import annotations
 
+import os
 import threading
+import urllib.error
+import urllib.request
 
 from sqlalchemy import event
 from sqlalchemy.orm import Session
@@ -9,8 +19,10 @@ from sqlalchemy.orm import Session
 from config import logger
 from database.models import Offer
 from services.push import fcm_client
+from services.settings_service import get_setting
 
 JOB_TYPE = "notify_matching_offer"
+_TRIGGER_TIMEOUT = 15
 
 
 def notification_copy(offer: Offer) -> tuple[str, str, dict]:
@@ -47,6 +59,34 @@ def _match_sale_alerts(offer_id: int) -> None:
         logger.exception("Failed matching brand sale alerts for offer %s", offer_id)
 
 
+def _trigger_notify_job(offer_id: int) -> None:
+    """Fire-and-forget POST to scraper_server's /api/jobs/notify_matching_offer/start
+    — the job itself (preference matching + FCM fan-out) only runs there."""
+    base_url = os.getenv("SCRAPER_SERVER_URL", "").rstrip("/")
+    if not base_url:
+        logger.warning("Skipping offer %s notifications — SCRAPER_SERVER_URL is not set", offer_id)
+        return
+
+    secret = get_setting("internal_service_secret", default="")
+    req = urllib.request.Request(
+        f"{base_url}/api/jobs/{JOB_TYPE}/start",
+        data=b"{}",
+        method="POST",
+        headers={"Content-Type": "application/json", "X-Internal-Secret": secret},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_TRIGGER_TIMEOUT) as resp:
+            logger.info("Triggered %s on scraper_server for offer %s (%s)", JOB_TYPE, offer_id, resp.status)
+    except urllib.error.HTTPError as exc:
+        # already_running (409) is expected when the hook and a bulk import
+        # both land in the same window — scraper_server's own collect_work
+        # already covers this offer either way.
+        if exc.code != 409:
+            logger.warning("Failed to trigger %s for offer %s: HTTP %s", JOB_TYPE, offer_id, exc.code)
+    except Exception as exc:
+        logger.warning("Failed to trigger %s for offer %s: %s", JOB_TYPE, offer_id, exc)
+
+
 def schedule_for_new_offer(offer_id: int) -> None:
     if not offer_id:
         return
@@ -58,12 +98,7 @@ def schedule_for_new_offer(offer_id: int) -> None:
         logger.info("Skipping offer %s preference notifications — FCM is not configured", offer_id)
         return
 
-    from services import job_runner, job_service
-
-    payload = {"offer_id": offer_id}
-    job = job_service.create_job(JOB_TYPE, payload=payload)
-    config = job_runner.get_runner(JOB_TYPE)
-    threading.Thread(target=config.run, args=(job["id"], payload), daemon=True).start()
+    threading.Thread(target=_trigger_notify_job, args=(offer_id,), daemon=True).start()
 
 
 _HOOKS_REGISTERED = False

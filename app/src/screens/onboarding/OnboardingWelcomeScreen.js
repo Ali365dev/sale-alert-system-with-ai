@@ -10,6 +10,7 @@ import Logo from '../../components/Logo';
 import regionStore from '../../state/regionStore';
 import useOnboardingGateStore from '../../state/onboardingGateStore';
 import { requestLocationPermission } from '../../services/regionDetection';
+import { REGION_PICKER_ENABLED } from '../../config/regions';
 
 const heroImage = require('../../assets/images/onboarding-hero.jpg');
 
@@ -35,7 +36,7 @@ const OnboardingWelcomeScreen = () => {
   }, []);
 
   const handleGetStarted = () => {
-    if (autoDetected) {
+    if (autoDetected || !REGION_PICKER_ENABLED) {
       // Country was found automatically — skip the picker entirely.
       completeCountrySelection();
       navigation.navigate('OnboardingTopicsScreen');

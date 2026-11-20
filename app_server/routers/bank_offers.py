@@ -1,4 +1,5 @@
 import json
+
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import func
@@ -25,9 +26,11 @@ def _row_to_dict(row: BankCardOffer, brand_name: str, biz: ScrapedBusiness | Non
         "expiry_date": row.expiry_date.isoformat() if row.expiry_date else None,
         "description": row.description,
         # Enrichment from scraped_businesses (null when not yet imported via extension)
+        "business_id": biz.id if biz else None,
         "city": biz.city if biz else None,
         "cover_image_url": biz.cover_image_url if biz else None,
         "logo_url": biz.logo_url if biz else None,
+        "gallery": (json.loads(biz.gallery) if biz.gallery else []) if biz else [],
         "rating": biz.rating if biz else None,
         "review_count": biz.review_count if biz else None,
         "category": biz.category if biz else None,

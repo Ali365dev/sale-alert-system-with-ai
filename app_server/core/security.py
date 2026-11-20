@@ -21,5 +21,11 @@ class AdminAuthError(Exception):
 
 
 def require_admin(request: Request) -> None:
-    if not settings_auth.verify_session_token(request.cookies.get(settings_auth.SESSION_COOKIE)):
+    # Accept token from cookie or X-Session-Token header — the admin session
+    # cookie is set by scraper_server's /settings/login, which in production
+    # lives on a different host than app_server, so the cookie alone never
+    # reaches these routes. The dashboard replays the login response's token
+    # via the header instead (see dashboard/src/api/client.ts).
+    token = request.cookies.get(settings_auth.SESSION_COOKIE) or request.headers.get("X-Session-Token")
+    if not settings_auth.verify_session_token(token):
         raise AdminAuthError()

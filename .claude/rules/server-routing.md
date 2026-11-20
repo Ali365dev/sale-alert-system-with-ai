@@ -4,12 +4,15 @@
 
 | Server | Port | Who uses it | Routers |
 |---|---|---|---|
-| `app_server` | 8000 | Mobile app users | auth, brands, categories, offers, overview, search, preferences, sale_alerts, health |
-| `scraper_server` | 8001 | Admin dashboard | analytics, insights, jobs, notifications, automation, settings, brand_requests, emails, unknown_emails, website_scraper, social_scraper, brand_discovery, health |
+| `app_server` | 8000 | Mobile app users | auth, brands, categories, offers, overview, search, preferences, sale_alerts, bank_offers, health |
+| `scraper_server` | 8001 | Admin dashboard + **every background job** | analytics, insights, jobs, notifications, automation, settings, brand_requests, emails, unknown_emails, website_scraper, social_scraper, brand_discovery, bank_offers, health |
 
-- **Never add an admin router to `app_server/main.py`** — admin routes belong in scraper_server.
-- **Never add a user-facing router to `scraper_server/main.py`** — user data routes belong in app_server.
-- The app server has a background scheduler (APScheduler). The scraper server does not — all scraper jobs are API-triggered.
+- **`app_server` is pure CRUD.** It runs no background jobs, no scheduler, and has no `gmail/` fetch/watch code (`gmail_client.py` is the one exception — kept for transactional auth emails, see below). It never imports `jobs/`, `job_registry`, `services/job_runner.py`, or `services/job_service.py`.
+- **`scraper_server` runs every job type** — the email ingestion pipeline (`email_sync`, `process_pending`, `email_automation`, `verify_offers`, `label_brand_emails`, `cleanup_expired_offers`, `check_sale_alerts`, `notify_matching_offer`, `send_push_notification`) as well as every scraping/research job. `job_registry.py` registers all of them; `main.py` runs the APScheduler (Gmail polling, offer cleanup, sale-alert checks) and mounts both `jobs` and `automation` (the Gmail Pub/Sub webhook).
+- **Never add an admin or job-running router to `app_server/main.py`.**
+- **Never add a user-facing CRUD router to `scraper_server/main.py`.**
+- **The one cross-server call:** app_server's CRUD endpoints can create an `Offer` directly (`POST /offers`, `routers/brands.py`). `services/offer_notifications.py`'s SQLAlchemy hook still lives on app_server for that reason, but it triggers the actual notification job over HTTP — `POST {SCRAPER_SERVER_URL}/api/jobs/notify_matching_offer/start` with an `X-Internal-Secret` header matching the `internal_service_secret` setting (seeded once into the shared DB, same pattern as `gmail_webhook_secret`). `scraper_server/routers/jobs.py::_is_internal_caller` accepts that header as an alternative to the admin session cookie for the two admin-only job types. Never reuse that secret for anything end-user-facing.
+- `GET` job endpoints (`/jobs`, `/jobs/summary`, `/jobs/active-all`, `/jobs/{id}`, `/jobs/{id}/logs`) only exist on `scraper_server` now — there's nothing to route by type.
 
 ## Dashboard Axios clients — always use the right one
 

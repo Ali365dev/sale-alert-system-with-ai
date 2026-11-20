@@ -64,13 +64,13 @@ describe('request interceptor', () => {
   });
 });
 
-describe('response interceptor (retry-on-Network-Error)', () => {
+describe('response interceptor (bounded retry-on-Network-Error)', () => {
   test('a non-network error is rejected as-is, untouched', async () => {
     const error = { message: 'Request failed with status code 404', config: {} };
     await expect(responseInterceptor.rejected(error)).rejects.toBe(error);
   });
 
-  test('a Network Error retries exactly once, through appAxios itself (inherits timeout + connectivity check)', async () => {
+  test('a Network Error retries through appAxios itself (inherits timeout + connectivity check)', async () => {
     NetInfo.fetch.mockResolvedValue({ isConnected: true, isInternetReachable: true });
     // Point the retried request at a config whose adapter resolves immediately,
     // so the retry exercises real appAxios plumbing without a real network call.
@@ -83,17 +83,18 @@ describe('response interceptor (retry-on-Network-Error)', () => {
     expect(result.data).toBe('ok');
   });
 
-  test('a second failure on the retried request is rejected, not retried again (no infinite loop)', async () => {
+  test('a retry below the limit re-dispatches with an incremented __retryCount', async () => {
     NetInfo.fetch.mockResolvedValue({ isConnected: true, isInternetReachable: true });
-    const config = {
-      headers: {},
-      adapter: () => Promise.reject({ message: 'Network Error', config: {} }),
-    };
+    const adapter = jest.fn(() => Promise.resolve({ data: 'ok', status: 200, statusText: 'OK', headers: {}, config: {} }));
+    const config = { headers: {}, __retryCount: 1, adapter };
 
-    await expect(responseInterceptor.rejected({ message: 'Network Error', config })).rejects.toBeTruthy();
-    // Exactly one retry attempt was made (the adapter above throws on every
-    // call, so if it retried more than once this would hang or the mock
-    // call count would be higher — asserting the promise settles at all,
-    // rather than hanging, is the real regression guard here).
+    const result = await responseInterceptor.rejected({ message: 'Network Error', config });
+    expect(result.data).toBe('ok');
+    expect(adapter.mock.calls[0][0].__retryCount).toBe(2);
+  });
+
+  test('a failure already at MAX_RETRIES is rejected, not retried again (no infinite loop)', async () => {
+    const errorAtLimit = { message: 'Network Error', config: { headers: {}, __retryCount: 2 } };
+    await expect(responseInterceptor.rejected(errorAtLimit)).rejects.toBe(errorAtLimit);
   });
 });

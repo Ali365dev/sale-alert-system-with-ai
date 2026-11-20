@@ -10,7 +10,7 @@ import useDataStore from '../../state/dataStore';
 import usePreferencesStore from '../../state/preferencesStore';
 import useAuthStore from '../../state/authStore';
 import { useRegionCode } from '../../state/regionStore';
-import { REGIONS } from '../../config/regions';
+import { REGIONS, REGION_PICKER_ENABLED } from '../../config/regions';
 import { deleteAccount } from '../../services/authApi';
 import { showErrorToast, showSuccessToast } from '../../utils/CustomToast';
 import TopAppBar from '../../components/TopAppBar';
@@ -79,13 +79,17 @@ const ProfileScreen = () => {
       kind: 'link',
       onPress: () => navigation.navigate('DealPreferenceScreen'),
     },
-    {
-      icon: 'location-outline',
-      label: 'Country / Region',
-      subtitle: regionInfo ? `${regionInfo.flag}  ${regionInfo.name}` : regionCode,
-      kind: 'link',
-      onPress: () => navigation.navigate('SelectCountryScreen'),
-    },
+    ...(REGION_PICKER_ENABLED
+      ? [
+          {
+            icon: 'location-outline',
+            label: 'Country / Region',
+            subtitle: regionInfo ? `${regionInfo.flag}  ${regionInfo.name}` : regionCode,
+            kind: 'link',
+            onPress: () => navigation.navigate('SelectCountryScreen'),
+          },
+        ]
+      : []),
     {
       icon: 'storefront-outline',
       label: 'Request a Brand',

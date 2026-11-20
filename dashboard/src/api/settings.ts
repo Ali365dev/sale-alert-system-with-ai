@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { scraperClient as apiClient } from "./client";
+import { useAdminSessionStore } from "../store/adminSessionStore";
 import { toast } from "../store/toastStore";
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -28,10 +29,15 @@ export function useSettingsLogin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (password: string) => {
-      const { data } = await apiClient.post("/settings/login", { password });
+      const { data } = await apiClient.post<{ status: string; token: string }>("/settings/login", { password });
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }),
+    onSuccess: (data) => {
+      // Cookie-based session is scraper_server-only in prod (different host
+      // than app_server), so also keep the token to send as X-Session-Token.
+      if (data.token) useAdminSessionStore.getState().setToken(data.token);
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 }
 
@@ -42,7 +48,10 @@ export function useSettingsLogout() {
       const { data } = await apiClient.post("/settings/logout");
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }),
+    onSuccess: () => {
+      useAdminSessionStore.getState().clearToken();
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 }
 

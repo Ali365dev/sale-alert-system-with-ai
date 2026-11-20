@@ -1,12 +1,17 @@
-"""Scraper Server — admin dashboard backend + all scraping/research.
+"""Scraper Server — every background job, every piece of automation, and
+the admin dashboard backend. app_server is pure CRUD (auth, brands, offers,
+search, …) for the mobile app and runs no jobs at all — see
+.claude/rules/server-routing.md.
 
 Handles all admin-facing functionality:
   analytics / insights / jobs / notifications / automation /
   settings / brand_requests / emails / unknown_emails /
   website_scraper / social_scraper / brand_discovery
 
-All jobs here are API-triggered (no background scheduler). The scraper server
-is stateless beyond the shared database — safe to scale or redeploy independently.
+Background scheduler runs here:
+  - Gmail polling / email automation
+  - Offer cleanup (daily)
+  - Sale alert checks (every 6h)
 
 Run:
     uvicorn scraper_server.main:app --host 0.0.0.0 --port 8001 --workers 1
@@ -34,6 +39,12 @@ async def lifespan(app: FastAPI):
 
     from job_registry import register_scraper_jobs
     register_scraper_jobs()
+
+    from services.offer_notifications import register_hooks
+    register_hooks()
+
+    from services.scheduler import start_scheduler
+    start_scheduler()
 
     # Any website-scrape jobs left in running/pending state when this
     # process last died have no worker — free those slots so scrape-now works.

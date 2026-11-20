@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { scraperClient as apiClient } from "./client";
 import { toast } from "../store/toastStore";
 
+// Every job type — email pipeline, notifications, scraping, research — runs
+// exclusively on scraper_server. app_server is pure CRUD and runs no jobs
+// at all. See .claude/rules/server-routing.md.
+
 export type JobStatus = "pending" | "running" | "cancelling" | "cancelled" | "completed" | "failed";
 
 export interface Job {

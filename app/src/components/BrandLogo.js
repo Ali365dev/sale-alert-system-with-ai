@@ -94,6 +94,7 @@ const BrandLogo = ({
     [resolvedLogoUrl, resolvedWebsite],
   );
   const [index, setIndex] = useState(0);
+  const [retried, setRetried] = useState(false);
   const [gaveUp, setGaveUp] = useState(false);
   const loadedRef = useRef(false);
   const transform = useMemo(
@@ -108,13 +109,14 @@ const BrandLogo = ({
 
   useEffect(() => {
     setIndex(0);
+    setRetried(false);
     setGaveUp(false);
     loadedRef.current = false;
   }, [resolvedLogoUrl, resolvedWebsite]);
 
   useEffect(() => {
     loadedRef.current = false;
-  }, [index]);
+  }, [index, retried]);
 
   const uri = !gaveUp ? candidates[index] ?? null : null;
   const source = useMemo(() => {
@@ -132,6 +134,13 @@ const BrandLogo = ({
 
   const onImageError = () => {
     if (loadedRef.current) return;
+    // Most failures are transient (dropped connection, timeout), so retry the same URL once
+    // before falling back to a blurrier favicon or initials.
+    if (!retried) {
+      setRetried(true);
+      return;
+    }
+    setRetried(false);
     if (index >= candidates.length - 1) {
       setGaveUp(true);
       return;
@@ -153,7 +162,7 @@ const BrandLogo = ({
         <View style={[styles.circle, plain ? (bare ? styles.bareWrap : styles.plainWrap) : cover ? styles.coverWrap : styles.imageWrap, disk]}>
           <View style={pan}>
             <FastImage
-              key={`${uri}-${imageSize}`}
+              key={`${uri}-${imageSize}-${retried ? 'retry' : 'first'}`}
               source={source}
               onLoad={() => {
                 loadedRef.current = true;

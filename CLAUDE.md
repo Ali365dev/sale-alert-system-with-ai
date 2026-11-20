@@ -13,7 +13,7 @@ scraper_server/   ← FastAPI: admin API (analytics, emails, jobs, settings, scr
 
 ### Backend (Python 3.12)
 - **FastAPI** with **SQLAlchemy** (PostgreSQL via `DATABASE_URL`)
-- **APScheduler** — background scheduler runs only on the app server
+- **APScheduler** — background scheduler runs only on the scraper server (every background job runs there; the app server is pure CRUD)
 - **Gemini / Groq / Ollama** AI providers via `ai/` package
 - **Firebase FCM** for push notifications (`services/push/fcm_client.py`)
 - **Gmail OAuth2** for email ingestion (`gmail/`)

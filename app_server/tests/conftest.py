@@ -3,9 +3,9 @@
 This app has no test-database infrastructure (no SQLite fallback — see
 config.py, DATABASE_URL is required and always points at a real Postgres/
 Supabase instance). Tests must never touch that real, shared database, so
-every fixture here mocks at a function boundary (job_service, gmail_service,
-ai.analyzer, fcm_client) rather than opening a real DB session — see each
-test module for exactly what's mocked and why.
+every fixture here mocks at a function boundary (fcm_client, sale_alert
+services) rather than opening a real DB session — see each test module for
+exactly what's mocked and why.
 """
 from contextlib import contextmanager
 from unittest.mock import MagicMock

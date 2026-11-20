@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import FastImage from '@d11/react-native-fast-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Screen from '../../components/Screen';
@@ -17,13 +18,16 @@ import BrandLogo from '../../components/BrandLogo';
 import CouponCard from '../../components/CouponCard';
 import { useCouponSheet } from '../../components/CouponSheet';
 import EmptyState from '../../components/EmptyState';
+import PhotoViewer from '../../components/PhotoViewer';
+import CoverGallery from '../../components/CoverGallery';
 import ViewSwitcher from '../../components/ViewSwitcher';
 import useViewMode from '../../hooks/useViewMode';
-import { BANK_CARD_OFFERS, CARD_TYPE_LABELS, getBankById, getOffersForBrand } from '../../config/banks';
+import { BANK_CARD_OFFERS, getBankById, getOffersForBrand } from '../../config/banks';
 
 const PAD = 20;
 const GRID_GAP = 16;
 const CARD_W = (SCREEN_WIDTH - PAD * 2 - GRID_GAP) / 2;
+const COVER_H = (SCREEN_WIDTH * 9) / 16;
 
 const BrandDetailScreen = () => {
   const route = useRoute();
@@ -59,6 +63,23 @@ const BrandDetailScreen = () => {
     [brand, combinedOffers],
   );
 
+  // When this brand is also a scraped takhfif.app business, the bank-offers
+  // API already joins that business's logo/cover/rating onto every offer row
+  // (see app_server/routers/bank_offers.py's `_row_to_dict`) — so the first
+  // offer with any of those fields set tells us "same business" without a
+  // second request.
+  const businessInfo = useMemo(
+    () => bankOffers.find((o) => o.logoUrl || o.coverImageUrl || o.rating != null) ?? null,
+    [bankOffers],
+  );
+  const [photoIdx, setPhotoIdx] = useState(null);
+  const coverImageUrl = businessInfo?.coverImageUrl || brand?.coverImage || null;
+  // Hero gallery: the business's cover shot first, followed by its other photos.
+  const coverImages = useMemo(() => {
+    const images = [coverImageUrl, ...(businessInfo?.gallery ?? [])].filter(Boolean);
+    return [...new Set(images)];
+  }, [coverImageUrl, businessInfo?.gallery]);
+
   // Personalized banner: find the first saved card that matches a bank offer
   const qualifyingCard = useMemo(() => {
     if (!bankOffers.length || !savedCards.length) return null;
@@ -70,6 +91,44 @@ const BrandDetailScreen = () => {
   const qualifyingOffer = qualifyingCard
     ? bankOffers.find((o) => o.bankId === qualifyingCard.bankId)
     : null;
+
+  // Collapse per-card rows into one row per bank — card-level detail (card
+  // names, terms, expiry per card) only shows on BankOfferDetailScreen.
+  const bankSummaries = useMemo(() => {
+    const map = new Map();
+    for (const offer of bankOffers) {
+      const bank = getBankById(offer.bankId);
+      if (!bank) continue;
+      const entry = map.get(offer.bankId) ?? { bankId: offer.bankId, maxDiscount: 0, cardCount: 0, businessId: null, earliestExpiry: null };
+      entry.cardCount += 1;
+      entry.maxDiscount = Math.max(entry.maxDiscount, offer.discountPercent ?? 0);
+      if (!entry.businessId && offer.businessId) entry.businessId = offer.businessId;
+      if (offer.expiryDate && (!entry.earliestExpiry || offer.expiryDate < entry.earliestExpiry)) {
+        entry.earliestExpiry = offer.expiryDate;
+      }
+      map.set(offer.bankId, entry);
+    }
+    return [...map.values()].sort((a, b) => b.maxDiscount - a.maxDiscount);
+  }, [bankOffers]);
+
+  const handleBankPress = useCallback((summary) => {
+    const businessId = summary.businessId ?? businessInfo?.businessId ?? null;
+    if (!businessId) return;
+    const business = {
+      id: businessId,
+      name: brand.name,
+      category: businessInfo?.category ?? null,
+      city: businessInfo?.city ?? null,
+      rating: businessInfo?.rating ?? null,
+      review_count: businessInfo?.reviewCount ?? null,
+      logo_url: businessInfo?.logoUrl ?? null,
+      cover_image_url: businessInfo?.coverImageUrl ?? null,
+      source_url: businessInfo?.sourceUrl ?? null,
+      gallery: businessInfo?.gallery ?? [],
+    };
+    navigation.navigate('BankOfferDetailScreen', { business });
+  }, [navigation, brand, businessInfo]);
+  
 
   const handleToggleFollow = () => {
     if (!brand) return;
@@ -115,7 +174,13 @@ const BrandDetailScreen = () => {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
-            <View style={[styles.cover, { backgroundColor: colors.primary }]}>
+            <View style={[styles.cover, !coverImages.length && { backgroundColor: colors.primary }]}>
+              {coverImages.length > 0 && (
+                <>
+                  <CoverGallery images={coverImages} height={COVER_H} />
+                  <View style={[StyleSheet.absoluteFillObject, styles.coverScrim]} pointerEvents="none" />
+                </>
+              )}
               <View style={[styles.coverBar, { paddingTop: insets.top + 8 }]}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.circleButton} accessibilityRole="button" accessibilityLabel="Go back">
                   <Icon name="chevron-back" size={20} color={colors.text} />
@@ -136,12 +201,28 @@ const BrandDetailScreen = () => {
             </View>
 
             <View style={styles.profileCard}>
-              <BrandLogo brand={brand} size={56} tone="filled" fit="cover" elevated />
+              <BrandLogo brand={brand} logoUrl={businessInfo?.logoUrl} size={56} tone="filled" elevated />
               <View style={styles.profileText}>
                 <Text style={styles.brandName}>{brand.name}</Text>
-                <Text style={styles.dealCount}>
-                  {brand.dealCount} tracked offer{brand.dealCount === 1 ? '' : 's'}
-                </Text>
+                <View style={styles.metaRow}>
+                  <Text style={styles.dealCount}>
+                    {brand.dealCount} tracked offer{brand.dealCount === 1 ? '' : 's'}
+                  </Text>
+                  {businessInfo?.rating != null && (
+                    <View style={styles.ratingBadge}>
+                      <Icon name="star" size={10} color="#F59E0B" />
+                      <Text style={styles.ratingText}>{Number(businessInfo.rating).toFixed(1)}</Text>
+                      {!!businessInfo.reviewCount && (
+                        <Text style={styles.ratingCount}>({businessInfo.reviewCount})</Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+                {/* Scraper occasionally mis-extracts city as a count string
+                    (e.g. "515 cities") — a real city name never has digits. */}
+                {!!businessInfo?.city && !/\d/.test(businessInfo.city) && (
+                  <Text style={styles.cityText}>{businessInfo.city}</Text>
+                )}
                 {!!brand.description && (
                   <Text style={styles.description} numberOfLines={3}>
                     {brand.description}
@@ -149,6 +230,31 @@ const BrandDetailScreen = () => {
                 )}
               </View>
             </View>
+
+            {/* Gallery photos from the matched scraped business */}
+            {businessInfo?.gallery?.length > 0 && (
+              <View style={styles.gallerySection}>
+                <Text style={styles.gallerySectionTitle}>Photos</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
+                  {businessInfo.gallery.map((url, i) => (
+                    <Pressable
+                      key={url}
+                      onPress={() => setPhotoIdx(i)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View photo ${i + 1}`}>
+                      <FastImage
+                        source={{ uri: url, priority: FastImage.priority.low, cache: FastImage.cacheControl.web }}
+                        style={styles.galleryImg}
+                        resizeMode={FastImage.resizeMode.cover}
+                      />
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                {photoIdx != null && (
+                  <PhotoViewer images={businessInfo.gallery} startIndex={photoIdx} onClose={() => setPhotoIdx(null)} />
+                )}
+              </View>
+            )}
 
             {/* Personalized qualifying card banner */}
             {qualifyingCard && qualifyingBank && qualifyingOffer && (
@@ -169,26 +275,26 @@ const BrandDetailScreen = () => {
               </Pressable>
             )}
 
-            {/* Bank card offers section */}
-            {bankOffers.length > 0 && (
+            {/* Bank offers section — one row per bank; card-level detail lives on BankOfferDetailScreen */}
+            {bankSummaries.length > 0 && (
               <View style={styles.bankOffersSection}>
-                <Text style={styles.bankOffersTitle}>All Card Offers</Text>
-                {bankOffers.map((offer) => {
-                  const bank = getBankById(offer.bankId);
+                <Text style={styles.bankOffersTitle}>Bank Offers</Text>
+                {bankSummaries.map((summary) => {
+                  const bank = getBankById(summary.bankId);
                   if (!bank) return null;
-                  const expiryLabel = offer.expiryDate
-                    ? `Expires ${new Date(offer.expiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                  const businessId = summary.businessId ?? businessInfo?.businessId ?? null;
+                  const hasDetail = !!businessId;
+                  const expiryLabel = summary.earliestExpiry
+                    ? `Valid till ${new Date(summary.earliestExpiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
                     : null;
-                  const daysLabel =
-                    offer.daysValid === 'all'
-                      ? 'All days'
-                      : Array.isArray(offer.daysValid) && offer.daysValid.length
-                        ? offer.daysValid.length <= 2
-                          ? offer.daysValid.join(' & ')
-                          : 'Weekends only'
-                        : null;
                   return (
-                    <View key={offer.id} style={styles.bankOfferRow}>
+                    <Pressable
+                      key={summary.bankId}
+                      style={({ pressed }) => [styles.bankOfferRow, pressed && hasDetail && styles.bankOfferRowPressed]}
+                      disabled={!hasDetail}
+                      onPress={() => handleBankPress(summary)}
+                      accessibilityRole={hasDetail ? 'button' : undefined}
+                      accessibilityLabel={hasDetail ? `View ${bank.name} offer details` : undefined}>
                       <View style={[styles.bankInitials, { backgroundColor: bank.color }]}>
                         <Text style={styles.bankInitialsText}>{bank.initials}</Text>
                       </View>
@@ -197,26 +303,23 @@ const BrandDetailScreen = () => {
                           <View>
                             <Text style={styles.bankOfferName}>{bank.name}</Text>
                             <Text style={styles.bankOfferCardType}>
-                              {CARD_TYPE_LABELS[offer.cardType] ?? offer.cardType}
+                              {summary.cardCount} card{summary.cardCount === 1 ? '' : 's'}
                             </Text>
                           </View>
-                          <Text style={styles.bankOfferDiscount}>{offer.discountPercent}% OFF</Text>
-                        </View>
-                        <Text style={styles.bankOfferDesc} numberOfLines={2}>{offer.description}</Text>
-                        <View style={styles.bankOfferTags}>
-                          {expiryLabel && (
-                            <View style={styles.tagExpiry}>
-                              <Text style={styles.tagExpiryText}>{expiryLabel}</Text>
-                            </View>
-                          )}
-                          {daysLabel && (
-                            <View style={styles.tagDays}>
-                              <Text style={styles.tagDaysText}>{daysLabel}</Text>
-                            </View>
-                          )}
+                          <View style={styles.bankOfferDiscountCol}>
+                            <Text style={styles.bankOfferDiscount}>Up to {summary.maxDiscount}% OFF</Text>
+                            {expiryLabel && (
+                              <View style={styles.tagExpiry}>
+                                <Text style={styles.tagExpiryText}>{expiryLabel}</Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
                       </View>
-                    </View>
+                      {hasDetail && (
+                        <Icon name="chevron-forward" size={16} color={colors.textSecondary} style={styles.bankOfferChevron} />
+                      )}
+                    </Pressable>
                   );
                 })}
               </View>
@@ -271,6 +374,10 @@ const createStyles = (colors) =>
       width: '100%',
       aspectRatio: 16 / 9,
       backgroundColor: colors.primary,
+      overflow: 'hidden',
+    },
+    coverScrim: {
+      backgroundColor: 'rgba(0,0,0,0.28)',
     },
     coverBar: {
       position: 'absolute',
@@ -329,11 +436,52 @@ const createStyles = (colors) =>
       color: colors.textSecondary,
       fontWeight: '500',
     },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flexWrap: 'wrap',
+    },
+    ratingBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      backgroundColor: '#FEF3C7',
+    },
+    ratingText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+    ratingCount: { fontSize: 10, fontWeight: '500', color: '#92400E', opacity: 0.8 },
+    cityText: {
+      fontSize: 12,
+      lineHeight: 16,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
     description: {
       marginTop: 4,
       fontSize: 12,
       lineHeight: 18,
       color: colors.textSecondary,
+    },
+    gallerySection: {
+      marginHorizontal: PAD,
+      marginTop: 16,
+    },
+    gallerySectionTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    galleryRow: {
+      gap: 8,
+    },
+    galleryImg: {
+      width: 160,
+      height: 100,
+      borderRadius: 12,
     },
     qualifyBanner: {
       flexDirection: 'row',
@@ -360,10 +508,25 @@ const createStyles = (colors) =>
     },
     bankOfferRow: {
       flexDirection: 'row',
+      alignItems: 'center',
       gap: 12,
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: '#EDF0F3',
+      padding: 14,
+      marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 12,
+      elevation: 2,
+    },
+    bankOfferRowPressed: {
+      backgroundColor: colors.backgroundElement,
+    },
+    bankOfferChevron: {
+      flexShrink: 0,
     },
     bankInitials: {
       width: 44,
@@ -383,19 +546,17 @@ const createStyles = (colors) =>
     },
     bankOfferName: { fontSize: 15, fontWeight: '700', color: colors.text },
     bankOfferCardType: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+    bankOfferDiscountCol: { alignItems: 'flex-end' },
     bankOfferDiscount: { fontSize: 15, fontWeight: '900', color: '#F20D38' },
-    bankOfferDesc: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-    bankOfferTags: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
     tagExpiry: {
-      paddingHorizontal: 8, paddingVertical: 3,
-      backgroundColor: '#FFF3CD', borderRadius: 6,
+      alignSelf: 'flex-end',
+      marginTop: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      backgroundColor: '#FFF3CD',
+      borderRadius: 6,
     },
     tagExpiryText: { fontSize: 11, fontWeight: '600', color: '#856404' },
-    tagDays: {
-      paddingHorizontal: 8, paddingVertical: 3,
-      backgroundColor: '#E8D5FF', borderRadius: 6,
-    },
-    tagDaysText: { fontSize: 11, fontWeight: '600', color: '#6B2DA8' },
     sectionHead: {
       flexDirection: 'row',
       alignItems: 'center',

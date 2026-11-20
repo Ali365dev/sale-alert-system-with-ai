@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import useTheme from '../hooks/useTheme';
@@ -41,6 +42,8 @@ function HorizontalDash({ color }) {
 const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const navigation = useNavigation();
+  const route = useRoute();
   const name = brand?.name || 'Store';
   const code = deal?.promoCode;
   const percent = formatDiscountPercent(deal);
@@ -57,6 +60,13 @@ const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => 
     copyCode(code);
   };
 
+  const onLogoPress = () => {
+    if (!brand?.id) return;
+    const alreadyOnThisBrand = route.name === 'BrandDetailScreen' && route.params?.id === brand.id;
+    if (alreadyOnThisBrand) return;
+    navigation.navigate('BrandDetailScreen', { id: brand.id });
+  };
+
   if (variant === 'vertical') {
     return (
       <Pressable
@@ -65,7 +75,9 @@ const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => 
         accessibilityRole="button"
         accessibilityLabel={`${name} ${percent} discount`}>
         <View style={styles.vTop}>
-          <BrandLogo brand={brand} size={68} tone="filled" fit="cover" elevated />
+          <Pressable onPress={onLogoPress} accessibilityRole="button" accessibilityLabel={`View ${name} brand details`}>
+            <BrandLogo brand={brand} size={68} tone="filled" fit="cover" elevated />
+          </Pressable>
           <Text style={styles.vName} numberOfLines={1}>
             {name}
           </Text>
@@ -100,7 +112,13 @@ const CouponCard = ({ deal, brand, variant = 'horizontal', onPress, style }) => 
       accessibilityRole="button"
       accessibilityLabel={`${name} ${percent} discount`}>
       <View style={styles.hLeft}>
-        <BrandLogo brand={brand} size={52} tone="filled" fit="cover" elevated />
+        <Pressable
+          onPress={onLogoPress}
+          style={styles.logoPress}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${name} brand details`}>
+          <BrandLogo brand={brand} size={52} tone="filled" fit="cover" elevated />
+        </Pressable>
         <Text style={styles.hBrandName} numberOfLines={1}>
           {name}
         </Text>
@@ -189,6 +207,9 @@ const createStyles = (colors) =>
       paddingRight: 8,
       minWidth: 0,
       overflow: 'visible',
+    },
+    logoPress: {
+      alignSelf: 'flex-start',
     },
     hBrandName: {
       fontSize: 17,

@@ -40,9 +40,11 @@ const mapOffer = (row, index) => {
     expiryDate: row.expiry_date,
     daysValid: null,
     // Scraped business enrichment (null when not yet imported via extension)
+    businessId: row.business_id ?? null,
     city: row.city || null,
     coverImageUrl: row.cover_image_url || null,
     logoUrl: row.logo_url || null,
+    gallery: row.gallery || [],
     rating: row.rating || null,
     reviewCount: row.review_count || null,
     category: row.category || null,

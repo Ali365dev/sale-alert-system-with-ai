@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 
+import { useAdminSessionStore } from "../store/adminSessionStore";
 import { useAuthStore } from "../store/authStore";
 import { toast } from "../store/toastStore";
 
@@ -25,6 +26,8 @@ function addInterceptors(client: AxiosInstance) {
   client.interceptors.request.use((config) => {
     const token = useAuthStore.getState().token;
     if (token) config.headers.set("Authorization", `Bearer ${token}`);
+    const adminToken = useAdminSessionStore.getState().token;
+    if (adminToken) config.headers.set("X-Session-Token", adminToken);
     return config;
   });
 

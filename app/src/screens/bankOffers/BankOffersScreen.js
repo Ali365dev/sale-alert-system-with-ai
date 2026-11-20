@@ -27,6 +27,7 @@ import FilterPickerSheet from '../../components/FilterPickerSheet';
 import ViewSwitcher from '../../components/ViewSwitcher';
 import useViewMode from '../../hooks/useViewMode';
 import { SUPPORTED_BANKS } from '../../config/banks';
+import { showToast } from '../../utils/CustomToast';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PAD = 16;
@@ -333,12 +334,15 @@ export default function BankOffersScreen() {
   const citySheetRef = useRef(null);
   const bankSheetRef = useRef(null);
   const sortSheetRef = useRef(null);
+  const errorToastShown = useRef(false);
 
   const load = useCallback(() => {
     setLoading(true);
     setLoadError(null);
+    errorToastShown.current = false;
+
     fetchScrapedBusinesses()
-      .then(setBusinesses)
+      .then((data) => setBusinesses(data))
       .catch((e) => setLoadError(e?.message ?? 'Failed to load offers'))
       .finally(() => setLoading(false));
   }, []);
@@ -346,11 +350,21 @@ export default function BankOffersScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setLoadError(null);
+    errorToastShown.current = false;
+
     fetchScrapedBusinesses()
-      .then(setBusinesses)
+      .then((data) => setBusinesses(data))
       .catch((e) => setLoadError(e?.message ?? 'Failed to load offers'))
       .finally(() => setRefreshing(false));
   }, []);
+
+  // Show error toast once per load cycle when an error is set
+  useEffect(() => {
+    if (loadError && !errorToastShown.current) {
+      errorToastShown.current = true;
+      showToast.error('Could not load offers. Pull down to retry.', 'No connection');
+    }
+  }, [loadError]);
 
   useEffect(() => { load(); }, [load]);
 

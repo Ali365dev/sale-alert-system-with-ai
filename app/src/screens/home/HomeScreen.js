@@ -82,6 +82,20 @@ const HomeScreen = () => {
       setRefreshing(false);
     }
   };
+
+  // Catalog is cache-first (dataStore persists brands/deals), so dashboard
+  // edits (new offers, brand/logo changes) never show up until something
+  // refetches. Refresh quietly on every return to Home, throttled so
+  // switching tabs rapidly doesn't hammer the API.
+  const lastAutoRefresh = useRef(0);
+  useEffect(() => {
+    if (!isFocused) return;
+    const MIN_INTERVAL_MS = 2 * 60 * 1000;
+    if (Date.now() - lastAutoRefresh.current < MIN_INTERVAL_MS) return;
+    lastAutoRefresh.current = Date.now();
+    loadDeals();
+  }, [isFocused]);
+
   const error = useDataStore((state) => state.error);
   const user = useAuthStore((state) => state.user);
   const followedBrands = usePreferencesStore((state) => state.followedBrands);

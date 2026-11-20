@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Storage } from './storage';
-import { getRegion, DEFAULT_REGION, SUPPORTED_CODES } from '../config/regions';
+import { getRegion, DEFAULT_REGION, REGION_PICKER_ENABLED, SUPPORTED_CODES } from '../config/regions';
 import { detectCountry, detectFromGPS } from '../services/regionDetection';
 
 const STORAGE_KEY = 'dealpulse:region';
@@ -22,6 +22,14 @@ const regionStore = create((set, get) => ({
   initRegion: async () => {
     console.log('[Region] initRegion called');
     if (get().detecting) return;
+
+    // With the picker hidden, users would have no way to leave a wrongly detected region,
+    // so everyone (including users who saved another region before) is pinned to the default.
+    if (!REGION_PICKER_ENABLED) {
+      Storage.set(STORAGE_KEY, DEFAULT_REGION);
+      set({ regionCode: DEFAULT_REGION, region: getRegion(DEFAULT_REGION), autoDetected: true });
+      return;
+    }
 
     // Load saved preference first (instant) — treat a previously saved region
     // as auto-detected so the country screen is not shown again on re-install.
@@ -51,7 +59,7 @@ const regionStore = create((set, get) => ({
    * Sets detecting=true while running so the welcome screen keeps its spinner.
    */
   tryGPSDetection: async () => {
-    if (get().autoDetected || get().detecting) return;
+    if (!REGION_PICKER_ENABLED || get().autoDetected || get().detecting) return;
     set({ detecting: true });
     try {
       const code = await detectFromGPS();

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from services import job_runner, job_service
 from services import settings_auth
+from services.settings_service import get_setting
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -23,9 +24,21 @@ MAX_WORKERS = 10
 _ADMIN_ONLY_JOB_TYPES = {"send_push_notification", "notify_matching_offer"}
 
 
+def _is_internal_caller(request: Request) -> bool:
+    """app_server has no job-running code of its own (see server-routing
+    rules) — when its own offer-creation hook needs to fan out a push for a
+    manually-created Offer, it calls here server-to-server with this shared
+    secret instead of an admin session cookie. Generated once into settings
+    the same way as gmail_webhook_secret; never exposed to the dashboard."""
+    secret = get_setting("internal_service_secret", default="")
+    return bool(secret) and request.headers.get("X-Internal-Secret") == secret
+
+
 def _require_admin_for(job_type: str, request: Request):
-    if job_type in _ADMIN_ONLY_JOB_TYPES and not settings_auth.verify_session_token(
-        request.cookies.get(settings_auth.SESSION_COOKIE)
+    if (
+        job_type in _ADMIN_ONLY_JOB_TYPES
+        and not settings_auth.verify_session_token(request.cookies.get(settings_auth.SESSION_COOKIE))
+        and not _is_internal_caller(request)
     ):
         return JSONResponse({"error": "not authenticated"}, status_code=401)
     return None

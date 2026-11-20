@@ -507,6 +507,10 @@ def _seed_settings() -> None:
             ("automatic_email_processing", False, "email_processing"),
             ("gmail_pubsub_topic", "", "gmail"),
             ("gmail_webhook_secret", secrets.token_urlsafe(32), "gmail"),
+            # Shared secret for server-to-server calls (app_server -> scraper_server
+            # job triggers) — see scraper_server/routers/jobs.py::_is_internal_caller.
+            # Same DB, same row, so both servers always agree on the value.
+            ("internal_service_secret", secrets.token_urlsafe(32), "system"),
             ("gmail_last_history_id", "", "gmail"),
             ("gmail_watch_expiration", "", "gmail"),
         ]
@@ -529,8 +533,8 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _migrate()
 
-    from services import job_service
-    job_service.reconcile_interrupted_jobs()
+    # Interrupted-job reconciliation runs on scraper_server — it's the only
+    # process that ever creates a `jobs` row (see .claude/rules/server-routing.md).
 
     _seed_brands()
     _seed_categories()

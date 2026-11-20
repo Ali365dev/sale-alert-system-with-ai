@@ -83,6 +83,11 @@ export const REGIONS = {
 
 export const DEFAULT_REGION = 'PK';
 
+// Country picker is hidden in onboarding and Profile until other regions have enough content,
+// and while hidden every user is pinned to DEFAULT_REGION (see regionStore.initRegion).
+// Flip to true to bring both entry points and auto-detection back; the screens are untouched.
+export const REGION_PICKER_ENABLED = false;
+
 /** Returns the REGIONS entry for a given ISO code, or the default. */
 export const getRegion = (isoCode) =>
   REGIONS[isoCode?.toUpperCase()] ?? REGIONS[DEFAULT_REGION];
