@@ -299,6 +299,7 @@ export interface EmailProcessingSettings {
   skip_duplicate_emails: boolean;
   ocr_max_images_per_email: number;
   latest_emails_limit: number | null;
+  emails_newer_than_days: number | null;
   fetch_interval_minutes: number;
   _fetch_interval_wired: boolean;
   automatic_email_processing: boolean;

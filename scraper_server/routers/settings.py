@@ -304,7 +304,7 @@ _EMAIL_PROCESSING_KEYS = [
     "gmail_label", "gmail_brand_label", "max_emails_per_sync", "retry_attempts",
     "request_timeout_seconds", "auto_analyze_emails", "auto_apply_gmail_label",
     "skip_already_labeled", "skip_duplicate_emails", "ocr_max_images_per_email",
-    "latest_emails_limit",
+    "latest_emails_limit", "emails_newer_than_days",
     # Automatic new-email pipeline (app/api/routers/automation.py) — admin
     # toggle + the GCP Pub/Sub topic name. gmail_webhook_secret is
     # deliberately NOT here (it's exposed read-only via

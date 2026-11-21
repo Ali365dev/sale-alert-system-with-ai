@@ -31,6 +31,19 @@ def _gmail_label() -> str:
     return get_setting("gmail_label", default=_GMAIL_LABEL_DEFAULT)
 
 
+def _newer_than_query() -> str:
+    """Gmail search fragment from Settings -> Email Processing -> "Only
+    emails newer than N days" (emails_newer_than_days). Applied server-side
+    so a long-unsynced label's old backlog is never even listed, let alone
+    fetched or processed. Off (null/0) by default."""
+    days = get_setting("emails_newer_than_days", default=None)
+    try:
+        days = int(days) if days else 0
+    except (TypeError, ValueError):
+        days = 0
+    return f"newer_than:{days}d" if days > 0 else ""
+
+
 GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 REQUEST_TIMEOUT = 60  # seconds
 
@@ -236,17 +249,23 @@ def list_new_message_ids(limit: Optional[int] = None) -> tuple[AuthorizedSession
     fetched or processed. This is Settings -> Email Processing -> "Fetch only
     latest N emails" — distinct from max_emails_per_sync, which caps
     per-run *processing* of whatever's already been listed, not what gets
-    listed from Gmail in the first place.
+    listed from Gmail in the first place. Separately, Settings -> Email
+    Processing -> "Only emails newer than (days)" (emails_newer_than_days)
+    adds a server-side `newer_than:Nd` query so Gmail itself excludes older
+    messages from the listing — see _newer_than_query().
     """
     session = _get_session()
     label_id = _get_label_id(session, _gmail_label())
     if not label_id:
         return session, []
 
+    query = _newer_than_query()
     all_message_ids: list[str] = []
     page_token: Optional[str] = None
     while True:
         params: dict = {"labelIds": label_id, "maxResults": 500}
+        if query:
+            params["q"] = query
         if page_token:
             params["pageToken"] = page_token
         resp = session.get(f"{GMAIL_API_BASE}/messages", params=params, timeout=REQUEST_TIMEOUT)
@@ -318,11 +337,14 @@ def fetch_and_store_emails(
     if not label_id:
         return []
 
+    query = _newer_than_query()
     # Paginated listing of all message IDs under the label
     all_message_ids: list[str] = []
     page_token: Optional[str] = None
     while True:
         params: dict = {"labelIds": label_id, "maxResults": 500}
+        if query:
+            params["q"] = query
         if page_token:
             params["pageToken"] = page_token
         try:

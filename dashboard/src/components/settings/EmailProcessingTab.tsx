@@ -100,6 +100,19 @@ export function EmailProcessingTab() {
             </span>
           </FieldGroup>
           <FieldGroup>
+            <Label>Only emails newer than (days)</Label>
+            <TextInput
+              type="number"
+              min={1}
+              placeholder="No limit"
+              value={form.emails_newer_than_days == null ? "" : String(form.emails_newer_than_days)}
+              onChange={(e) => set("emails_newer_than_days", e.target.value === "" ? null : Number(e.target.value))}
+            />
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              Skip emails under the Gmail label older than this many days, regardless of how many there are — e.g. 30 to only ever look at this month's backlog. Leave blank for no limit.
+            </span>
+          </FieldGroup>
+          <FieldGroup>
             <Label>Retry attempts</Label>
             <TextInput type="number" min={1} max={10} value={String(form.retry_attempts ?? "")} onChange={(e) => set("retry_attempts", Number(e.target.value))} />
           </FieldGroup>
