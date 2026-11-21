@@ -1,6 +1,7 @@
 jest.mock('../../utils/NavigationUtil', () => ({ navigate: jest.fn() }));
 jest.mock('../../utils/CustomToast', () => ({ showToast: { success: jest.fn(), error: jest.fn(), push: jest.fn() } }));
 
+import { Platform } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import { navigate } from '../../utils/NavigationUtil';
 import { showToast } from '../../utils/CustomToast';
@@ -113,7 +114,8 @@ describe('setupPushListeners', () => {
     expect(navigate).toHaveBeenCalledWith(NOTIFICATION_FALLBACK_SCREEN, undefined);
   });
 
-  test('foreground message shows a toast and adds to the alerts feed, but does not navigate', () => {
+  test('Android foreground message shows a toast and adds to the alerts feed, but does not navigate', () => {
+    Platform.OS = 'android';
     messaging().getInitialNotification.mockResolvedValue(null);
     setupPushListeners();
 
@@ -124,6 +126,18 @@ describe('setupPushListeners', () => {
     expect(useDataStore.getState().alerts).toHaveLength(1);
     expect(useDataStore.getState().alerts[0]).toMatchObject({ title: 'Big Sale', body: '50% off', dealId: '9' });
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  test('iOS foreground message gets no toast (the system banner already shows it) but is still recorded', () => {
+    Platform.OS = 'ios';
+    messaging().getInitialNotification.mockResolvedValue(null);
+    setupPushListeners();
+
+    const foregroundHandler = messaging().onMessage.mock.calls[0][0];
+    foregroundHandler({ messageId: 'msg-3', notification: { title: 'Big Sale', body: '50% off' }, data: { dealId: '9' } });
+
+    expect(showToast.push).not.toHaveBeenCalled();
+    expect(useDataStore.getState().alerts).toHaveLength(1);
   });
 
   test('a foreground message with no `notification` block is still recorded in the alerts feed silently (no toast)', () => {

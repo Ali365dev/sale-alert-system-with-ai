@@ -24,8 +24,8 @@ export const requestNotificationPermission = async () => {
 };
 
 const registerToken = async (token) => {
-  if (Platform.OS === 'ios') {
-    // Visible in Xcode / Console.app when testing TestFlight or device builds.
+  if (__DEV__ && Platform.OS === 'ios') {
+    // Dev builds only — release builds must not write the push token to the device log.
     console.log('[FCM iOS] token:', token);
     console.log('[FCM iOS] device_id:', getDeviceId());
   }
@@ -228,7 +228,10 @@ const navigateFromNotification = (remoteMessage) => {
  * Call once, e.g. from App.js's startup effect. Returns an unsubscribe fn. */
 export const setupPushListeners = () => {
   const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
-    if (remoteMessage.notification) {
+    // iOS already shows the system banner while the app is open
+    // (AppDelegate willPresent) — a toast too made every push appear twice.
+    // Android shows nothing for a foreground message, so the toast is its only display.
+    if (Platform.OS === 'android' && remoteMessage.notification) {
       showToast.push(
         remoteMessage.notification.body ?? '',
         remoteMessage.notification.title ?? 'Deals More',

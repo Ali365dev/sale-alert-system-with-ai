@@ -1,6 +1,7 @@
 """Brand requests — a user-initiated "we don't track this brand yet" signal,
-the mirror of BrandCandidate (system/AI-detected). Public create endpoint
-(called by the app); admin list/resolve endpoints for the review queue."""
+the mirror of BrandCandidate (system/AI-detected). Admin list/resolve for
+the review queue; the app's create endpoint is on app_server
+(app_server/routers/brand_requests.py)."""
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import JSONResponse
 
@@ -22,27 +23,6 @@ def _request_to_dict(r: BrandRequest) -> dict:
         "created_at": r.created_at.isoformat() if r.created_at else None,
         "resolved_at": r.resolved_at.isoformat() if r.resolved_at else None,
     }
-
-
-# ── Public (called by the app) ─────────────────────────────────────────────
-
-@router.post("")
-def create_brand_request(body: dict = Body(default={})):
-    body = body or {}
-    brand_name = (body.get("brand_name") or "").strip()
-    if not brand_name:
-        return JSONResponse({"error": "brand_name is required"}, status_code=400)
-
-    with get_session() as session:
-        r = BrandRequest(
-            device_id=(body.get("device_id") or "").strip() or None,
-            brand_name=brand_name,
-            category=(body.get("category") or "").strip() or None,
-            note=(body.get("note") or "").strip() or None,
-        )
-        session.add(r)
-        session.flush()
-        return JSONResponse(_request_to_dict(r), status_code=201)
 
 
 # ── Admin (review queue) ────────────────────────────────────────────────────

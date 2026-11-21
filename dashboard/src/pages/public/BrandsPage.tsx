@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { useCreateBrandRequest } from "../../api/brandRequests";
+import { useCreateBrandRequest } from "../../api/brandRequestCreate";
 import type { Brand } from "../../api/brands";
 import { useBrands } from "../../api/brands";
 import { useOffers } from "../../api/offers";

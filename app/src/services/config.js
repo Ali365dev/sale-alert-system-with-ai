@@ -24,7 +24,9 @@ const LOCAL_API = LOCAL_LAN_API;
 // production. Flip USE_LOCAL_API to false to force production while developing.
 const USE_LOCAL_API = false; // true = local, false = production
 
-export const BASE_URL = USE_LOCAL_API ? LOCAL_API : PRODUCTION_API;
+// __DEV__ guard: a release build always talks to production, even if the
+// flag above is left on — a shipped app can never point at a Mac's LAN IP.
+export const BASE_URL = __DEV__ && USE_LOCAL_API ? LOCAL_API : PRODUCTION_API;
 
 // Keep unused helpers referenced so the file documents all options clearly.
 void LOCAL_SIM_API;

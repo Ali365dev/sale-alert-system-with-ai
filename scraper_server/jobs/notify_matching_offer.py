@@ -1,6 +1,8 @@
 """Send an FCM alert to devices whose saved brands/categories match one offer."""
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import func
+
 from config import logger
 from database.db import get_session
 from database.models import DeviceToken, Email, Offer, OfferNotification
@@ -14,6 +16,7 @@ _DEAD_TOKEN_ERRORS = {"UNREGISTERED", "INVALID_ARGUMENT", "NOT_FOUND"}
 # Bulk-processing old mail ("Process all unprocessed", recovery) creates
 # offers for sales that are long over — those are kept, but not pushed.
 _MAX_PUSH_EMAIL_AGE = timedelta(days=7)
+_SAME_CONTENT_WINDOW = timedelta(days=7)
 
 
 def stale_reason(offer, email_received_at) -> str | None:
@@ -34,6 +37,27 @@ def _stale_reason_for(offer_id: int) -> str | None:
             .first()
         )
         return stale_reason(row[0], row[1]) if row else None
+
+
+def _recently_sent_same_content(session, offer, device_ids: list[str]) -> set[str]:
+    """Brands often send the same campaign email twice, which becomes two
+    offers with the same brand and title — without this, the same push
+    arrived twice."""
+    if not offer.title or not offer.brand or not device_ids:
+        return set()
+    since = datetime.now(timezone.utc).replace(tzinfo=None) - _SAME_CONTENT_WINDOW
+    rows = (
+        session.query(OfferNotification.device_id)
+        .join(Offer, Offer.id == OfferNotification.offer_id)
+        .filter(
+            OfferNotification.device_id.in_(device_ids),
+            OfferNotification.created_at >= since,
+            Offer.id != offer.id,
+            func.lower(Offer.brand) == offer.brand.lower(),
+            func.lower(Offer.title) == offer.title.lower(),
+        )
+    )
+    return {row.device_id for row in rows}
 
 
 class NotifyMatchingOfferJob(BackgroundJob):
@@ -94,6 +118,7 @@ class NotifyMatchingOfferJob(BackgroundJob):
                     OfferNotification.device_id.in_(device_ids),
                 )
             }
+            already |= _recently_sent_same_content(session, offer, device_ids)
             pending_ids = [d for d in device_ids if d not in already]
             if not pending_ids:
                 if job_id:

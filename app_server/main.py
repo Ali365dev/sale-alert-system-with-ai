@@ -72,6 +72,7 @@ from routers.health import router as health_router  # noqa: E402
 from routers import (  # noqa: E402
     auth,
     bank_offers,
+    brand_requests,
     brands,
     categories,
     devices,
@@ -88,6 +89,7 @@ app.include_router(overview.router)
 app.include_router(search.router)
 app.include_router(offers.router)
 app.include_router(brands.router)
+app.include_router(brand_requests.router)
 app.include_router(categories.router)
 app.include_router(devices.router)
 app.include_router(preferences.router)

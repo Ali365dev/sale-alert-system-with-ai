@@ -14,6 +14,8 @@ from services.offer_notifications import notification_copy
 def _fresh_offer(request, mocker):
     if "stale" not in request.node.name:
         mocker.patch.object(notify_matching_offer, "_stale_reason_for", return_value=None)
+    if "same_content" not in request.node.name:
+        mocker.patch.object(notify_matching_offer, "_recently_sent_same_content", return_value=set())
 
 
 def _offer(**kwargs):
@@ -207,3 +209,16 @@ def test_collect_work_does_not_notify_stale_offers(mocker):
 
     assert NotifyMatchingOfferJob().collect_work({"id": 5, "payload": {"offer_id": 9}}) == []
     match.assert_not_called()
+
+
+def test_same_content_skips_devices_that_got_the_identical_push(mock_session):
+    offer = SimpleNamespace(id=1385, brand="Levi's", title="40% off + free shipping for Red Tab™ members")
+    mock_session.query.return_value.join.return_value.filter.return_value = [SimpleNamespace(device_id="dev-a")]
+
+    assert notify_matching_offer._recently_sent_same_content(mock_session, offer, ["dev-a", "dev-b"]) == {"dev-a"}
+
+
+def test_same_content_check_needs_a_title_and_brand(mock_session):
+    offer = SimpleNamespace(id=1, brand="Levi's", title=None)
+    assert notify_matching_offer._recently_sent_same_content(mock_session, offer, ["dev-a"]) == set()
+    mock_session.query.assert_not_called()

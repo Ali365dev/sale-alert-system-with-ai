@@ -4,8 +4,8 @@
 
 | Server | Port | Who uses it | Routers |
 |---|---|---|---|
-| `app_server` | 8000 | Mobile app users | auth, brands, categories, devices (push-token register/unregister), offers, overview, search, preferences, sale_alerts, bank_offers, health |
-| `scraper_server` | 8001 | Admin dashboard + **every background job** | analytics, insights, jobs, notifications, automation, settings, brand_requests, brand_search, offer_verify, emails, unknown_emails, website_scraper, social_scraper, brand_discovery, bank_offers, health |
+| `app_server` | 8000 | Mobile app users | auth, brands, categories, devices (push-token register/unregister), brand_requests (public create only), offers, overview, search, preferences, sale_alerts, bank_offers, health |
+| `scraper_server` | 8001 | Admin dashboard + **every background job** | analytics, insights, jobs, notifications, automation, settings, brand_requests (admin list/resolve), brand_search, offer_verify, emails, unknown_emails, website_scraper, social_scraper, brand_discovery, bank_offers, health |
 
 - **`app_server` is pure CRUD.** It runs no background jobs, no scheduler, and has no `gmail/` fetch/watch code (`gmail_client.py` is the one exception — kept for transactional auth emails, see below). It never imports `jobs/`, `job_registry`, `services/job_runner.py`, or `services/job_service.py`.
 - **`scraper_server` runs every job type** — the email ingestion pipeline (`email_sync`, `process_pending`, `email_automation`, `verify_offers`, `label_brand_emails`, `cleanup_expired_offers`, `check_sale_alerts`, `notify_matching_offer`, `send_push_notification`) as well as every scraping/research job. `job_registry.py` registers all of them; `main.py` runs the APScheduler (Gmail polling, offer cleanup, sale-alert checks) and mounts both `jobs` and `automation` (the Gmail Pub/Sub webhook).
