@@ -97,6 +97,7 @@ def _migrate() -> None:
         ("bank_card_offers", "branch_valid_count",    "INTEGER"),
         ("bank_card_offers", "branch_total_count",    "INTEGER"),
         ("bank_card_offers", "valid_branches",        "TEXT"),
+        ("email_automation_runs", "recovery_attempts", "INTEGER DEFAULT 0"),
     ]
     with engine.connect() as conn:
         for table, col, col_type in new_columns:
@@ -466,6 +467,7 @@ def _seed_settings() -> None:
         )
         from ai.prompt_builder import _PROMPT as brand_research_ddg_default, PROMPT_KEY as brand_research_ddg_key
         from research.prompts import _PROMPT as brand_research_tavily_default, PROMPT_KEY as brand_research_tavily_key
+        from routers.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
         from ai.brand_identifier import _PROMPT_TEMPLATE as brand_identification_default, PROMPT_KEY as brand_identification_key
         from ai.social_offer_analyzer import _PROMPT_TEMPLATE as social_offer_analysis_default, PROMPT_KEY as social_offer_analysis_key
         from ai.website_offer_analyzer import _PROMPT_TEMPLATE as website_offer_analysis_default, PROMPT_KEY as website_offer_analysis_key
@@ -476,6 +478,7 @@ def _seed_settings() -> None:
             (offer_verification_key, "Offer Verification", "Verifies whether an extracted offer is genuine.", "offer", offer_verification_default),
             (brand_research_ddg_key, "Brand Research (Web Search)", "Extracts active promotions from DuckDuckGo search results for a brand.", "research", brand_research_ddg_default),
             (brand_research_tavily_key, "Brand Research (Tavily)", "Extracts active promotions from Tavily search results for a brand.", "research", brand_research_tavily_default),
+            (dashboard_digest_key, "Dashboard Insights", "Generates the AI daily digest shown on the Insights page.", "insights", dashboard_digest_default),
             (brand_identification_key, "Brand Identification", "Identifies the brand behind an email that couldn't be auto-matched to a known brand's sender domain.", "email", brand_identification_default),
             (social_offer_analysis_key, "Social Offer Analysis", "Determines whether a scraped Facebook/Instagram post is a genuine offer and extracts its details.", "social", social_offer_analysis_default),
             (website_offer_analysis_key, "Website Offer Analysis", "Determines whether a scraped website page describes a genuine active offer and extracts its details.", "website", website_offer_analysis_default),

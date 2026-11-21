@@ -12,10 +12,12 @@ which messages are new, fetching + labeling them, and the push notification
 on success.
 """
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from sqlalchemy import or_
 
 from database.db import get_session
-from database.models import Email, EmailAutomationRun
+from database.models import Email, EmailAutomationRun, Job
 from services.jobs.base import BackgroundJob, WorkItem
 from services.retry import retry_with_backoff
 
@@ -25,6 +27,11 @@ from services.retry import retry_with_backoff
 # split. Only genuinely unexpected errors are allowed to propagate and stop
 # the whole job.
 _GMAIL_STEP_ERRORS = (Exception,)
+
+# A message whose own processing is what kills the process (e.g. OOM) must
+# not crash-loop the server forever.
+_MAX_RECOVERY_ATTEMPTS = 2
+_RECOVERY_WINDOW = timedelta(days=3)
 
 
 class EmailAutomationJob(BackgroundJob):
@@ -109,7 +116,34 @@ class EmailAutomationJob(BackgroundJob):
         if latest_history_id != start_history_id:
             set_setting("gmail_last_history_id", latest_history_id, category="gmail")
 
-        return [WorkItem(id=mid, label=mid) for mid in new_ids]
+        recovered_ids = self._reclaim_interrupted(job["id"])
+        return [WorkItem(id=mid, label=mid) for mid in new_ids + recovered_ids]
+
+    def _reclaim_interrupted(self, job_id: int) -> list[str]:
+        """The history cursor moves past a message as soon as it's claimed, so a
+        server restart mid-analysis (Render redeploy / memory-limit kill) would
+        otherwise leave it "unprocessed" forever — no offer, no push."""
+        cutoff = datetime.utcnow() - _RECOVERY_WINDOW
+        with get_session() as db:
+            rows = (
+                db.query(EmailAutomationRun)
+                .join(Job, Job.id == EmailAutomationRun.job_id)
+                .outerjoin(Email, Email.gmail_message_id == EmailAutomationRun.gmail_message_id)
+                .filter(
+                    Job.is_interrupted.is_(True),
+                    EmailAutomationRun.created_at >= cutoff,
+                    or_(
+                        EmailAutomationRun.recovery_attempts.is_(None),
+                        EmailAutomationRun.recovery_attempts < _MAX_RECOVERY_ATTEMPTS,
+                    ),
+                    or_(Email.id.is_(None), Email.processing_status == "unprocessed"),
+                )
+                .all()
+            )
+            for row in rows:
+                row.job_id = job_id
+                row.recovery_attempts = (row.recovery_attempts or 0) + 1
+            return [row.gmail_message_id for row in rows]
 
     def process_item(self, job_id: int, item: WorkItem) -> str:
         from ai._llm import describe_active_provider
@@ -216,29 +250,13 @@ class EmailAutomationJob(BackgroundJob):
         return "successful"
 
     def _send_offer_notification(self, job_id: int, offer_id: int) -> None:
-        """Queue personalized FCM for users whose brands AND categories match.
-
-        Do not broadcast to every DeviceToken — that ignores preferences.
-        Duplicate sends for the same offer are skipped inside notify_matching_offer
-        (offer_notifications unique on device_id + offer_id). Offer-insert hooks
-        may already have queued this job; a second queue is still safe.
-        """
+        """The Offer insert's after_commit hook (services/offer_notifications.py)
+        already queued notify_matching_offer for this offer — queueing a second
+        one here raced it and could push the same offer twice."""
         from services import job_service
-        from services.offer_notifications import schedule_for_new_offer
-        from services.push import fcm_client
-
-        if not fcm_client.is_configured():
-            job_service.append_log(job_id, "→ Firebase not configured — notification skipped", severity="warning", category="push")
-            return
-
-        schedule_for_new_offer(offer_id)
-        from config import OFFER_MATCH_MODE
 
         job_service.append_log(
-            job_id,
-            f"→ Queued personalized notifications for offer #{offer_id} "
-            f"(users matching brands/categories, mode={OFFER_MATCH_MODE})",
-            category="push",
+            job_id, f"→ Notifications queued for offer #{offer_id}", category="push",
         )
 
     def after_run(self, job_id: int, job: dict) -> None:

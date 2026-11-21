@@ -17,6 +17,7 @@ aren't installed, or OCR_ENABLED=false, this module degrades to a no-op:
 logs one clear warning and returns empty OCR text — the rest of the email
 pipeline (AI analysis on subject+body alone) keeps working either way.
 """
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -43,6 +44,21 @@ from config import (
 )
 
 _SEP = "-" * 32
+
+# Email open-tracking pixels (ESP beacons, 1x1/spacer GIFs). They carry no
+# text, cost a download (some hosts don't even resolve), and — because the
+# per-email image cap takes the first N URLs — used to push the real sale
+# banner out of OCR for about a third of emails.
+_TRACKING_PIXEL_RE = re.compile(
+    r"(\b1x1\b|/open(\.aspx)?(\?|/|$)|beacon\.|/beacon|/pixel(\.gif|\.png)?(\?|/|$)"
+    r"|/(track|tracking)(/|\?|$)|/o\.gif|(spacer|blank|transparent|clear)\.gif"
+    r"|impression\.gif|usermatch)",
+    re.IGNORECASE,
+)
+
+
+def is_tracking_pixel(url: str) -> bool:
+    return bool(_TRACKING_PIXEL_RE.search(url))
 
 _engine = None
 _engine_load_failed = False
@@ -274,13 +290,14 @@ def run_ocr_for_urls(image_urls: list[str]) -> dict:
     if _get_engine() is None:
         return {"image_texts": [], "gif_texts": [], "items": []}
 
-    # Dedupe by URL, cap how many images one email can trigger OCR for.
+    # Dedupe by URL, drop tracking pixels, then cap how many images one email
+    # can trigger OCR for.
     # Read fresh from Settings each call (see services/settings_service.py's
     # module docstring) so a change in the dashboard applies immediately,
     # falling back to the env-configured default if never set.
     from services.settings_service import get_setting
     max_images = get_setting("ocr_max_images_per_email", default=OCR_MAX_IMAGES_PER_EMAIL)
-    deduped = list(dict.fromkeys(image_urls))[:max_images]
+    deduped = [u for u in dict.fromkeys(image_urls) if not is_tracking_pixel(u)][:max_images]
 
     cache = ocr_cache.load()
 

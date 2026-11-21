@@ -74,6 +74,7 @@ from routers import (  # noqa: E402
     bank_offers,
     brands,
     categories,
+    devices,
     offers,
     overview,
     preferences,
@@ -88,6 +89,7 @@ app.include_router(search.router)
 app.include_router(offers.router)
 app.include_router(brands.router)
 app.include_router(categories.router)
+app.include_router(devices.router)
 app.include_router(preferences.router)
 app.include_router(sale_alerts.router)
 app.include_router(bank_offers.router)

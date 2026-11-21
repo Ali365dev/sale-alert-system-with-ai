@@ -1,9 +1,19 @@
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
+import pytest
+
 from database.models import DeviceToken, Offer
-from jobs.notify_matching_offer import NotifyMatchingOfferJob
+from jobs import notify_matching_offer
+from jobs.notify_matching_offer import NotifyMatchingOfferJob, stale_reason
 from services.offer_matching import offer_matches_preferences
 from services.offer_notifications import notification_copy
+
+
+@pytest.fixture(autouse=True)
+def _fresh_offer(request, mocker):
+    if "stale" not in request.node.name:
+        mocker.patch.object(notify_matching_offer, "_stale_reason_for", return_value=None)
 
 
 def _offer(**kwargs):
@@ -169,3 +179,31 @@ def test_notification_copy_explains_the_match():
     assert title.lower().startswith("nike")
     assert "40" in body
     assert data["dealId"] == "9"
+
+
+def test_collect_work_matches_sale_alerts_then_skips_push_without_fcm(mocker):
+    match = mocker.patch(
+        "services.sale_alert_service.match_brand_alerts_for_offer", return_value={"ok": True, "matched": 0},
+    )
+    mocker.patch("jobs.notify_matching_offer.fcm_client.is_configured", return_value=False)
+    mocker.patch("services.job_service.append_log")
+
+    assert NotifyMatchingOfferJob().collect_work({"id": 5, "payload": {"offer_id": 9}}) == []
+    match.assert_called_once_with(9, notify=True)
+
+
+def test_stale_reason_for_expired_or_old_email():
+    now = datetime.utcnow()
+    assert stale_reason(SimpleNamespace(expiry_date=now - timedelta(days=1)), now) == "offer already expired"
+    assert "days old" in stale_reason(SimpleNamespace(expiry_date=None), now - timedelta(days=90))
+    assert stale_reason(SimpleNamespace(expiry_date=now + timedelta(days=3)), now - timedelta(hours=2)) is None
+    assert stale_reason(SimpleNamespace(expiry_date=None), None) is None
+
+
+def test_collect_work_does_not_notify_stale_offers(mocker):
+    mocker.patch.object(notify_matching_offer, "_stale_reason_for", return_value="source email is 95 days old")
+    match = mocker.patch("services.sale_alert_service.match_brand_alerts_for_offer")
+    mocker.patch("services.job_service.append_log")
+
+    assert NotifyMatchingOfferJob().collect_work({"id": 5, "payload": {"offer_id": 9}}) == []
+    match.assert_not_called()

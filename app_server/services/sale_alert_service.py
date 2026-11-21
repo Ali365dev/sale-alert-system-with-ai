@@ -6,14 +6,11 @@ from types import SimpleNamespace
 
 from config import logger
 from database.db import get_session
-from database.models import DeviceToken, Offer, SaleAlert
-from services.offer_matching import normalize_name
+from database.models import DeviceToken, SaleAlert
 from services.push import fcm_client
 from services.sale_alert_analyze import analyze_product_url
 from services.sale_alert_brand import enrich_analyze_with_brand
 from services.sale_alert_matching import (
-    brand_condition_met,
-    brand_trigger_message,
     discount_pct,
     product_condition_met,
     product_trigger_message,
@@ -224,105 +221,3 @@ def check_product_alert(alert_id: int, *, notify: bool = True) -> dict:
         result["push_sent"] = _send_alert_push(push_payload)
 
     return result
-
-
-def match_brand_alerts_for_offer(offer_id: int, *, notify: bool = True) -> dict:
-    """Find active brand SaleAlerts matching a newly created Offer and trigger them."""
-    push_payloads: list[SimpleNamespace] = []
-    with get_session() as session:
-        offer = session.query(Offer).filter(Offer.id == offer_id, Offer.is_active.is_(True)).first()
-        if offer is None:
-            return {"ok": False, "matched": 0, "error": "offer missing"}
-
-        if not normalize_name(offer.brand):
-            return {"ok": True, "matched": 0}
-
-        candidates = (
-            session.query(SaleAlert)
-            .filter(
-                SaleAlert.alert_type == "brand",
-                SaleAlert.status == "active",
-            )
-            .all()
-        )
-        matched_ids: list[int] = []
-        for alert in candidates:
-            if not brand_condition_met(
-                alert.condition_type,
-                alert_brand=alert.brand_name,
-                offer_brand=offer.brand,
-                discount_percentage=offer.discount_percentage,
-                coupon_code=offer.coupon_code,
-                custom_pct=alert.custom_pct,
-            ):
-                continue
-            message = brand_trigger_message(alert.brand_name, offer)
-            deal_url = offer.website or None
-            _mark_triggered(alert, message=message, deal_url=deal_url)
-            if offer.image_url and not alert.image_url:
-                alert.image_url = offer.image_url
-            matched_ids.append(alert.id)
-            if notify:
-                push_payloads.append(_push_payload(alert))
-
-    sent_total = 0
-    for payload in push_payloads:
-        sent_total += _send_alert_push(payload)
-
-    return {"ok": True, "matched": len(matched_ids), "alert_ids": matched_ids, "push_sent": sent_total}
-
-
-def list_active_product_alert_ids() -> list[int]:
-    with get_session() as session:
-        rows = (
-            session.query(SaleAlert.id)
-            .filter(
-                SaleAlert.alert_type == "product",
-                SaleAlert.status == "active",
-                SaleAlert.product_url.isnot(None),
-            )
-            .all()
-        )
-        return [r[0] for r in rows]
-
-
-def evaluate_alert_on_create(alert_id: int) -> dict:
-    """After create: product alerts with a URL are checked immediately;
-    brand alerts scan recent matching offers."""
-    with get_session() as session:
-        alert = session.query(SaleAlert).filter(SaleAlert.id == alert_id).first()
-        if alert is None:
-            return {"ok": False, "error": "not found"}
-        alert_type = alert.alert_type
-        brand = alert.brand_name
-        condition = alert.condition_type
-        custom_pct = alert.custom_pct
-        status = alert.status
-
-    if status != "active":
-        return {"ok": True, "triggered": False, "status": status}
-
-    if alert_type == "product":
-        return check_product_alert(alert_id, notify=True)
-
-    if alert_type == "brand" and brand:
-        with get_session() as session:
-            offers = (
-                session.query(Offer)
-                .filter(Offer.is_active.is_(True))
-                .order_by(Offer.created_at.desc())
-                .limit(80)
-                .all()
-            )
-            for offer in offers:
-                if brand_condition_met(
-                    condition,
-                    alert_brand=brand,
-                    offer_brand=offer.brand,
-                    discount_percentage=offer.discount_percentage,
-                    coupon_code=offer.coupon_code,
-                    custom_pct=custom_pct,
-                ):
-                    return match_brand_alerts_for_offer(offer.id, notify=True)
-
-    return {"ok": True, "triggered": False}

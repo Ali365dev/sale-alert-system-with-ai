@@ -18,6 +18,9 @@ admin_router = APIRouter(prefix="/api/automation", tags=["automation"], dependen
 JOB_TYPE = "email_automation"
 
 
+_STALE_MINUTES = 20
+
+
 def _start_automation_job_if_needed() -> dict | None:
     """Shared dispatch used by both the webhook and the scheduler backstop
     (services/scheduler.py::check_gmail_for_changes) — exactly one code
@@ -28,6 +31,10 @@ def _start_automation_job_if_needed() -> dict | None:
     if not get_setting("automatic_email_processing", default=False):
         return None
 
+    # A run whose thread died (e.g. DB connection lost) never finishes — left
+    # alone it would block every future run. Healthy runs touch the job row
+    # every few seconds; LLM and OCR calls are each capped well under this.
+    job_service.reclaim_stale_jobs(JOB_TYPE, _STALE_MINUTES, category="system")
     existing = job_service.get_active_job(JOB_TYPE)
     if existing:
         return None

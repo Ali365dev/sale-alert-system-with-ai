@@ -255,29 +255,5 @@ def delete_offer(offer_id: int):
     return {"status": "deleted"}
 
 
-@router.post("/{offer_id}/verify")
-def verify_offer_endpoint(offer_id: int):
-    from ai.verifier import verify_offer
-
-    with get_session() as session:
-        o = session.query(Offer).filter(Offer.id == offer_id).first()
-        if o is None:
-            return JSONResponse({"error": "not found"}, status_code=404)
-        offer_data = _offer_to_dict(o)
-
-    result = verify_offer(offer_data)
-    if "error" in result:
-        return JSONResponse({"error": result["error"]}, status_code=502)
-
-    with get_session() as session:
-        o = session.query(Offer).filter(Offer.id == offer_id).first()
-        o.verification_status = result["status"]
-        o.verification_reason = result["reason"]
-        o.verification_confidence = float(result["confidence"])
-        o.verified_at = datetime.now(timezone.utc).replace(tzinfo=None)
-
-    return result
-
-
-# Bulk "verify all unverified offers" is now the "verify_offers" background job —
-# see services/jobs/verify_offers.py, started via POST /api/jobs/verify_offers/start.
+# AI verification (single + bulk) runs on scraper_server — see
+# scraper_server/routers/offer_verify.py and jobs/verify_offers.py.

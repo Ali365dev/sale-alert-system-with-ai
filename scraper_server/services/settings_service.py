@@ -1,12 +1,16 @@
 """CRUD + encryption helpers backing the Settings module (api/settings.py).
 
-Every read here is a fresh, uncached DB query — deliberately. AI calls in
-this app already take multiple seconds (network + LLM inference); one extra
-~50-100ms DB round trip per prompt/key/setting lookup is negligible, and
-skipping a cache layer is what makes "changes take effect without a
-restart" trivially true rather than something to invalidate correctly.
+Scalar settings and prompts are cached in-process for _CACHE_TTL_SECONDS.
+The database is in AWS Tokyo and this server runs in Frankfurt, so every
+uncached lookup is a ~1s round trip, and one email reads 15-25 of them.
+Writes through this module invalidate the cache immediately, so a change
+made in the dashboard (served by this same process) still applies at once;
+a write from another process (app_server) shows up within the TTL.
+API keys are never cached — their status/usage changes on every call.
 """
 import json
+import threading
+import time
 from datetime import datetime, timezone
 
 from ai.providers import is_rate_limit_message
@@ -61,10 +65,38 @@ def mask_key(raw_key: str) -> str:
 
 # ── Generic settings KV ────────────────────────────────────────────────────────
 
-def get_setting(key: str, default=None):
+_CACHE_TTL_SECONDS = 30
+_MISSING = object()
+_cache: dict[tuple[str, str], tuple[float, object]] = {}
+_cache_lock = threading.Lock()
+
+
+def _cached(kind: str, key: str, load):
+    now = time.monotonic()
+    with _cache_lock:
+        hit = _cache.get((kind, key))
+    if hit and now - hit[0] < _CACHE_TTL_SECONDS:
+        return hit[1]
+    value = load()
+    with _cache_lock:
+        _cache[(kind, key)] = (now, value)
+    return value
+
+
+def _invalidate(kind: str, key: str) -> None:
+    with _cache_lock:
+        _cache.pop((kind, key), None)
+
+
+def _load_setting_value(key: str):
     with get_session() as session:
         row = session.query(Setting).filter(Setting.key == key).first()
-        return _loads(row.value, default) if row else default
+        return row.value if row else _MISSING
+
+
+def get_setting(key: str, default=None):
+    raw = _cached("setting", key, lambda: _load_setting_value(key))
+    return default if raw is _MISSING else _loads(raw, default)
 
 
 def set_setting(key: str, value, category: str | None = None, actor: str | None = None) -> None:
@@ -79,6 +111,7 @@ def set_setting(key: str, value, category: str | None = None, actor: str | None 
                 row.category = category
         else:
             session.add(Setting(key=key, value=new_value, category=category, updated_by=actor))
+    _invalidate("setting", key)
     if old_value != new_value:
         write_audit(actor, "setting.update", "setting", key, old_value, new_value)
 
@@ -234,10 +267,15 @@ def record_key_test(key_id: int, ok: bool, error: str | None = None) -> None:
 
 # ── Prompts ──────────────────────────────────────────────────────────────────
 
-def get_prompt(key: str, default: str) -> str:
+def _load_prompt_content(key: str):
     with get_session() as session:
         row = session.query(Prompt).filter(Prompt.key == key).first()
-        return row.content if row else default
+        return row.content if row else _MISSING
+
+
+def get_prompt(key: str, default: str) -> str:
+    content = _cached("prompt", key, lambda: _load_prompt_content(key))
+    return default if content is _MISSING else content
 
 
 def _prompt_to_dict(row: Prompt) -> dict:
@@ -269,6 +307,7 @@ def seed_prompt_if_missing(key: str, name: str, description: str, category: str,
             key=key, name=name, description=description, category=category,
             content=default_content, default_content=default_content,
         ))
+    _invalidate("prompt", key)
 
 
 def update_prompt(key: str, content: str, actor: str | None = None) -> dict | None:
@@ -281,6 +320,7 @@ def update_prompt(key: str, content: str, actor: str | None = None) -> dict | No
         row.version += 1
         row.created_by = actor
         result = _prompt_to_dict(row)
+    _invalidate("prompt", key)
     if old_content != content:
         write_audit(actor, "prompt.update", "prompt", key, old_content, content)
     return result
@@ -295,6 +335,7 @@ def restore_prompt_default(key: str, actor: str | None = None) -> dict | None:
         row.content = row.default_content
         row.version += 1
         result = _prompt_to_dict(row)
+    _invalidate("prompt", key)
     write_audit(actor, "prompt.restore_default", "prompt", key, old_content, result["content"])
     return result
 

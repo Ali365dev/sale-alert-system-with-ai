@@ -46,6 +46,14 @@ async def lifespan(app: FastAPI):
     from services.scheduler import start_scheduler
     start_scheduler()
 
+    # One run right away so emails a restart interrupted mid-analysis are
+    # picked back up without waiting for the next new Gmail message.
+    try:
+        from routers.automation import _start_automation_job_if_needed
+        _start_automation_job_if_needed()
+    except Exception:
+        logger.exception("Failed to start email automation on startup")
+
     # Any website-scrape jobs left in running/pending state when this
     # process last died have no worker — free those slots so scrape-now works.
     try:
@@ -86,10 +94,12 @@ from routers import (  # noqa: E402
     bank_offers,
     brand_discovery,
     brand_requests,
+    brand_search,
     emails,
     insights,
     jobs,
     notifications,
+    offer_verify,
     schedules,
     scraper_configs,
     settings,
@@ -109,6 +119,8 @@ app.include_router(automation.admin_router)
 app.include_router(settings.router)
 app.include_router(settings.admin_router)
 app.include_router(brand_requests.router)
+app.include_router(brand_search.router)
+app.include_router(offer_verify.router)
 app.include_router(emails.router)
 app.include_router(unknown_emails.router)
 # Admin — scraping / research

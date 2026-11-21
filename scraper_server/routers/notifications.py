@@ -1,8 +1,6 @@
-"""Push notification endpoints — device registration (public, called by the
-app itself) plus Firebase config and send-triggering (admin-only). Ported
-from api/notifications.py — logic and response shape unchanged; the Flask
-@settings_auth.require_admin decorator becomes Depends(require_admin) (see
-app/core/security.py)."""
+"""Push notification admin endpoints — Firebase config, device counts and
+send-triggering. Device registration (called by the mobile app) lives on
+app_server: app_server/routers/devices.py."""
 import threading
 
 from fastapi import APIRouter, Body, Depends
@@ -21,53 +19,6 @@ JOB_TYPE = "send_push_notification"
 
 def _actor() -> str:
     return "admin"
-
-
-# ── Device registration (public — called by the app) ──────────────────────────
-
-@router.post("/devices/register")
-def register_device(body: dict = Body(default={})):
-    body = body or {}
-    token = (body.get("token") or "").strip()
-    platform = (body.get("platform") or "").strip().lower()
-    device_id = (body.get("device_id") or "").strip() or None
-    if not token or platform not in ("ios", "android"):
-        return JSONResponse({"error": "token and platform ('ios' or 'android') are required"}, status_code=400)
-
-    with get_session() as session:
-        row = session.query(DeviceToken).filter(DeviceToken.token == token).first()
-        if row:
-            row.platform = platform
-            row.is_active = True
-            if device_id:
-                row.device_id = device_id
-        else:
-            session.add(DeviceToken(token=token, platform=platform, device_id=device_id))
-
-        # One install → one active token. When the same device_id registers a
-        # refreshed FCM token, deactivate older rows so personalized notify
-        # (keyed by device_id) does not skip a live user stuck on a dead token.
-        if device_id:
-            session.query(DeviceToken).filter(
-                DeviceToken.device_id == device_id,
-                DeviceToken.token != token,
-                DeviceToken.is_active.is_(True),
-            ).update({"is_active": False}, synchronize_session=False)
-
-    return {"status": "registered"}
-
-
-@router.post("/devices/unregister")
-def unregister_device(body: dict = Body(default={})):
-    body = body or {}
-    token = (body.get("token") or "").strip()
-    if not token:
-        return JSONResponse({"error": "token is required"}, status_code=400)
-
-    with get_session() as session:
-        session.query(DeviceToken).filter(DeviceToken.token == token).update({"is_active": False})
-
-    return {"status": "unregistered"}
 
 
 # ── Admin ────────────────────────────────────────────────────────────────────

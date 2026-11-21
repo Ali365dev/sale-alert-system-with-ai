@@ -6,15 +6,17 @@ import { useNavigate } from "react-router";
 import type { Brand } from "../api/brands";
 import {
   useBrands,
-  useBulkSearchBrands,
-  useBulkSearchStatus,
   useCreateBrand,
   useDeleteBrand,
-  useSearchBrand,
-  useSearchBrandStatus,
   useUpdateBrand,
   useUpdateBrandLogo,
 } from "../api/brands";
+import {
+  useBulkSearchBrands,
+  useBulkSearchStatus,
+  useSearchBrand,
+  useSearchBrandStatus,
+} from "../api/brandSearch";
 import { BrandForm } from "../components/brands/BrandForm";
 import { BrandLogo } from "../components/brands/BrandLogo";
 import { LogoEditorModal } from "../components/brands/LogoEditorModal";

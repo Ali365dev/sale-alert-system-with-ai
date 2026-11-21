@@ -23,13 +23,16 @@ class ProcessPendingJob(BackgroundJob):
     job_type = "process_pending"
 
     def collect_work(self, job: dict) -> list[WorkItem]:
+        # only_unprocessed (the Email Manager's "Process all unprocessed"
+        # button) skips failed emails and processed ones whose offer the
+        # retention cleanup already removed — re-running those would recreate
+        # months-old offers.
+        only_unprocessed = bool((job.get("payload") or {}).get("only_unprocessed"))
         with get_session() as session:
-            pending = (
-                session.query(Email)
-                .filter(~exists().where(Offer.email_id == Email.id))
-                .order_by(Email.id.asc())
-                .all()
-            )
+            query = session.query(Email).filter(~exists().where(Offer.email_id == Email.id))
+            if only_unprocessed:
+                query = query.filter(Email.processing_status == "unprocessed")
+            pending = query.order_by(Email.id.asc()).all()
             return [WorkItem(id=e.id, label=e.subject) for e in pending]
 
     def process_item(self, job_id: int, item: WorkItem) -> str:
@@ -42,6 +45,10 @@ class ProcessPendingJob(BackgroundJob):
         with get_session() as session:
             e = session.query(Email).filter(Email.id == item.id).first()
             if e is None:
+                return "skipped"
+            # Email automation may have handled it since collect_work ran —
+            # analysing it again would add a duplicate offer.
+            if session.query(exists().where(Offer.email_id == item.id)).scalar():
                 return "skipped"
             subject, body, sender = e.subject, e.body or "", e.sender or ""
             received_at = e.received_date or e.processed_at

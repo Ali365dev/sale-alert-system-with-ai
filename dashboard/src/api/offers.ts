@@ -130,27 +130,3 @@ export function useDeleteOffer() {
     },
   });
 }
-
-export interface VerifyResult {
-  is_valid_offer: boolean;
-  confidence: number;
-  reason: string;
-  status: "verified" | "suspicious" | "invalid";
-}
-
-export function useVerifyOffer() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: number) => {
-      const { data } = await apiClient.post<VerifyResult>(`/offers/${id}/verify`);
-      return data;
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["offers"] });
-      toast.success(`Offer verified — ${result.status} (${result.confidence}% confidence).`);
-    },
-  });
-}
-
-// Bulk "verify all unverified offers" is now the "verify_offers" background
-// job — see api/jobs.ts's useStartJob("verify_offers")/useActiveJob("verify_offers").

@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 from services.offer_matching import offer_matches_preferences
-from services.offer_notifications import notification_copy
 
 
 def _offer(**kwargs):
@@ -46,11 +45,3 @@ def test_or_mode_allows_either_dimension():
     assert offer_matches_preferences({"brand": "Apple", "category": "Shoes"}, ["Nike"], ["Shoes"], mode="or") is True
     assert offer_matches_preferences({"brand": "Apple", "category": "Watches"}, ["Nike"], ["Shoes"], mode="or") is False
     assert offer_matches_preferences(offer, [], [], mode="or") is False
-
-
-def test_notification_copy_includes_offer_id_for_deep_link():
-    title, body, data = notification_copy(_offer())
-    assert "Nike" in title
-    assert data["dealId"] == "9"
-    assert data["offerId"] == "9"
-    assert body

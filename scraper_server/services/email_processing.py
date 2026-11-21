@@ -12,7 +12,17 @@ from typing import Callable, Optional
 
 from database.db import get_session
 from database.models import Email, Offer
+from services.offer_delete import delete_offer_row
 from jobs.discover_brand import extract_domain, find_known_brand_by_domain, route_to_candidate_queue
+
+
+# Everything ai.analyzer.build_offer derives from the email + AI result.
+_REANALYSED_FIELDS = (
+    "title", "brand", "company", "category", "subcategory", "offer_type",
+    "discount_percentage", "coupon_code", "expiry_date", "expiry_date_basis",
+    "expiry_date_confidence", "delete_after", "offer_value", "website", "summary",
+    "key_highlights", "is_active", "source", "image_url",
+)
 
 
 def reprocess_email(
@@ -107,17 +117,29 @@ def reprocess_email(
         return {"processing_status": "failed", "processing_error": "AI returned no result", "offer_id": None}
 
     with get_session() as session:
-        # Reprocessing replaces this email's offer(s) rather than piling up
-        # duplicates alongside a stale/wrong one from a previous attempt.
-        session.query(Offer).filter(Offer.email_id == email_id).delete()
-        offer = build_offer(
+        fresh = build_offer(
             email_id,
             result,
             received_at=received_at,
             subject=subject,
             image_url=select_sale_image(ocr_result.get("items")),
         )
-        session.add(offer)
+        existing = (
+            session.query(Offer).filter(Offer.email_id == email_id).order_by(Offer.id.asc()).all()
+        )
+        if existing:
+            # Reprocessing refreshes this email's offer in place. Deleting and
+            # re-inserting failed outright once the offer had been pushed
+            # (offer_notifications FK), and otherwise gave it a new id — which
+            # re-sent the push to everyone and broke the earlier push's link.
+            offer = existing[0]
+            for field in _REANALYSED_FIELDS:
+                setattr(offer, field, getattr(fresh, field))
+            for duplicate in existing[1:]:
+                delete_offer_row(session, duplicate)
+        else:
+            offer = fresh
+            session.add(offer)
         session.flush()
         offer_id = offer.id
         e = session.query(Email).filter(Email.id == email_id).first()

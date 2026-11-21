@@ -438,45 +438,16 @@ def _seed_categories() -> None:
 
 
 def _seed_settings() -> None:
-    """Seed the 6 default Prompt rows (from their hardcoded fallback
-    constants) and default scalar Settings, only if each is missing —
-    mirrors _seed_brands(). Safe to call on every boot."""
+    """Seed default scalar Settings, only if each is missing — mirrors
+    _seed_brands(). Safe to call on every boot."""
     from services import settings_service
 
     with SessionLocal() as session:
-        # Always run this loop, not just when the table is empty:
-        # seed_prompt_if_missing() is already idempotent per-key, so this is
-        # what lets a newly-added prompt (like brand_identification) actually
-        # get seeded into a DB that was already initialized in the past.
-        from ai.analyzer import _PROMPT_TEMPLATE as email_analysis_default, PROMPT_KEY as email_analysis_key
-        from ai.verifier import (
-            _VERIFY_PROMPT as offer_verification_default, OFFER_PROMPT_KEY as offer_verification_key,
-            _EMAIL_VERIFY_PROMPT as email_verification_default, EMAIL_PROMPT_KEY as email_verification_key,
-        )
-        from ai.prompt_builder import _PROMPT as brand_research_ddg_default, PROMPT_KEY as brand_research_ddg_key
-        from research.prompts import _PROMPT as brand_research_tavily_default, PROMPT_KEY as brand_research_tavily_key
-        from routers.insights import _DIGEST_PROMPT as dashboard_digest_default, PROMPT_KEY as dashboard_digest_key
-        from ai.brand_identifier import _PROMPT_TEMPLATE as brand_identification_default, PROMPT_KEY as brand_identification_key
-        from ai.social_offer_analyzer import _PROMPT_TEMPLATE as social_offer_analysis_default, PROMPT_KEY as social_offer_analysis_key
-        from ai.website_offer_analyzer import _PROMPT_TEMPLATE as website_offer_analysis_default, PROMPT_KEY as website_offer_analysis_key
-
-        defaults = [
-            (email_analysis_key, "Email Analysis", "Extracts structured offer data from a fetched email.", "email", email_analysis_default),
-            (email_verification_key, "Email Classification", "Classifies a fetched email as legitimate, suspicious, or spam.", "email", email_verification_default),
-            (offer_verification_key, "Offer Verification", "Verifies whether an extracted offer is genuine.", "offer", offer_verification_default),
-            (brand_research_ddg_key, "Brand Research (Web Search)", "Extracts active promotions from DuckDuckGo search results for a brand.", "research", brand_research_ddg_default),
-            (brand_research_tavily_key, "Brand Research (Tavily)", "Extracts active promotions from Tavily search results for a brand.", "research", brand_research_tavily_default),
-            (dashboard_digest_key, "Dashboard Insights", "Generates the AI daily digest shown on the Insights page.", "insights", dashboard_digest_default),
-            (brand_identification_key, "Brand Identification", "Identifies the brand behind an email that couldn't be auto-matched to a known brand's sender domain.", "email", brand_identification_default),
-            (social_offer_analysis_key, "Social Offer Analysis", "Determines whether a scraped Facebook/Instagram post is a genuine offer and extracts its details.", "social", social_offer_analysis_default),
-            (website_offer_analysis_key, "Website Offer Analysis", "Determines whether a scraped website page describes a genuine active offer and extracts its details.", "website", website_offer_analysis_default),
-        ]
-        for key, name, description, category, default_content in defaults:
-            settings_service.seed_prompt_if_missing(key, name, description, category, default_content)
-
+        # Prompts and the AI prompt-adjacent settings are seeded by
+        # scraper_server, the only server that uses them.
+        #
         # Per-key existence check (not "only if the whole table is empty") —
-        # same reasoning as seed_prompt_if_missing() above: this is what lets
-        # a newly-added setting (like ocr_max_images_per_email) actually get
+        # this is what lets a newly-added setting (like ocr_max_images_per_email) actually get
         # seeded into a DB that was already initialized in the past, instead
         # of silently staying unset until someone opens Settings and re-saves.
         import secrets
@@ -515,10 +486,6 @@ def _seed_settings() -> None:
             ("gmail_watch_expiration", "", "gmail"),
         ]
 
-        from ai.sale_filter import DEFAULT_STRONG_KEYWORDS, DEFAULT_WEAK_KEYWORDS
-
-        defaults_kv.append(("sale_filter_weak_keywords", DEFAULT_WEAK_KEYWORDS, "sale_filter"))
-        defaults_kv.append(("sale_filter_strong_keywords", DEFAULT_STRONG_KEYWORDS, "sale_filter"))
         seeded = 0
         for key, value, category in defaults_kv:
             if settings_service.get_setting(key) is None:

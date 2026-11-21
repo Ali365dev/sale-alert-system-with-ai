@@ -69,6 +69,7 @@ from config import (
     GROQ_API_KEY,   GROQ_MODEL,
     OLLAMA_BASE_URL, OLLAMA_MODEL,
     BRAND_RETRY_COUNT,
+    LLM_REQUEST_TIMEOUT_SECONDS,
     logger,
 )
 
@@ -432,7 +433,10 @@ class GeminiProvider(Provider):
         from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=raw_key)
+        client = genai.Client(
+            api_key=raw_key,
+            http_options=types.HttpOptions(timeout=int(LLM_REQUEST_TIMEOUT_SECONDS * 1000)),
+        )
         response = client.models.generate_content(
             model=model,
             contents=prompt,
@@ -456,7 +460,9 @@ class GroqProvider(Provider):
     def _call_one(self, prompt: str, raw_key: str, model: str) -> str:
         from groq import Groq
 
-        client = Groq(api_key=raw_key)
+        # max_retries=0: failover is _call_with_key_rotation's job — the SDK's
+        # own retries would multiply the timeout before we can switch keys.
+        client = Groq(api_key=raw_key, timeout=LLM_REQUEST_TIMEOUT_SECONDS, max_retries=0)
         last_exc: Exception = RuntimeError("no attempts made")
         for attempt in range(1, _TRANSIENT_RETRIES + 1):
             try:

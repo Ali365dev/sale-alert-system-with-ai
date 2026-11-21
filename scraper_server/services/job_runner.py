@@ -3,6 +3,7 @@
 api/jobs.py only ever needs `get_runner(job_type)` and `.run(job_id, payload)`
 — it never needs to know whether a job type is concurrent or sequential.
 """
+from config import logger
 from services.jobs.base import BackgroundJob
 from services import job_service
 
@@ -70,6 +71,11 @@ def run_sequential_job(job_id: int, job: BackgroundJob, payload: dict) -> None:
         job_service.append_log(job_id, "Done.", severity="success", category="system")
         job.on_success(job_id)
     except Exception as exc:
-        job_service.append_log(job_id, f"Error: {exc}", severity="error", category="system")
-        job_service.finish_job(job_id, "failed", error=str(exc))
-        job.on_failure(job_id, exc)
+        try:
+            job_service.append_log(job_id, f"Error: {exc}", severity="error", category="system")
+            job_service.finish_job(job_id, "failed", error=str(exc))
+            job.on_failure(job_id, exc)
+        except Exception:
+            # Usually the same outage (DB unreachable) that caused exc. The row
+            # stays "running"; reclaim_stale_jobs marks it failed later.
+            logger.exception("Job %s failed (%s) and could not record the failure", job_id, exc)

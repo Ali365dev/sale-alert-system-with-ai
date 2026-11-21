@@ -57,6 +57,10 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 # ── Ollama (local Llama — final fallback) ─────────────────────────────────────
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+# Per-request cap for Gemini/Groq calls. Neither SDK times out by default
+# (google-genai waits forever), so one stalled request used to hold an email
+# for minutes — hours, in the worst logged case — instead of failing over.
+LLM_REQUEST_TIMEOUT_SECONDS = float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "60"))
 
 # ── Database ─────────────────────────────────────────────────────────────────
 DATABASE_URL = os.getenv("DATABASE_URL", "")

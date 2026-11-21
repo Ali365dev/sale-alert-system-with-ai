@@ -10,7 +10,7 @@ from database.models import Offer
 from services.jobs.base import BackgroundJob, WorkItem
 
 
-def _offer_to_dict(o: Offer) -> dict:
+def offer_verification_input(o: Offer) -> dict:
     return {
         "id": o.id,
         "brand": o.brand,
@@ -56,7 +56,7 @@ class VerifyOffersJob(BackgroundJob):
             o = session.query(Offer).filter(Offer.id == item.id).first()
             if o is None:
                 return "skipped"
-            offer_data = _offer_to_dict(o)
+            offer_data = offer_verification_input(o)
 
         result = verify_offer(offer_data)
         if "error" in result:

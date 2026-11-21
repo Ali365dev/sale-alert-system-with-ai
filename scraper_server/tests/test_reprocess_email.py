@@ -47,6 +47,7 @@ def test_reprocess_email_success_includes_offer_id(mocker, mock_get_session, moc
         received_date=None, processed_at=None, image_urls=None,
     )
     mock_session.query.return_value.filter.return_value.first.return_value = email_stub
+    mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
     mocker.patch("services.email_processing.get_session", mock_get_session)
     mocker.patch("services.email_processing.extract_domain", return_value="known-brand.com")
     mocker.patch("services.email_processing.find_known_brand_by_domain", return_value=object())
@@ -114,3 +115,32 @@ def test_apply_sale_filter_true_still_analyzes_when_content_is_sale_related(mock
     reprocess_email(1)  # apply_sale_filter defaults True
 
     analyze.assert_called_once()
+
+
+def test_reprocess_updates_the_existing_offer_in_place(mocker, mock_get_session, mock_session):
+    """Regression: reprocess used to delete + re-insert the offer, which raised
+    ForeignKeyViolation once the offer had been pushed (offer_notifications),
+    and otherwise minted a new id that re-sent the push to every user."""
+    email_stub = types.SimpleNamespace(
+        id=1, subject="Sale", body="body", sender="brand@known-brand.com",
+        received_date=None, processed_at=None, image_urls=None,
+    )
+    existing = types.SimpleNamespace(id=1393, brand="Old", discount_percentage=10, summary="old")
+    duplicate = types.SimpleNamespace(id=1400)
+    mock_session.query.return_value.filter.return_value.first.return_value = email_stub
+    mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [existing, duplicate]
+    mocker.patch("services.email_processing.get_session", mock_get_session)
+    mocker.patch("services.email_processing.extract_domain", return_value="known-brand.com")
+    mocker.patch("services.email_processing.find_known_brand_by_domain", return_value=object())
+    mocker.patch("ai.ocr.extract_and_merge", return_value={"ocr_raw": "", "ocr_clean": "", "merged": "body"})
+    mocker.patch("ai.analyzer.analyze_email", return_value={"brand": "Cat Footwear", "discount_percentage": 30})
+    mocker.patch("ai.sale_image.select_sale_image", return_value=None)
+    delete_row = mocker.patch("services.email_processing.delete_offer_row")
+
+    result = reprocess_email(1, apply_sale_filter=False)
+
+    assert result["offer_id"] == 1393
+    assert existing.brand == "Cat Footwear"
+    assert existing.discount_percentage == 30
+    mock_session.add.assert_not_called()
+    delete_row.assert_called_once_with(mock_session, duplicate)

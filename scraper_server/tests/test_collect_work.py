@@ -70,3 +70,18 @@ def test_collect_work_resets_cursor_on_404(mocker):
 
     assert items == []
     set_setting.assert_called_once_with("gmail_last_history_id", "9999", category="gmail")
+
+
+def test_reclaim_interrupted_requeues_claimed_messages(mocker, mock_get_session, mock_session):
+    """A restart mid-analysis leaves a claimed-but-unprocessed message behind
+    the history cursor — it must be picked up by the next run."""
+    mocker.patch("jobs.email_automation.get_session", mock_get_session)
+    stuck = mocker.Mock(gmail_message_id="msg-stuck", job_id=3, recovery_attempts=0)
+    (mock_session.query.return_value.join.return_value.outerjoin.return_value
+        .filter.return_value.all.return_value) = [stuck]
+
+    ids = EmailAutomationJob()._reclaim_interrupted(job_id=42)
+
+    assert ids == ["msg-stuck"]
+    assert stuck.job_id == 42
+    assert stuck.recovery_attempts == 1

@@ -31,3 +31,24 @@ def test_tie_break_prefers_higher_ocr_confidence(mocker):
         {"url": "https://cdn.example/b.png", "text": "50% off", "confidence": 0.95},
     ])
     assert url == "https://cdn.example/b.png"
+
+
+def test_tracking_pixels_are_recognised():
+    from ai.ocr import is_tracking_pixel
+
+    for url in (
+        "https://beacon.krxd.net/1x1_ad_impression.gif?confid=x",
+        "https://click.emails.skechers.com/open.aspx?VX6W&d=100227",
+        "https://www.pinterest.com/email/open/?pd=abc",
+        "https://fossil-cdn.bloomreach.co/fossil-new/e/CgxqQq-GHAZ/open",
+        "http://mi.levi.com/p/cp/8283f0c7bc5fd81c/o.gif?mi_u=1",
+        "http://braze-images.com/spacer.gif",
+    ):
+        assert is_tracking_pixel(url), url
+    for url in (
+        "https://brxcdn.com/fos-app-storage/241672fe/media/original/5cbd9918",
+        "https://hs-45403856.f.hubspotemail.net/hub/45403856/hubfs/GIFr2.gif?width=1120",
+        "https://cdn.shop.com/images/tracksuit-sale-banner.jpg",
+        "https://cdn.shop.com/opening-sale.png",
+    ):
+        assert not is_tracking_pixel(url), url

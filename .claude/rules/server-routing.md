@@ -4,14 +4,16 @@
 
 | Server | Port | Who uses it | Routers |
 |---|---|---|---|
-| `app_server` | 8000 | Mobile app users | auth, brands, categories, offers, overview, search, preferences, sale_alerts, bank_offers, health |
-| `scraper_server` | 8001 | Admin dashboard + **every background job** | analytics, insights, jobs, notifications, automation, settings, brand_requests, emails, unknown_emails, website_scraper, social_scraper, brand_discovery, bank_offers, health |
+| `app_server` | 8000 | Mobile app users | auth, brands, categories, devices (push-token register/unregister), offers, overview, search, preferences, sale_alerts, bank_offers, health |
+| `scraper_server` | 8001 | Admin dashboard + **every background job** | analytics, insights, jobs, notifications, automation, settings, brand_requests, brand_search, offer_verify, emails, unknown_emails, website_scraper, social_scraper, brand_discovery, bank_offers, health |
 
 - **`app_server` is pure CRUD.** It runs no background jobs, no scheduler, and has no `gmail/` fetch/watch code (`gmail_client.py` is the one exception — kept for transactional auth emails, see below). It never imports `jobs/`, `job_registry`, `services/job_runner.py`, or `services/job_service.py`.
 - **`scraper_server` runs every job type** — the email ingestion pipeline (`email_sync`, `process_pending`, `email_automation`, `verify_offers`, `label_brand_emails`, `cleanup_expired_offers`, `check_sale_alerts`, `notify_matching_offer`, `send_push_notification`) as well as every scraping/research job. `job_registry.py` registers all of them; `main.py` runs the APScheduler (Gmail polling, offer cleanup, sale-alert checks) and mounts both `jobs` and `automation` (the Gmail Pub/Sub webhook).
 - **Never add an admin or job-running router to `app_server/main.py`.**
 - **Never add a user-facing CRUD router to `scraper_server/main.py`.**
-- **The one cross-server call:** app_server's CRUD endpoints can create an `Offer` directly (`POST /offers`, `routers/brands.py`). `services/offer_notifications.py`'s SQLAlchemy hook still lives on app_server for that reason, but it triggers the actual notification job over HTTP — `POST {SCRAPER_SERVER_URL}/api/jobs/notify_matching_offer/start` with an `X-Internal-Secret` header matching the `internal_service_secret` setting (seeded once into the shared DB, same pattern as `gmail_webhook_secret`). `scraper_server/routers/jobs.py::_is_internal_caller` accepts that header as an alternative to the admin session cookie for the two admin-only job types. Never reuse that secret for anything end-user-facing.
+- **Cross-server job triggers:** when an app_server CRUD action needs background work, it calls `services/scraper_jobs.py::trigger_job(job_type, payload)` — a fire-and-forget `POST {SCRAPER_SERVER_URL}/api/jobs/<type>/start` with an `X-Internal-Secret` header matching the `internal_service_secret` setting (seeded once into the shared DB, same pattern as `gmail_webhook_secret`). Current callers: the Offer `after_commit` hook (`services/offer_notifications.py` → `notify_matching_offer` with `{"offer_id"}`) and sale-alert creation (`routers/sale_alerts.py` → `evaluate_sale_alert` with `{"alert_id"}`). `scraper_server/routers/jobs.py::_is_internal_caller` accepts that header as an alternative to the admin session cookie for the admin-only job types. Never reuse that secret for anything end-user-facing.
+- `notify_matching_offer` does **both** brand sale-alert matching and the preference-based FCM fan-out, one job per offer. It and `evaluate_sale_alert` are per-item job types (`_PER_ITEM_JOB_TYPES`) — concurrent runs are allowed, never 409'd.
+- AI/LLM calls, OCR, scraping, and brand AI offer search never run on app_server. The one remaining exception is sale-alert product-page analysis (`/api/sale-alerts/analyze-product`, `/{id}/check`), which the mobile app calls synchronously.
 - `GET` job endpoints (`/jobs`, `/jobs/summary`, `/jobs/active-all`, `/jobs/{id}`, `/jobs/{id}/logs`) only exist on `scraper_server` now — there's nothing to route by type.
 
 ## Dashboard Axios clients — always use the right one
@@ -25,12 +27,12 @@ import { scraperClient } from "./client";    // scraper server — admin routes
 Routes: `auth`, `brands`, `categories`, `offers`, `overview`, `search`, `preferences`, `sale-alerts`
 
 ### `scraperClient` (scraper server)
-Routes: `analytics`, `insights`, `jobs`, `notifications`, `automation`, `settings`, `brand-requests`, `emails`, `unknown-emails`, `website-scraper`, `social-scraper`, `brand-discovery`
+Routes: `analytics`, `insights`, `jobs`, `notifications`, `automation`, `settings`, `brand-requests`, `brands/*/search` + `brands/bulk-search` (brandSearch.ts), `offers/*/verify` (offerVerify.ts), `emails`, `unknown-emails`, `website-scraper`, `social-scraper`, `brand-discovery`
 
 ## API hooks (`dashboard/src/api/*.ts`)
 
 - Every file in `dashboard/src/api/` must import from **only one client** — pick the correct one based on where that router lives.
-- Files currently using `scraperClient`: `analytics.ts`, `insights.ts`, `jobs.ts`, `notifications.ts`, `settings.ts`, `brandRequests.ts`, `emails.ts`, `unknownEmails.ts`, `websiteScraper.ts`, `brandDiscovery.ts`, `socialScraper.ts`
+- Files currently using `scraperClient`: `analytics.ts`, `insights.ts`, `jobs.ts`, `notifications.ts`, `settings.ts`, `brandRequests.ts`, `brandSearch.ts`, `offerVerify.ts`, `emails.ts`, `unknownEmails.ts`, `websiteScraper.ts`, `brandDiscovery.ts`, `socialScraper.ts`
 
 ## Page components that call `apiClient` directly
 

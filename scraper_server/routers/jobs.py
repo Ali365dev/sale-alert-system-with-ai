@@ -22,6 +22,7 @@ MAX_WORKERS = 10
 # fans a message out to every real device, so it must not be startable or
 # re-triggerable via retry/bulk-retry by an arbitrary caller.
 _ADMIN_ONLY_JOB_TYPES = {"send_push_notification", "notify_matching_offer"}
+_PER_ITEM_JOB_TYPES = {"notify_matching_offer", "evaluate_sale_alert"}
 
 
 def _is_internal_caller(request: Request) -> bool:
@@ -53,7 +54,9 @@ def _dispatch(job_type: str, payload: dict, request: Request):
     if guard:
         return guard
 
-    existing = job_service.get_active_job(job_type)
+    # These run once per offer/alert (payload id), so concurrent runs are
+    # expected — a singleton check would silently drop pushes.
+    existing = job_type not in _PER_ITEM_JOB_TYPES and job_service.get_active_job(job_type)
     if existing:
         return JSONResponse({"status": "already_running", "job": existing}, status_code=409)
 

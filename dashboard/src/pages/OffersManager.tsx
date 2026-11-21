@@ -3,7 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 
 import type { Offer, OfferFilters } from "../api/offers";
-import { useCreateOffer, useDeleteOffer, useOffers, useUpdateOffer, useVerifyOffer } from "../api/offers";
+import { useCreateOffer, useDeleteOffer, useOffers, useUpdateOffer } from "../api/offers";
+import { useVerifyOffer } from "../api/offerVerify";
 import { apiClient } from "../api/client";
 import { isJobActive, useActiveJob, useJob, useStartJob } from "../api/jobs";
 import { OfferForm } from "../components/offers/OfferForm";

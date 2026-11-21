@@ -22,6 +22,7 @@ import { TONE_BG, TONE_FG, toneForName } from "../lib/publicOffers";
 import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button, IconButton, IconLinkButton } from "../components/ui/Button";
+import { ProcessUnprocessedButton } from "../components/emails/ProcessUnprocessedButton";
 import { Card } from "../components/ui/Card";
 import { Select } from "../components/ui/Field";
 import { IconMenuButton } from "../components/ui/Menu";
@@ -583,6 +584,7 @@ export function EmailManager() {
   }, [debouncedSearch]);
 
   const activeJob = useActiveJob("email_sync");
+  const processJob = useActiveJob("process_pending");
   const { data, isLoading, isFetching, isError } = useEmails(
     {
       status: verificationFilter || undefined,
@@ -594,7 +596,7 @@ export function EmailManager() {
       sort,
       sort_dir: sortDir,
     },
-    { liveWhileJobActive: isJobActive(activeJob.data?.status) },
+    { liveWhileJobActive: isJobActive(activeJob.data?.status) || isJobActive(processJob.data?.status) },
   );
   const { data: brandsData } = useBrands();
   const verifyAll = useVerifyAllEmails();
@@ -803,7 +805,9 @@ export function EmailManager() {
 
       <Card>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <Button size="sm" loading={verifyAll.isPending || running} disabled={verifyAll.isPending || running} onClick={() => verifyAll.mutate(undefined)}>
+          <ProcessUnprocessedButton unprocessed={summary?.unprocessed ?? 0} />
+          <span aria-hidden style={{ width: 1, alignSelf: "stretch", background: "var(--border)" }} />
+          <Button size="sm" variant="secondary" loading={verifyAll.isPending || running} disabled={verifyAll.isPending || running} onClick={() => verifyAll.mutate(undefined)}>
             Verify all unverified
           </Button>
           <Button

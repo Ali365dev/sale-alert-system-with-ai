@@ -148,11 +148,14 @@ def get_all_active_jobs() -> dict[str, dict]:
         return by_type
 
 
-def reclaim_stale_jobs(job_type: str, stale_minutes: int) -> list[dict]:
-    """Mark hung jobs failed so the UI stops showing them as in-progress.
+def reclaim_stale_jobs(job_type: str, stale_minutes: int, category: str = "website") -> list[dict]:
+    """Mark hung jobs failed (and interrupted, so automation's recovery can
+    re-queue their claimed emails).
 
-    Website scrapes can stall inside Playwright with no exception; without
-    this, status stays `running` forever and Recent Activity looks broken.
+    Website scrapes can stall inside Playwright with no exception, and a job
+    thread can die outright when the DB connection drops mid-run — either way
+    the row stays `running` forever, which for single-instance job types
+    (email_automation) also blocks every later run.
     """
     from datetime import timedelta
 
@@ -180,7 +183,7 @@ def reclaim_stale_jobs(job_type: str, stale_minutes: int) -> list[dict]:
             msg = (
                 f"Timed out with no progress for {stale_minutes}+ minutes"
                 + (f" ({brand})" if brand else "")
-                + " — marked failed. Retry the scrape."
+                + " — marked failed."
             )
             job.status = "failed"
             job.is_interrupted = True
@@ -191,7 +194,7 @@ def reclaim_stale_jobs(job_type: str, stale_minutes: int) -> list[dict]:
                 job_id=job.id,
                 message=f"⚠ {msg}",
                 severity="error",
-                category="website",
+                category=category,
             ))
             reclaimed.append(_job_to_dict(job))
     return reclaimed

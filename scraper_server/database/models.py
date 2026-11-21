@@ -536,6 +536,7 @@ class EmailAutomationRun(Base):
     gmail_message_id = Column(String(255), unique=True, nullable=False, index=True)
     job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
     created_at = Column(DateTime, default=_utcnow, nullable=False)
+    recovery_attempts = Column(Integer, default=0)
 
     def __repr__(self) -> str:
         return f"<EmailAutomationRun gmail_message_id={self.gmail_message_id!r} job_id={self.job_id}>"

@@ -16,6 +16,7 @@ def register_scraper_jobs() -> None:
     from jobs.verify_offers import VerifyOffersJob
     from jobs.cleanup_expired_offers import CleanupExpiredOffersJob
     from jobs.check_sale_alerts import CheckSaleAlertsJob
+    from jobs.evaluate_sale_alert import EvaluateSaleAlertJob
     from jobs.notify_matching_offer import NotifyMatchingOfferJob
     from jobs.send_push_notification import SendPushNotificationJob
     from jobs.email_automation import EmailAutomationJob
@@ -35,6 +36,7 @@ def register_scraper_jobs() -> None:
     job_runner.register(VerifyOffersJob())
     job_runner.register(CleanupExpiredOffersJob())
     job_runner.register(CheckSaleAlertsJob())
+    job_runner.register(EvaluateSaleAlertJob())
     job_runner.register(NotifyMatchingOfferJob())
     job_runner.register(SendPushNotificationJob())
     job_runner.register(EmailAutomationJob())

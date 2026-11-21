@@ -31,3 +31,13 @@ def mock_get_session(mock_session):
     def _get_session():
         yield mock_session
     return _get_session
+
+
+@pytest.fixture(autouse=True)
+def _clear_settings_cache():
+    """settings_service caches reads in-process — keep tests independent."""
+    from services import settings_service
+
+    settings_service._cache.clear()
+    yield
+    settings_service._cache.clear()

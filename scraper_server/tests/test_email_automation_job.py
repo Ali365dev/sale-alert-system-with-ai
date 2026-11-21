@@ -155,19 +155,10 @@ def test_process_item_label_failure_does_not_block_offer_creation(mocker, mock_g
     notify.assert_called_once_with(1, 777)
 
 
-def test_send_offer_notification_queues_personalized_job(mocker):
+def test_send_offer_notification_does_not_queue_a_second_job(mocker):
+    """The Offer insert hook already queued notify_matching_offer — a second
+    queue here raced it and could push the same offer twice."""
     mocker.patch("services.job_service.append_log")
-    mocker.patch("services.push.fcm_client.is_configured", return_value=True)
-    schedule = mocker.patch("services.offer_notifications.schedule_for_new_offer")
-
-    EmailAutomationJob()._send_offer_notification(job_id=1, offer_id=555)
-
-    schedule.assert_called_once_with(555)
-
-
-def test_send_offer_notification_skips_when_fcm_not_configured(mocker):
-    mocker.patch("services.job_service.append_log")
-    mocker.patch("services.push.fcm_client.is_configured", return_value=False)
     schedule = mocker.patch("services.offer_notifications.schedule_for_new_offer")
     send = mocker.patch("services.push.fcm_client.send_multicast")
 

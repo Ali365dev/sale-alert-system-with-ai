@@ -1,6 +1,9 @@
 """Send an FCM alert to devices whose saved brands/categories match one offer."""
+from datetime import datetime, timedelta, timezone
+
+from config import logger
 from database.db import get_session
-from database.models import DeviceToken, Offer, OfferNotification
+from database.models import DeviceToken, Email, Offer, OfferNotification
 from services.jobs.base import BackgroundJob, WorkItem
 from services.offer_matching import matching_profile_rows
 from services.offer_notifications import notification_copy
@@ -8,6 +11,29 @@ from services.push import fcm_client
 
 _BATCH_SIZE = 500
 _DEAD_TOKEN_ERRORS = {"UNREGISTERED", "INVALID_ARGUMENT", "NOT_FOUND"}
+# Bulk-processing old mail ("Process all unprocessed", recovery) creates
+# offers for sales that are long over — those are kept, but not pushed.
+_MAX_PUSH_EMAIL_AGE = timedelta(days=7)
+
+
+def stale_reason(offer, email_received_at) -> str | None:
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if offer.expiry_date and offer.expiry_date < now:
+        return "offer already expired"
+    if email_received_at and now - email_received_at > _MAX_PUSH_EMAIL_AGE:
+        return f"source email is {(now - email_received_at).days} days old"
+    return None
+
+
+def _stale_reason_for(offer_id: int) -> str | None:
+    with get_session() as session:
+        row = (
+            session.query(Offer, Email.received_date)
+            .outerjoin(Email, Email.id == Offer.email_id)
+            .filter(Offer.id == offer_id)
+            .first()
+        )
+        return stale_reason(row[0], row[1]) if row else None
 
 
 class NotifyMatchingOfferJob(BackgroundJob):
@@ -20,6 +46,24 @@ class NotifyMatchingOfferJob(BackgroundJob):
         offer_id = payload.get("offer_id")
         job_id = job.get("id")
         if not offer_id:
+            return []
+
+        reason = _stale_reason_for(offer_id)
+        if reason:
+            if job_id:
+                job_service.append_log(
+                    job_id, f"Offer #{offer_id}: not notifying — {reason}", severity="info", category="push",
+                )
+            return []
+
+        self._match_sale_alerts(job_id, offer_id)
+
+        if not fcm_client.is_configured():
+            if job_id:
+                job_service.append_log(
+                    job_id, f"Offer #{offer_id}: Firebase not configured — preference push skipped",
+                    severity="warning", category="push",
+                )
             return []
 
         with get_session() as session:
@@ -99,6 +143,26 @@ class NotifyMatchingOfferJob(BackgroundJob):
             WorkItem(id=batch, label=f"Offer {offer_id}: {len(batch)} device(s)")
             for batch in batches
         ]
+
+    def _match_sale_alerts(self, job_id: int | None, offer_id: int) -> None:
+        from services import job_service
+        from services.sale_alert_service import match_brand_alerts_for_offer
+
+        try:
+            result = match_brand_alerts_for_offer(offer_id, notify=True)
+        except Exception as exc:
+            logger.exception("Failed matching brand sale alerts for offer %s", offer_id)
+            if job_id:
+                job_service.append_log(
+                    job_id, f"Offer #{offer_id}: brand sale-alert matching failed — {exc}",
+                    severity="warning", category="sale_alerts",
+                )
+            return
+        if result.get("matched") and job_id:
+            job_service.append_log(
+                job_id, f"Offer #{offer_id}: matched {result['matched']} brand sale alert(s)",
+                severity="info", category="sale_alerts",
+            )
 
     def process_item(self, job_id: int, item: WorkItem) -> str:
         from services import job_service

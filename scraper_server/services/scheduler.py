@@ -23,6 +23,13 @@ def _run_cleanup_job() -> None:
     except Exception:
         logger.exception("Scheduled offer cleanup failed")
 
+    from services.device_tokens import deactivate_stale_tokens
+
+    try:
+        deactivate_stale_tokens()
+    except Exception:
+        logger.exception("Scheduled push-token cleanup failed")
+
 
 def _run_sale_alert_checks() -> None:
     """Enqueue a check_sale_alerts job for active product watchlists."""

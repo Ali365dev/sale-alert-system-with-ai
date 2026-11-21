@@ -1,8 +1,6 @@
 """Per-device product/brand sale watchlist — public, keyed by device_id."""
 from __future__ import annotations
 
-import threading
-
 from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
@@ -10,7 +8,7 @@ from database.db import get_session
 from database.models import SaleAlert
 from services.sale_alert_analyze import analyze_product_url
 from services.sale_alert_brand import enrich_analyze_with_brand
-from services.sale_alert_service import check_product_alert, evaluate_alert_on_create
+from services.sale_alert_service import check_product_alert
 from services.sale_alert_validation import (
     is_http_url,
     normalize_http_url,
@@ -18,6 +16,7 @@ from services.sale_alert_validation import (
     validate_device_id,
     validate_patch_payload,
 )
+from services.scraper_jobs import trigger_job
 
 router = APIRouter(prefix="/api/sale-alerts", tags=["sale-alerts"])
 
@@ -81,18 +80,6 @@ def _summary_counts(alerts: list[SaleAlert]) -> dict:
     }
 
 
-def _schedule_evaluate(alert_id: int) -> None:
-    def _run():
-        try:
-            evaluate_alert_on_create(alert_id)
-        except Exception:
-            from config import logger
-
-            logger.exception("Sale alert evaluate-on-create failed for %s", alert_id)
-
-    threading.Thread(target=_run, daemon=True).start()
-
-
 @router.get("")
 def list_sale_alerts(device_id: str = Query(...)):
     device_id, err = validate_device_id(device_id)
@@ -143,7 +130,7 @@ def create_sale_alert(body: dict = Body(default={})):
         status = a.status
 
     if status == "active":
-        _schedule_evaluate(alert_id)
+        trigger_job("evaluate_sale_alert", {"alert_id": alert_id})
     return JSONResponse(response, status_code=201)
 
 
@@ -243,7 +230,7 @@ def update_sale_alert(alert_id: int, body: dict = Body(default={})):
         alert_id = a.id
 
     if should_recheck:
-        _schedule_evaluate(alert_id)
+        trigger_job("evaluate_sale_alert", {"alert_id": alert_id})
     return response
 
 
