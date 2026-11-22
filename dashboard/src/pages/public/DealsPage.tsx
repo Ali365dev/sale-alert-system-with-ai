@@ -9,6 +9,7 @@ import { PublicLayout } from "../../components/public/PublicLayout";
 import { Icon } from "../../components/icons";
 import { countBy, isExpired } from "../../lib/publicOffers";
 import { useSeo } from "../../lib/seo";
+import "./DealsPage.css";
 
 const PAGE_SIZE = 12;
 
@@ -45,25 +46,6 @@ function sortOffers(offers: Offer[], sort: SortKey, brandRank: Map<string, numbe
   }
 }
 
-const selectStyle: React.CSSProperties = {
-  height: 36,
-  padding: "0 10px",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  background: "var(--surface-app)",
-  color: "var(--text-strong)",
-  fontSize: 12.5,
-};
-
-const checkboxLabelStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  fontSize: 12.5,
-  color: "var(--text-body)",
-  cursor: "pointer",
-};
-
 export function DealsPage() {
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
@@ -71,7 +53,6 @@ export function DealsPage() {
   const [sort, setSort] = useState<SortKey>("newest");
   const [minDiscount, setMinDiscount] = useState(0);
   const [couponOnly, setCouponOnly] = useState(false);
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const { data, isLoading } = useOffers({ active: "true" });
@@ -88,7 +69,6 @@ export function DealsPage() {
       if (category && o.category !== category) return false;
       if (minDiscount > 0 && (o.discount_percentage ?? 0) < minDiscount) return false;
       if (couponOnly && !o.coupon_code) return false;
-      if (verifiedOnly && o.verification_status !== "verified") return false;
       if (q) {
         const haystack = [o.brand, o.company, o.summary, o.coupon_code, o.category, o.subcategory]
           .filter(Boolean)
@@ -98,17 +78,17 @@ export function DealsPage() {
       }
       return true;
     });
-  }, [liveOffers, query, category, minDiscount, couponOnly, verifiedOnly]);
+  }, [liveOffers, query, category, minDiscount, couponOnly]);
 
   const sorted = useMemo(() => sortOffers(filtered, sort, brandRank), [filtered, sort, brandRank]);
   const visible = sorted.slice(0, visibleCount);
-  const hasActiveFilters = Boolean(query || category || minDiscount || couponOnly || verifiedOnly);
+  const activeFilterCount = [query, category, minDiscount, couponOnly].filter(Boolean).length;
+  const hasActiveFilters = activeFilterCount > 0;
 
   function clearFilters() {
     setParams({}, { replace: true });
     setMinDiscount(0);
     setCouponOnly(false);
-    setVerifiedOnly(false);
     setSort("newest");
     setVisibleCount(PAGE_SIZE);
   }
@@ -120,32 +100,22 @@ export function DealsPage() {
 
   return (
     <PublicLayout>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "32px 24px 64px" }}>
-        <h1 style={{ margin: "0 0 6px", font: "var(--fw-extra) 26px/1.2 var(--font-sans)", color: "var(--text-strong)" }}>
+      <div className="deals-page">
+        <h1 className="deals-title">
           {category ? `${category} Deals` : "All Deals"}
         </h1>
-        <p style={{ margin: "0 0 22px", fontSize: 13.5, color: "var(--text-muted)" }}>
+        <p className="deals-subtitle">
           {liveOffers.length} active offer{liveOffers.length === 1 ? "" : "s"} across {brandCounts.length} brands.
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 12,
-            alignItems: "center",
-            padding: 14,
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-lg)",
-            background: "var(--surface-card)",
-            marginBottom: 22,
-          }}
-        >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--text-muted)" }}>
-            <Icon.filter size={14} /> Filters
+        <div className="deals-filters" role="search" aria-label="Filter deals">
+          <span className="deals-filters-label">
+            <Icon.filter size={15} aria-hidden="true" /> Filters
+            {activeFilterCount > 0 && <span className="deals-filters-count">{activeFilterCount}</span>}
           </span>
 
           <select
+            className="deals-select"
             value={category}
             onChange={(e) => {
               const p = new URLSearchParams(params);
@@ -154,18 +124,22 @@ export function DealsPage() {
               setParams(p, { replace: true });
               setVisibleCount(PAGE_SIZE);
             }}
-            style={selectStyle}
             aria-label="Filter by category"
           >
             <option value="">All categories</option>
             {categoryCounts.map((c) => (
               <option key={c.name} value={c.name}>
-                {c.name}
+                {c.name} ({c.count})
               </option>
             ))}
           </select>
 
-          <select value={minDiscount} onChange={(e) => setMinDiscount(Number(e.target.value))} style={selectStyle} aria-label="Minimum discount">
+          <select
+            className="deals-select"
+            value={minDiscount}
+            onChange={(e) => { setMinDiscount(Number(e.target.value)); setVisibleCount(PAGE_SIZE); }}
+            aria-label="Minimum discount"
+          >
             {MIN_DISCOUNTS.map((d) => (
               <option key={d.value} value={d.value}>
                 {d.label}
@@ -173,29 +147,37 @@ export function DealsPage() {
             ))}
           </select>
 
-          <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} style={selectStyle} aria-label="Sort by">
+          <select className="deals-select" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Sort by">
             <option value="newest">Newest</option>
             <option value="discount">Highest discount</option>
             <option value="expiring">Expiring soon</option>
             <option value="popular">Most popular</option>
           </select>
 
-          <label style={checkboxLabelStyle}>
-            <input type="checkbox" checked={couponOnly} onChange={(e) => setCouponOnly(e.target.checked)} /> Coupon available
-          </label>
-          <label style={checkboxLabelStyle}>
-            <input type="checkbox" checked={verifiedOnly} onChange={(e) => setVerifiedOnly(e.target.checked)} /> AI verified
+          <label className="deals-check">
+            <input
+              type="checkbox"
+              checked={couponOnly}
+              onChange={(e) => { setCouponOnly(e.target.checked); setVisibleCount(PAGE_SIZE); }}
+            />
+            Coupon available
           </label>
 
           {hasActiveFilters && (
-            <button type="button" onClick={clearFilters} style={{ marginLeft: "auto", border: "none", background: "transparent", color: "var(--brand)", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-              Clear filters
+            <button type="button" className="deals-clear" onClick={clearFilters}>
+              <Icon.x size={14} aria-hidden="true" /> Clear all
             </button>
           )}
         </div>
 
+        <p className="deals-result-count" aria-live="polite">
+          {isLoading ? "Loading deals…" : hasActiveFilters
+            ? `${sorted.length} of ${liveOffers.length} deals match`
+            : `Showing ${Math.min(visibleCount, sorted.length)} of ${sorted.length} deals`}
+        </p>
+
         {isLoading ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 18 }}>
+          <div className="deals-grid">
             {Array.from({ length: 8 }).map((_, i) => (
               <OfferCardSkeleton key={i} />
             ))}
@@ -213,7 +195,7 @@ export function DealsPage() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  style={{ height: 38, padding: "0 18px", border: "none", borderRadius: "var(--radius-sm)", background: "var(--brand)", color: "var(--on-brand)", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                  className="deals-empty-btn"
                 >
                   Clear filters
                 </button>
@@ -222,28 +204,14 @@ export function DealsPage() {
           />
         ) : (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 18 }}>
+            <div className="deals-grid">
               {visible.map((o) => (
                 <OfferCard key={o.id} offer={o} />
               ))}
             </div>
             {visibleCount < sorted.length && (
-              <div style={{ display: "flex", justifyContent: "center", marginTop: 28 }}>
-                <button
-                  type="button"
-                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                  style={{
-                    height: 44,
-                    padding: "0 24px",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-pill)",
-                    background: "var(--surface-card)",
-                    color: "var(--text-strong)",
-                    fontWeight: 700,
-                    fontSize: 13.5,
-                    cursor: "pointer",
-                  }}
-                >
+              <div className="deals-more">
+                <button type="button" className="deals-more-btn" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
                   Load more ({sorted.length - visibleCount} more)
                 </button>
               </div>

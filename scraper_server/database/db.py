@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
-from config import DATABASE_URL, logger
+from config import DATABASE_URL, DB_MAX_OVERFLOW, DB_POOL_SIZE, logger
 from database.models import Base
 
 
@@ -11,8 +11,9 @@ engine = create_engine(
     pool_pre_ping=True,   # test the connection before use — avoids errors/latency from a stale
                            # connection killed by the remote Postgres pooler's idle reaper
     pool_recycle=1800,    # recycle connections after 30 min so they never go stale mid-lifetime
-    pool_size=5,
-    max_overflow=10,
+    pool_size=DB_POOL_SIZE,
+    max_overflow=DB_MAX_OVERFLOW,
+    pool_timeout=30,      # wait for a free pooled connection instead of opening one past the cap
 )
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)

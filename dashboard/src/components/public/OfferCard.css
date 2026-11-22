@@ -32,6 +32,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Email artwork usually leads with its headline; crop from the bottom, not both edges. */
+  object-position: center top;
   transition: transform 0.4s ease;
 }
 .offer-card:hover .offer-card-img { transform: scale(1.04); }

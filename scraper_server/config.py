@@ -64,6 +64,13 @@ LLM_REQUEST_TIMEOUT_SECONDS = float(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "60
 
 # ── Database ─────────────────────────────────────────────────────────────────
 DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+# Supabase's session-mode pooler caps ALL clients of the database at 15
+# connections, shared by app_server + scraper_server. Keep the two servers'
+# (pool size + overflow) summed under that cap, or requests fail with
+# EMAXCONNSESSION. Raise these only on the transaction-mode pooler (port 6543).
+DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "6"))
+DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "2"))
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set. Add it to your .env file (Supabase connection string).")
 
