@@ -54,7 +54,10 @@ def reprocess_email(
             return {"processing_status": "failed", "processing_error": "email not found", "offer_id": None}
         subject, body, sender = e.subject, e.body or "", e.sender or ""
         received_at = e.received_date or e.processed_at
-        image_urls = json.loads(e.image_urls) if e.image_urls else []
+        try:
+            image_urls = json.loads(e.image_urls) if e.image_urls else []
+        except ValueError:
+            image_urls = []
 
     # Same deterministic sender-domain gate as the bulk pipeline
     # (services/jobs/process_pending.py). When called right after "Create
@@ -122,7 +125,7 @@ def reprocess_email(
             result,
             received_at=received_at,
             subject=subject,
-            image_url=select_sale_image(ocr_result.get("items")),
+            image_url=select_sale_image(ocr_result.get("items"), ocr_result.get("images")),
         )
         existing = (
             session.query(Offer).filter(Offer.email_id == email_id).order_by(Offer.id.asc()).all()

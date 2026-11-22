@@ -11,7 +11,8 @@ from sqlalchemy import case, func, or_
 
 from api.dependencies import Pagination, pagination
 from database.db import get_session
-from database.models import BrandCandidate, Email, Offer
+from database.models import Email, Offer
+from services.offer_delete import delete_email_row
 
 router = APIRouter(prefix="/api/emails", tags=["emails"])
 
@@ -189,12 +190,7 @@ def delete_email(email_id: int):
         e = session.query(Email).filter(Email.id == email_id).first()
         if e is None:
             return JSONResponse({"error": "not found"}, status_code=404)
-        # Offer has cascade="all, delete-orphan" on Email.offers, but
-        # BrandCandidate.email_id is a plain FK with no cascade — deleting an
-        # email that was routed to the unknown-brand review queue would
-        # otherwise fail with a ForeignKeyViolation.
-        session.query(BrandCandidate).filter(BrandCandidate.email_id == email_id).delete()
-        session.delete(e)
+        delete_email_row(session, e)
     return {"status": "deleted"}
 
 
@@ -245,6 +241,15 @@ _VALID_EMAIL_STATUSES = {"legitimate", "suspicious", "spam"}
 
 
 def _run_verify_all(statuses: list[str] | None = None):
+    # The flag is set before the thread starts and always cleared here, so a
+    # crash (e.g. the DB query failing) can't leave Verify-all 409ing forever.
+    try:
+        _verify_pending(statuses)
+    finally:
+        _verify_all_state["running"] = False
+
+
+def _verify_pending(statuses: list[str] | None) -> None:
     from ai.verifier import verify_email_content
 
     with get_session() as session:
@@ -252,7 +257,7 @@ def _run_verify_all(statuses: list[str] | None = None):
         query = query.filter(Email.email_verification_status.in_(statuses)) if statuses else query.filter(Email.email_verification_status.is_(None))
         pending_ids = [e.id for e in query.all()]
 
-    _verify_all_state.update({"running": True, "done": 0, "total": len(pending_ids), "failed": 0})
+    _verify_all_state.update({"done": 0, "total": len(pending_ids), "failed": 0})
     for email_id in pending_ids:
         try:
             with get_session() as session:
@@ -276,14 +281,14 @@ def _run_verify_all(statuses: list[str] | None = None):
         finally:
             _verify_all_state["done"] += 1
 
-    _verify_all_state["running"] = False
-
 
 @router.post("/verify-all")
 def verify_all_emails(body: dict = Body(default={})):
     if _verify_all_state["running"]:
         return JSONResponse({"status": "already_running"}, status_code=409)
     statuses = [s for s in (body or {}).get("statuses") or [] if s in _VALID_EMAIL_STATUSES]
+    # Claimed here, not in the thread, so two quick clicks can't both start a run.
+    _verify_all_state.update({"running": True, "done": 0, "total": 0, "failed": 0})
     threading.Thread(target=_run_verify_all, args=(statuses or None,), daemon=True).start()
     return JSONResponse({"status": "started"}, status_code=202)
 

@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from database.db import get_session
-from database.models import Offer, Email
+from database.models import BrandCandidate, Email, Offer, OfferNotification, SocialPost, WebsiteScrapedPage
 
 
 def clear_all(confirm: bool = False) -> None:
@@ -16,6 +16,10 @@ def clear_all(confirm: bool = False) -> None:
             return
 
     with get_session() as session:
+        session.query(OfferNotification).delete()
+        session.query(SocialPost).update({SocialPost.offer_id: None})
+        session.query(WebsiteScrapedPage).update({WebsiteScrapedPage.offer_id: None})
+        session.query(BrandCandidate).delete()
         offers_deleted = session.query(Offer).delete()
         emails_deleted = session.query(Email).delete()
 

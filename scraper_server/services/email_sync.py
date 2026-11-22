@@ -148,7 +148,7 @@ def _analyze_and_save(job_id: int, email_id: int, subject: str, body: str, sende
             result,
             received_at=received_at,
             subject=subject,
-            image_url=select_sale_image(ocr_result.get("items")),
+            image_url=select_sale_image(ocr_result.get("items"), ocr_result.get("images")),
         ))
     _mark_processing_result(email_id, "processed", None)
     return "success"

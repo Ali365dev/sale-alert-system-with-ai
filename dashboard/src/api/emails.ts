@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { scraperClient as apiClient } from "./client";
@@ -75,7 +76,7 @@ export function useEmails(query: EmailsQuery, opts?: { liveWhileJobActive?: bool
     // keep showing the previous page's rows while the next page loads,
     // instead of flashing a loading state on every page/filter/sort change
     placeholderData: (prev) => prev,
-    refetchInterval: opts?.liveWhileJobActive ? 2000 : false,
+    refetchInterval: opts?.liveWhileJobActive ? 5000 : false,
   });
 }
 
@@ -119,6 +120,9 @@ export function useDeleteEmail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emails"] });
+      // The email's offers (and its Unknown Emails entry) go with it.
+      queryClient.invalidateQueries({ queryKey: ["offers"] });
+      queryClient.invalidateQueries({ queryKey: ["unknown-emails"] });
       toast.success("Email deleted.");
     },
   });
@@ -169,13 +173,28 @@ export interface VerifyAllEmailsStatus {
 }
 
 export function useVerifyAllEmailsStatus(enabled: boolean) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const status = useQuery({
     queryKey: ["emails", "verify-all-status"],
     queryFn: async () => {
       const { data } = await apiClient.get<VerifyAllEmailsStatus>("/emails/verify-all/status");
       return data;
     },
     enabled,
-    refetchInterval: enabled ? 1500 : false,
+    // Stop once the run finishes — the POST marks it running before replying,
+    // so the first poll never sees a stale "not running".
+    refetchInterval: (query) => (enabled && query.state.data?.running !== false ? 3000 : false),
   });
+
+  // Show the new verification badges once the run ends.
+  const running = status.data?.running ?? false;
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !running) {
+      queryClient.invalidateQueries({ queryKey: ["emails"], predicate: (q) => q.queryKey[1] !== "verify-all-status" });
+    }
+    wasRunning.current = running;
+  }, [running, queryClient]);
+
+  return status;
 }

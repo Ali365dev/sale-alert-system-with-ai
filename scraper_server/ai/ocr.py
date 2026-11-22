@@ -55,7 +55,7 @@ _missing_key_logged = False
 _TRACKING_PIXEL_RE = re.compile(
     r"(\b1x1\b|/open(\.aspx)?(\?|/|$)|beacon\.|/beacon|/pixel(\.gif|\.png)?(\?|/|$)"
     r"|/(track|tracking)(/|\?|$)|/o\.gif|(spacer|blank|transparent|clear)\.gif"
-    r"|impression\.gif|usermatch)",
+    r"|impression\.gif|usermatch|/p/be/op/)",
     re.IGNORECASE,
 )
 
@@ -180,17 +180,19 @@ def _dedupe_lines(text_blocks: list[str]) -> str:
     return "\n".join(out)
 
 
-def _process_static_image(data: bytes, api_key: str) -> tuple[str, float]:
+def _process_static_image(data: bytes, api_key: str) -> tuple[str, float, int, int]:
+    """Returns (text, confidence, width, height) — size of the original image."""
     from PIL import Image
 
     with Image.open(BytesIO(data)) as img:
-        if img.width < OCR_MIN_IMAGE_SIZE or img.height < OCR_MIN_IMAGE_SIZE:
-            return "", 0.0  # icon / logo / tracking pixel
+        width, height = img.size
+        if width < OCR_MIN_IMAGE_SIZE or height < OCR_MIN_IMAGE_SIZE:
+            return "", 0.0, width, height  # icon / logo / tracking pixel
         upload = _jpeg(_fit_width(img))
-    return _annotate(upload, api_key)
+    return (*_annotate(upload, api_key), width, height)
 
 
-def _process_gif(data: bytes, api_key: str) -> tuple[str, float]:
+def _process_gif(data: bytes, api_key: str) -> tuple[str, float, int, int]:
     """Sample frames, drop repeats, and stack the rest vertically so the whole
     GIF is one OCR.space call (free-plan quota) instead of one per frame."""
     from PIL import Image, ImageSequence
@@ -198,8 +200,9 @@ def _process_gif(data: bytes, api_key: str) -> tuple[str, float]:
     frames = []
     seen: set[bytes] = set()
     with Image.open(BytesIO(data)) as img:
-        if img.width < OCR_MIN_IMAGE_SIZE or img.height < OCR_MIN_IMAGE_SIZE:
-            return "", 0.0
+        width, height = img.size
+        if width < OCR_MIN_IMAGE_SIZE or height < OCR_MIN_IMAGE_SIZE:
+            return "", 0.0, width, height
 
         # Adapt the sample step to the GIF's actual frame count: a fixed step
         # of e.g. 5 would silently skip every frame of a short (<5-frame) GIF.
@@ -222,19 +225,31 @@ def _process_gif(data: bytes, api_key: str) -> tuple[str, float]:
     for frame in frames:
         sheet.paste(frame, (0, top))
         top += frame.height
-    return _annotate(_jpeg(sheet), api_key)
+    # Unchanged text on every frame (a static headline) would repeat once per frame.
+    text, confidence = _annotate(_jpeg(sheet), api_key)
+    return _dedupe_lines([text]), confidence, width, height
 
 
 def process_image_url(url: str, cache: dict, api_key: Optional[str] = None) -> Optional[dict]:
     """Full pipeline for one image URL: cache check -> download -> OCR ->
-    cache write. Returns {url, text, confidence, is_gif} or None if there's
-    nothing usable (skipped/tiny/failed/low-confidence) — never raises, so
-    one bad image never aborts the rest of the batch."""
+    cache write. Returns {url, text, confidence, is_gif, width, height} or
+    None if there's no usable text (skipped/tiny/failed/low-confidence) —
+    never raises, so one bad image never aborts the rest of the batch."""
+    result = _read_image(url, cache, api_key)
+    return result if result and result["text"] else None
+
+
+def _read_image(url: str, cache: dict, api_key: Optional[str]) -> Optional[dict]:
+    """Like process_image_url, but also returns images with no text (text="")
+    so the pipeline can fall back to the biggest one. None = couldn't load."""
     cached = ocr_cache.get(url, cache)
     if cached is not None:
-        if cached.get("skipped") or not cached.get("text"):
-            return None
-        return {"url": url, "text": cached["text"], "confidence": cached["confidence"], "is_gif": cached["is_gif"]}
+        if cached.get("width") is None and (cached.get("skipped") or not cached.get("text")):
+            return None  # cached before sizes were recorded
+        return {
+            "url": url, "text": cached.get("text") or "", "confidence": cached.get("confidence") or 0.0,
+            "is_gif": cached.get("is_gif", False), "width": cached.get("width"), "height": cached.get("height"),
+        }
     api_key = api_key or _api_key()
     if not OCR_ENABLED or api_key is None:
         return None
@@ -247,17 +262,19 @@ def process_image_url(url: str, cache: dict, api_key: Optional[str] = None) -> O
             return None
 
         is_gif = _is_gif(data)
-        text, confidence = (_process_gif(data, api_key) if is_gif else _process_static_image(data, api_key))
+        text, confidence, width, height = (
+            _process_gif(data, api_key) if is_gif else _process_static_image(data, api_key)
+        )
         elapsed = time.monotonic() - t_start
 
         if not text or confidence < OCR_MIN_CONFIDENCE:
             logger.info("OCR: no usable text — url=%s gif=%s confidence=%.2f (%.2fs)", url, is_gif, confidence, elapsed)
-            ocr_cache.put(url, cache, text="", confidence=confidence, is_gif=is_gif, skipped=True)
-            return None
-
-        logger.info("OCR: extracted %d chars — url=%s gif=%s confidence=%.2f (%.2fs)", len(text), url, is_gif, confidence, elapsed)
-        ocr_cache.put(url, cache, text=text, confidence=confidence, is_gif=is_gif)
-        return {"url": url, "text": text, "confidence": confidence, "is_gif": is_gif}
+            text = ""
+        else:
+            logger.info("OCR: extracted %d chars — url=%s gif=%s confidence=%.2f (%.2fs)", len(text), url, is_gif, confidence, elapsed)
+        ocr_cache.put(url, cache, text=text, confidence=confidence, is_gif=is_gif,
+                      skipped=not text, width=width, height=height)
+        return {"url": url, "text": text, "confidence": confidence, "is_gif": is_gif, "width": width, "height": height}
     except Exception as exc:
         logger.warning("OCR: failed for %s (%.2fs): %s", url, time.monotonic() - t_start, exc)
         return None
@@ -265,13 +282,15 @@ def process_image_url(url: str, cache: dict, api_key: Optional[str] = None) -> O
 
 def run_ocr_for_urls(image_urls: list[str]) -> dict:
     """Concurrently OCR every (deduped) image URL. Returns
-    {"image_texts": [...], "gif_texts": [...], "items": [{url, text, confidence, is_gif}, ...]}.
-    `items` keeps URL↔text so the pipeline can pick one sale image."""
+    {"image_texts": [...], "gif_texts": [...], "items": [...], "images": [...]}.
+    `items` are the images with text (URL↔text, to pick one sale image);
+    `images` are all loaded images with their size, text or not."""
+    empty = {"image_texts": [], "gif_texts": [], "items": [], "images": []}
     if not OCR_ENABLED or not image_urls:
-        return {"image_texts": [], "gif_texts": [], "items": []}
+        return empty
     api_key = _api_key()
     if api_key is None:
-        return {"image_texts": [], "gif_texts": [], "items": []}
+        return empty
 
     # Dedupe by URL, drop tracking pixels, then cap how many images one email
     # can trigger OCR for.
@@ -285,16 +304,17 @@ def run_ocr_for_urls(image_urls: list[str]) -> dict:
     cache = ocr_cache.load()
     t_start = time.monotonic()
     with ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS) as pool:
-        futures = {pool.submit(process_image_url, url, cache, api_key): url for url in deduped}
+        futures = {pool.submit(_read_image, url, cache, api_key): url for url in deduped}
         by_url: dict[str, dict] = {}
         for future in as_completed(futures):
-            result = future.result()  # process_image_url never raises
+            result = future.result()  # _read_image never raises
             if result is None:
                 continue
             by_url[result["url"]] = result
     ocr_cache.save(cache)
 
-    items = [by_url[url] for url in deduped if url in by_url]
+    images = [by_url[url] for url in deduped if url in by_url]
+    items = [image for image in images if image["text"]]
     image_texts = [item["text"] for item in items if not item["is_gif"]]
     gif_texts = [item["text"] for item in items if item["is_gif"]]
 
@@ -302,7 +322,7 @@ def run_ocr_for_urls(image_urls: list[str]) -> dict:
         "OCR batch done — %d image(s), %d with text (%.2fs)",
         len(deduped), len(items), time.monotonic() - t_start,
     )
-    return {"image_texts": image_texts, "gif_texts": gif_texts, "items": items}
+    return {"image_texts": image_texts, "gif_texts": gif_texts, "items": items, "images": images}
 
 
 def merge_email_content(subject: str, body: str, image_texts: list[str], gif_texts: list[str]) -> dict:
@@ -333,4 +353,5 @@ def extract_and_merge(subject: str, body: str, image_urls: list[str]) -> dict:
     ocr_result = run_ocr_for_urls(image_urls)
     merged = merge_email_content(subject, body, ocr_result["image_texts"], ocr_result["gif_texts"])
     merged["items"] = ocr_result["items"]
+    merged["images"] = ocr_result["images"]
     return merged

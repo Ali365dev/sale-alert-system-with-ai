@@ -48,7 +48,10 @@ def get(url: str, cache: dict) -> Optional[dict]:
     return cache.get(url_key(url))
 
 
-def put(url: str, cache: dict, *, text: str, confidence: float, is_gif: bool, skipped: bool = False) -> None:
+def put(
+    url: str, cache: dict, *, text: str, confidence: float, is_gif: bool, skipped: bool = False,
+    width: Optional[int] = None, height: Optional[int] = None,
+) -> None:
     """Record a URL's OCR result in-place (call save() separately)."""
     cache[url_key(url)] = {
         "url": url,
@@ -56,5 +59,7 @@ def put(url: str, cache: dict, *, text: str, confidence: float, is_gif: bool, sk
         "confidence": confidence,
         "is_gif": is_gif,
         "skipped": skipped,
+        "width": width,
+        "height": height,
         "checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
     }

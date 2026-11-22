@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { isJobActive, useActiveJob, useStartJob } from "../api/jobs";
@@ -16,13 +15,13 @@ import {
   type ProcessingStatus,
 } from "../api/emails";
 import { useBrands } from "../api/brands";
-import { scraperClient as apiClient } from "../api/client";
 import { getJobTypeConfig } from "../config/jobTypes";
 import { TONE_BG, TONE_FG, toneForName } from "../lib/publicOffers";
 import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button, IconButton, IconLinkButton } from "../components/ui/Button";
 import { ProcessUnprocessedButton } from "../components/emails/ProcessUnprocessedButton";
+import { useBulkEmailActions } from "../components/emails/useBulkEmailActions";
 import { Card } from "../components/ui/Card";
 import { Select } from "../components/ui/Field";
 import { IconMenuButton } from "../components/ui/Menu";
@@ -603,10 +602,23 @@ export function EmailManager() {
   const verifyAllStatus = useVerifyAllEmailsStatus(verifyAll.isPending || (verifyAll.isSuccess && !!data));
   const [viewingId, setViewingId] = useState<number | null>(null);
   const [viewingImagesId, setViewingImagesId] = useState<number | null>(null);
-  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [bulkRunning, setBulkRunning] = useState(false);
+  const bulk = useBulkEmailActions(() => setSelected(new Set()));
   const sync = useSyncEmails();
+
+  // Selection only covers rows you can see — otherwise "Delete selected"
+  // would also delete rows picked on another page or under another filter.
+  const listKey = params.toString();
+  useEffect(() => {
+    setSelected(new Set());
+  }, [listKey]);
+
+  // Deleting the last rows of the last page would otherwise strand you on an empty page.
+  const lastPage = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
+  useEffect(() => {
+    if (data && page > lastPage) updateParams({ page: lastPage > 1 ? String(lastPage) : undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, page, lastPage]);
 
   function toggleSelected(id: number) {
     setSelected((s) => {
@@ -615,34 +627,6 @@ export function EmailManager() {
       else next.add(id);
       return next;
     });
-  }
-
-  async function bulkDelete() {
-    const ids = [...selected];
-    if (ids.length === 0) return;
-    if (!window.confirm(`Delete ${ids.length} selected email(s) and their extracted offers?`)) return;
-    setBulkRunning(true);
-    const results = await Promise.allSettled(ids.map((id) => apiClient.delete(`/emails/${id}`)));
-    setBulkRunning(false);
-    const failed = results.filter((r) => r.status === "rejected").length;
-    queryClient.invalidateQueries({ queryKey: ["emails"] });
-    if (failed === 0) toast.success(`${ids.length} email(s) deleted.`);
-    else toast.error(`Deleted ${ids.length - failed} email(s), ${failed} failed.`);
-    setSelected(new Set());
-  }
-
-  async function bulkReprocess() {
-    const ids = [...selected];
-    if (ids.length === 0) return;
-    setBulkRunning(true);
-    const results = await Promise.allSettled(ids.map((id) => apiClient.post(`/emails/${id}/process`)));
-    setBulkRunning(false);
-    const failed = results.filter((r) => r.status === "rejected").length;
-    queryClient.invalidateQueries({ queryKey: ["emails"] });
-    queryClient.invalidateQueries({ queryKey: ["offers"] });
-    if (failed === 0) toast.success(`${ids.length} email(s) reprocessed.`);
-    else toast.error(`Reprocessed ${ids.length - failed} email(s), ${failed} failed.`);
-    setSelected(new Set());
   }
 
   if (isError) return <div style={{ color: "var(--danger)" }}>Failed to load emails.</div>;
@@ -840,13 +824,13 @@ export function EmailManager() {
         <Card>
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)" }}>{selected.size} selected</span>
-            <Button size="sm" loading={bulkRunning} disabled={bulkRunning} onClick={bulkReprocess}>
+            <Button size="sm" loading={bulk.running} disabled={bulk.running} onClick={() => bulk.bulkReprocess([...selected])}>
               Reprocess selected
             </Button>
-            <Button size="sm" variant="danger" loading={bulkRunning} disabled={bulkRunning} onClick={bulkDelete}>
+            <Button size="sm" variant="danger" loading={bulk.running} disabled={bulk.running} onClick={() => bulk.bulkDelete([...selected])}>
               Delete selected
             </Button>
-            <Button size="sm" variant="ghost" disabled={bulkRunning} onClick={() => setSelected(new Set())}>
+            <Button size="sm" variant="ghost" disabled={bulk.running} onClick={() => setSelected(new Set())}>
               Clear selection
             </Button>
           </div>

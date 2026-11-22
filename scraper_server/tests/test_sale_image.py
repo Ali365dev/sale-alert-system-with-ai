@@ -43,6 +43,8 @@ def test_tracking_pixels_are_recognised():
         "https://fossil-cdn.bloomreach.co/fossil-new/e/CgxqQq-GHAZ/open",
         "http://mi.levi.com/p/cp/8283f0c7bc5fd81c/o.gif?mi_u=1",
         "http://braze-images.com/spacer.gif",
+        "http://s.sapphireonline.pk/p/be/op/sFt648XC44CbaXfPpRHl3zHha3KNq3",
+        "https://p.dengage.com/p/be/op/UdFhqLw7tVV40cj8AkhPwISp2X8sYDScvuozrZnS2BWuJ.gif",
     ):
         assert is_tracking_pixel(url), url
     for url in (
@@ -52,3 +54,34 @@ def test_tracking_pixels_are_recognised():
         "https://cdn.shop.com/opening-sale.png",
     ):
         assert not is_tracking_pixel(url), url
+
+
+def _img(url, width, height, text=""):
+    return {"url": url, "text": text, "confidence": 0.9 if text else 0.0, "width": width, "height": height}
+
+
+def test_falls_back_to_the_biggest_banner_shaped_image(mocker):
+    mocker.patch("services.settings_service.get_setting", side_effect=lambda key, default=None: default)
+    images = [
+        _img("https://cdn.example/logo.png", 180, 60, "Sapphire"),
+        _img("https://cdn.example/divider.png", 1200, 40),
+        _img("https://cdn.example/look-1.jpg", 600, 800),
+        _img("https://cdn.example/hero.gif", 1200, 900),
+        _img("https://cdn.example/full-email.jpg", 600, 5000),
+    ]
+    items = [i for i in images if i["text"]]
+    assert select_sale_image(items, images) == "https://cdn.example/hero.gif"
+
+
+def test_sale_image_still_wins_over_a_bigger_one(mocker):
+    mocker.patch("services.settings_service.get_setting", side_effect=lambda key, default=None: default)
+    images = [
+        _img("https://cdn.example/hero.jpg", 1600, 1200),
+        _img("https://cdn.example/banner.png", 600, 300, "FLAT 50% OFF"),
+    ]
+    assert select_sale_image([images[1]], images) == "https://cdn.example/banner.png"
+
+
+def test_no_fallback_when_every_image_is_small(mocker):
+    mocker.patch("services.settings_service.get_setting", side_effect=lambda key, default=None: default)
+    assert select_sale_image([], [_img("https://cdn.example/icon.png", 120, 120)]) is None

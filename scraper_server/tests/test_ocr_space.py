@@ -58,7 +58,7 @@ def test_static_image_text_comes_from_ocr_space(mocker):
 
 def test_gif_frames_go_out_as_one_stacked_image(mocker):
     _setup(mocker, _gif(["red", "green", "blue"]))
-    post = _ocr_reply(mocker, text="SALE")
+    post = _ocr_reply(mocker, text="SALE\r\nSALE\r\nSALE\r\n")
 
     result = ocr.run_ocr_for_urls(["https://cdn.example.com/promo.gif"])
 
@@ -84,7 +84,7 @@ def test_no_key_means_no_download_and_no_text(mocker):
 
     result = ocr.run_ocr_for_urls(["https://cdn.example.com/sale.png"])
 
-    assert result == {"image_texts": [], "gif_texts": [], "items": []}
+    assert result == {"image_texts": [], "gif_texts": [], "items": [], "images": []}
     ocr._download_image.assert_not_called()
     post.assert_not_called()
 
@@ -109,3 +109,25 @@ def test_uploads_stay_under_the_free_plan_1mb_cap(mocker):
 
     data_url = post.call_args.kwargs["data"]["base64Image"]
     assert len(base64.b64decode(data_url.split(",", 1)[1])) <= 1024 * 1024
+
+
+def test_images_without_text_are_still_returned_with_their_size(mocker):
+    _setup(mocker, _png(900, 600))
+    _ocr_reply(mocker, text="")
+
+    result = ocr.run_ocr_for_urls(["https://cdn.example.com/hero.png"])
+
+    assert result["items"] == []
+    assert [(i["url"], i["width"], i["height"]) for i in result["images"]] == [("https://cdn.example.com/hero.png", 900, 600)]
+
+
+def test_no_text_result_is_reused_from_cache_with_its_size(mocker):
+    _setup(mocker, _png(900, 600))
+    post = _ocr_reply(mocker, text="")
+    cache: dict = {}
+    ocr._read_image("https://cdn.example.com/hero.png", cache, "test-key")
+
+    again = ocr._read_image("https://cdn.example.com/hero.png", cache, "test-key")
+
+    assert post.call_count == 1
+    assert (again["text"], again["width"], again["height"]) == ("", 900, 600)

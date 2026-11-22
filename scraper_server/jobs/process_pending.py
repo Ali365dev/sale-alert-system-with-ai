@@ -143,7 +143,7 @@ class ProcessPendingJob(BackgroundJob):
                 result,
                 received_at=received_at,
                 subject=subject,
-                image_url=select_sale_image(ocr_result.get("items")),
+                image_url=select_sale_image(ocr_result.get("items"), ocr_result.get("images")),
             ))
             e = session.query(Email).filter(Email.id == item.id).first()
             if e is not None:
