@@ -1,8 +1,9 @@
 import { Link } from "react-router";
-import { ShoppingBag } from "lucide-react";
+import { Heart, ShoppingBag } from "lucide-react";
 
 import { Icon } from "../icons";
 import { toast } from "../../store/toastStore";
+import { AppStoreBadges } from "./AppStoreBadges";
 
 const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
@@ -45,34 +46,6 @@ const linkButtonStyle: React.CSSProperties = {
 
 function comingSoon(what: string) {
   toast.info(`${what} isn't available yet — check back soon.`);
-}
-
-function AppStoreBadge({ store, sub }: { store: string; sub: string }) {
-  return (
-    <button
-      type="button"
-      onClick={() => comingSoon(`The ${store === "Apple" ? "iOS" : "Android"} app`)}
-      title={`${store} — coming soon`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        height: 40,
-        padding: "0 12px",
-        border: "none",
-        borderRadius: "var(--radius-sm)",
-        background: "var(--surface-inverse)",
-        color: "var(--text-on-inverse)",
-        cursor: "pointer",
-      }}
-    >
-      {store === "Apple" ? <Icon.store size={16} /> : <Icon.play size={16} />}
-      <span style={{ lineHeight: 1.1, textAlign: "left" }}>
-        <div style={{ fontSize: 8.5, opacity: 0.75 }}>{sub}</div>
-        <div style={{ fontSize: 12, fontWeight: 700 }}>{store === "Apple" ? "App Store" : "Google Play"}</div>
-      </span>
-    </button>
-  );
 }
 
 export function PublicFooter() {
@@ -164,10 +137,10 @@ export function PublicFooter() {
           >
             Download Our App
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <AppStoreBadge store="Apple" sub="Download on the" />
-            <AppStoreBadge store="Google" sub="GET IT ON" />
-          </div>
+          <p style={{ margin: 0, fontSize: "0.8rem", lineHeight: 1.5, color: "var(--text-muted)" }}>
+            Instant deal alerts from the brands you follow.
+          </p>
+          <AppStoreBadges />
         </div>
       </div>
 
@@ -185,7 +158,9 @@ export function PublicFooter() {
         }}
       >
         <span style={{ fontSize: 12, color: "var(--text-faint)" }}>© {new Date().getFullYear()} DealsMore. All rights reserved.</span>
-        <span style={{ fontSize: 12, color: "var(--text-faint)" }}>Made with ❤️ for smart shoppers.</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-faint)" }}>
+          Made with <Heart size={13} fill="var(--brand)" color="var(--brand)" aria-label="love" /> for smart shoppers.
+        </span>
       </div>
     </footer>
   );

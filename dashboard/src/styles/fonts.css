@@ -6,8 +6,10 @@
    @font-face rules pointing at licensed .woff2 binaries.
 
    - Plus Jakarta Sans  -> UI + display (geometric-humanist, friendly, trustworthy)
+   - Rubik              -> public-site display headings (e-commerce pairing)
    - Geist Mono         -> currency figures, data, AI/code accents
    ------------------------------------------------------------------ */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap');

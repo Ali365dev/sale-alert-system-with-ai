@@ -78,7 +78,7 @@ export function CategoriesPage() {
         </div>
 
         {isLoading ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="public-skeleton" style={{ height: 110, borderRadius: "var(--radius-lg)" }} />
             ))}
@@ -89,7 +89,7 @@ export function CategoriesPage() {
             description={query ? "Try a different search term." : "Categories appear here once offers are tracked."}
           />
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
             {visible.map((c) => (
               <CategoryCard key={c.name} name={c.name} offerCount={c.count} onClick={() => navigate(`/deals?category=${encodeURIComponent(c.name)}`)} />
             ))}

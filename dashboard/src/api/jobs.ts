@@ -67,7 +67,10 @@ const EMAIL_SYNC_TYPE = "email_sync";
  * Was 5s and inverted (polled only when idle) — that hammered /jobs/active
  * once per job type continuously. */
 const IDLE_POLL_MS = 60_000;
-const RUNNING_POLL_MS = 2000; // how often to poll a job we know is active
+const RUNNING_POLL_MS = 3000; // how often to poll a job we know is active
+/** The app-wide watcher runs in every open dashboard tab; at 2s Render's
+ * Cloudflare edge started answering 429 challenges. */
+const ACTIVE_ALL_RUNNING_POLL_MS = 5000;
 
 export function isJobActive(status: JobStatus | undefined) {
   return status === "pending" || status === "running" || status === "cancelling";
@@ -109,9 +112,10 @@ export function useAllActiveJobs() {
       return jobs;
     },
     refetchInterval: (query) => {
+      if (query.state.status === "error") return IDLE_POLL_MS;
       const jobs = query.state.data ?? {};
       const anyActive = Object.values(jobs).some((j) => isJobActive(j?.status));
-      return anyActive ? RUNNING_POLL_MS : IDLE_POLL_MS;
+      return anyActive ? ACTIVE_ALL_RUNNING_POLL_MS : IDLE_POLL_MS;
     },
     refetchOnWindowFocus: true,
   });

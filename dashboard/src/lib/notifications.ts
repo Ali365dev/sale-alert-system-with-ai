@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { apiClient } from "../api/client";
+import { scraperClient } from "../api/client";
 import type { Job } from "../api/jobs";
 import { isJobActive, useAllActiveJobs } from "../api/jobs";
 import { toast } from "../store/toastStore";
@@ -49,7 +49,7 @@ export function notifyJobEvent(event: JobLifecycleEvent, job: Job) {
 
 async function notifyFinished(jobId: number) {
   try {
-    const { data: job } = await apiClient.get<Job>(`/jobs/${jobId}`);
+    const { data: job } = await scraperClient.get<Job>(`/jobs/${jobId}`);
     if (isJobActive(job.status)) return;
     if (job.status === "completed") notifyJobEvent("completed", job);
     else if (job.status === "failed") notifyJobEvent("failed", job);

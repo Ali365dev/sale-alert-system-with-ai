@@ -1,165 +1,110 @@
+import { useState } from "react";
 import { Link } from "react-router";
-import { Clock3, ExternalLink, Heart } from "lucide-react";
+import { ArrowUpRight, Clock3, Heart, Tag } from "lucide-react";
 
 import type { Offer } from "../../api/offers";
 import { useFavoritesStore } from "../../store/favoritesStore";
-import { discountLabel, expiryLabel, humanize, imageForOffer, isExpired, isExpiringSoon } from "../../lib/publicOffers";
-import { sourceLabel, sourceTone } from "../../lib/offerSource";
-import { Badge } from "../ui/Badge";
+import {
+  offerBlurb,
+  offerCountdown,
+  offerDiscountBadge,
+  offerHeadline,
+  offerImage,
+  offerStoreName,
+  offerStoreWebsite,
+} from "../../lib/offerDisplay";
+import { TONE_BG, TONE_FG, toneForName } from "../../lib/publicOffers";
 import { BrandLogo } from "./BrandLogo";
+import "./OfferCard.css";
 
-function offerTitle(offer: Offer): string {
-  if (offer.summary) {
-    const firstSentence = offer.summary.split(/(?<=[.!?])\s/)[0];
-    if (firstSentence.length <= 90) return firstSentence;
-    return `${firstSentence.slice(0, 87)}…`;
+function OfferMedia({ offer, store }: { offer: Offer; store: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const [banner, setBanner] = useState(false);
+  const src = offerImage(offer);
+  const tone = toneForName(store ?? offer.category ?? "deal");
+
+  if (src && !failed) {
+    return (
+      <img
+        className={`offer-card-img${banner ? " is-banner" : ""}`}
+        src={src}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
+        onLoad={(e) => {
+          const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+          // Email artwork includes tracking pixels and thin header strips; cropping those to 4:3 shows nothing useful.
+          if (w < 80 || h < 60) setFailed(true);
+          else if (w / h > 2.2) setBanner(true);
+        }}
+      />
+    );
   }
-  const type = humanize(offer.offer_type);
-  const brand = offer.brand ?? offer.company ?? "Deal";
-  return type ? `${brand} — ${type}` : `${brand} offer`;
+
+  // No usable artwork: a branded panel reads better than a repeated stock photo.
+  return (
+    <div className="offer-card-fallback" style={{ background: TONE_BG[tone], color: TONE_FG[tone] }} aria-hidden="true">
+      {store ? <BrandLogo name={store} website={offerStoreWebsite(offer)} size={64} /> : <Tag size={40} strokeWidth={1.6} />}
+      <span>{offer.offer_value ?? offer.category ?? "Exclusive deal"}</span>
+    </div>
+  );
 }
 
-export function OfferCard({ offer, editorialImage = false }: { offer: Offer; editorialImage?: boolean }) {
-  const expired = isExpired(offer);
-  const expiringSoon = isExpiringSoon(offer);
+export function OfferCard({ offer }: { offer: Offer }) {
   const { isFavorite, toggle } = useFavoritesStore();
   const favorite = isFavorite(offer.id);
-  const discount = discountLabel(offer);
-  const brandName = offer.brand ?? offer.company ?? "Unknown brand";
+  const store = offerStoreName(offer);
+  const headline = offerHeadline(offer);
+  const blurb = offerBlurb(offer);
+  const badge = offerDiscountBadge(offer);
+  const countdown = offerCountdown(offer);
+  const href = `/deals/${offer.id}`;
 
   return (
-    <article
-      className="public-offer-card public-fade-in"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--surface-card)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-lg)",
-        boxShadow: "var(--shadow-sm)",
-        overflow: "hidden",
-        opacity: expired ? 0.6 : 1,
-        position: "relative",
-      }}
-    >
-      <div style={{ position: "relative", aspectRatio: "16 / 9", background: "var(--surface-sunken)" }}>
-        <img
-          src={editorialImage ? imageForOffer(offer.category, `${brandName}-${offer.id}`) : offer.image_url || imageForOffer(offer.category, `${brandName}-${offer.id}`)}
-          alt=""
-          aria-hidden
-          loading="lazy"
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        />
-        {discount && (
-          <span
-            style={{
-              position: "absolute",
-              left: 10,
-              top: 10,
-              display: "inline-flex",
-              alignItems: "center",
-              height: 24,
-              padding: "0 10px",
-              borderRadius: "var(--radius-pill)",
-              background: "var(--danger)",
-              color: "#FFFFFF",
-              font: "700 11.5px/1 var(--font-mono)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            {discount}
-          </span>
-        )}
+    <article className={`offer-card public-fade-in${countdown.tone === "expired" ? " is-expired" : ""}`}>
+      <div className="offer-card-media">
+        <OfferMedia offer={offer} store={store} />
+        {badge && <span className="offer-card-badge">{badge}</span>}
         <button
           type="button"
+          className={`offer-card-fav${favorite ? " is-active" : ""}`}
           onClick={() => toggle(offer.id)}
-          title={favorite ? "Remove from saved" : "Save offer"}
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 10,
-            width: 30,
-            height: 30,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "none",
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.92)",
-            color: favorite ? "var(--danger)" : "var(--text-body)",
-            cursor: "pointer",
-          }}
+          aria-label={favorite ? "Remove from favorites" : "Save to favorites"}
+          aria-pressed={favorite}
         >
-          <Heart size={15} fill={favorite ? "var(--danger)" : "none"} />
+          <Heart size={16} fill={favorite ? "currentColor" : "none"} aria-hidden="true" />
         </button>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <BrandLogo name={brandName} size={32} />
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-strong)", flex: "1 1 auto" }}>{brandName}</div>
-          {sourceLabel(offer.source) && <Badge tone={sourceTone(offer.source)}>{sourceLabel(offer.source)}</Badge>}
+      <div className="offer-card-body">
+        <div className="offer-card-store">
+          {store ? (
+            <>
+              <BrandLogo name={store} website={offerStoreWebsite(offer)} size={28} circle />
+              <span>{store}</span>
+            </>
+          ) : (
+            <>
+              <span className="offer-card-store-icon"><Tag size={14} aria-hidden="true" /></span>
+              <span>{offer.category ?? "Featured deal"}</span>
+            </>
+          )}
         </div>
 
-        <Link
-          to={`/deals/${offer.id}`}
-          style={{
-            font: "var(--fw-semibold) 15px/1.35 var(--font-sans)",
-            color: "var(--text-strong)",
-            display: "block",
-          }}
-        >
-          {offerTitle(offer)}
-        </Link>
+        <h3 className="offer-card-title">
+          <Link to={href} className="offer-card-link">{headline}</Link>
+        </h3>
+        {blurb && <p className="offer-card-blurb">{blurb}</p>}
 
-        {offer.summary && (
-          <p
-            style={{
-              margin: 0,
-              fontSize: 12.5,
-              lineHeight: 1.55,
-              color: "var(--text-muted)",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {offer.summary}
-          </p>
-        )}
-
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            fontSize: 11.5,
-            fontWeight: expired ? 700 : 400,
-            color: expired ? "var(--danger)" : expiringSoon ? "var(--warning)" : "var(--text-faint)",
-          }}
-        >
-          <Clock3 size={12} /> {expiryLabel(offer)}
-        </span>
-
-        <Link
-          to={`/deals/${offer.id}`}
-          style={{
-            marginTop: "auto",
-            height: 40,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            borderRadius: "var(--radius-sm)",
-            background: "var(--surface-inverse)",
-            color: "var(--text-on-inverse)",
-            fontWeight: 700,
-            fontSize: 13,
-          }}
-        >
-          View Deal <ExternalLink size={13} />
-        </Link>
+        <div className="offer-card-footer">
+          <span className={`offer-card-expiry tone-${countdown.tone}`}>
+            <Clock3 size={13} aria-hidden="true" /> {countdown.label}
+          </span>
+          <span className="offer-card-cta" aria-hidden="true">
+            View deal <ArrowUpRight size={14} />
+          </span>
+        </div>
       </div>
     </article>
   );
@@ -167,26 +112,13 @@ export function OfferCard({ offer, editorialImage = false }: { offer: Offer; edi
 
 export function OfferCardSkeleton() {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--surface-card)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius-lg)",
-        overflow: "hidden",
-        height: 320,
-      }}
-    >
-      <div className="public-skeleton" style={{ aspectRatio: "16 / 9", borderRadius: 0 }} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 16, flex: 1 }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <div className="public-skeleton" style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)" }} />
-          <div className="public-skeleton" style={{ height: 12, width: "50%", borderRadius: 4 }} />
-        </div>
+    <div className="offer-card offer-card-skeleton" aria-hidden="true">
+      <div className="public-skeleton offer-card-media" />
+      <div className="offer-card-body">
+        <div className="public-skeleton" style={{ height: 14, width: "45%", borderRadius: 4 }} />
         <div className="public-skeleton" style={{ height: 16, width: "90%", borderRadius: 4 }} />
-        <div className="public-skeleton" style={{ height: 12, width: "60%", borderRadius: 4 }} />
-        <div className="public-skeleton" style={{ height: 40, width: "100%", borderRadius: "var(--radius-sm)", marginTop: "auto" }} />
+        <div className="public-skeleton" style={{ height: 12, width: "70%", borderRadius: 4 }} />
+        <div className="public-skeleton" style={{ height: 14, width: "40%", borderRadius: 4, marginTop: "auto" }} />
       </div>
     </div>
   );

@@ -1,0 +1,59 @@
+.store-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Official store badges are black with a light hairline in both themes. */
+.store-badge {
+  --badge-bg: #000000;
+  --badge-fg: #ffffff;
+  --badge-line: rgba(255, 255, 255, 0.28);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+  height: 52px;
+  padding: 0 16px 0 14px;
+  border: 1px solid var(--badge-line);
+  border-radius: var(--radius-sm);
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.store-badge:hover {
+  text-decoration: none;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.store-badge:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+
+.store-badge-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1;
+  text-align: left;
+}
+.store-badge-kicker {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+.store-badge-name {
+  font: var(--fw-semibold) 1.05rem/1 var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 768px) {
+  .store-badge { flex: 1 1 160px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .store-badge { transition: none; }
+  .store-badge:hover { transform: none; }
+}

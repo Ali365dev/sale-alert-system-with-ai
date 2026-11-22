@@ -1,14 +1,27 @@
-import { TONE_BG, TONE_FG, toneForName } from "../../lib/publicOffers";
+import type { LucideIcon } from "lucide-react";
+import { Baby, Dumbbell, Footprints, Gem, Headphones, House, Laptop, Plane, Shirt, ShoppingBasket, Sparkles, Tag, UtensilsCrossed } from "lucide-react";
 
-const CATEGORY_ART: { test: RegExp; emoji: string }[] = [
-  { test: /fashion|clothing|apparel/i, emoji: "👗" },
-  { test: /electronic|tech/i, emoji: "🎧" },
-  { test: /home|living|furniture/i, emoji: "🛋️" },
-  { test: /beauty|cosmetic/i, emoji: "🧴" },
-  { test: /sport|shoe|footwear/i, emoji: "👟" },
-  { test: /kid|baby|toy/i, emoji: "🧸" },
-  { test: /accessor|bag/i, emoji: "👜" },
+import { TONE_BG, TONE_FG, toneForName } from "../../lib/publicOffers";
+import "./CategoryCard.css";
+
+const CATEGORY_ICONS: { test: RegExp; icon: LucideIcon }[] = [
+  { test: /fashion|clothing|apparel/i, icon: Shirt },
+  { test: /electronic|tech/i, icon: Headphones },
+  { test: /software|web|service/i, icon: Laptop },
+  { test: /home|living|furniture/i, icon: House },
+  { test: /beauty|cosmetic|personal care/i, icon: Sparkles },
+  { test: /shoe|footwear/i, icon: Footprints },
+  { test: /sport|fitness/i, icon: Dumbbell },
+  { test: /kid|baby|toy/i, icon: Baby },
+  { test: /accessor|bag|jewel/i, icon: Gem },
+  { test: /travel|flight|hotel/i, icon: Plane },
+  { test: /food|restaurant/i, icon: UtensilsCrossed },
+  { test: /grocery/i, icon: ShoppingBasket },
 ];
+
+function categoryIcon(name: string): LucideIcon {
+  return CATEGORY_ICONS.find((item) => item.test.test(name))?.icon ?? Tag;
+}
 
 export function CategoryCard({
   name,
@@ -22,45 +35,23 @@ export function CategoryCard({
   onClick?: () => void;
 }) {
   const tone = toneForName(name);
-  const emoji = CATEGORY_ART.find((item) => item.test.test(name))?.emoji ?? "🏷️";
+  const Icon = categoryIcon(name);
   return (
     <button
       type="button"
       onClick={onClick}
-      className="public-offer-card"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: 10,
-        background: active ? TONE_BG[tone] : "var(--surface-card)",
-        border: `1px solid ${active ? TONE_FG[tone] : "var(--border)"}`,
-        borderRadius: "var(--radius-lg)",
-        boxShadow: "var(--shadow-sm)",
-        padding: 16,
-        cursor: "pointer",
-        minWidth: 150,
-        textAlign: "left",
-      }}
+      className={`category-card${active ? " is-active" : ""}${offerCount === 0 ? " is-empty" : ""}`}
+      aria-pressed={active}
     >
-      <span
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: "var(--radius-sm)",
-          background: TONE_BG[tone],
-          color: TONE_FG[tone],
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span aria-hidden="true" style={{ fontSize: 23, lineHeight: 1 }}>{emoji}</span>
+      <span className="category-card-icon" style={{ background: TONE_BG[tone], color: TONE_FG[tone] }}>
+        <Icon size={22} strokeWidth={1.8} aria-hidden="true" />
       </span>
-      <div>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-strong)" }}>{name}</div>
-        <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{offerCount} offers</div>
-      </div>
+      <span className="category-card-text">
+        <span className="category-card-name">{name}</span>
+        <span className="category-card-count">
+          {offerCount === 0 ? "Coming soon" : `${offerCount} ${offerCount === 1 ? "deal" : "deals"}`}
+        </span>
+      </span>
     </button>
   );
 }
