@@ -41,6 +41,17 @@ RUN mkdir -p logs
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
+# Bake the OCR models (the ones ai/ocr.py loads by default) into the image so
+# a restart doesn't re-download them on the first email.
+RUN python -c "from paddleocr import PaddleOCR; PaddleOCR(text_detection_model_name='PP-OCRv5_mobile_det', text_recognition_model_name='en_PP-OCRv5_mobile_rec', use_textline_orientation=False, use_doc_orientation_classify=False, use_doc_unwarping=False)" \
+    || echo "OCR model pre-download failed — they will download on first use"
+
+# Render's instance has 1 CPU: one math-library thread avoids oversubscription,
+# and capping glibc malloc arenas stops a multi-threaded Python process from
+# holding on to freed memory (steady RSS growth that ends in an OOM restart).
+ENV OMP_NUM_THREADS=1 \
+    MALLOC_ARENA_MAX=2
+
 EXPOSE 8001
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

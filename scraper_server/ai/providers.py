@@ -79,6 +79,7 @@ _STATE_FILE = Path(__file__).parent.parent / "cache" / "provider_state.json"
 _TRANSIENT_RETRIES = BRAND_RETRY_COUNT  # retries within a single key for non-rotatable transient errors
 _COOLDOWN_SECONDS = 300      # how long a fully-exhausted provider is skipped before being retried again
 _KEY_COOLDOWN_SECONDS = 60   # default per-key cooldown when the provider gave no Retry-After/retryDelay
+_MAX_COOLDOWN_WAIT_SECONDS = 60  # longest a call waits for a rate-limited provider instead of failing
 
 
 def _emit(on_event: OnEvent, event: dict) -> None:
@@ -247,12 +248,16 @@ class _AllKeysExhausted(Exception):
     have to re-parse a message string."""
 
     def __init__(self, message: str, reason: str = "Unknown API error", code: str = "unknown",
-                 key_identifier: Optional[str] = None, attempts: int = 0):
+                 key_identifier: Optional[str] = None, attempts: int = 0,
+                 retry_in: Optional[float] = None):
         super().__init__(message)
         self.reason = reason
         self.code = code
         self.key_identifier = key_identifier
         self.attempts = attempts
+        # Seconds until this provider's first key is usable again (from the
+        # provider's own Retry-After), or None when unknown/unconfigured.
+        self.retry_in = retry_in
 
 
 # ── Per-key cooldown tracker ─────────────────────────────────────────────────
@@ -286,6 +291,13 @@ class _KeyCooldowns:
         with self._lock:
             self._until.pop(self._key(provider, key_info), None)
             self._reason.pop(self._key(provider, key_info), None)
+
+    def seconds_until_available(self, provider: str, keys: list[dict]) -> float:
+        """0 if any key is usable now, else how long until the first one is."""
+        now = time.monotonic()
+        with self._lock:
+            waits = [self._until.get(self._key(provider, k), 0.0) - now for k in keys]
+        return max(0.0, min(waits)) if waits else 0.0
 
     def last_reason(self, provider: str, key_info: dict) -> Optional[str]:
         with self._lock:
@@ -363,6 +375,7 @@ def _call_with_key_rotation(provider: "Provider", prompt: str, env_fallback_key:
             f"All {provider.name} keys are cooling down — last reason: {last_cooldown_reason}",
             reason=last_cooldown_reason, code="cooldown",
             key_identifier=all_keys[0]["name"], attempts=0,
+            retry_in=_key_cooldowns.seconds_until_available(provider.name, all_keys),
         )
 
     model = provider._model()  # type: ignore[attr-defined]
@@ -415,6 +428,7 @@ def _call_with_key_rotation(provider: "Provider", prompt: str, env_fallback_key:
     raise _AllKeysExhausted(
         f"All {provider.name} keys exhausted — last error: {last_info.reason}",
         reason=last_info.reason, code=last_info.code, key_identifier=last_key_name, attempts=tried,
+        retry_in=_key_cooldowns.seconds_until_available(provider.name, all_keys),
     )
 
 
@@ -630,6 +644,11 @@ class ProviderManager:
     def _in_cooldown(self, name: str) -> bool:
         return time.monotonic() < self._cooldown_until.get(name, 0.0)
 
+    def _seconds_until_any_eligible(self, order: list[str], enabled: dict[str, bool]) -> float:
+        now = time.monotonic()
+        waits = [max(0.0, self._cooldown_until.get(n, 0.0) - now) for n in order if enabled.get(n, True)]
+        return min(waits) if waits else 0.0
+
     def _first_eligible(self, order: list[str], enabled: dict[str, bool]) -> str:
         for name in order:
             if enabled.get(name, True) and not self._in_cooldown(name):
@@ -729,14 +748,19 @@ class ProviderManager:
                 key_identifier = keys[0]["name"]
         return {"provider": display_name(name), "key_identifier": key_identifier}
 
-    def _advance(self) -> bool:
+    def _advance(self, retry_in: Optional[float] = None) -> bool:
         """Put the current provider on cooldown (every eligible key of its
         just failed, or none were eligible) and move to the next ELIGIBLE
         provider — enabled and not already cooling down — in priority order.
         Returns True if one was found, False if every remaining provider is
-        disabled/cooling down."""
+        disabled/cooling down.
+
+        The cooldown follows the provider's own Retry-After when known: a
+        Groq 429 typically says "retry in 2-10s", and benching it for the
+        flat _COOLDOWN_SECONDS instead failed every email for 5 minutes."""
         order, enabled = self._sync_order()
-        self._cooldown_until[self._active_name] = time.monotonic() + _COOLDOWN_SECONDS
+        cooldown = retry_in if retry_in else _COOLDOWN_SECONDS
+        self._cooldown_until[self._active_name] = time.monotonic() + cooldown
         try:
             start_idx = order.index(self._active_name)
         except ValueError:
@@ -769,6 +793,14 @@ class ProviderManager:
             if not enabled.get(self._active_name, True) or self._in_cooldown(self._active_name):
                 self._active_name = self._first_eligible(order, enabled)
 
+            wait = self._seconds_until_any_eligible(order, enabled)
+            if 0 < wait <= _MAX_COOLDOWN_WAIT_SECONDS:
+                # Every provider is rate-limited for only a few seconds —
+                # waiting beats failing the email outright.
+                logger.info("All AI providers cooling down — waiting %.0fs", wait)
+                time.sleep(wait)
+                self._active_name = self._first_eligible(order, enabled)
+
             if not any(enabled.get(n, True) and not self._in_cooldown(n) for n in order):
                 self._last_error = "All AI providers are disabled or cooling down (rate-limited recently)."
                 self._last_failure_info = {
@@ -795,7 +827,7 @@ class ProviderManager:
                         "type": "provider_failed", "provider": provider.name,
                         "reason": exc.reason, "code": exc.code,
                     })
-                    if self._advance():
+                    if self._advance(exc.retry_in):
                         new_provider = self.current
                         new_key = None
                         if new_provider.uses_stored_keys:

@@ -18,10 +18,13 @@ def _ping(url: str) -> None:
 
 
 def _loop(urls: list[str]) -> None:
+    # Sleep first: at startup Render still answers 503 for this service's own
+    # URL until its health check passes, so an immediate ping only logged
+    # spurious failures.
     while True:
+        time.sleep(_INTERVAL)
         for url in urls:
             _ping(url)
-        time.sleep(_INTERVAL)
 
 
 def start_keep_alive() -> None:
@@ -38,10 +41,6 @@ def start_keep_alive() -> None:
     if not urls:
         logger.debug("keep-alive: no URLs configured — skipping")
         return
-
-    # Ping immediately so servers are warm right after deploy
-    for url in urls:
-        threading.Thread(target=_ping, args=(url,), daemon=True).start()
 
     t = threading.Thread(target=_loop, args=(urls,), daemon=True, name="keep-alive")
     t.start()

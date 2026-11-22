@@ -104,13 +104,25 @@ BRAND_DELAY_SECONDS  = float(os.getenv("BRAND_DELAY_SECONDS", "1.0"))
 # warning) if paddleocr/paddlepaddle aren't installed, so a missing/failed
 # install never breaks the rest of the email-processing pipeline.
 OCR_ENABLED           = os.getenv("OCR_ENABLED", "true").lower() == "true"
-OCR_LANG              = os.getenv("OCR_LANG", "en")
+# Mobile det/rec models, MKL-DNN off and tiling (ai/ocr.py) keep OCR near
+# 1.2 GB peak on Render's 2 GB instance. The previous default (PP-OCRv6
+# medium + textline orientation, MKL-DNN on, full-size images) measured
+# ~2.8 GB on real email images and was what got the scraper OOM-killed.
+OCR_DET_MODEL         = os.getenv("OCR_DET_MODEL", "PP-OCRv5_mobile_det")
+OCR_REC_MODEL         = os.getenv("OCR_REC_MODEL", "en_PP-OCRv5_mobile_rec")
+OCR_CPU_THREADS       = int(os.getenv("OCR_CPU_THREADS", "1"))
+# Images wider than OCR_TILE_WIDTH are scaled down to it; taller than
+# OCR_TILE_HEIGHT are OCR'd in overlapping horizontal strips, so memory
+# depends on the tile size, not on how tall an email banner is.
+OCR_TILE_WIDTH        = int(os.getenv("OCR_TILE_WIDTH", "1080"))
+OCR_TILE_HEIGHT       = int(os.getenv("OCR_TILE_HEIGHT", "1280"))
 OCR_MIN_CONFIDENCE    = float(os.getenv("OCR_MIN_CONFIDENCE", "0.5"))
 # Images smaller than this (either dimension, in px) are treated as tracking
 # pixels / icons / logos and skipped without running OCR on them.
 OCR_MIN_IMAGE_SIZE    = int(os.getenv("OCR_MIN_IMAGE_SIZE", "40"))
 OCR_GIF_FRAME_STEP    = int(os.getenv("OCR_GIF_FRAME_STEP", "5"))
 OCR_MAX_GIF_FRAMES    = int(os.getenv("OCR_MAX_GIF_FRAMES", "8"))
+# Concurrent image downloads per email; inference itself runs one at a time.
 OCR_MAX_WORKERS       = int(os.getenv("OCR_MAX_WORKERS", "4"))
 OCR_DOWNLOAD_TIMEOUT  = int(os.getenv("OCR_DOWNLOAD_TIMEOUT", "10"))
 OCR_MAX_IMAGES_PER_EMAIL = int(os.getenv("OCR_MAX_IMAGES_PER_EMAIL", "5"))

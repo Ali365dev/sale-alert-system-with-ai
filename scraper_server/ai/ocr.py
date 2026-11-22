@@ -32,14 +32,18 @@ from config import (
     OCR_DOWNLOAD_TIMEOUT,
     OCR_ENABLED,
     OCR_GIF_FRAME_STEP,
+    OCR_CPU_THREADS,
+    OCR_DET_MODEL,
     OCR_INFERENCE_LOCK_TIMEOUT,
-    OCR_LANG,
     OCR_MAX_DOWNLOAD_BYTES,
     OCR_MAX_GIF_FRAMES,
     OCR_MAX_IMAGES_PER_EMAIL,
     OCR_MAX_WORKERS,
     OCR_MIN_CONFIDENCE,
     OCR_MIN_IMAGE_SIZE,
+    OCR_REC_MODEL,
+    OCR_TILE_HEIGHT,
+    OCR_TILE_WIDTH,
     logger,
 )
 
@@ -62,22 +66,16 @@ def is_tracking_pixel(url: str) -> bool:
 
 _engine = None
 _engine_load_failed = False
-# A single shared PaddleOCR instance is not guaranteed safe for concurrent
-# inference calls from multiple threads. email_sync.py processes several
-# emails at once (its own thread pool), each of which can spawn this
-# module's own per-image thread pool — so actual .predict() calls are
-# serialized here while downloads/decoding above stay concurrent.
-_engine_lock = threading.Lock()
-# Dedicated pool the actual lock+predict() call runs on, so the caller can
-# bound its *own* wait with future.result(timeout=...) — see
-# _run_ocr_on_array. A plain `acquire(timeout=...)` on _engine_lock only
-# bounds how long a caller waits for SOMEONE ELSE's stuck inference; it does
-# nothing if the caller's own predict() call is the one that hangs, which
-# left long-running jobs (and their cancel button) stuck waiting on
-# as_completed() for a future that would never resolve. Submitting the
-# lock+predict sequence here and waiting on it with a timeout bounds both
-# cases identically from the caller's side.
-_inference_executor = ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS, thread_name_prefix="ocr-infer")
+_engine_load_lock = threading.Lock()
+# One inference at a time, process-wide. A slot is taken *before* work is
+# handed to the executor and released when predict() returns, so when an
+# inference is stuck, later callers wait up to OCR_INFERENCE_LOCK_TIMEOUT for
+# the slot and then skip — they never queue their decoded image behind it.
+# (Previously every timed-out call still left its image array queued on the
+# executor; on Render's slow CPU those piled up until the process was killed.)
+_inference_slot = threading.BoundedSemaphore(1)
+_inference_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ocr-infer")
+_TILE_OVERLAP = 80
 
 
 def _get_engine():
@@ -85,41 +83,47 @@ def _get_engine():
     process. Returns None (logging once) if the package isn't installed or
     fails to initialize, so callers can degrade gracefully."""
     global _engine, _engine_load_failed
-    if _engine is not None:
+    if _engine is not None or _engine_load_failed:
         return _engine
-    if _engine_load_failed:
-        return None
-    try:
-        from paddleocr import PaddleOCR
-        # PaddleOCR 3.x API: use_angle_cls/show_log (2.x) were replaced by
-        # use_textline_orientation; doc orientation/unwarping are for scanned
-        # documents, not needed for email-embedded promo images.
-        _engine = PaddleOCR(
-            use_textline_orientation=True,
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            lang=OCR_LANG,
-        )
-        logger.info("PaddleOCR engine loaded (lang=%s)", OCR_LANG)
+    with _engine_load_lock:
+        if _engine is not None or _engine_load_failed:
+            return _engine
+        try:
+            from paddleocr import PaddleOCR
+
+            # Doc orientation/unwarping are for scanned documents, and email
+            # promo images are upright — skipping all three orientation
+            # models saves memory and a model pass per image.
+            _engine = PaddleOCR(
+                text_detection_model_name=OCR_DET_MODEL,
+                text_recognition_model_name=OCR_REC_MODEL,
+                use_textline_orientation=False,
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+                # MKL-DNN caches compiled kernels per input shape; email images
+                # come in every size, so the cache grew for the process lifetime.
+                enable_mkldnn=False,
+                cpu_threads=OCR_CPU_THREADS,
+                text_det_limit_type="max",
+                text_det_limit_side_len=OCR_TILE_HEIGHT,
+            )
+            logger.info("PaddleOCR engine loaded (det=%s, rec=%s)", OCR_DET_MODEL, OCR_REC_MODEL)
+        except Exception as exc:
+            _engine_load_failed = True
+            logger.warning(
+                "OCR disabled — PaddleOCR unavailable (%s). Install paddleocr + paddlepaddle "
+                "to enable image/GIF text extraction; email analysis will proceed on subject+body only.",
+                exc,
+            )
         return _engine
-    except Exception as exc:
-        _engine_load_failed = True
-        logger.warning(
-            "OCR disabled — PaddleOCR unavailable (%s). Install paddleocr + paddlepaddle "
-            "to enable image/GIF text extraction; email analysis will proceed on subject+body only.",
-            exc,
-        )
-        return None
 
 
 def _do_inference(engine, img_array) -> tuple[str, float]:
-    """Acquire the engine lock and run .predict(). Always called on
-    _inference_executor — see _run_ocr_on_array for why."""
-    with _engine_lock:
+    """Runs on _inference_executor while holding _inference_slot."""
+    try:
         lines: list[str] = []
         confidences: list[float] = []
-        # .predict() returns a lazy generator — the actual inference happens
-        # while iterating it, so the lock must stay held through the loop.
+        # .predict() returns a lazy generator — inference happens while iterating.
         for res in engine.predict(img_array):
             texts = res.get("rec_texts") or []
             scores = res.get("rec_scores") or []
@@ -127,35 +131,60 @@ def _do_inference(engine, img_array) -> tuple[str, float]:
                 if text and text.strip():
                     lines.append(text.strip())
                     confidences.append(float(confidence))
-    return "\n".join(lines), (sum(confidences) / len(confidences) if confidences else 0.0)
+        return "\n".join(lines), (sum(confidences) / len(confidences) if confidences else 0.0)
+    finally:
+        _inference_slot.release()
 
 
 def _run_ocr_on_array(img_array) -> tuple[str, float]:
-    """Run OCR on a numpy image array. Returns (joined_text, avg_confidence).
-
-    PaddleOCR 3.x's .predict() returns one dict-like OCRResult per input
-    image, with "rec_texts" (list[str]) and "rec_scores" (list[float])."""
+    """OCR one numpy (BGR) image. Returns (joined_text, avg_confidence);
+    ("", 0.0) when OCR is unavailable, busy past the timeout, or too slow."""
     engine = _get_engine()
     if engine is None:
         return "", 0.0
 
-    # Run lock-acquire + predict() on a dedicated executor and bound the
-    # WAIT, not the call itself (Python can't force-kill a running thread).
-    # This bounds the caller's stall regardless of whether the hang is on
-    # acquiring the lock (someone else's stuck image) or inside predict()
-    # itself (this image is the stuck one) — either way the orphaned task
-    # keeps running in the background, but nothing here blocks on it past
-    # OCR_INFERENCE_LOCK_TIMEOUT. See config.OCR_INFERENCE_LOCK_TIMEOUT.
+    if not _inference_slot.acquire(timeout=OCR_INFERENCE_LOCK_TIMEOUT):
+        logger.warning("OCR: engine busy for %ds — skipping this image", OCR_INFERENCE_LOCK_TIMEOUT)
+        return "", 0.0
+    # The slot now belongs to the submitted task, which releases it when
+    # predict() finishes — even after this caller has stopped waiting.
     future = _inference_executor.submit(_do_inference, engine, img_array)
     try:
         return future.result(timeout=OCR_INFERENCE_LOCK_TIMEOUT)
     except _FutureTimeoutError:
         logger.warning(
-            "OCR: inference did not finish within %ds — skipping OCR for this image "
-            "instead of blocking indefinitely (it may be a stuck/pathological image).",
+            "OCR: inference did not finish within %ds — skipping OCR for this image.",
             OCR_INFERENCE_LOCK_TIMEOUT,
         )
         return "", 0.0
+
+
+def _tiles(img):
+    """Scale to at most OCR_TILE_WIDTH wide, then cut into overlapping strips
+    at most OCR_TILE_HEIGHT tall (BGR numpy arrays, PaddleOCR's channel order)."""
+    import numpy as np
+
+    rgb = img.convert("RGB")
+    if rgb.width > OCR_TILE_WIDTH:
+        rgb = rgb.resize((OCR_TILE_WIDTH, max(1, round(rgb.height * OCR_TILE_WIDTH / rgb.width))))
+    top = 0
+    while True:
+        strip = rgb.crop((0, top, rgb.width, min(rgb.height, top + OCR_TILE_HEIGHT)))
+        yield np.array(strip)[:, :, ::-1]
+        if top + OCR_TILE_HEIGHT >= rgb.height:
+            return
+        top += OCR_TILE_HEIGHT - _TILE_OVERLAP
+
+
+def _ocr_image(img) -> tuple[str, float]:
+    texts: list[str] = []
+    confidences: list[float] = []
+    for tile in _tiles(img):
+        text, confidence = _run_ocr_on_array(tile)
+        if text:
+            texts.append(text)
+            confidences.append(confidence)
+    return _dedupe_lines(texts), (sum(confidences) / len(confidences) if confidences else 0.0)
 
 
 def _download_image(url: str) -> Optional[bytes]:
@@ -199,20 +228,15 @@ def _dedupe_lines(text_blocks: list[str]) -> str:
 
 def _process_static_image(data: bytes) -> tuple[str, float]:
     from PIL import Image
-    import numpy as np
 
     with Image.open(BytesIO(data)) as img:
         if img.width < OCR_MIN_IMAGE_SIZE or img.height < OCR_MIN_IMAGE_SIZE:
             return "", 0.0  # icon / logo / tracking pixel
-        rgb = img.convert("RGB")
-        array = np.array(rgb)[:, :, ::-1]  # RGB -> BGR, PaddleOCR's expected channel order
-
-    return _run_ocr_on_array(array)
+        return _ocr_image(img)
 
 
 def _process_gif(data: bytes) -> tuple[str, float]:
     from PIL import Image, ImageSequence
-    import numpy as np
 
     texts: list[str] = []
     confidences: list[float] = []
@@ -234,8 +258,7 @@ def _process_gif(data: bytes) -> tuple[str, float]:
                 break
             if i % step != 0:
                 continue
-            array = np.array(frame.convert("RGB"))[:, :, ::-1]
-            text, confidence = _run_ocr_on_array(array)
+            text, confidence = _ocr_image(frame)
             frames_done += 1
             if text:
                 texts.append(text)
