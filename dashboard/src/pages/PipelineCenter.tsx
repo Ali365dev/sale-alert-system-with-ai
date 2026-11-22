@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   isJobActive,
   useActiveJob,
+  useActiveJobsList,
   useBulkJobAction,
   useDeleteJob,
   useJobHistory,
@@ -15,7 +16,7 @@ import { getJobStatusStyle } from "../config/jobStatus";
 import { getJobTypeConfig, JOB_TYPES } from "../config/jobTypes";
 import { Icon } from "../components/icons";
 import { JobDetailModal } from "../components/jobs/JobDetailModal";
-import { ProcessingPanel } from "../components/jobs/ProcessingPanel";
+import { ActiveJobsList } from "../components/jobs/ActiveJobsList";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
@@ -120,19 +121,6 @@ function ActionCard({ jobType }: { jobType: string }) {
       </Button>
     </Card>
   );
-}
-
-function ActiveJobPanel({ jobType }: { jobType: string }) {
-  const active = useActiveJob(jobType);
-  const [visibleId, setVisibleId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (active.data) setVisibleId(active.data.id);
-    else setVisibleId(null);
-  }, [active.data?.id]);
-
-  if (!visibleId) return null;
-  return <ProcessingPanel jobId={visibleId} />;
 }
 
 function HistoryTable() {
@@ -363,6 +351,7 @@ export function PipelineCenter() {
   const [tab, setTab] = useState("active");
   const summary = useJobsSummary();
   const s = summary.data;
+  const activeCount = useActiveJobsList().data?.total ?? 0;
 
   return (
     <>
@@ -392,20 +381,14 @@ export function PipelineCenter() {
 
       <Tabs
         tabs={[
-          { id: "active", label: "Active Jobs" },
+          { id: "active", label: activeCount ? `Active Jobs (${activeCount})` : "Active Jobs" },
           { id: "history", label: "History" },
         ]}
         active={tab}
         onChange={setTab}
       />
 
-      {tab === "active" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {JOB_TYPES.map((t) => (
-            <ActiveJobPanel key={t.jobType} jobType={t.jobType} />
-          ))}
-        </div>
-      )}
+      {tab === "active" && <ActiveJobsList />}
 
       {tab === "history" && <HistoryTable />}
     </>

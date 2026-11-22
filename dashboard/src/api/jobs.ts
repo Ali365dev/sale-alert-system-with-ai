@@ -62,7 +62,6 @@ export interface JobsSummary {
   per_type: { job_type: string; last_status: JobStatus | null; last_finished_at: string | null; avg_runtime_seconds: number | null }[];
 }
 
-const EMAIL_SYNC_TYPE = "email_sync";
 /** While idle: slow check for jobs started elsewhere (other tab / scheduler).
  * Was 5s and inverted (polled only when idle) — that hammered /jobs/active
  * once per job type continuously. */
@@ -172,6 +171,7 @@ export function useStartJob(jobType: string) {
       queryClient.setQueryData(["jobs", "active", jobType], { id: data.jobId, status: data.status });
       // Refresh the batch poll so progress/toasts pick up the new job quickly.
       queryClient.invalidateQueries({ queryKey: ["jobs", "active-all"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs", "active-list"] });
       queryClient.invalidateQueries({ queryKey: ["jobs", "summary"] });
       toast.info("Job started.");
     },
@@ -184,19 +184,34 @@ export function useStartJob(jobType: string) {
   });
 }
 
-/** Thin back-compat wrapper — most existing call sites started as
- * useStartEmailSync(); kept so those don't all need renaming at once. */
-export function useStartEmailSync() {
-  return useStartJob(EMAIL_SYNC_TYPE);
-}
-
 export function useCancelJob(jobId: number | null) {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
       const { data } = await apiClient.post<{ status: string }>(`/jobs/${jobId}/cancel`);
       return data;
     },
-    onSuccess: () => toast.info("Cancelling…"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["jobs", jobId] });
+      queryClient.invalidateQueries({ queryKey: ["jobs", "active-list"] });
+      toast.info("Cancelling…");
+    },
+  });
+}
+
+/** Every unfinished job (queued, running, cancelling) of any type — the
+ * per-type active cache holds only the newest job per type. */
+export function useActiveJobsList() {
+  return useQuery({
+    queryKey: ["jobs", "active-list"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ jobs: Job[]; total: number }>("/jobs", {
+        params: { status: "active", sort: "id", sort_dir: "asc", limit: 50 },
+      });
+      return data;
+    },
+    refetchInterval: (query) => ((query.state.data?.total ?? 0) > 0 ? ACTIVE_ALL_RUNNING_POLL_MS : IDLE_POLL_MS / 4),
+    refetchOnWindowFocus: true,
   });
 }
 

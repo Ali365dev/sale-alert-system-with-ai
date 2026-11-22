@@ -361,7 +361,9 @@ def list_jobs(
         q = session.query(Job)
         if job_type:
             q = q.filter(Job.job_type == job_type)
-        if status:
+        if status == "active":
+            q = q.filter(Job.status.in_(["pending", "running", "cancelling"]))
+        elif status:
             q = q.filter(Job.status == status)
         if search:
             like = f"%{search}%"
