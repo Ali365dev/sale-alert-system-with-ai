@@ -118,9 +118,11 @@ export function useGmailLabels(enabled: boolean) {
 
 // ── API keys ─────────────────────────────────────────────────────────────────
 
+export type KeyProvider = "gemini" | "groq" | "tavily" | "ocr_space";
+
 export interface ApiKey {
   id: number;
-  provider: "gemini" | "groq" | "tavily";
+  provider: KeyProvider;
   name: string;
   key_preview: string;
   priority: number;
@@ -238,6 +240,8 @@ export interface ProvidersConfig {
   gemini_keys: ApiKey[];
   groq_keys: ApiKey[];
   tavily_keys: ApiKey[];
+  /** Image/GIF OCR for emails (scraper_server ai/ocr.py) — not an LLM. */
+  ocr_space_keys: ApiKey[];
   /** LLM failover order — Gemini/Groq/Ollama only (Tavily is a separate
    * search API, not part of this chain). First entry is tried first. */
   provider_order: ProviderName[];

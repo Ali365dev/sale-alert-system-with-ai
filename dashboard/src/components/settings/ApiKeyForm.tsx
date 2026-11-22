@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-import { useCreateApiKey } from "../../api/settings";
+import { useCreateApiKey, type KeyProvider } from "../../api/settings";
 import { Button } from "../ui/Button";
 import { FieldGroup, Label, TextInput } from "../ui/Field";
 import { Modal } from "../ui/Modal";
 import { MaskedKeyInput } from "./MaskedKeyInput";
 
-export function ApiKeyForm({ provider, onClose }: { provider: "gemini" | "groq" | "tavily"; onClose: () => void }) {
+export function ApiKeyForm({ provider, onClose }: { provider: KeyProvider; onClose: () => void }) {
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const create = useCreateApiKey();

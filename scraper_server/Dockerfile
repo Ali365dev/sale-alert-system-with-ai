@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
-# System deps for PaddleOCR, Playwright, and Camoufox
+# System deps for Playwright and Camoufox
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl libpq5 libgl1 libglib2.0-0 libgomp1 \
     libsm6 libxext6 libxrender1 libx11-6 libxcb1 \
@@ -40,11 +40,6 @@ RUN mkdir -p logs
 # Non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
-
-# Bake the OCR models (the ones ai/ocr.py loads by default) into the image so
-# a restart doesn't re-download them on the first email.
-RUN python -c "from paddleocr import PaddleOCR; PaddleOCR(text_detection_model_name='PP-OCRv5_mobile_det', text_recognition_model_name='en_PP-OCRv5_mobile_rec', use_textline_orientation=False, use_doc_orientation_classify=False, use_doc_unwarping=False)" \
-    || echo "OCR model pre-download failed — they will download on first use"
 
 # Render's instance has 1 CPU: one math-library thread avoids oversubscription,
 # and capping glibc malloc arenas stops a multi-threaded Python process from

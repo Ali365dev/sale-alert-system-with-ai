@@ -65,7 +65,7 @@ def _job_log(job_id: Optional[int], message: str, *, severity: str = "info") -> 
 
 def _enrich_homepage_with_hero_ocr(job_id: Optional[int], page, html: str, page_url: str) -> None:
     """OCR homepage hero/banner images; merge text into page for sale scoring.
-    Uses the same local PaddleOCR stack as email (ai/ocr.py). Never raises."""
+    Uses the same OCR.space OCR as email (ai/ocr.py). Never raises."""
     try:
         hero_urls = extract_hero_banner_images(
             html, page_url, limit=WEBSITE_SCRAPE_HERO_OCR_MAX_IMAGES,

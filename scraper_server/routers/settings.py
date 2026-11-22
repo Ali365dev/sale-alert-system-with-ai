@@ -151,7 +151,7 @@ def create_api_key(body: dict = Body(default={})):
     provider, name, raw_key = body.get("provider"), body.get("name"), body.get("key")
     if not provider or not name or not raw_key:
         return JSONResponse({"error": "provider, name, and key are required"}, status_code=400)
-    if provider not in ("gemini", "groq", "tavily"):
+    if provider not in ("gemini", "groq", "tavily", "ocr_space"):
         return JSONResponse({"error": f"unknown provider {provider!r}"}, status_code=400)
 
     existing = settings_service.list_api_keys(provider)
@@ -212,6 +212,9 @@ def _test_provider_key(provider: str, raw_key: str, model: str | None) -> tuple[
                 timeout=15,
             )
             resp.raise_for_status()
+        elif provider == "ocr_space":
+            from ai.ocr import probe_ocr_key
+            probe_ocr_key(raw_key)
         else:
             return False, f"unknown provider {provider!r}", 0.0
         return True, None, round(time.monotonic() - start, 2)
@@ -264,6 +267,7 @@ def get_providers():
         "gemini_keys": gemini_keys,
         "groq_keys": groq_keys,
         "tavily_keys": settings_service.list_api_keys("tavily"),
+        "ocr_space_keys": settings_service.list_api_keys("ocr_space"),
         "provider_order": normalize_provider_order(settings_service.get_setting("provider_order")),
         "provider_enabled": normalize_provider_enabled(settings_service.get_setting("provider_enabled")),
         "provider_names": PROVIDER_NAMES,

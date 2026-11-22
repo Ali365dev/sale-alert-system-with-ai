@@ -5,23 +5,21 @@ Pipeline per email:
   1. Download every image URL (deduped by content hash of the URL, cached
      across runs in cache/ocr_results.json via ai/ocr_cache.py).
   2. Skip tiny images (tracking pixels, icons, logos).
-  3. Static images -> OCR directly. Animated GIFs -> sample frames, OCR each,
-     merge unique text across frames.
-  4. Run per-image OCR concurrently (I/O + CPU bound, but independent).
+  3. Static images -> one OCR.space (free plan) call. Animated GIFs ->
+     sample frames, stack them into one image, one call.
+  4. Run per-image OCR concurrently (network bound, independent).
   5. Merge subject + email body + image OCR + GIF OCR into one document —
      this merged document (not the raw body) is what gets sent to the
      offer-extraction AI. The original `body` column is never touched.
 
-PaddleOCR runs entirely locally (no paid OCR API). If paddleocr/paddlepaddle
-aren't installed, or OCR_ENABLED=false, this module degrades to a no-op:
-logs one clear warning and returns empty OCR text — the rest of the email
-pipeline (AI analysis on subject+body alone) keeps working either way.
+With no "ocr_space" API key configured, or OCR_ENABLED=false, this module
+is a no-op: it logs one warning and returns empty OCR text — the rest of the
+email pipeline (AI analysis on subject+body alone) keeps working either way.
 """
+import base64
 import re
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from concurrent.futures import TimeoutError as _FutureTimeoutError
 from io import BytesIO
 from typing import Optional
 
@@ -29,25 +27,26 @@ import requests
 
 from ai import ocr_cache
 from config import (
+    OCR_API_TIMEOUT,
     OCR_DOWNLOAD_TIMEOUT,
     OCR_ENABLED,
     OCR_GIF_FRAME_STEP,
-    OCR_CPU_THREADS,
-    OCR_DET_MODEL,
-    OCR_INFERENCE_LOCK_TIMEOUT,
     OCR_MAX_DOWNLOAD_BYTES,
     OCR_MAX_GIF_FRAMES,
+    OCR_MAX_IMAGE_WIDTH,
     OCR_MAX_IMAGES_PER_EMAIL,
     OCR_MAX_WORKERS,
     OCR_MIN_CONFIDENCE,
     OCR_MIN_IMAGE_SIZE,
-    OCR_REC_MODEL,
-    OCR_TILE_HEIGHT,
-    OCR_TILE_WIDTH,
     logger,
 )
 
 _SEP = "-" * 32
+_OCR_SPACE_URL = "https://api.ocr.space/parse/image"
+_OCR_SPACE_PROVIDER = "ocr_space"
+# The free plan rejects files over 1 MB.
+_MAX_UPLOAD_BYTES = 1024 * 1024
+_missing_key_logged = False
 
 # Email open-tracking pixels (ESP beacons, 1x1/spacer GIFs). They carry no
 # text, cost a download (some hosts don't even resolve), and — because the
@@ -64,133 +63,82 @@ _TRACKING_PIXEL_RE = re.compile(
 def is_tracking_pixel(url: str) -> bool:
     return bool(_TRACKING_PIXEL_RE.search(url))
 
-_engine = None
-_engine_load_failed = False
-_engine_load_lock = threading.Lock()
-# One inference at a time, process-wide. A slot is taken *before* work is
-# handed to the executor and released when predict() returns, so when an
-# inference is stuck, later callers wait up to OCR_INFERENCE_LOCK_TIMEOUT for
-# the slot and then skip — they never queue their decoded image behind it.
-# (Previously every timed-out call still left its image array queued on the
-# executor; on Render's slow CPU those piled up until the process was killed.)
-_inference_slot = threading.BoundedSemaphore(1)
-_inference_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ocr-infer")
-# One email's image batch at a time, process-wide. email_sync runs 5 emails in
-# parallel and each batch downloads and decodes its images up front, so without
-# this up to 20 decoded images sat in memory next to the ~1 GB model — enough
-# to push Render's 2 GB instance over its limit. Gmail fetch and the LLM call
-# still run in parallel; only the image step queues.
-_email_batch_slot = threading.Semaphore(1)
-_TILE_OVERLAP = 80
+
+class OcrUnavailable(Exception):
+    """OCR.space couldn't be asked (bad key, rate limit, network). Unlike "no text in
+    this image", the result must not be cached — the image is retried later."""
 
 
-def _get_engine():
-    """Lazy singleton — PaddleOCR model loading is expensive, do it once per
-    process. Returns None (logging once) if the package isn't installed or
-    fails to initialize, so callers can degrade gracefully."""
-    global _engine, _engine_load_failed
-    if _engine is not None or _engine_load_failed:
-        return _engine
-    with _engine_load_lock:
-        if _engine is not None or _engine_load_failed:
-            return _engine
-        try:
-            from paddleocr import PaddleOCR
+def _api_key() -> Optional[str]:
+    global _missing_key_logged
+    from services.settings_service import get_active_api_key
 
-            # Doc orientation/unwarping are for scanned documents, and email
-            # promo images are upright — skipping all three orientation
-            # models saves memory and a model pass per image.
-            _engine = PaddleOCR(
-                text_detection_model_name=OCR_DET_MODEL,
-                text_recognition_model_name=OCR_REC_MODEL,
-                use_textline_orientation=False,
-                use_doc_orientation_classify=False,
-                use_doc_unwarping=False,
-                # MKL-DNN caches compiled kernels per input shape; email images
-                # come in every size, so the cache grew for the process lifetime.
-                enable_mkldnn=False,
-                cpu_threads=OCR_CPU_THREADS,
-                text_det_limit_type="max",
-                text_det_limit_side_len=OCR_TILE_HEIGHT,
-            )
-            logger.info("PaddleOCR engine loaded (det=%s, rec=%s)", OCR_DET_MODEL, OCR_REC_MODEL)
-        except Exception as exc:
-            _engine_load_failed = True
-            logger.warning(
-                "OCR disabled — PaddleOCR unavailable (%s). Install paddleocr + paddlepaddle "
-                "to enable image/GIF text extraction; email analysis will proceed on subject+body only.",
-                exc,
-            )
-        return _engine
-
-
-def _do_inference(engine, img_array) -> tuple[str, float]:
-    """Runs on _inference_executor while holding _inference_slot."""
-    try:
-        lines: list[str] = []
-        confidences: list[float] = []
-        # .predict() returns a lazy generator — inference happens while iterating.
-        for res in engine.predict(img_array):
-            texts = res.get("rec_texts") or []
-            scores = res.get("rec_scores") or []
-            for text, confidence in zip(texts, scores):
-                if text and text.strip():
-                    lines.append(text.strip())
-                    confidences.append(float(confidence))
-        return "\n".join(lines), (sum(confidences) / len(confidences) if confidences else 0.0)
-    finally:
-        _inference_slot.release()
-
-
-def _run_ocr_on_array(img_array) -> tuple[str, float]:
-    """OCR one numpy (BGR) image. Returns (joined_text, avg_confidence);
-    ("", 0.0) when OCR is unavailable, busy past the timeout, or too slow."""
-    engine = _get_engine()
-    if engine is None:
-        return "", 0.0
-
-    if not _inference_slot.acquire(timeout=OCR_INFERENCE_LOCK_TIMEOUT):
-        logger.warning("OCR: engine busy for %ds — skipping this image", OCR_INFERENCE_LOCK_TIMEOUT)
-        return "", 0.0
-    # The slot now belongs to the submitted task, which releases it when
-    # predict() finishes — even after this caller has stopped waiting.
-    future = _inference_executor.submit(_do_inference, engine, img_array)
-    try:
-        return future.result(timeout=OCR_INFERENCE_LOCK_TIMEOUT)
-    except _FutureTimeoutError:
+    key = get_active_api_key(_OCR_SPACE_PROVIDER)
+    if key is None and not _missing_key_logged:
+        _missing_key_logged = True
         logger.warning(
-            "OCR: inference did not finish within %ds — skipping OCR for this image.",
-            OCR_INFERENCE_LOCK_TIMEOUT,
+            "OCR disabled — add an OCR.space key (Settings → API Config → OCR.space). "
+            "Emails are analysed on subject+body only until then."
         )
-        return "", 0.0
+    return key
 
 
-def _tiles(img):
-    """Scale to at most OCR_TILE_WIDTH wide, then cut into overlapping strips
-    at most OCR_TILE_HEIGHT tall (BGR numpy arrays, PaddleOCR's channel order)."""
-    import numpy as np
+def _annotate(jpeg_bytes: bytes, api_key: str) -> tuple[str, float]:
+    """One OCR.space call (Engine 2 reads banner-style text best). Returns
+    (text, confidence) — ("", 0.0) when the image has no text; raises
+    OcrUnavailable when OCR.space can't answer. The free plan reports no
+    confidence, so text it returns counts as 1.0."""
+    try:
+        resp = requests.post(
+            _OCR_SPACE_URL,
+            headers={"apikey": api_key},
+            data={
+                "base64Image": "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode("ascii"),
+                "language": "eng",
+                "OCREngine": "2",
+                "scale": "true",
+            },
+            timeout=OCR_API_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise OcrUnavailable(f"OCR.space request failed: {exc}") from exc
+    try:
+        body = resp.json()
+    except ValueError:
+        raise OcrUnavailable(f"OCR.space HTTP {resp.status_code}: {resp.text[:300]}")
+    if resp.status_code != 200 or not isinstance(body, dict):
+        raise OcrUnavailable(f"OCR.space HTTP {resp.status_code}: {str(body)[:300]}")
+    if body.get("IsErroredOnProcessing"):
+        raise OcrUnavailable(f"OCR.space error: {body.get('ErrorMessage')}")
 
+    parsed = "\n".join(r.get("ParsedText") or "" for r in body.get("ParsedResults") or [])
+    text = "\n".join(line.strip() for line in parsed.splitlines() if line.strip())
+    return (text, 1.0) if text else ("", 0.0)
+
+
+def probe_ocr_key(api_key: str) -> None:
+    """Raises OcrUnavailable when OCR.space rejects the key (Settings → Test)."""
+    from PIL import Image
+
+    _annotate(_jpeg(Image.new("RGB", (64, 64), "white")), api_key)
+
+
+def _fit_width(img):
     rgb = img.convert("RGB")
-    if rgb.width > OCR_TILE_WIDTH:
-        rgb = rgb.resize((OCR_TILE_WIDTH, max(1, round(rgb.height * OCR_TILE_WIDTH / rgb.width))))
-    top = 0
+    if rgb.width > OCR_MAX_IMAGE_WIDTH:
+        rgb = rgb.resize((OCR_MAX_IMAGE_WIDTH, max(1, round(rgb.height * OCR_MAX_IMAGE_WIDTH / rgb.width))))
+    return rgb
+
+
+def _jpeg(img) -> bytes:
+    """JPEG under the free plan's 1 MB cap — lower quality first, then smaller."""
     while True:
-        strip = rgb.crop((0, top, rgb.width, min(rgb.height, top + OCR_TILE_HEIGHT)))
-        yield np.array(strip)[:, :, ::-1]
-        if top + OCR_TILE_HEIGHT >= rgb.height:
-            return
-        top += OCR_TILE_HEIGHT - _TILE_OVERLAP
-
-
-def _ocr_image(img) -> tuple[str, float]:
-    texts: list[str] = []
-    confidences: list[float] = []
-    for tile in _tiles(img):
-        text, confidence = _run_ocr_on_array(tile)
-        if text:
-            texts.append(text)
-            confidences.append(confidence)
-    return _dedupe_lines(texts), (sum(confidences) / len(confidences) if confidences else 0.0)
+        for quality in (85, 70, 55):
+            buf = BytesIO()
+            img.save(buf, format="JPEG", quality=quality)
+            if buf.tell() <= _MAX_UPLOAD_BYTES:
+                return buf.getvalue()
+        img = img.resize((max(1, img.width * 3 // 4), max(1, img.height * 3 // 4)))
 
 
 def _download_image(url: str) -> Optional[bytes]:
@@ -232,50 +180,52 @@ def _dedupe_lines(text_blocks: list[str]) -> str:
     return "\n".join(out)
 
 
-def _process_static_image(data: bytes) -> tuple[str, float]:
+def _process_static_image(data: bytes, api_key: str) -> tuple[str, float]:
     from PIL import Image
 
     with Image.open(BytesIO(data)) as img:
         if img.width < OCR_MIN_IMAGE_SIZE or img.height < OCR_MIN_IMAGE_SIZE:
             return "", 0.0  # icon / logo / tracking pixel
-        return _ocr_image(img)
+        upload = _jpeg(_fit_width(img))
+    return _annotate(upload, api_key)
 
 
-def _process_gif(data: bytes) -> tuple[str, float]:
+def _process_gif(data: bytes, api_key: str) -> tuple[str, float]:
+    """Sample frames, drop repeats, and stack the rest vertically so the whole
+    GIF is one OCR.space call (free-plan quota) instead of one per frame."""
     from PIL import Image, ImageSequence
 
-    texts: list[str] = []
-    confidences: list[float] = []
-
+    frames = []
+    seen: set[bytes] = set()
     with Image.open(BytesIO(data)) as img:
         if img.width < OCR_MIN_IMAGE_SIZE or img.height < OCR_MIN_IMAGE_SIZE:
             return "", 0.0
 
         # Adapt the sample step to the GIF's actual frame count: a fixed step
-        # of e.g. 5 would silently skip every frame of a short (<5-frame)
-        # GIF. Never sample coarser than OCR_GIF_FRAME_STEP, but sample
-        # finer when needed so short GIFs still get covered.
+        # of e.g. 5 would silently skip every frame of a short (<5-frame) GIF.
         n_frames = getattr(img, "n_frames", 1)
         step = max(1, min(OCR_GIF_FRAME_STEP, n_frames // OCR_MAX_GIF_FRAMES or 1))
-
-        frames_done = 0
         for i, frame in enumerate(ImageSequence.Iterator(img)):
-            if frames_done >= OCR_MAX_GIF_FRAMES:
+            if len(frames) >= OCR_MAX_GIF_FRAMES:
                 break
             if i % step != 0:
                 continue
-            text, confidence = _ocr_image(frame)
-            frames_done += 1
-            if text:
-                texts.append(text)
-                confidences.append(confidence)
+            rgb = _fit_width(frame)
+            fingerprint = rgb.resize((16, 16)).tobytes()
+            if fingerprint in seen:
+                continue
+            seen.add(fingerprint)
+            frames.append(rgb)
 
-    merged_text = _dedupe_lines(texts)
-    avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-    return merged_text, avg_confidence
+    sheet = Image.new("RGB", (max(f.width for f in frames), sum(f.height for f in frames)), "white")
+    top = 0
+    for frame in frames:
+        sheet.paste(frame, (0, top))
+        top += frame.height
+    return _annotate(_jpeg(sheet), api_key)
 
 
-def process_image_url(url: str, cache: dict) -> Optional[dict]:
+def process_image_url(url: str, cache: dict, api_key: Optional[str] = None) -> Optional[dict]:
     """Full pipeline for one image URL: cache check -> download -> OCR ->
     cache write. Returns {url, text, confidence, is_gif} or None if there's
     nothing usable (skipped/tiny/failed/low-confidence) — never raises, so
@@ -285,6 +235,9 @@ def process_image_url(url: str, cache: dict) -> Optional[dict]:
         if cached.get("skipped") or not cached.get("text"):
             return None
         return {"url": url, "text": cached["text"], "confidence": cached["confidence"], "is_gif": cached["is_gif"]}
+    api_key = api_key or _api_key()
+    if not OCR_ENABLED or api_key is None:
+        return None
 
     t_start = time.monotonic()
     try:
@@ -294,7 +247,7 @@ def process_image_url(url: str, cache: dict) -> Optional[dict]:
             return None
 
         is_gif = _is_gif(data)
-        text, confidence = (_process_gif(data) if is_gif else _process_static_image(data))
+        text, confidence = (_process_gif(data, api_key) if is_gif else _process_static_image(data, api_key))
         elapsed = time.monotonic() - t_start
 
         if not text or confidence < OCR_MIN_CONFIDENCE:
@@ -316,7 +269,8 @@ def run_ocr_for_urls(image_urls: list[str]) -> dict:
     `items` keeps URL↔text so the pipeline can pick one sale image."""
     if not OCR_ENABLED or not image_urls:
         return {"image_texts": [], "gif_texts": [], "items": []}
-    if _get_engine() is None:
+    api_key = _api_key()
+    if api_key is None:
         return {"image_texts": [], "gif_texts": [], "items": []}
 
     # Dedupe by URL, drop tracking pixels, then cap how many images one email
@@ -328,20 +282,17 @@ def run_ocr_for_urls(image_urls: list[str]) -> dict:
     max_images = get_setting("ocr_max_images_per_email", default=OCR_MAX_IMAGES_PER_EMAIL)
     deduped = [u for u in dict.fromkeys(image_urls) if not is_tracking_pixel(u)][:max_images]
 
-    with _email_batch_slot:
-        cache = ocr_cache.load()
-
-        t_start = time.monotonic()
-        with ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS) as pool:
-            futures = {pool.submit(process_image_url, url, cache): url for url in deduped}
-            by_url: dict[str, dict] = {}
-            for future in as_completed(futures):
-                result = future.result()  # process_image_url never raises
-                if result is None:
-                    continue
-                by_url[result["url"]] = result
-
-        ocr_cache.save(cache)
+    cache = ocr_cache.load()
+    t_start = time.monotonic()
+    with ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS) as pool:
+        futures = {pool.submit(process_image_url, url, cache, api_key): url for url in deduped}
+        by_url: dict[str, dict] = {}
+        for future in as_completed(futures):
+            result = future.result()  # process_image_url never raises
+            if result is None:
+                continue
+            by_url[result["url"]] = result
+    ocr_cache.save(cache)
 
     items = [by_url[url] for url in deduped if url in by_url]
     image_texts = [item["text"] for item in items if not item["is_gif"]]

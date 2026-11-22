@@ -99,43 +99,28 @@ BRAND_RETRY_COUNT    = int(os.getenv("BRAND_RETRY_COUNT", "2"))
 BRAND_DELAY_SECONDS  = float(os.getenv("BRAND_DELAY_SECONDS", "1.0"))
 
 # ── OCR (image/GIF text extraction — ai/ocr.py) ───────────────────────────────
-# Runs locally via PaddleOCR — no paid OCR API. Disable entirely with
-# OCR_ENABLED=false; ai/ocr.py also degrades to a no-op (with a logged
-# warning) if paddleocr/paddlepaddle aren't installed, so a missing/failed
-# install never breaks the rest of the email-processing pipeline.
+# OCR.space free plan (Engine 2). The key is the "ocr_space" entry in
+# Settings → API keys; with no key (or OCR_ENABLED=false) OCR is a no-op and
+# emails are analysed on subject+body alone. Local PaddleOCR used to run here,
+# but its ~1 GB model kept OOM-killing Render's 2 GB instance.
 OCR_ENABLED           = os.getenv("OCR_ENABLED", "true").lower() == "true"
-# Mobile det/rec models, MKL-DNN off and tiling (ai/ocr.py) keep OCR near
-# 1.2 GB peak on Render's 2 GB instance. The previous default (PP-OCRv6
-# medium + textline orientation, MKL-DNN on, full-size images) measured
-# ~2.8 GB on real email images and was what got the scraper OOM-killed.
-OCR_DET_MODEL         = os.getenv("OCR_DET_MODEL", "PP-OCRv5_mobile_det")
-OCR_REC_MODEL         = os.getenv("OCR_REC_MODEL", "en_PP-OCRv5_mobile_rec")
-OCR_CPU_THREADS       = int(os.getenv("OCR_CPU_THREADS", "1"))
-# Images wider than OCR_TILE_WIDTH are scaled down to it; taller than
-# OCR_TILE_HEIGHT are OCR'd in overlapping horizontal strips, so memory
-# depends on the tile size, not on how tall an email banner is.
-OCR_TILE_WIDTH        = int(os.getenv("OCR_TILE_WIDTH", "1080"))
-OCR_TILE_HEIGHT       = int(os.getenv("OCR_TILE_HEIGHT", "1280"))
+# The free endpoint is shared and sometimes slow.
+OCR_API_TIMEOUT       = int(os.getenv("OCR_API_TIMEOUT", "45"))
+# Wider images (and every sampled GIF frame) are scaled down to this before
+# upload — banner text stays readable and uploads stay under the 1 MB cap.
+OCR_MAX_IMAGE_WIDTH   = int(os.getenv("OCR_MAX_IMAGE_WIDTH", "1600"))
 OCR_MIN_CONFIDENCE    = float(os.getenv("OCR_MIN_CONFIDENCE", "0.5"))
 # Images smaller than this (either dimension, in px) are treated as tracking
 # pixels / icons / logos and skipped without running OCR on them.
 OCR_MIN_IMAGE_SIZE    = int(os.getenv("OCR_MIN_IMAGE_SIZE", "40"))
 OCR_GIF_FRAME_STEP    = int(os.getenv("OCR_GIF_FRAME_STEP", "5"))
-OCR_MAX_GIF_FRAMES    = int(os.getenv("OCR_MAX_GIF_FRAMES", "8"))
-# Concurrent image downloads within one email (one email's images are OCR'd
-# at a time, and inference itself runs one image at a time).
+# Sampled GIF frames are stacked into one image, so a GIF costs one OCR request.
+OCR_MAX_GIF_FRAMES    = int(os.getenv("OCR_MAX_GIF_FRAMES", "6"))
+# Kept low: the free plan rate-limits requests per hour.
 OCR_MAX_WORKERS       = int(os.getenv("OCR_MAX_WORKERS", "2"))
 OCR_DOWNLOAD_TIMEOUT  = int(os.getenv("OCR_DOWNLOAD_TIMEOUT", "10"))
 OCR_MAX_IMAGES_PER_EMAIL = int(os.getenv("OCR_MAX_IMAGES_PER_EMAIL", "5"))
 OCR_MAX_DOWNLOAD_BYTES  = int(os.getenv("OCR_MAX_DOWNLOAD_BYTES", str(15 * 1024 * 1024)))
-# The PaddleOCR engine instance is shared and single-threaded-safe only, so
-# every inference call serializes on one process-wide lock (ai/ocr.py). If a
-# single pathological image (huge dimensions, corrupt data) makes the engine
-# hang or run pathologically slowly, this bounds how long every OTHER caller
-# will wait for that lock before giving up on OCR for their image and moving
-# on, rather than blocking indefinitely — which previously froze OCR
-# process-wide for as long as the stuck call ran (observed: hours).
-OCR_INFERENCE_LOCK_TIMEOUT = int(os.getenv("OCR_INFERENCE_LOCK_TIMEOUT", "30"))
 
 # ── Offer retention ──────────────────────────────────────────────────────────
 # How long an offer stays in the database after it expires / after it was

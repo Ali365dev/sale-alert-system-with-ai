@@ -565,7 +565,7 @@ class ApiKey(Base):
     __tablename__ = "api_keys"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    provider = Column(String(20), nullable=False, index=True)  # "gemini" | "groq" | "tavily"
+    provider = Column(String(20), nullable=False, index=True)  # "gemini" | "groq" | "tavily" | "ocr_space"
     name = Column(String(100), nullable=False)
     encrypted_key = Column(Text, nullable=False)
     key_preview = Column(String(50), nullable=False)  # e.g. "AIza************XYZ" — display only, never decrypted

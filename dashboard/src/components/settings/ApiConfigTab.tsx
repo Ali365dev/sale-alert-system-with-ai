@@ -8,6 +8,7 @@ import {
   useUpdateApiKey,
   useUpdateProviders,
   type ApiKey,
+  type KeyProvider,
   type ProviderHealth,
   type ProviderName,
 } from "../../api/settings";
@@ -175,7 +176,7 @@ function ProviderSection({
   title,
   modelKey,
 }: {
-  provider: "gemini" | "groq" | "tavily";
+  provider: KeyProvider;
   title: string;
   modelKey?: "gemini_model" | "groq_model";
 }) {
@@ -184,7 +185,7 @@ function ProviderSection({
   // exact same gemini_keys/groq_keys/tavily_keys, so a dedicated fetch here
   // was pure duplicate round-trips to the (remote) database.
   const { data: providers, isLoading } = useProviders();
-  const keys = provider === "gemini" ? providers?.gemini_keys : provider === "groq" ? providers?.groq_keys : providers?.tavily_keys;
+  const keys = providers?.[`${provider}_keys`];
   const updateProviders = useUpdateProviders();
   const reorder = useReorderApiKeys();
   const [addingKey, setAddingKey] = useState(false);
@@ -466,6 +467,7 @@ export function ApiConfigTab() {
       <ProviderSection provider="gemini" title="Gemini" modelKey="gemini_model" />
       <ProviderSection provider="groq" title="Groq" modelKey="groq_model" />
       <ProviderSection provider="tavily" title="Tavily" />
+      <ProviderSection provider="ocr_space" title="OCR.space (email image OCR, free plan)" />
     </div>
   );
 }
