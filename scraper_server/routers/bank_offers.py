@@ -3,7 +3,6 @@ takhfif.app scrape job, and saving rows the chrome extension's Bank Offers
 mode extracted manually from some other, less-structured deal site. See
 services/takhfif_scraper.py, jobs/scrape_takhfif.py, and
 services/bank_offers_store.py (the write path both of these share)."""
-import json
 import threading
 from datetime import datetime
 
@@ -12,34 +11,11 @@ from fastapi.responses import JSONResponse
 
 from core.security import require_admin
 from database.db import get_session
-from database.models import BankCardOffer, Brand
-from services import bank_offers_store, job_runner, job_service, scraped_business_store
+from database.models import BankCardOffer
+from services import bank_offer_admin, bank_offers_store, job_runner, job_service, scraped_business_store
+from services.scraped_business_store import offer_dict
 
 router = APIRouter(prefix="/api/bank-offers", tags=["bank_offers"], dependencies=[Depends(require_admin)])
-
-
-def _row_to_dict(row: BankCardOffer, brand_name: str | None) -> dict:
-    return {
-        "id": row.id,
-        "source_url": row.source_url,
-        "place_name": row.place_name,
-        "place_website": row.place_website,
-        "business_id": row.business_id,
-        "brand_id": row.brand_id,
-        "brand_name": brand_name,
-        "bank_name": row.bank_name,
-        "card_name": row.card_name,
-        "discount_percentage": row.discount_percentage,
-        "max_discount_text": row.max_discount_text,
-        "max_discount_amount": row.max_discount_amount,
-        "branch_valid_count": row.branch_valid_count,
-        "branch_total_count": row.branch_total_count,
-        "valid_branches": json.loads(row.valid_branches) if row.valid_branches else [],
-        "currency": row.currency,
-        "expiry_date": row.expiry_date.isoformat() if row.expiry_date else None,
-        "description": row.description,
-        "created_at": row.created_at.isoformat(),
-    }
 
 
 @router.post("/scrape")
@@ -178,7 +154,10 @@ def combined_offers(brand_id: int):
 def list_bank_offers(
     q: str | None = Query(default=None),
     brand_id: int | None = Query(default=None),
+    business_id: int | None = Query(default=None),
     bank_name: str | None = Query(default=None),
+    card_name: str | None = Query(default=None),
+    status: str | None = Query(default=None, pattern="^(active|inactive|expired)$"),
     matched_only: bool = Query(default=False),
     limit: int = Query(default=100, le=500),
     offset: int = Query(default=0, ge=0),
@@ -186,26 +165,33 @@ def list_bank_offers(
     with get_session() as session:
         base = session.query(BankCardOffer)
         if q:
-            base = base.filter(BankCardOffer.place_name.ilike(f"%{q}%"))
+            pattern = f"%{q}%"
+            base = base.filter(BankCardOffer.place_name.ilike(pattern) | BankCardOffer.card_name.ilike(pattern))
         if brand_id is not None:
             base = base.filter(BankCardOffer.brand_id == brand_id)
+        if business_id is not None:
+            base = base.filter(BankCardOffer.business_id == business_id)
         if bank_name:
             base = base.filter(BankCardOffer.bank_name == bank_name)
+        if card_name:
+            base = base.filter(BankCardOffer.card_name == card_name)
+        if status == "active":
+            base = base.filter(BankCardOffer.is_active.is_(True))
+        elif status == "inactive":
+            base = base.filter(BankCardOffer.is_active.is_(False))
+        elif status == "expired":
+            base = base.filter(BankCardOffer.expiry_date < datetime.utcnow())
         if matched_only:
             base = base.filter(BankCardOffer.brand_id.isnot(None))
 
         total = base.count()
         matched_count = base.filter(BankCardOffer.brand_id.isnot(None)).count()
+        active_count = base.filter(BankCardOffer.is_active.is_(True)).count()
         with_expiry_count = base.filter(BankCardOffer.expiry_date.isnot(None)).count()
         with_max_disc_count = base.filter(BankCardOffer.max_discount_amount.isnot(None)).count()
 
         rows = base.order_by(BankCardOffer.created_at.desc()).offset(offset).limit(limit).all()
-
-        brand_ids = {r.brand_id for r in rows if r.brand_id is not None}
-        brand_map: dict[int, str] = {}
-        if brand_ids:
-            for b in session.query(Brand).filter(Brand.id.in_(brand_ids)).all():
-                brand_map[b.id] = b.name
+        brand_map = bank_offer_admin.brand_names(session, {r.brand_id for r in rows if r.brand_id is not None})
 
         all_banks = [
             r[0] for r in session.query(BankCardOffer.bank_name)
@@ -216,8 +202,85 @@ def list_bank_offers(
         return {
             "total": total,
             "matched_count": matched_count,
+            "active_count": active_count,
             "with_expiry_count": with_expiry_count,
             "with_max_disc_count": with_max_disc_count,
-            "offers": [_row_to_dict(r, brand_map.get(r.brand_id)) for r in rows],
+            "offers": [{**offer_dict(r), "brand_name": brand_map.get(r.brand_id)} for r in rows],
             "bank_names": all_banks,
         }
+
+
+def _not_found_or(result: dict | None, what: str, status_code: int = 200):
+    if result is None:
+        return JSONResponse({"error": f"{what} not found"}, status_code=404)
+    if "error" in result:
+        return JSONResponse(result, status_code=400)
+    return JSONResponse(result, status_code=status_code)
+
+
+@router.post("/businesses")
+def create_business(body: dict = Body(...)):
+    return _not_found_or(bank_offer_admin.create_business(body), "business", status_code=201)
+
+
+@router.patch("/businesses/{business_id}")
+def update_business(business_id: int, body: dict = Body(...)):
+    return _not_found_or(bank_offer_admin.update_business(business_id, body), "business")
+
+
+@router.post("/offers")
+def create_offer(body: dict = Body(...)):
+    return _not_found_or(bank_offer_admin.create_offer(body), "offer", status_code=201)
+
+
+@router.patch("/offers/{offer_id}")
+def update_offer(offer_id: int, body: dict = Body(...)):
+    return _not_found_or(bank_offer_admin.update_offer(offer_id, body), "offer")
+
+
+@router.delete("/offers/{offer_id}")
+def delete_offer(offer_id: int):
+    if not bank_offer_admin.delete_offers([offer_id]):
+        return JSONResponse({"error": "offer not found"}, status_code=404)
+    return {"deleted": 1}
+
+
+@router.post("/offers/bulk")
+def bulk_offers(body: dict = Body(...)):
+    """{"ids": [...], "action": "delete" | "activate" | "deactivate"}"""
+    ids = [int(i) for i in body.get("ids") or []]
+    action = body.get("action")
+    if not ids:
+        return JSONResponse({"error": "ids is required"}, status_code=400)
+    if action == "delete":
+        return {"affected": bank_offer_admin.delete_offers(ids)}
+    if action in ("activate", "deactivate"):
+        return {"affected": bank_offer_admin.set_offers_active(ids, action == "activate")}
+    return JSONResponse({"error": "action must be delete, activate or deactivate"}, status_code=400)
+
+
+@router.get("/banks")
+def list_banks():
+    return {"banks": bank_offer_admin.list_banks()}
+
+
+@router.patch("/banks")
+def update_bank(bank_name: str = Query(...), body: dict = Body(...)):
+    """Renames a bank / sets its logo / toggles all its offers, across every row."""
+    return bank_offer_admin.update_bank(bank_name, body)
+
+
+@router.delete("/banks")
+def delete_bank(bank_name: str = Query(...)):
+    return {"deleted": bank_offer_admin.delete_bank(bank_name)}
+
+
+@router.patch("/cards")
+def update_card(bank_name: str = Query(...), card_name: str | None = Query(default=None), body: dict = Body(...)):
+    """Omitting card_name targets the bank's rows with no card name."""
+    return _not_found_or(bank_offer_admin.update_card(bank_name, card_name, body), "card")
+
+
+@router.delete("/cards")
+def delete_card(bank_name: str = Query(...), card_name: str | None = Query(default=None)):
+    return {"deleted": bank_offer_admin.delete_card(bank_name, card_name)}

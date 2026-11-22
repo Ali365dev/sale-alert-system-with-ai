@@ -1,122 +1,59 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import { useListBankOffers, useScrapeBankOffers, type BankOfferRow } from "../../api/bankOffers";
-import { Badge } from "../ui/Badge";
+import { useBulkOffers, useDeleteOffer, useUpdateOffer, type BulkOfferAction } from "../../api/bankOfferAdmin";
 import { Button } from "../ui/Button";
-import { Card, CardHeader } from "../ui/Card";
+import { Card } from "../ui/Card";
 import { Select, TextInput } from "../ui/Field";
-import { LoadingState } from "../ui/Spinner";
+import { Pagination } from "../ui/Pagination";
 import { StatCard } from "../ui/StatCard";
 import { Icon } from "../icons";
 import { BusinessDrawer } from "./BusinessDrawer";
-import "./CardOffersTab.css";
+import { OfferFormModal } from "./OfferFormModal";
+import { OffersTable } from "./OffersTable";
+import "./bankOffers.css";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
+type Status = "" | "active" | "inactive" | "expired";
 
-function fmt(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
+export interface OfferFilters {
+  bank?: string;
+  card?: string;
 }
 
-function isExpired(iso: string | null) {
-  return iso ? new Date(iso) < new Date() : false;
-}
-
-const COLS = "minmax(160px,2fr) 130px minmax(130px,1.5fr) 70px 120px 90px 100px 110px";
-
-function OfferRow({ offer, onOpenBusiness }: { offer: BankOfferRow; onOpenBusiness: (id: number) => void }) {
-  const expired = isExpired(offer.expiry_date);
-  const clickable = offer.business_id != null;
-
-  return (
-    <div
-      className={`offer-row${clickable ? " offer-row--clickable" : ""}`}
-      onClick={clickable ? () => onOpenBusiness(offer.business_id!) : undefined}
-      role={clickable ? "button" : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenBusiness(offer.business_id!); } } : undefined}
-      style={{
-        display: "grid",
-        gridTemplateColumns: COLS,
-        alignItems: "center",
-        gap: 12,
-        padding: "9px 16px",
-        borderBottom: "1px solid var(--border)",
-        fontSize: 12.5,
-      }}
-    >
-      <span
-        className="offer-place-name"
-        title={offer.place_name}
-        style={{
-          font: "600 12.5px/1.4 var(--font-sans)",
-          color: "var(--text-strong)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {offer.place_name}
-      </span>
-
-      <span style={{ color: "var(--text-body)", fontWeight: 600 }}>{offer.bank_name}</span>
-
-      <span
-        title={offer.card_name ?? undefined}
-        style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-      >
-        {offer.card_name ?? "—"}
-      </span>
-
-      <span style={{ font: "700 13px/1 var(--font-mono)", color: "var(--success)", textAlign: "right" }}>
-        {offer.discount_percentage != null ? `${offer.discount_percentage}%` : "—"}
-      </span>
-
-      <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
-        {offer.max_discount_amount != null
-          ? `Rs ${Number(offer.max_discount_amount).toLocaleString()}`
-          : offer.max_discount_text ?? "—"}
-      </span>
-
-      <span
-        title={offer.branch_valid_count != null && offer.valid_branches.length
-          ? `Valid at ${offer.branch_valid_count} of ${offer.branch_total_count} branches:\n${offer.valid_branches.join("\n")}`
-          : undefined}
-        style={{
-          font: "500 12px/1 var(--font-mono)",
-          color: offer.branch_valid_count != null ? "var(--warning)" : "var(--text-faint)",
-        }}
-      >
-        {offer.branch_valid_count != null ? `${offer.branch_valid_count}/${offer.branch_total_count}` : "All"}
-      </span>
-
-      <span style={{ font: "500 12px/1 var(--font-mono)", color: expired ? "var(--danger)" : "var(--text-muted)" }}>
-        {fmt(offer.expiry_date)}
-      </span>
-
-      <span>
-        {offer.brand_name
-          ? <Badge tone="success">{offer.brand_name}</Badge>
-          : <Badge tone="neutral">unmatched</Badge>}
-      </span>
-    </div>
-  );
-}
-
-export function CardOffersTab({ onScrapeJobStart }: { onScrapeJobStart: (jobId: number) => void }) {
+export function CardOffersTab({ initialFilters, onScrapeJobStart }: {
+  initialFilters?: OfferFilters;
+  onScrapeJobStart: (jobId: number) => void;
+}) {
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
-  const [bankFilter, setBankFilter] = useState("");
+  const [bankFilter, setBankFilter] = useState(initialFilters?.bank ?? "");
+  const [cardFilter, setCardFilter] = useState(initialFilters?.card ?? "");
+  const [status, setStatus] = useState<Status>("");
   const [matchedOnly, setMatchedOnly] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [openBusinessId, setOpenBusinessId] = useState<number | null>(null);
+  const [editing, setEditing] = useState<BankOfferRow | "new" | null>(null);
 
   const scrape = useScrapeBankOffers();
+  const bulk = useBulkOffers();
+  const deleteOffer = useDeleteOffer();
+  const updateOffer = useUpdateOffer();
 
-  const { data, isLoading } = useListBankOffers({
+  useEffect(() => {
+    const t = setTimeout(() => { setOffset(0); setSearch(q.trim()); }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => setSelected(new Set()), [search, bankFilter, cardFilter, status, matchedOnly, offset]);
+
+  const { data, isLoading, isFetching } = useListBankOffers({
     q: search || undefined,
     bank_name: bankFilter || undefined,
+    card_name: cardFilter || undefined,
+    status: status || undefined,
     matched_only: matchedOnly || undefined,
     limit: PAGE_SIZE,
     offset,
@@ -125,122 +62,124 @@ export function CardOffersTab({ onScrapeJobStart }: { onScrapeJobStart: (jobId: 
   const total = data?.total ?? 0;
   const offers = data?.offers ?? [];
   const bankNames = data?.bank_names ?? [];
-
-  const hasFilters = !!search || !!bankFilter || matchedOnly;
+  const hasFilters = !!search || !!bankFilter || !!cardFilter || !!status || matchedOnly;
 
   function clearFilters() {
-    setQ("");
-    setSearch("");
-    setBankFilter("");
-    setMatchedOnly(false);
-    setOffset(0);
+    setQ(""); setSearch(""); setBankFilter(""); setCardFilter(""); setStatus(""); setMatchedOnly(false); setOffset(0);
+  }
+
+  function toggle(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function runBulk(action: BulkOfferAction) {
+    const ids = [...selected];
+    if (action === "delete" && !window.confirm(`Delete ${ids.length} offer${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    bulk.mutate({ ids, action }, { onSuccess: () => setSelected(new Set()) });
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
-        <StatCard icon={<Icon.offer size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total offers" value={total} />
-        <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Brand matched" value={data?.matched_count ?? 0} valueColor="var(--success)" />
-        <StatCard icon={<Icon.clock size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="With expiry" value={data?.with_expiry_count ?? 0} />
-        <StatCard icon={<Icon.target size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="With max discount" value={data?.with_max_disc_count ?? 0} />
+    <div className="bo-stack">
+      <div className="bo-stats">
+        <StatCard icon={<Icon.offer size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Offers" value={total.toLocaleString()} />
+        <StatCard icon={<Icon.power size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Active" value={(data?.active_count ?? 0).toLocaleString()} valueColor="var(--success)" />
+        <StatCard icon={<Icon.check size={17} />} iconColor="var(--info)" iconBg="var(--info-subtle)" label="Brand matched" value={(data?.matched_count ?? 0).toLocaleString()} />
+        <StatCard icon={<Icon.clock size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="With expiry" value={(data?.with_expiry_count ?? 0).toLocaleString()} />
       </div>
 
       <Card>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ position: "relative", flex: "1 1 220px", minWidth: 180 }}>
-            <Icon.search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)", pointerEvents: "none" }} />
-            <form onSubmit={(e) => { e.preventDefault(); setOffset(0); setSearch(q.trim()); }}>
-              <TextInput
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search by place name…"
-                aria-label="Search offers by place"
-                style={{ paddingLeft: 32, height: 36 }}
-              />
-            </form>
+        <div className="bo-toolbar">
+          <div className="bo-search">
+            <Icon.search size={15} className="bo-search-icon" aria-hidden="true" />
+            <TextInput type="search" value={q} onChange={(e) => setQ(e.target.value)}
+              placeholder="Search business or card…" aria-label="Search offers" style={{ paddingLeft: 36 }} />
           </div>
-
-          <Select
-            aria-label="Filter by bank"
-            value={bankFilter}
-            onChange={(e) => { setBankFilter(e.target.value); setOffset(0); }}
-            style={{ width: 170 }}
-          >
-            <option value="">All Banks</option>
+          <Select aria-label="Filter by bank" value={bankFilter} className="bo-filter-select"
+            onChange={(e) => { setBankFilter(e.target.value); setCardFilter(""); setOffset(0); }}>
+            <option value="">All banks</option>
             {bankNames.map((b) => <option key={b} value={b}>{b}</option>)}
           </Select>
-
-          <label style={{ display: "flex", gap: 6, alignItems: "center", font: "500 12px/1 var(--font-sans)", color: "var(--text-muted)", cursor: "pointer" }}>
+          <Select aria-label="Filter by status" value={status} className="bo-filter-select"
+            onChange={(e) => { setStatus(e.target.value as Status); setOffset(0); }}>
+            <option value="">Any status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="expired">Expired</option>
+          </Select>
+          <label className="bo-check">
             <input type="checkbox" checked={matchedOnly} onChange={(e) => { setMatchedOnly(e.target.checked); setOffset(0); }} />
             Brand-matched only
           </label>
-
-          {hasFilters && (
-            <Button size="sm" variant="secondary" onClick={clearFilters}>
-              Clear filters
+          {hasFilters && <Button size="sm" variant="ghost" onClick={clearFilters}>Clear filters</Button>}
+          <div className="bo-toolbar-end">
+            <Link to="/pipeline" style={{ font: "600 0.8rem/1 var(--font-sans)" }}>View jobs →</Link>
+            <Button size="sm" variant="secondary" loading={scrape.isPending}
+              onClick={() => scrape.mutate(undefined, { onSuccess: (d) => onScrapeJobStart(d.jobId) })}>
+              <Icon.retry size={15} aria-hidden="true" /> Scrape takhfif.app
             </Button>
-          )}
-
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <Button
-              size="sm"
-              loading={scrape.isPending}
-              onClick={() => scrape.mutate(undefined, { onSuccess: (d) => onScrapeJobStart(d.jobId) })}
-            >
-              Scrape takhfif.app
+            <Button size="sm" onClick={() => setEditing("new")}>
+              <Icon.plus size={15} aria-hidden="true" /> Add offer
             </Button>
-            <Link to="/pipeline" style={{ font: "500 12px/1 var(--font-sans)", color: "var(--brand)" }}>
-              View jobs →
-            </Link>
           </div>
         </div>
+        {cardFilter && (
+          <p className="bo-muted" style={{ margin: 0, fontSize: "0.8rem" }}>
+            Showing card <strong>{cardFilter}</strong> ·{" "}
+            <button type="button" className="bo-link-btn" onClick={() => setCardFilter("")}>show all cards</button>
+          </p>
+        )}
       </Card>
 
-      <Card padded={false} style={{ overflow: "hidden" }}>
-        <CardHeader
-          icon={<Icon.offer size={16} />}
-          title={`Bank card offers${total ? ` (${total})` : ""}`}
-        />
-        {isLoading ? <LoadingState label="Loading offers…" /> : offers.length === 0 ? (
-          <p style={{ padding: "28px 16px", textAlign: "center", font: "500 13px/1.5 var(--font-sans)", color: "var(--text-faint)", margin: 0 }}>
-            {hasFilters ? "No offers match the current filters." : "No offers found. Trigger a scrape to populate."}
-          </p>
+      {selected.size > 0 && (
+        <div className="bo-bulkbar" role="region" aria-label="Bulk actions">
+          <span aria-live="polite">{selected.size} selected</span>
+          <div className="bo-bulkbar-actions">
+            <Button size="sm" variant="secondary" loading={bulk.isPending} onClick={() => runBulk("activate")}>Activate</Button>
+            <Button size="sm" variant="secondary" loading={bulk.isPending} onClick={() => runBulk("deactivate")}>Deactivate</Button>
+            <Button size="sm" variant="danger" loading={bulk.isPending} onClick={() => runBulk("delete")}>Delete</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
+      <Card padded={false} style={{ overflow: "hidden", gap: 0, opacity: isFetching && !isLoading ? 0.7 : 1, transition: "opacity 150ms" }}>
+        {isLoading ? (
+          <div aria-busy="true" aria-label="Loading offers">
+            {Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton-shimmer bo-skeleton-row" />)}
+          </div>
+        ) : offers.length === 0 ? (
+          <div className="bo-empty">
+            <span className="bo-empty-icon"><Icon.card size={24} aria-hidden="true" /></span>
+            <strong>{hasFilters ? "No offers match these filters" : "No bank offers yet"}</strong>
+            <span>{hasFilters ? "Try a different bank or status." : "Add one manually or run a takhfif.app scrape."}</span>
+            {hasFilters
+              ? <Button size="sm" variant="secondary" onClick={clearFilters}>Clear filters</Button>
+              : <Button size="sm" onClick={() => setEditing("new")}><Icon.plus size={15} aria-hidden="true" /> Add first offer</Button>}
+          </div>
         ) : (
           <>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: COLS,
-              gap: 12, padding: "8px 16px", borderBottom: "1px solid var(--border)",
-              font: "700 10.5px/1 var(--font-sans)", letterSpacing: "var(--ls-wide)",
-              textTransform: "uppercase", color: "var(--text-faint)",
-            }}>
-              <span>Place</span>
-              <span>Bank</span>
-              <span>Card</span>
-              <span style={{ textAlign: "right" }}>Disc %</span>
-              <span>Max Discount</span>
-              <span>Branches</span>
-              <span>Expires</span>
-              <span>Brand</span>
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              {offers.map((o) => (
-                <OfferRow key={o.id} offer={o} onOpenBusiness={setOpenBusinessId} />
-              ))}
-            </div>
-            {total > PAGE_SIZE && (
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "10px 16px", alignItems: "center" }}>
-                <span style={{ font: "500 12px/1 var(--font-sans)", color: "var(--text-muted)" }}>
-                  {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}
-                </span>
-                <Button size="sm" variant="secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>Previous</Button>
-                <Button size="sm" variant="secondary" disabled={offset + PAGE_SIZE >= total} onClick={() => setOffset(offset + PAGE_SIZE)}>Next</Button>
-              </div>
-            )}
+            <OffersTable
+              offers={offers}
+              selected={selected}
+              onSelect={toggle}
+              onSelectAll={(checked) => setSelected(checked ? new Set(offers.map((o) => o.id)) : new Set())}
+              onEdit={setEditing}
+              onDelete={(o) => { if (window.confirm(`Delete the ${o.bank_name} offer at ${o.place_name}?`)) deleteOffer.mutate(o.id); }}
+              onToggleActive={(o) => updateOffer.mutate({ id: o.id, input: { is_active: !o.is_active } })}
+              onOpenBusiness={setOpenBusinessId}
+            />
+            <Pagination offset={offset} pageSize={PAGE_SIZE} total={total} onChange={setOffset} />
           </>
         )}
       </Card>
 
+      {editing && (
+        <OfferFormModal offer={editing === "new" ? undefined : editing} bankNames={bankNames} onClose={() => setEditing(null)} />
+      )}
       {openBusinessId != null && <BusinessDrawer businessId={openBusinessId} onClose={() => setOpenBusinessId(null)} />}
     </div>
   );

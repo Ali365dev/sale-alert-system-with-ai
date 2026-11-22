@@ -12,9 +12,10 @@ const fieldStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-export function Label({ children }: { children: ReactNode }) {
+export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
   return (
     <label
+      htmlFor={htmlFor}
       style={{
         fontSize: 11.5,
         fontWeight: 700,

@@ -24,7 +24,10 @@ export interface ScrapedBusinessSummary {
 export interface BankOfferRow {
   id: number;
   bank_name: string;
+  bank_logo: string | null;
   card_name: string | null;
+  description: string | null;
+  is_active: boolean;
   discount_percentage: number | null;
   max_discount_text: string | null;
   max_discount_amount: number | null;
@@ -69,6 +72,7 @@ export interface CombinedOffers {
 export interface BankOfferListResponse {
   total: number;
   matched_count: number;
+  active_count: number;
   with_expiry_count: number;
   with_max_disc_count: number;
   offers: BankOfferRow[];
@@ -78,7 +82,10 @@ export interface BankOfferListResponse {
 export function useListBankOffers(params: {
   q?: string;
   brand_id?: number;
+  business_id?: number;
   bank_name?: string;
+  card_name?: string;
+  status?: "active" | "inactive" | "expired";
   matched_only?: boolean;
   limit?: number;
   offset?: number;

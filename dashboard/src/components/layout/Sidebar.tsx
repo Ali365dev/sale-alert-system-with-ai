@@ -46,7 +46,7 @@ const AUTOMATION_ITEMS: NavItem[] = [
 
 const OFFERS_ITEMS: NavItem[] = [
   { to: "/offers", label: "All Offers", icon: Icon.offer },
-  { to: "/bank-offers", label: "Bank Offers", icon: Icon.offer },
+  { to: "/bank-offers", label: "Bank Offers", icon: Icon.card },
   { to: "/offer-discovery", label: "Offer Discovery", icon: Icon.sparkle },
   { to: "/search", label: "Search", icon: Icon.search },
 ];
@@ -136,7 +136,12 @@ function NavGroup({ group, defaultOpen }: { group: NavGroup; defaultOpen: boolea
 
 // ── Sidebar ──────────────────────────────────────────────────────────────────
 
-export function Sidebar({ onRunFetch, fetching }: { onRunFetch: () => void; fetching: boolean }) {
+export function Sidebar({ onRunFetch, fetching, open, onClose }: {
+  onRunFetch: () => void;
+  fetching: boolean;
+  open: boolean;
+  onClose: () => void;
+}) {
   const location = useLocation();
 
   // Auto-open the group that contains the current route
@@ -145,28 +150,16 @@ export function Sidebar({ onRunFetch, fetching }: { onRunFetch: () => void; fetc
   }
 
   return (
-    <aside
-      style={{
-        width: 252,
-        flex: "0 0 252px",
-        borderRight: "1px solid var(--border)",
-        background: "var(--surface-card)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-        padding: "18px 14px",
-        position: "sticky",
-        top: 0,
-        height: "100vh",
-        boxSizing: "border-box",
-      }}
-    >
+    <aside id="app-sidebar" className={`shell-sidebar${open ? " is-open" : ""}`} aria-label="Main navigation">
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 8px 16px" }}>
         <Icon.pulse size={22} strokeWidth={2.5} style={{ color: "var(--brand)" }} />
         <span style={{ font: "800 18px/1 var(--font-sans)", letterSpacing: "var(--ls-snug)", color: "var(--text-strong)" }}>
           Deal<span style={{ color: "var(--brand)" }}>Pulse</span>
         </span>
+        <button type="button" className="shell-sidebar-close" onClick={onClose} aria-label="Close navigation">
+          <Icon.x size={18} aria-hidden="true" />
+        </button>
       </div>
 
       {/* Nav */}

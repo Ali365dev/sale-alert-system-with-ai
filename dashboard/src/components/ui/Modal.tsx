@@ -1,67 +1,82 @@
-import type { ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
+
+import { Icon } from "../icons";
+import "./Modal.css";
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export function Modal({
   title,
   onClose,
   children,
+  footer,
   maxWidth = 560,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  footer?: ReactNode;
   maxWidth?: number;
 }) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    (panel?.querySelector<HTMLElement>("[autofocus]") ?? panel)?.focus();
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+      const items = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, []);
+
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
-        padding: "60px 20px",
-        zIndex: 50,
-        overflowY: "auto",
-      }}
-      onClick={onClose}
-    >
+    <div className="modal-scrim" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--surface-card)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "var(--shadow-lg)",
-          width: "100%",
-          maxWidth,
-          padding: 24,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="modal-panel"
+        style={{ maxWidth }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <h2 style={{ margin: 0, font: "var(--fw-bold) 16px/1.2 var(--font-sans)", color: "var(--text-strong)" }}>
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              marginLeft: "auto",
-              border: "none",
-              background: "transparent",
-              color: "var(--text-muted)",
-              cursor: "pointer",
-              fontSize: 18,
-              lineHeight: 1,
-            }}
-          >
-            ✕
+        <header className="modal-header">
+          <h2 id={titleId} className="modal-title">{title}</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close dialog">
+            <Icon.x size={18} aria-hidden="true" />
           </button>
-        </div>
-        {children}
+        </header>
+        <div className="modal-body">{children}</div>
+        {footer && <footer className="modal-footer">{footer}</footer>}
       </div>
     </div>
   );

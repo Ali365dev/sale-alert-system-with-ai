@@ -337,4 +337,30 @@ export const Icon = {
       <line x1="3" y1="12" x2="21" y2="12" />
     </Svg>
   ),
+  plus: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 5v14M5 12h14" />
+    </Svg>
+  ),
+  card: (p: IconProps) => (
+    <Svg {...p}>
+      <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+      <path d="M2.5 10h19M6.5 15h4" />
+    </Svg>
+  ),
+  bank: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M3 9.5 12 4l9 5.5M4.5 20h15M6 10v7M10 10v7M14 10v7M18 10v7" />
+    </Svg>
+  ),
+  power: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M12 3v8M6.4 6.6a8 8 0 1 0 11.2 0" />
+    </Svg>
+  ),
+  menu: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </Svg>
+  ),
 };

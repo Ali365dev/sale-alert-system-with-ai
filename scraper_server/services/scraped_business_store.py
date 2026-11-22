@@ -292,7 +292,7 @@ def _biz_summary(biz: Business, offers_count: int, banks_count: int, brand_name:
     }
 
 
-def _offer_dict(row: BankCardOffer) -> dict:
+def offer_dict(row: BankCardOffer) -> dict:
     return {
         "id": row.id, "bank_name": row.bank_name, "bank_logo": row.bank_logo,
         "card_name": row.card_name,
@@ -308,6 +308,7 @@ def _offer_dict(row: BankCardOffer) -> dict:
         "expiry_date": row.expiry_date.isoformat() if row.expiry_date else None,
         "place_name": row.place_name, "source_url": row.source_url,
         "brand_id": row.brand_id, "business_id": row.business_id,
+        "description": row.description, "is_active": row.is_active,
     }
 
 
@@ -374,7 +375,7 @@ def get_business(business_id: int) -> Optional[dict]:
             "gallery": json.loads(biz.gallery) if biz.gallery else [],
             "social_links": json.loads(biz.social_links) if biz.social_links else {},
             "menu_pages": biz.menu_pages,
-            "offers": [_offer_dict(o) for o in offers],
+            "offers": [offer_dict(o) for o in offers],
         })
         return detail
 
@@ -428,7 +429,7 @@ def combined_offers(brand_id: int) -> Optional[dict]:
                 "expiry_date": o.expiry_date.isoformat() if o.expiry_date else None,
                 "source": o.source, "offer_value": o.offer_value,
             } for o in sale_offers],
-            "bank_offers": [_offer_dict(o) for o in bank_offers],
+            "bank_offers": [offer_dict(o) for o in bank_offers],
             "businesses": [{"id": b.id, "slug": b.slug, "name": b.name, "city": b.city}
                            for b in businesses],
         }

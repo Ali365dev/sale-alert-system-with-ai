@@ -16,6 +16,7 @@ function GlobalSearch() {
         e.preventDefault();
         if (value.trim()) navigate(`/emails?q=${encodeURIComponent(value.trim())}`);
       }}
+      className="shell-search"
       style={{ position: "relative", flex: "1 1 auto", maxWidth: 480 }}
     >
       <Icon.search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
@@ -38,6 +39,8 @@ function GlobalSearch() {
         }}
       />
       <span
+        className="shell-kbd-hint"
+        aria-hidden="true"
         style={{
           position: "absolute",
           right: 12,
@@ -182,25 +185,24 @@ function AvatarMenu() {
 // Pages where country filter doesn't apply (email ingestion is global)
 const EMAIL_PATHS = ["/emails", "/unknown-emails", "/search"];
 
-export function Header() {
+export function Header({ navOpen, onMenu }: { navOpen: boolean; onMenu: () => void }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const showCountryFilter = !EMAIL_PATHS.some((p) => pathname.startsWith(p));
 
   return (
-    <header
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 5,
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        padding: "14px 28px",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--surface-app)",
-      }}
-    >
+    <header className="shell-header">
+      <button
+        type="button"
+        className="shell-menu-btn"
+        onClick={onMenu}
+        aria-label="Open navigation"
+        aria-controls="app-sidebar"
+        aria-expanded={navOpen}
+      >
+        <Icon.menu size={18} aria-hidden="true" />
+      </button>
+
       <GlobalSearch />
 
       <div style={{ flex: "1 1 auto" }} />
