@@ -122,8 +122,9 @@ OCR_MIN_CONFIDENCE    = float(os.getenv("OCR_MIN_CONFIDENCE", "0.5"))
 OCR_MIN_IMAGE_SIZE    = int(os.getenv("OCR_MIN_IMAGE_SIZE", "40"))
 OCR_GIF_FRAME_STEP    = int(os.getenv("OCR_GIF_FRAME_STEP", "5"))
 OCR_MAX_GIF_FRAMES    = int(os.getenv("OCR_MAX_GIF_FRAMES", "8"))
-# Concurrent image downloads per email; inference itself runs one at a time.
-OCR_MAX_WORKERS       = int(os.getenv("OCR_MAX_WORKERS", "4"))
+# Concurrent image downloads within one email (one email's images are OCR'd
+# at a time, and inference itself runs one image at a time).
+OCR_MAX_WORKERS       = int(os.getenv("OCR_MAX_WORKERS", "2"))
 OCR_DOWNLOAD_TIMEOUT  = int(os.getenv("OCR_DOWNLOAD_TIMEOUT", "10"))
 OCR_MAX_IMAGES_PER_EMAIL = int(os.getenv("OCR_MAX_IMAGES_PER_EMAIL", "5"))
 OCR_MAX_DOWNLOAD_BYTES  = int(os.getenv("OCR_MAX_DOWNLOAD_BYTES", str(15 * 1024 * 1024)))

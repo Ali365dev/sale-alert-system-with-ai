@@ -75,6 +75,12 @@ _engine_load_lock = threading.Lock()
 # executor; on Render's slow CPU those piled up until the process was killed.)
 _inference_slot = threading.BoundedSemaphore(1)
 _inference_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ocr-infer")
+# One email's image batch at a time, process-wide. email_sync runs 5 emails in
+# parallel and each batch downloads and decodes its images up front, so without
+# this up to 20 decoded images sat in memory next to the ~1 GB model — enough
+# to push Render's 2 GB instance over its limit. Gmail fetch and the LLM call
+# still run in parallel; only the image step queues.
+_email_batch_slot = threading.Semaphore(1)
 _TILE_OVERLAP = 80
 
 
@@ -322,23 +328,25 @@ def run_ocr_for_urls(image_urls: list[str]) -> dict:
     max_images = get_setting("ocr_max_images_per_email", default=OCR_MAX_IMAGES_PER_EMAIL)
     deduped = [u for u in dict.fromkeys(image_urls) if not is_tracking_pixel(u)][:max_images]
 
-    cache = ocr_cache.load()
+    with _email_batch_slot:
+        cache = ocr_cache.load()
 
-    t_start = time.monotonic()
-    with ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS) as pool:
-        futures = {pool.submit(process_image_url, url, cache): url for url in deduped}
-        by_url: dict[str, dict] = {}
-        for future in as_completed(futures):
-            result = future.result()  # process_image_url never raises
-            if result is None:
-                continue
-            by_url[result["url"]] = result
+        t_start = time.monotonic()
+        with ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS) as pool:
+            futures = {pool.submit(process_image_url, url, cache): url for url in deduped}
+            by_url: dict[str, dict] = {}
+            for future in as_completed(futures):
+                result = future.result()  # process_image_url never raises
+                if result is None:
+                    continue
+                by_url[result["url"]] = result
+
+        ocr_cache.save(cache)
 
     items = [by_url[url] for url in deduped if url in by_url]
     image_texts = [item["text"] for item in items if not item["is_gif"]]
     gif_texts = [item["text"] for item in items if item["is_gif"]]
 
-    ocr_cache.save(cache)
     logger.info(
         "OCR batch done — %d image(s), %d with text (%.2fs)",
         len(deduped), len(items), time.monotonic() - t_start,
