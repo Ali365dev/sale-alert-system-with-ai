@@ -10,7 +10,7 @@ import { AuthDivider, AuthField, AuthIllustration } from "./AuthField";
 import { GoogleButton } from "./GoogleButton";
 
 export function SignInPage() {
-  useSeo({ title: "Sign in — DealPulse" });
+  useSeo({ title: "Sign in — DealsMore" });
   const navigate = useNavigate();
   const login = useLogin();
   const [email, setEmail] = useState("");

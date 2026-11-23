@@ -19,7 +19,7 @@ const SORTS = [
 type SortKey = (typeof SORTS)[number]["key"];
 
 export function SearchPage() {
-  useSeo({ title: "Search Deals — DealPulse" });
+  useSeo({ title: "Search Deals — DealsMore" });
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);

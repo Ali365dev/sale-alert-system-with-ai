@@ -17,8 +17,9 @@ import {
 } from "../api/unknownEmails";
 import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
+import { Button, IconButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
+import { DataTable, DataTableBody, DataTableCheckbox, DataTableEmpty, DataTableHead, DataTableRow } from "../components/ui/DataTable";
 import { Label, Select, TextArea, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
@@ -334,7 +335,7 @@ function DetailModal({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16, fontSize: 13, color: "var(--text-body)" }}>
           <section style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-faint)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-faint)" }}>
               General
             </div>
             <div><strong style={{ color: "var(--text-strong)" }}>Sender:</strong> {data.sender}</div>
@@ -348,7 +349,7 @@ function DetailModal({
 
           {data.suggestion && (
             <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-faint)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-faint)" }}>
                 AI Result
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -394,7 +395,7 @@ function DetailModal({
           )}
 
           <section>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-faint)", marginBottom: 6 }}>
               Body
             </div>
             <pre
@@ -410,7 +411,7 @@ function DetailModal({
 
           {data.ocr_text_clean && (
             <section>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-faint)", marginBottom: 6 }}>
                 OCR text
               </div>
               <pre
@@ -427,7 +428,7 @@ function DetailModal({
 
           {data.image_urls.length > 0 && (
             <section>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-faint)", marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-faint)", marginBottom: 6 }}>
                 Images ({data.image_urls.length})
               </div>
               <ImageGallery urls={data.image_urls} />
@@ -449,17 +450,11 @@ function DetailModal({
   );
 }
 
-function TableSkeleton({ columns }: { columns: string }) {
+function TableSkeleton() {
   return (
-    <div>
+    <>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          style={{
-            display: "grid", gridTemplateColumns: columns, alignItems: "center", gap: 12,
-            padding: "var(--row-pad) 20px", borderBottom: "1px solid var(--border)",
-          }}
-        >
+        <DataTableRow key={i}>
           <div className="skeleton-shimmer" style={{ height: 16, width: 16 }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: "80%" }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: "60%" }} />
@@ -468,13 +463,13 @@ function TableSkeleton({ columns }: { columns: string }) {
           <div className="skeleton-shimmer" style={{ height: 20, width: 80, borderRadius: 999 }} />
           <div className="skeleton-shimmer" style={{ height: 20, width: 80, borderRadius: 999 }} />
           <div className="skeleton-shimmer" style={{ height: 28, width: "90%" }} />
-        </div>
+        </DataTableRow>
       ))}
-    </div>
+    </>
   );
 }
 
-const columns = "34px 190px 130px 1fr 110px 100px 100px 190px 220px";
+const columns = "24px 200px 136px minmax(220px, 1fr) 128px 104px 112px 168px 176px";
 
 export function UnknownEmailsManager() {
   const [params, setParams] = useSearchParams();
@@ -548,11 +543,11 @@ export function UnknownEmailsManager() {
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
-        <StatCard icon={<Icon.inbox size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total unknown" value={summary?.total ?? "—"} />
-        <StatCard icon={<Icon.clock size={17} />} iconColor="var(--amber-600)" iconBg="var(--warning-subtle)" label="Pending" value={summary?.pending ?? "—"} valueColor="var(--warning)" />
-        <StatCard icon={<Icon.sparkle size={17} />} iconColor="var(--ai)" iconBg="var(--ai-subtle)" label="AI completed" value={summary?.analyzed ?? "—"} valueColor="var(--ai)" />
-        <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Brand added" value={summary?.resolved ?? "—"} valueColor="var(--success)" />
-        <StatCard icon={<Icon.x size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="Ignored" value={summary?.ignored ?? "—"} />
+        <StatCard label="Total unknown" value={summary?.total ?? "—"} />
+        <StatCard label="Pending" value={summary?.pending ?? "—"} valueColor="var(--warning)" />
+        <StatCard label="AI completed" value={summary?.analyzed ?? "—"} valueColor="var(--ai)" />
+        <StatCard label="Brand added" value={summary?.resolved ?? "—"} valueColor="var(--success)" />
+        <StatCard label="Ignored" value={summary?.ignored ?? "—"} />
       </div>
 
       <Card>
@@ -666,113 +661,91 @@ export function UnknownEmailsManager() {
         )}
       </Card>
 
-      <Card padded={false} style={{ overflow: "hidden" }}>
-        <div style={{ overflowX: "auto", maxHeight: "70vh", overflowY: "auto" }}>
-          <div style={{ minWidth: 1400 }}>
-            <div
-              style={{
-                display: "grid", gridTemplateColumns: columns, gap: 12, padding: "11px 20px",
-                background: "var(--surface-sunken)", borderBottom: "1px solid var(--border)",
-                fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase",
-                color: "var(--text-muted)", position: "sticky", top: 0, zIndex: 1,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={candidates.length > 0 && selected.size === candidates.length}
-                onChange={toggleSelectAll}
-                style={{ width: 15, height: 15 }}
-              />
-              <span>Sender</span>
-              <span>Domain</span>
-              <span>Subject</span>
-              <span>Received</span>
-              <span>Status</span>
-              <span>AI Status</span>
-              <span>Suggested brand</span>
-              <span>Actions</span>
-            </div>
-
+      <Card padded={false} style={{ overflow: "hidden", gap: 0 }}>
+        <DataTable label="Unknown emails" columns={columns} minWidth={1200} maxHeight="70vh" stickyActions>
+          <DataTableHead>
+            <DataTableCheckbox
+              label="Select all unknown emails on this page"
+              checked={candidates.length > 0 && selected.size === candidates.length}
+              indeterminate={selected.size > 0}
+              onChange={() => toggleSelectAll()}
+            />
+            <span>Sender</span>
+            <span>Domain</span>
+            <span>Subject</span>
+            <span>Received</span>
+            <span>Status</span>
+            <span>AI status</span>
+            <span>Suggested brand</span>
+            <span>Actions</span>
+          </DataTableHead>
+          <DataTableBody>
             {isLoading ? (
-              <TableSkeleton columns={columns} />
+              <TableSkeleton />
             ) : candidates.length === 0 ? (
-              <div style={{ padding: "48px 20px", textAlign: "center", color: "var(--text-muted)" }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-strong)", marginBottom: 4 }}>No unknown emails</div>
-                <div style={{ fontSize: 12.5 }}>
-                  {params.get("q") || statusFilter ? "Try clearing your search or filters." : "Every sales_offers email so far has matched a known brand."}
-                </div>
-              </div>
+              <DataTableEmpty>
+                <div style={{ fontWeight: 500, color: "var(--text-strong)", marginBottom: 4 }}>No unknown emails</div>
+                <div>{params.get("q") || statusFilter ? "Try clearing your search or filters" : "Every sales email so far matched a known brand"}</div>
+              </DataTableEmpty>
             ) : (
               candidates.map((c) => {
                 const { name, email } = parseSender(c.sender);
                 const ai = aiStatusFor(c);
+                const open = c.status !== "resolved" && c.status !== "ignored";
                 return (
-                  <div
-                    key={c.id}
-                    style={{
-                      display: "grid", gridTemplateColumns: columns, alignItems: "center", gap: 12,
-                      padding: "var(--row-pad) 20px", borderBottom: "1px solid var(--border)",
-                      fontSize: 12.5, opacity: isFetching ? 0.6 : 1, transition: "opacity 0.15s ease",
-                    }}
-                  >
-                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelected(c.id)} style={{ width: 15, height: 15 }} />
-                    <span style={{ minWidth: 0 }}>
-                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600, color: "var(--text-strong)" }}>{name}</div>
-                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, color: "var(--text-faint)" }}>{email}</div>
-                    </span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: 11.5 }}>
-                      {c.sender_domain || "—"}
-                    </span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-body)" }}>{c.subject}</span>
-                    <span style={{ font: "500 11.5px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(c.received_date)}</span>
-                    <span><Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge></span>
-                    <span><Badge tone={ai.tone}>{ai.label}</Badge></span>
-                    <span style={{ minWidth: 0 }}>
-                      {c.suggestion?.name ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600, color: "var(--text-strong)" }}>{c.suggestion.name}</span>
-                          <ConfidenceBar value={c.suggestion.confidence} />
-                        </div>
-                      ) : (
-                        <span style={{ color: "var(--text-faint)" }}>—</span>
-                      )}
-                    </span>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <Button size="sm" variant="secondary" onClick={() => setViewingId(c.id)}>
-                        View
-                      </Button>
-                      {c.status !== "resolved" && c.status !== "ignored" && (
-                        <Button size="sm" variant="ghost" loading={discoverJob.starting} disabled={discoverJob.running} onClick={() => discoverJob.start([c.id])}>
-                          {c.status === "analyzed" ? "Re-analyze" : "Analyze"}
-                        </Button>
+                  <DataTableRow key={c.id} selected={selected.has(c.id)} muted={isFetching}>
+                    <DataTableCheckbox label={`Select email from ${name || email}`} checked={selected.has(c.id)} onChange={() => toggleSelected(c.id)} />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="dt-strong dt-truncate">{name}</div>
+                      <div className="dt-truncate dt-muted" style={{ fontSize: "0.75rem" }}>{email}</div>
+                    </div>
+                    <span className="dt-truncate dt-muted" style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>{c.sender_domain || "—"}</span>
+                    <span className="dt-truncate" title={c.subject}>{c.subject}</span>
+                    <span className="dt-date dt-muted">{formatDateTime(c.received_date)}</span>
+                    <Badge tone={STATUS_TONE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                    <Badge tone={ai.tone}>{ai.label}</Badge>
+                    {c.suggestion?.name ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, width: "100%" }}>
+                        <span className="dt-strong dt-truncate">{c.suggestion.name}</span>
+                        <ConfidenceBar value={c.suggestion.confidence} />
+                      </div>
+                    ) : (
+                      <span className="dt-faint">—</span>
+                    )}
+                    <span style={{ display: "flex", gap: 4 }}>
+                      <IconButton icon={<Icon.eye size={14} />} label="View email" variant="ghost" onClick={() => setViewingId(c.id)} />
+                      {open && (
+                        <IconButton
+                          icon={<Icon.sparkle size={14} />}
+                          label={c.status === "analyzed" ? "Re-analyze with AI" : "Analyze with AI"}
+                          variant="ghost"
+                          loading={discoverJob.starting}
+                          disabled={discoverJob.running}
+                          onClick={() => discoverJob.start([c.id])}
+                        />
                       )}
                       {c.status === "analyzed" && (
-                        <Button size="sm" variant="secondary" onClick={() => setAddBrandFor(c)}>
-                          Add Brand
-                        </Button>
+                        <IconButton icon={<Icon.plus size={14} />} label="Add as brand" variant="secondary" onClick={() => setAddBrandFor(c)} />
                       )}
-                      {c.status !== "resolved" && c.status !== "ignored" && (
-                        <Button size="sm" variant="ghost" loading={ignore.isPending} onClick={() => ignore.mutate(c.id)}>
-                          Ignore
-                        </Button>
+                      {open && (
+                        <IconButton icon={<Icon.eyeOff size={14} />} label="Ignore" variant="ghost" loading={ignore.isPending} onClick={() => ignore.mutate(c.id)} />
                       )}
-                      <Button
-                        size="sm"
+                      <IconButton
+                        icon={<Icon.trash size={14} />}
+                        label="Delete"
                         variant="danger"
                         loading={del.isPending}
                         onClick={() => {
                           if (window.confirm(`Delete unknown email "${c.subject}"?`)) del.mutate(c.id);
                         }}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
+                      />
+                    </span>
+                  </DataTableRow>
                 );
               })
             )}
-          </div>
-        </div>
+          </DataTableBody>
+        </DataTable>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", padding: "12px 20px", borderTop: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-muted)" }}>
@@ -785,11 +758,11 @@ export function UnknownEmailsManager() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Button size="sm" variant="secondary" disabled={page <= 1} onClick={() => updateParams({ page: String(page - 1) })}>
-              ← Prev
+              Previous
             </Button>
             <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>Page {page} of {totalPages}</span>
             <Button size="sm" variant="secondary" disabled={page >= totalPages} onClick={() => updateParams({ page: String(page + 1) })}>
-              Next →
+              Next
             </Button>
           </div>
         </div>

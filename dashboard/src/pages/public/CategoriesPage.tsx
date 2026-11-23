@@ -12,7 +12,7 @@ type Filter = "All Categories" | "Trending" | "Closing Soon";
 const FILTERS: Filter[] = ["All Categories", "Trending", "Closing Soon"];
 
 export function CategoriesPage() {
-  useSeo({ title: "Browse Categories — DealPulse", description: "Browse every deal category on DealPulse." });
+  useSeo({ title: "Browse Categories — DealsMore", description: "Browse every deal category on DealsMore." });
   const navigate = useNavigate();
   const { data, isLoading } = useOffers({ active: "true" });
   const [query, setQuery] = useState("");

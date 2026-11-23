@@ -12,6 +12,7 @@ import {
 } from "../api/websiteScraper";
 import { ScrapeDetailPanel } from "../components/websiteScraper/ScrapeDetailPanel";
 import { Icon } from "../components/icons";
+import { humanize } from "../lib/tableFormat";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
@@ -45,37 +46,43 @@ function PagesTable({ brandId }: { brandId: number }) {
   if (selected) return <ScrapeDetailPanel page={selected} onClose={() => setSelected(null)} />;
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+    <div className="dt-scroll" role="region" aria-label="Scraped pages table" tabIndex={0}>
+      <table className="dt-native" style={{ minWidth: 860 }}>
         <thead>
-          <tr style={{ textAlign: "left", color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>
-            <th style={{ padding: "8px 6px" }}>Page URL</th>
-            <th style={{ padding: "8px 6px" }}>Title</th>
-            <th style={{ padding: "8px 6px" }}>Status</th>
-            <th style={{ padding: "8px 6px" }}>Sale Score</th>
-            <th style={{ padding: "8px 6px" }}>AI</th>
-            <th style={{ padding: "8px 6px" }}>Scraped At</th>
-            <th style={{ padding: "8px 6px" }}></th>
+          <tr>
+            <th>Page</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th className="is-right">Sale score</th>
+            <th>AI analysed</th>
+            <th>Scraped</th>
+            <th><span className="sr-only">Details</span></th>
           </tr>
         </thead>
         <tbody>
           {(pages ?? []).map((p) => (
-            <tr key={p.id} style={{ borderBottom: "1px solid var(--border)" }}>
-              <td style={{ padding: "8px 6px", maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.url}>{p.url}</td>
-              <td style={{ padding: "8px 6px", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.page_title || "—"}</td>
-              <td style={{ padding: "8px 6px" }}><Badge tone={STATUS_TONE[p.scrape_status] ?? "neutral"}>{p.scrape_status}</Badge></td>
-              <td style={{ padding: "8px 6px" }}>{p.sale_score ?? "—"}</td>
-              <td style={{ padding: "8px 6px" }}>{p.ai_analyzed ? "Yes" : "No"}</td>
-              <td style={{ padding: "8px 6px", whiteSpace: "nowrap" }}>{formatDateTime(p.scraped_at)}</td>
-              <td style={{ padding: "8px 6px" }}>
-                <Button size="sm" variant="ghost" onClick={() => setSelected(p)}>View Details</Button>
+            <tr key={p.id}>
+              <td style={{ maxWidth: 280 }} title={p.url}>
+                <span className="dt-truncate" style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>
+                  {p.url.replace(/^https?:\/\/(www\.)?/, "")}
+                </span>
+              </td>
+              <td style={{ maxWidth: 220 }}>
+                <span className={`dt-truncate${p.page_title ? "" : " dt-faint"}`} style={{ display: "block" }}>{p.page_title || "—"}</span>
+              </td>
+              <td><Badge tone={STATUS_TONE[p.scrape_status] ?? "neutral"}>{humanize(p.scrape_status)}</Badge></td>
+              <td className="is-right dt-num">{p.sale_score ?? "—"}</td>
+              <td className={p.ai_analyzed ? undefined : "dt-muted"}>{p.ai_analyzed ? "Yes" : "Not yet"}</td>
+              <td className="dt-date dt-muted">{formatDateTime(p.scraped_at)}</td>
+              <td>
+                <Button size="sm" variant="ghost" onClick={() => setSelected(p)}>Details</Button>
               </td>
             </tr>
           ))}
           {(pages ?? []).length === 0 && (
             <tr>
-              <td colSpan={7} style={{ padding: 16, textAlign: "center", color: "var(--text-muted)" }}>
-                No pages stored yet. This brand has not produced scrape results — use Scrape now above.
+              <td colSpan={7} className="dt-muted" style={{ textAlign: "center", height: 96 }}>
+                No pages stored yet. Use Scrape now above to fetch this brand's pages.
               </td>
             </tr>
           )}
@@ -195,7 +202,7 @@ export function WebsiteScraperBrand() {
       </div>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ margin: 0, font: "800 20px/1.3 var(--font-sans)", color: "var(--text-strong)" }}>{brand.brand_name}</h1>
+          <h1 style={{ margin: 0, font: "600 20px/1.3 var(--font-sans)", color: "var(--text-strong)" }}>{brand.brand_name}</h1>
           <a href={brand.website} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "var(--brand)" }}>{brand.website}</a>
         </div>
         <Button

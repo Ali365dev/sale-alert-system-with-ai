@@ -5,7 +5,7 @@ import { PublicLayout } from "../../components/public/PublicLayout";
 import { useSeo } from "../../lib/seo";
 
 export function ContactPage() {
-  useSeo({ title: "Contact Us — DealPulse" });
+  useSeo({ title: "Contact Us — DealsMore" });
 
   return (
     <PublicLayout>

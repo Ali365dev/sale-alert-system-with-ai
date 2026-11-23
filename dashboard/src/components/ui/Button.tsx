@@ -18,7 +18,6 @@ const variantStyles: Record<Variant, CSSProperties> = {
     background: "var(--brand)",
     color: "var(--on-brand)",
     border: "1px solid transparent",
-    boxShadow: "var(--shadow-brand)",
   },
   secondary: {
     background: "var(--surface-card)",

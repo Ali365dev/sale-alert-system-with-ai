@@ -11,13 +11,14 @@ import {
 import { useBrands, useUpdateBrand } from "../api/brands";
 import { BrandLogo } from "../components/brands/BrandLogo";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
+import { Icon } from "../components/icons";
+import { Button, IconButton } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { DataTable, DataTableBody, DataTableEmpty, DataTableHead, DataTableRow } from "../components/ui/DataTable";
 import { Label, TextArea, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
-import { Icon } from "../components/icons";
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
@@ -278,9 +279,9 @@ export function CategoriesManager() {
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
-        <StatCard icon={<Icon.grid size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total categories" value={categories.length} />
-        <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Active" value={activeCount} />
-        <StatCard icon={<Icon.x size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="Inactive" value={categories.length - activeCount} />
+        <StatCard label="Total categories" value={categories.length} />
+        <StatCard label="Active" value={activeCount} />
+        <StatCard label="Inactive" value={categories.length - activeCount} />
       </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
@@ -316,91 +317,62 @@ export function CategoriesManager() {
           <div style={{ padding: "40px 20px", textAlign: "center", fontSize: 13, color: "var(--text-muted)" }}>
             No categories created yet. Add one to power onboarding and filters in the app.
           </div>
-        ) : filtered.length === 0 ? (
-          <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 12.5, color: "var(--text-muted)" }}>
-            No categories match your filters.
-          </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <div style={{ minWidth: 900 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "50px 1fr 80px 90px 90px 110px 200px",
-                  gap: 12,
-                  padding: "11px 20px",
-                  background: "var(--surface-sunken)",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "var(--ls-wide)",
-                  textTransform: "uppercase",
-                  color: "var(--text-muted)",
-                }}
-              >
-                <span>ID</span>
-                <span>Name</span>
-                <span>Order</span>
-                <span>Brands</span>
-                <span>Offers</span>
-                <span>Status</span>
-                <span>Actions</span>
-              </div>
+          <DataTable
+            label="Categories"
+            columns="56px minmax(240px, 1fr) 64px 72px 72px 96px 168px"
+            minWidth={880}
+            align={{ 2: "right", 3: "right", 4: "right" }}
+            stickyActions
+          >
+            <DataTableHead>
+              <span>ID</span>
+              <span>Name</span>
+              <span>Order</span>
+              <span>Brands</span>
+              <span>Offers</span>
+              <span>Status</span>
+              <span>Actions</span>
+            </DataTableHead>
+            <DataTableBody>
+              {filtered.length === 0 && <DataTableEmpty>No categories match your filters</DataTableEmpty>}
               {filtered.map((c) => (
-                <div
-                  key={c.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "50px 1fr 80px 90px 90px 110px 200px",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "var(--row-pad) 20px",
-                    borderBottom: "1px solid var(--border)",
-                    fontSize: 12.5,
-                  }}
-                >
-                  <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{c.id}</span>
-                  <div>
-                    <div style={{ fontWeight: 600, color: "var(--text-strong)" }}>{c.name}</div>
-                    {c.description ? (
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{c.description}</div>
-                    ) : null}
-                    <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>Created {formatDate(c.created_at)}</div>
+                <DataTableRow key={c.id} muted={!c.is_active}>
+                  <span className="dt-id">#{c.id}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="dt-strong dt-truncate">{c.name}</div>
+                    <div className="dt-truncate dt-muted" style={{ fontSize: "0.75rem" }} title={c.description ?? undefined}>
+                      {c.description || `Created ${formatDate(c.created_at)}`}
+                    </div>
                   </div>
-                  <span style={{ font: "500 12px/1 var(--font-mono)" }}>{c.sort_order}</span>
-                  <span>{c.brand_count}</span>
-                  <span>{c.offer_count}</span>
-                  <span>{c.is_active ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Inactive</Badge>}</span>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <Button size="sm" variant="secondary" onClick={() => setViewingBrands(c)}>
-                      Brands ({c.brand_count})
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => setEditing(c)}>
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
+                  <span className="dt-num dt-muted">{c.sort_order}</span>
+                  <span className={c.brand_count ? "dt-num" : "dt-num dt-faint"}>{c.brand_count}</span>
+                  <span className={c.offer_count ? "dt-num" : "dt-num dt-faint"}>{c.offer_count}</span>
+                  <Badge tone={c.is_active ? "success" : "neutral"}>{c.is_active ? "Active" : "Inactive"}</Badge>
+                  <span style={{ display: "flex", gap: 4 }}>
+                    <IconButton icon={<Icon.store size={14} />} label={`View ${c.brand_count} brands`} variant="ghost" onClick={() => setViewingBrands(c)} />
+                    <IconButton icon={<Icon.edit size={14} />} label="Edit category" variant="ghost" onClick={() => setEditing(c)} />
+                    <IconButton
+                      icon={<Icon.power size={14} />}
+                      label={c.is_active ? "Disable category" : "Enable category"}
+                      variant="ghost"
                       onClick={() => updateCategory.mutate({ id: c.id, input: { is_active: !c.is_active } })}
-                    >
-                      {c.is_active ? "Disable" : "Enable"}
-                    </Button>
-                    <Button
-                      size="sm"
+                    />
+                    <IconButton
+                      icon={<Icon.trash size={14} />}
+                      label="Delete category"
                       variant="danger"
                       onClick={() => {
                         if (window.confirm(`Delete category "${c.name}"? Offers keep their category text.`)) {
                           deleteCategory.mutate(c.id);
                         }
                       }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
+                    />
+                  </span>
+                </DataTableRow>
               ))}
-            </div>
-          </div>
+            </DataTableBody>
+          </DataTable>
         )}
       </Card>
 
@@ -410,15 +382,7 @@ export function CategoriesManager() {
             submitting={createCategory.isPending}
             onCancel={() => setAdding(false)}
             onSubmit={(input) =>
-              createCategory.mutate(input, {
-                onSuccess: () => setAdding(false),
-                onError: (err: unknown) => {
-                  const msg =
-                    (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-                    "Failed to create category.";
-                  window.alert(msg);
-                },
-              })
+              createCategory.mutate(input, { onSuccess: () => setAdding(false) })
             }
           />
         </Modal>
@@ -437,15 +401,7 @@ export function CategoriesManager() {
             onSubmit={(input) =>
               updateCategory.mutate(
                 { id: editing.id, input },
-                {
-                  onSuccess: () => setEditing(null),
-                  onError: (err: unknown) => {
-                    const msg =
-                      (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-                      "Failed to update category.";
-                    window.alert(msg);
-                  },
-                },
+                { onSuccess: () => setEditing(null) },
               )
             }
           />

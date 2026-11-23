@@ -8,8 +8,9 @@ import { Icon } from "../components/icons";
 import { JobDetailModal } from "../components/jobs/JobDetailModal";
 import { ProcessingPanel } from "../components/jobs/ProcessingPanel";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
+import { Button, IconButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
+import { DataTable, DataTableBody, DataTableEmpty, DataTableHead, DataTableRow } from "../components/ui/DataTable";
 import { Label, TextArea, TextInput } from "../components/ui/Field";
 import { StatCard } from "../components/ui/StatCard";
 
@@ -242,52 +243,40 @@ function HistoryTable() {
         <CardHeader title="Send history" />
       </div>
 
-      {isLoading && <div style={{ padding: 24, color: "var(--text-muted)", fontSize: 13 }}>Loading…</div>}
-      {!isLoading && jobs.length === 0 && (
-        <div style={{ padding: 24, color: "var(--text-muted)", fontSize: 13 }}>No notifications sent yet.</div>
-      )}
-
-      <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 720 }}>
+      <DataTable label="Send history" columns="minmax(260px, 1fr) 104px 152px 80px 72px 64px" minWidth={760} align={{ 3: "right", 4: "right" }}>
+        <DataTableHead>
+          <span>Notification</span>
+          <span>Status</span>
+          <span>Sent</span>
+          <span>Devices</span>
+          <span>Failed</span>
+          <span className="sr-only">Details</span>
+        </DataTableHead>
+        <DataTableBody>
+          {isLoading && <DataTableEmpty>Loading history…</DataTableEmpty>}
+          {!isLoading && jobs.length === 0 && <DataTableEmpty>No notifications sent yet</DataTableEmpty>}
           {jobs.map((job: Job) => {
             const style = getJobStatusStyle(job);
             const payload = job.payload as { title?: string; body?: string } | null;
             const result = job.result as { total_devices_at_send?: number } | null;
             return (
-              <div
-                key={job.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 100px 140px 90px 90px 100px",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "12px 20px",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 12.5,
-                }}
-              >
+              <DataTableRow key={job.id}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {payload?.title ?? "(untitled)"}
-                  </div>
-                  <div style={{ color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {payload?.body ?? ""}
-                  </div>
+                  <div className={`dt-truncate ${payload?.title ? "dt-strong" : "dt-faint"}`}>{payload?.title ?? "Untitled"}</div>
+                  {payload?.body && <div className="dt-truncate dt-muted" title={payload.body}>{payload.body}</div>}
                 </div>
                 <Badge tone={style.tone}>{style.label}</Badge>
-                <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(job.started_at)}</span>
-                <span style={{ font: "600 12px/1 var(--font-mono)" }}>{result?.total_devices_at_send ?? "—"}</span>
-                <span style={{ font: "600 12px/1 var(--font-mono)", color: job.failed > 0 ? "var(--danger)" : "var(--text-muted)" }}>
+                <span className="dt-date dt-muted">{formatDateTime(job.started_at)}</span>
+                <span className="dt-num">{result?.total_devices_at_send?.toLocaleString() ?? "—"}</span>
+                <span className={job.failed > 0 ? "dt-num" : "dt-num dt-faint"} style={job.failed > 0 ? { color: "var(--danger)" } : undefined}>
                   {job.failed}
                 </span>
-                <Button size="sm" variant="secondary" onClick={() => setDetailId(job.id)}>
-                  Details
-                </Button>
-              </div>
+                <IconButton icon={<Icon.eye size={14} />} label="Send details" variant="ghost" onClick={() => setDetailId(job.id)} />
+              </DataTableRow>
             );
           })}
-        </div>
-      </div>
+        </DataTableBody>
+      </DataTable>
 
       {detailId !== null && <JobDetailModal jobId={detailId} onClose={() => setDetailId(null)} />}
     </Card>
@@ -311,23 +300,14 @@ export function NotificationManager() {
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
         <StatCard
-          icon={<Icon.mail size={17} />}
-          iconColor="var(--brand)"
-          iconBg="var(--brand-subtle)"
           label="Registered devices"
           value={deviceCount.isLoading ? "—" : total}
         />
         <StatCard
-          icon={<Icon.bell size={17} />}
-          iconColor="var(--brand)"
-          iconBg="var(--brand-subtle)"
           label="iOS / Android"
           value={deviceCount.isLoading ? "—" : `${ios} / ${android}`}
         />
         <StatCard
-          icon={<Icon.shield size={17} />}
-          iconColor={configured ? "var(--success)" : "var(--amber-600)"}
-          iconBg={configured ? "var(--success-subtle)" : "var(--warning-subtle)"}
           label="Firebase"
           value={fcmStatus.isLoading ? "…" : configured ? "Configured" : "Not set up"}
         />

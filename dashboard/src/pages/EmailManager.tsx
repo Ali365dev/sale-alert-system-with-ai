@@ -22,6 +22,7 @@ import { Badge } from "../components/ui/Badge";
 import { Button, IconButton, IconLinkButton } from "../components/ui/Button";
 import { ProcessUnprocessedButton } from "../components/emails/ProcessUnprocessedButton";
 import { useBulkEmailActions } from "../components/emails/useBulkEmailActions";
+import { DataTable, DataTableBody, DataTableCheckbox, DataTableEmpty, DataTableHead, DataTableRow, SortHeader } from "../components/ui/DataTable";
 import { Card } from "../components/ui/Card";
 import { Select } from "../components/ui/Field";
 import { IconMenuButton } from "../components/ui/Menu";
@@ -137,7 +138,7 @@ function EmailAvatar({ brandName, logoUrl, fallbackName, size = 36 }: { brandNam
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        font: `800 ${Math.max(12, size * 0.36)}px/1 var(--font-sans)`,
+        font: `600 ${Math.max(12, size * 0.36)}px/1 var(--font-sans)`,
         flex: "0 0 auto",
       }}
       aria-hidden
@@ -329,7 +330,7 @@ function EmailManagerHero({ onSync, syncing }: { onSync: () => void; syncing: bo
   return (
     <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "stretch" }}>
       <div style={{ flex: "1 1 320px" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--brand)", marginBottom: 6 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--brand)", marginBottom: 6 }}>
           Email Manager
         </div>
         <h1 style={{ margin: "0 0 8px", font: "var(--fw-extra) 26px/1.25 var(--font-sans)", color: "var(--text-strong)" }}>
@@ -460,26 +461,16 @@ function EmailRowActions({
   );
 }
 
-const columns = "28px 220px 1fr 140px 120px 70px 110px";
+const columns = "24px 240px minmax(240px, 1fr) 136px 128px 56px 128px";
 
 function TableSkeleton() {
   return (
-    <div>
+    <>
       {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          style={{
-            display: "grid",
-            gridTemplateColumns: columns,
-            alignItems: "center",
-            gap: 12,
-            padding: "var(--row-pad) 20px",
-            borderBottom: "1px solid var(--border)",
-          }}
-        >
+        <DataTableRow key={i}>
           <div className="skeleton-shimmer" style={{ height: 14, width: 14 }} />
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div className="skeleton-shimmer" style={{ height: 36, width: 36, borderRadius: 10 }} />
+            <div className="skeleton-shimmer" style={{ height: 32, width: 32, borderRadius: 16 }} />
             <div className="skeleton-shimmer" style={{ height: 12, width: "70%" }} />
           </div>
           <div className="skeleton-shimmer" style={{ height: 12, width: "60%" }} />
@@ -487,45 +478,9 @@ function TableSkeleton() {
           <div className="skeleton-shimmer" style={{ height: 20, width: 80, borderRadius: 999 }} />
           <div className="skeleton-shimmer" style={{ height: 12, width: 24 }} />
           <div className="skeleton-shimmer" style={{ height: 28, width: "90%" }} />
-        </div>
+        </DataTableRow>
       ))}
-    </div>
-  );
-}
-
-function SortableHeader({
-  label,
-  field,
-  sort,
-  sortDir,
-  onSort,
-}: {
-  label: string;
-  field: EmailSortField;
-  sort: EmailSortField;
-  sortDir: "asc" | "desc";
-  onSort: (field: EmailSortField) => void;
-}) {
-  const active = sort === field;
-  return (
-    <button
-      type="button"
-      onClick={() => onSort(field)}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        border: "none",
-        background: "transparent",
-        padding: 0,
-        font: "inherit",
-        color: active ? "var(--text-strong)" : "inherit",
-        cursor: "pointer",
-      }}
-    >
-      {label}
-      {active && <Icon.chevron size={11} style={{ transform: sortDir === "asc" ? "rotate(-90deg)" : "rotate(90deg)" }} />}
-    </button>
+    </>
   );
 }
 
@@ -657,11 +612,11 @@ export function EmailManager() {
       <EmailManagerHero onSync={sync.run} syncing={sync.running} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
-        <StatCard icon={<Icon.mail size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total emails" value={summary?.total ?? "—"} />
-        <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Processed" value={summary?.processed ?? "—"} valueColor="var(--success)" />
-        <StatCard icon={<Icon.clock size={17} />} iconColor="var(--amber-600)" iconBg="var(--warning-subtle)" label="Unprocessed" value={summary?.unprocessed ?? "—"} valueColor="var(--warning)" />
-        <StatCard icon={<Icon.x size={17} />} iconColor="var(--danger)" iconBg="var(--danger-subtle)" label="Failed" value={summary?.failed ?? "—"} valueColor="var(--danger)" />
-        <StatCard icon={<Icon.sparkle size={17} />} iconColor="var(--ai)" iconBg="var(--ai-subtle)" label="Offers found" value={summary?.offers_found ?? "—"} />
+        <StatCard label="Total emails" value={summary?.total ?? "—"} />
+        <StatCard label="Processed" value={summary?.processed ?? "—"} valueColor="var(--success)" />
+        <StatCard label="Unprocessed" value={summary?.unprocessed ?? "—"} valueColor="var(--warning)" />
+        <StatCard label="Failed" value={summary?.failed ?? "—"} valueColor="var(--danger)" />
+        <StatCard label="Offers found" value={summary?.offers_found ?? "—"} />
       </div>
 
       <Tabs
@@ -837,127 +792,86 @@ export function EmailManager() {
         </Card>
       )}
 
-      <Card padded={false} style={{ overflow: "hidden" }}>
-        <div style={{ overflowX: "auto", maxHeight: "70vh", overflowY: "auto" }}>
-          <div style={{ minWidth: 1000 }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: columns,
-                gap: 12,
-                padding: "11px 20px",
-                background: "var(--surface-sunken)",
-                borderBottom: "1px solid var(--border)",
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "var(--ls-wide)",
-                textTransform: "uppercase",
-                color: "var(--text-muted)",
-                position: "sticky",
-                top: 0,
-                zIndex: 1,
-              }}
-            >
-              <input
-                type="checkbox"
-                aria-label="Select all loaded emails"
-                checked={emails.length > 0 && emails.every((e) => selected.has(e.id))}
-                onChange={(e) => {
-                  if (e.target.checked) setSelected(new Set(emails.map((em) => em.id)));
-                  else setSelected(new Set());
-                }}
-                style={{ width: 14, height: 14 }}
-              />
-              <span><SortableHeader label="Sender" field="sender" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
-              <span><SortableHeader label="Subject / Brand" field="subject" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
-              <span><SortableHeader label="Received" field="received_date" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
-              <span><SortableHeader label="Status" field="processing_status" sort={sort} sortDir={sortDir} onSort={toggleSort} /></span>
-              <span>Offers</span>
-              <span>Actions</span>
-            </div>
-
+      <Card padded={false} style={{ overflow: "hidden", gap: 0 }}>
+        <DataTable label="Emails" columns={columns} minWidth={1000} maxHeight="70vh" align={{ 5: "right" }} stickyActions>
+          <DataTableHead>
+            <DataTableCheckbox
+              label="Select all emails on this page"
+              checked={emails.length > 0 && emails.every((e) => selected.has(e.id))}
+              indeterminate={selected.size > 0}
+              onChange={(checked) => setSelected(checked ? new Set(emails.map((em) => em.id)) : new Set())}
+            />
+            <SortHeader label="Sender" direction={sort === "sender" ? sortDir : null} onSort={() => toggleSort("sender")} />
+            <SortHeader label="Subject" direction={sort === "subject" ? sortDir : null} onSort={() => toggleSort("subject")} />
+            <SortHeader label="Received" direction={sort === "received_date" ? sortDir : null} onSort={() => toggleSort("received_date")} />
+            <SortHeader label="Status" direction={sort === "processing_status" ? sortDir : null} onSort={() => toggleSort("processing_status")} />
+            <span>Offers</span>
+            <span>Actions</span>
+          </DataTableHead>
+          <DataTableBody>
             {isLoading ? (
               <TableSkeleton />
             ) : emails.length === 0 ? (
-              <div style={{ padding: "48px 20px", textAlign: "center", color: "var(--text-muted)" }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-strong)", marginBottom: 4 }}>No emails found</div>
-                <div style={{ fontSize: 12.5 }}>
-                  {hasFilters ? "Try clearing your search or filters." : "Use “Add Email / Connect” above to pull in new emails."}
-                </div>
-              </div>
+              <DataTableEmpty>
+                <div style={{ fontWeight: 500, color: "var(--text-strong)", marginBottom: 4 }}>No emails found</div>
+                <div>{hasFilters ? "Try clearing your search or filters" : "Use Add email above to pull in new emails"}</div>
+              </DataTableEmpty>
             ) : (
               emails.map((email) => {
                 const parsed = parseSender(email.sender);
                 return (
-                  <div
-                    key={email.id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: columns,
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "var(--row-pad) 20px",
-                      borderBottom: "1px solid var(--border)",
-                      fontSize: 12.5,
-                      opacity: isFetching ? 0.6 : 1,
-                      transition: "opacity 0.15s ease",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      aria-label={`Select email #${email.id}`}
+                  <DataTableRow key={email.id} selected={selected.has(email.id)} muted={isFetching}>
+                    <DataTableCheckbox
+                      label={`Select email ${email.id}`}
                       checked={selected.has(email.id)}
                       onChange={() => toggleSelected(email.id)}
-                      style={{ width: 14, height: 14 }}
                     />
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                       <EmailAvatar
                         brandName={email.brand}
                         logoUrl={(email.brand && brandsData?.brands.find((b) => b.name === email.brand)?.logo_url) || null}
                         fallbackName={parsed.name || parsed.address}
-                        size={36}
+                        size={32}
                       />
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600, color: "var(--text-strong)" }}>
+                        <div className="dt-strong dt-truncate">
                           <Highlight text={parsed.name ?? parsed.address} query={activeQuery} />
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {parsed.address}
-                        </div>
+                        <div className="dt-truncate dt-muted" style={{ fontSize: "0.75rem" }}>{parsed.address}</div>
                       </div>
                     </div>
-                    <span style={{ minWidth: 0 }}>
-                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600, color: "var(--text-strong)" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="dt-truncate" style={{ color: "var(--text-strong)" }} title={email.subject}>
                         <Highlight text={email.subject} query={activeQuery} />
                       </div>
                       {email.brand && (
-                        <div style={{ fontSize: 11, color: "var(--text-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div className="dt-truncate dt-muted" style={{ fontSize: "0.75rem" }}>
                           <Highlight text={email.brand} query={activeQuery} />
                         </div>
                       )}
-                    </span>
-                    <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(email.received_date)}</span>
-                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+                    </div>
+                    <span className="dt-date dt-muted">{formatDateTime(email.received_date)}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <Badge tone={PROCESSING_TONE[email.processing_status]}>{PROCESSING_LABEL[email.processing_status]}</Badge>
                       {email.processing_status === "failed" && email.processing_error && (
-                        <span title={email.processing_error} style={{ display: "inline-flex", color: "var(--danger)", cursor: "help" }}>
-                          <Icon.alert size={14} />
+                        <span title={email.processing_error} aria-label={`Error: ${email.processing_error}`} role="img" style={{ display: "inline-flex", color: "var(--danger)", cursor: "help" }}>
+                          <Icon.alert size={14} aria-hidden="true" />
                         </span>
                       )}
-                    </div>
-                    <span style={{ font: "600 12px/1 var(--font-mono)" }}>{email.offers_count}</span>
+                    </span>
+                    <span className={email.offers_count ? "dt-num" : "dt-num dt-faint"}>{email.offers_count}</span>
                     <EmailRowActions
                       email={email}
                       onView={() => setViewingId(email.id)}
                       onViewOffers={() => navigate(`/offers?email_id=${email.id}`)}
                       onViewImages={() => setViewingImagesId(email.id)}
                     />
-                  </div>
+                  </DataTableRow>
                 );
               })
             )}
-          </div>
-        </div>
+          </DataTableBody>
+        </DataTable>
 
         <div
           style={{
@@ -988,7 +902,7 @@ export function EmailManager() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <IconButton
-              icon={<Icon.chevron size={13} style={{ transform: "rotate(90deg)" }} />}
+              icon={<Icon.chevron size={14} aria-hidden="true" style={{ transform: "rotate(180deg)" }} />}
               label="Previous page"
               variant="secondary"
               disabled={page <= 1}
@@ -1022,7 +936,7 @@ export function EmailManager() {
               ),
             )}
             <IconButton
-              icon={<Icon.chevron size={13} style={{ transform: "rotate(-90deg)" }} />}
+              icon={<Icon.chevron size={14} aria-hidden="true" />}
               label="Next page"
               variant="secondary"
               disabled={page >= totalPages}

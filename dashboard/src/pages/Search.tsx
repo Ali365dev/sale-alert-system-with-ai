@@ -2,22 +2,15 @@ import { useState } from "react";
 
 import type { SearchFilters } from "../api/search";
 import { exportSearchCsvUrl, useSearch } from "../api/search";
+import { formatTableDate, humanize, VERIFICATION_LABEL, VERIFICATION_TONE } from "../lib/tableFormat";
+import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { DataTable, DataTableBody, DataTableEmpty, DataTableHead, DataTableRow } from "../components/ui/DataTable";
+import { LoadingState } from "../components/ui/Spinner";
 import { Label, Select, TextInput } from "../components/ui/Field";
 
-const VERIFICATION_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
-  verified: "success",
-  suspicious: "warning",
-  invalid: "danger",
-  unverified: "neutral",
-};
-
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
-}
 
 export function Search() {
   const [draft, setDraft] = useState<SearchFilters>({});
@@ -92,85 +85,56 @@ export function Search() {
           }}
         >
           <span style={{ font: "600 13px/1 var(--font-sans)", color: "var(--text-strong)" }}>
-            {isLoading ? "Searching…" : `${data?.count ?? 0} offer(s) found`}
+            {isLoading ? "Searching…" : `${data?.count ?? 0} ${data?.count === 1 ? "offer" : "offers"} found`}
           </span>
           <div style={{ flex: "1 1 auto" }} />
-          <a href={exportSearchCsvUrl(filters)} download>
-            <Button variant="secondary" size="sm">
-              Export CSV
-            </Button>
+          <a href={exportSearchCsvUrl(filters)} download className="link-button">
+            <Icon.download size={14} aria-hidden="true" />
+            Export CSV
           </a>
         </div>
 
-        {isError && <div style={{ padding: 20, color: "var(--danger)" }}>Failed to search offers.</div>}
+        {isError && <div style={{ padding: 20, color: "var(--danger)" }}>Search failed. Try again in a moment</div>}
+
+        {isLoading && <div style={{ padding: 20 }}><LoadingState label="Searching offers…" /></div>}
 
         {!isLoading && data && (
-          <div style={{ overflowX: "auto" }}>
-            <div style={{ minWidth: 1200 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "120px 110px 90px 130px 90px 120px 1fr 160px",
-                  gap: 12,
-                  padding: "11px 20px",
-                  background: "var(--surface-sunken)",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "var(--ls-wide)",
-                  textTransform: "uppercase",
-                  color: "var(--text-muted)",
-                }}
-              >
-                <span>Brand</span>
-                <span>Category</span>
-                <span style={{ textAlign: "right" }}>Disc %</span>
-                <span>Code</span>
-                <span>Expires</span>
-                <span>Verification</span>
-                <span>Subject</span>
-                <span>Received</span>
-              </div>
+          <DataTable
+            label="Search results"
+            columns="136px 120px 80px 128px 112px 112px minmax(220px, 1fr) 112px"
+            minWidth={1100}
+            align={{ 2: "right" }}
+          >
+            <DataTableHead>
+              <span>Brand</span>
+              <span>Category</span>
+              <span>Discount</span>
+              <span>Code</span>
+              <span>Expires</span>
+              <span>Verification</span>
+              <span>Email subject</span>
+              <span>Received</span>
+            </DataTableHead>
+            <DataTableBody>
+              {data.results.length === 0 && <DataTableEmpty>No offers match these filters</DataTableEmpty>}
               {data.results.map((row) => (
-                <div
-                  key={row.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "120px 110px 90px 130px 90px 120px 1fr 160px",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "var(--row-pad) 20px",
-                    borderBottom: "1px solid var(--border)",
-                    fontSize: 12.5,
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: "var(--text-strong)" }}>{row.brand ?? "—"}</span>
-                  <span>{row.category ?? "—"}</span>
-                  <span style={{ textAlign: "right", font: "700 13px/1 var(--font-mono)", color: "var(--text-strong)" }}>
-                    {row.discount_percentage != null ? `${row.discount_percentage}%` : "—"}
+                <DataTableRow key={row.id}>
+                  <span className="dt-strong dt-truncate">{row.brand ?? "—"}</span>
+                  <span className="dt-truncate">{row.category ?? "—"}</span>
+                  <span className="dt-num">{row.discount_percentage != null ? `${row.discount_percentage}%` : "—"}</span>
+                  <span className={row.coupon_code ? "dt-truncate" : "dt-faint"} style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>
+                    {row.coupon_code ?? "No code"}
                   </span>
-                  <span style={{ font: "600 11.5px/1 var(--font-mono)", color: "var(--text-muted)" }}>
-                    {row.coupon_code ?? "—"}
-                  </span>
-                  <span style={{ font: "500 12px/1 var(--font-mono)" }}>{formatDate(row.expiry_date)}</span>
-                  <Badge tone={VERIFICATION_TONE[row.verification_status] ?? "neutral"}>{row.verification_status}</Badge>
-                  <span
-                    style={{
-                      color: "var(--text-muted)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {row.subject ?? "—"}
-                  </span>
-                  <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>
-                    {formatDate(row.received_date)}
-                  </span>
-                </div>
+                  <span className="dt-date">{formatTableDate(row.expiry_date)}</span>
+                  <Badge tone={VERIFICATION_TONE[row.verification_status] ?? "neutral"}>
+                    {VERIFICATION_LABEL[row.verification_status] ?? humanize(row.verification_status)}
+                  </Badge>
+                  <span className="dt-truncate dt-muted" title={row.subject ?? undefined}>{row.subject ?? "—"}</span>
+                  <span className="dt-date dt-muted">{formatTableDate(row.received_date)}</span>
+                </DataTableRow>
               ))}
-            </div>
-          </div>
+            </DataTableBody>
+          </DataTable>
         )}
       </Card>
     </>

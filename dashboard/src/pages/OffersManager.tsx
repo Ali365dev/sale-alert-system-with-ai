@@ -12,6 +12,7 @@ import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
 import { Button, IconButton } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { DataTable, DataTableBody, DataTableCheckbox, DataTableEmpty, DataTableHead, DataTableRow, SortHeader } from "../components/ui/DataTable";
 import { Select, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
@@ -19,17 +20,9 @@ import { Tabs } from "../components/ui/Tabs";
 import { toast } from "../store/toastStore";
 import { useRegionStore } from "../store/regionStore";
 import { SOURCE_LABEL, sourceLabel, sourceTone } from "../lib/offerSource";
+import { formatTableDate, humanize, VERIFICATION_LABEL, VERIFICATION_TONE } from "../lib/tableFormat";
 
-const VERIFICATION_TONE: Record<string, "success" | "warning" | "danger" | "neutral"> = {
-  verified: "success",
-  suspicious: "warning",
-  invalid: "danger",
-};
-
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
-}
+const formatDate = formatTableDate;
 
 type SortColumn =
   | "id"
@@ -44,6 +37,19 @@ type SortColumn =
   | "source"
   | "verification_status";
 type SortDirection = "asc" | "desc";
+
+const SORT_COLUMNS: [SortColumn, string][] = [
+  ["id", "ID"],
+  ["title", "Title"],
+  ["brand", "Brand"],
+  ["category", "Category"],
+  ["offer_type", "Type"],
+  ["discount_percentage", "Discount"],
+  ["expiry_date", "Expires"],
+  ["created_at", "Created"],
+  ["source", "Source"],
+  ["verification_status", "Verification"],
+];
 
 /** Client-side sort — the table always has the full filtered result set in
  * memory already (see useOffers above), so there's no need for a server-side
@@ -65,61 +71,11 @@ function sortOffers(offers: Offer[] | undefined, sort: { column: SortColumn; dir
   });
 }
 
-function SortableHeader({
-  column,
-  label,
-  sort,
-  onSort,
-  align,
-}: {
-  column: SortColumn;
-  label: string;
-  sort: { column: SortColumn; direction: SortDirection };
-  onSort: (column: SortColumn) => void;
-  align?: "right";
-}) {
-  const active = sort.column === column;
-  return (
-    <button
-      type="button"
-      onClick={() => onSort(column)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: align === "right" ? "flex-end" : "flex-start",
-        gap: 4,
-        width: "100%",
-        border: "none",
-        background: "transparent",
-        padding: 0,
-        font: "inherit",
-        letterSpacing: "inherit",
-        textTransform: "inherit",
-        color: active ? "var(--text-strong)" : "inherit",
-        cursor: "pointer",
-      }}
-      aria-label={`Sort by ${label}${active ? (sort.direction === "asc" ? ", ascending" : ", descending") : ""}`}
-    >
-      {label}
-      <Icon.chevron
-        size={10}
-        style={{
-          // chevron points right by default — rotated 90deg it points down
-          // (descending, the more common table-sort default) or -90deg up.
-          transform: `rotate(${active && sort.direction === "asc" ? -90 : 90}deg)`,
-          opacity: active ? 1 : 0.25,
-          flex: "0 0 auto",
-        }}
-      />
-    </button>
-  );
-}
-
 function VerifyButton({ offer }: { offer: Offer }) {
   const verify = useVerifyOffer();
   return (
     <IconButton
-      icon={<Icon.sparkle size={14} />}
+      icon={<Icon.shield size={14} />}
       label="Verify with AI"
       loading={verify.isPending}
       onClick={() => verify.mutate(offer.id)}
@@ -159,11 +115,9 @@ function OfferCard({ offer, onView, onEdit }: { offer: Offer; onView: () => void
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
           {sourceLabel(offer.source) && <Badge tone={sourceTone(offer.source)}>{sourceLabel(offer.source)}</Badge>}
-          {offer.verification_status ? (
-            <Badge tone={VERIFICATION_TONE[offer.verification_status] ?? "neutral"}>{offer.verification_status}</Badge>
-          ) : (
-            <Badge tone="neutral">unverified</Badge>
-          )}
+          <Badge tone={VERIFICATION_TONE[offer.verification_status ?? "unverified"] ?? "neutral"}>
+            {VERIFICATION_LABEL[offer.verification_status ?? "unverified"] ?? humanize(offer.verification_status)}
+          </Badge>
         </div>
       </div>
 
@@ -340,12 +294,12 @@ function OffersTable() {
     <>
       {summary && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
-          <StatCard icon={<Icon.offer size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total offers" value={summary.total} />
-          <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Verified" value={summary.verified} valueColor="var(--success)" />
-          <StatCard icon={<Icon.alert size={17} />} iconColor="var(--amber-600)" iconBg="var(--warning-subtle)" label="Suspicious" value={summary.suspicious} valueColor="var(--warning)" />
-          <StatCard icon={<Icon.x size={17} />} iconColor="var(--danger)" iconBg="var(--danger-subtle)" label="Invalid" value={summary.invalid} valueColor="var(--danger)" />
-          <StatCard icon={<Icon.clock size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="Unverified" value={summary.unverified} />
-          <StatCard icon={<Icon.target size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Active" value={summary.active} />
+          <StatCard label="Total offers" value={summary.total} />
+          <StatCard label="Verified" value={summary.verified} valueColor="var(--success)" />
+          <StatCard label="Suspicious" value={summary.suspicious} valueColor="var(--warning)" />
+          <StatCard label="Invalid" value={summary.invalid} valueColor="var(--danger)" />
+          <StatCard label="Unverified" value={summary.unverified} />
+          <StatCard label="Active" value={summary.active} />
         </div>
       )}
 
@@ -685,110 +639,67 @@ function OffersTable() {
         )
       ) : (
         <Card padded={false} style={{ overflow: "hidden" }}>
-          <div style={{ overflowX: "auto" }}>
-            <div style={{ minWidth: 1100 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "28px 60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 90px 110px 200px",
-                  gap: 12,
-                  padding: "11px 20px",
-                  background: "var(--surface-sunken)",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "var(--ls-wide)",
-                  textTransform: "uppercase",
-                  color: "var(--text-muted)",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  aria-label="Select all loaded offers"
-                  checked={!!offers?.length && offers.every((o) => selected.has(o.id))}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    if (e.target.checked) setSelected(new Set(offers?.map((o) => o.id) ?? []));
-                    else setSelected(new Set());
-                  }}
-                  style={{ width: 14, height: 14 }}
+          <DataTable
+            label="Offers"
+            columns="24px 56px minmax(240px, 1fr) 112px 112px 104px 72px 104px 104px 88px 104px 152px"
+            minWidth={1240}
+            align={{ 6: "right" }}
+            stickyActions
+          >
+            <DataTableHead>
+              <DataTableCheckbox
+                label="Select all offers"
+                checked={!!offers?.length && offers.every((o) => selected.has(o.id))}
+                indeterminate={selected.size > 0}
+                onChange={(checked) => setSelected(checked ? new Set(offers?.map((o) => o.id) ?? []) : new Set())}
+              />
+              {SORT_COLUMNS.map(([column, label]) => (
+                <SortHeader
+                  key={column}
+                  label={label}
+                  direction={sort.column === column ? sort.direction : null}
+                  onSort={() => toggleSort(column)}
                 />
-                <SortableHeader column="id" label="ID" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="title" label="Title" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="brand" label="Brand" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="category" label="Category" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="offer_type" label="Type" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="discount_percentage" label="Disc %" sort={sort} onSort={toggleSort} align="right" />
-                <SortableHeader column="expiry_date" label="Expiry" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="created_at" label="Created" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="is_active" label="Active" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="source" label="Source" sort={sort} onSort={toggleSort} />
-                <SortableHeader column="verification_status" label="Verification" sort={sort} onSort={toggleSort} />
-                <span>Actions</span>
-              </div>
-
+              ))}
+              <span>Actions</span>
+            </DataTableHead>
+            <DataTableBody>
               {offers?.length === 0 && (
-                <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 12.5, color: "var(--text-muted)" }}>
-                  {q ? `No offers match “${search.trim()}”.` : "No offers found."}
-                </div>
+                <DataTableEmpty>{q ? `No offers match “${search.trim()}”` : "No offers yet"}</DataTableEmpty>
               )}
               {offers?.map((offer) => (
-                <div
-                  key={offer.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "28px 60px minmax(160px, 1fr) 110px 100px 90px 80px 95px 95px 70px 90px 110px 200px",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "var(--row-pad) 20px",
-                    borderBottom: "1px solid var(--border)",
-                    fontSize: 12.5,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={`Select offer #${offer.id}`}
+                <DataTableRow key={offer.id} selected={selected.has(offer.id)} muted={!offer.is_active}>
+                  <DataTableCheckbox
+                    label={`Select offer ${offer.id}`}
                     checked={selected.has(offer.id)}
-                    onClick={(e) => e.stopPropagation()}
                     onChange={() => toggleSelected(offer.id)}
-                    style={{ width: 14, height: 14 }}
                   />
-                  <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{offer.id}</span>
-                  <span
-                    title={offer.title ?? undefined}
-                    style={{
-                      color: offer.title ? "var(--text-body)" : "var(--text-faint)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {offer.title ?? "—"}
+                  <span className="dt-id">#{offer.id}</span>
+                  <span className="dt-title">
+                    <span className={`dt-truncate${offer.title ? "" : " dt-faint"}`} title={offer.title ?? undefined}>
+                      {offer.title ?? "No title"}
+                    </span>
+                    {!offer.is_active && <Badge tone="neutral">Inactive</Badge>}
                   </span>
-                  <span style={{ fontWeight: 600, color: "var(--text-strong)" }}>{offer.brand ?? "—"}</span>
-                  <span>{offer.category ?? "—"}</span>
-                  <span style={{ color: "var(--text-muted)" }}>{offer.offer_type ?? "—"}</span>
-                  <span style={{ textAlign: "right", font: "700 13px/1 var(--font-mono)" }}>
-                    {offer.discount_percentage != null ? `${offer.discount_percentage}%` : "—"}
-                  </span>
-                  <span style={{ font: "500 12px/1 var(--font-mono)" }}>{formatDate(offer.expiry_date)}</span>
-                  <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDate(offer.created_at)}</span>
-                  <span>{offer.is_active ? "Yes" : "No"}</span>
+                  <span className="dt-strong dt-truncate" title={offer.brand ?? undefined}>{offer.brand ?? "—"}</span>
+                  <span className="dt-truncate">{offer.category ?? "—"}</span>
+                  <span className="dt-muted dt-truncate">{humanize(offer.offer_type)}</span>
+                  <span className="dt-num">{offer.discount_percentage != null ? `${offer.discount_percentage}%` : "—"}</span>
+                  <span className="dt-date">{formatTableDate(offer.expiry_date)}</span>
+                  <span className="dt-date dt-muted">{formatTableDate(offer.created_at)}</span>
                   {sourceLabel(offer.source) ? (
                     <Badge tone={sourceTone(offer.source)}>{sourceLabel(offer.source)}</Badge>
                   ) : (
-                    <span style={{ color: "var(--text-faint)" }}>—</span>
+                    <span className="dt-faint">—</span>
                   )}
-                  {offer.verification_status ? (
-                    <Badge tone={VERIFICATION_TONE[offer.verification_status] ?? "neutral"}>{offer.verification_status}</Badge>
-                  ) : (
-                    <Badge tone="neutral">unverified</Badge>
-                  )}
+                  <Badge tone={VERIFICATION_TONE[offer.verification_status ?? "unverified"] ?? "neutral"}>
+                    {VERIFICATION_LABEL[offer.verification_status ?? "unverified"] ?? humanize(offer.verification_status)}
+                  </Badge>
                   <OfferActions offer={offer} onView={() => setViewing(offer)} onEdit={() => setEditing(offer)} />
-                </div>
+                </DataTableRow>
               ))}
-            </div>
-          </div>
+            </DataTableBody>
+          </DataTable>
         </Card>
       )}
 
@@ -850,7 +761,7 @@ function OffersTable() {
             {viewing.verification_status ? (
               <div>
                 <strong style={{ color: "var(--text-strong)" }}>Verification:</strong>{" "}
-                <Badge tone={VERIFICATION_TONE[viewing.verification_status] ?? "neutral"}>{viewing.verification_status}</Badge>{" "}
+                <Badge tone={VERIFICATION_TONE[viewing.verification_status] ?? "neutral"}>{VERIFICATION_LABEL[viewing.verification_status] ?? humanize(viewing.verification_status)}</Badge>{" "}
                 ({viewing.verification_confidence}% confidence)
                 {viewing.verification_reason && <div style={{ marginTop: 4 }}>{viewing.verification_reason}</div>}
               </div>

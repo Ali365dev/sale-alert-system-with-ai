@@ -19,8 +19,6 @@ export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: st
       style={{
         fontSize: 11.5,
         fontWeight: 700,
-        letterSpacing: "var(--ls-wide)",
-        textTransform: "uppercase",
         color: "var(--text-muted)",
         display: "block",
         marginBottom: 6,

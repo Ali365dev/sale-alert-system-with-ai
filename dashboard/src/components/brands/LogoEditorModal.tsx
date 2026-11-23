@@ -146,7 +146,7 @@ export function LogoEditorModal({
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--text-muted)" }}>
               Original
             </span>
             <div
@@ -179,7 +179,7 @@ export function LogoEditorModal({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--text-muted)" }}>
               Edit (drag to pan)
             </span>
             <div
@@ -216,7 +216,7 @@ export function LogoEditorModal({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "var(--text-muted)" }}>
               App preview
             </span>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center", paddingTop: 12 }}>

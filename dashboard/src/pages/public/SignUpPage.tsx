@@ -12,7 +12,7 @@ import { GoogleButton } from "./GoogleButton";
 const MIN_PASSWORD_LENGTH = 8;
 
 export function SignUpPage() {
-  useSeo({ title: "Sign up — DealPulse" });
+  useSeo({ title: "Sign up — DealsMore" });
   const navigate = useNavigate();
   const signup = useSignup();
   const [name, setName] = useState("");
@@ -72,7 +72,7 @@ export function SignUpPage() {
             Create Your <span style={{ color: "var(--brand)" }}>Account</span>
           </h1>
           <p style={{ margin: "8px 0 26px", fontSize: 13.5, color: "var(--text-muted)", maxWidth: 340 }}>
-            Join DealPulse and never miss a great deal again.
+            Join DealsMore and never miss a great deal again.
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>

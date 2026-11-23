@@ -22,7 +22,7 @@ export function BrandDetailPage() {
   const offers = useMemo(() => (data?.offers ?? []).filter((o) => !isExpired(o)), [data]);
 
   useSeo({
-    title: `${brandName} Offers & Coupons | DealPulse`,
+    title: `${brandName} Offers & Coupons | DealsMore`,
     description: `${offers.length} active offer${offers.length === 1 ? "" : "s"} from ${brandName}. Discounts, coupon codes, and deals verified with AI.`,
     structuredData: {
       "@context": "https://schema.org",

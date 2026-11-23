@@ -12,7 +12,7 @@ import { AuthField, AuthIllustration } from "./AuthField";
 const MIN_PASSWORD_LENGTH = 8;
 
 export function ForgotPasswordPage() {
-  useSeo({ title: "Forgot password — DealPulse" });
+  useSeo({ title: "Forgot password — DealsMore" });
   const navigate = useNavigate();
   const [step, setStep] = useState<"request" | "reset">("request");
   const [email, setEmail] = useState("");

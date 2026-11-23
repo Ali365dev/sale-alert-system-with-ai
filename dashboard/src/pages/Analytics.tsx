@@ -59,22 +59,22 @@ export function Analytics() {
 
         <Card>
           <CardHeader icon={<Icon.pie size={16} style={{ color: "var(--brand)" }} />} title="Offers by category" />
-          {offers_by_category.length ? <BarList items={offers_by_category} color="var(--primary-400)" /> : <Empty />}
+          {offers_by_category.length ? <BarList items={offers_by_category} /> : <Empty />}
         </Card>
 
         <Card>
           <CardHeader icon={<Icon.trendUp size={16} style={{ color: "var(--brand)" }} />} title="Top subcategories" />
-          {top_subcategories.length ? <BarList items={top_subcategories} color="var(--ai)" /> : <Empty />}
+          {top_subcategories.length ? <BarList items={top_subcategories} /> : <Empty />}
         </Card>
 
         <Card>
           <CardHeader icon={<Icon.offer size={16} style={{ color: "var(--brand)" }} />} title="Offer types breakdown" />
-          {offer_types.length ? <BarList items={offer_types} color="var(--iris-400)" /> : <Empty />}
+          {offer_types.length ? <BarList items={offer_types} /> : <Empty />}
         </Card>
 
         <Card>
           <CardHeader icon={<Icon.grid size={16} style={{ color: "var(--brand)" }} />} title="Offers by source" />
-          {offers_by_source.length ? <BarList items={offers_by_source} color="var(--success)" /> : <Empty />}
+          {offers_by_source.length ? <BarList items={offers_by_source} /> : <Empty />}
         </Card>
       </div>
 
@@ -153,8 +153,6 @@ export function Analytics() {
                 borderBottom: "1px solid var(--border)",
                 fontSize: 11,
                 fontWeight: 700,
-                letterSpacing: "var(--ls-wide)",
-                textTransform: "uppercase",
                 color: "var(--text-muted)",
               }}
             >
@@ -210,7 +208,6 @@ function ScraperStats({
   kind: "website" | "social";
   stats: WebsiteScraperStats | SocialScraperStats;
 }) {
-  const icon = kind === "website" ? <Icon.globe size={17} /> : <Icon.instagram size={17} />;
   const brandsLabel = kind === "website" ? "Brands monitored" : "Brands tracked";
   const brandsValue = kind === "website" ? (stats as WebsiteScraperStats).brands_monitored : (stats as SocialScraperStats).brands_tracked;
   const middleLabel = kind === "website" ? "Pages scraped" : "Posts collected";
@@ -221,38 +218,23 @@ function ScraperStats({
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
       <StatCard
-        icon={icon}
-        iconColor="var(--brand)"
-        iconBg="var(--brand-subtle)"
         label={brandsLabel}
         value={brandsValue}
         caption={`Last run ${formatRelative(stats.last_scraped_at)}`}
       />
       <StatCard
-        icon={<Icon.list size={17} />}
-        iconColor="var(--primary-400)"
-        iconBg="var(--brand-subtle)"
         label={middleLabel}
         value={middleValue}
       />
       <StatCard
-        icon={<Icon.tag size={17} />}
-        iconColor="var(--ai)"
-        iconBg="var(--ai-subtle)"
         label={offersLabel}
         value={offersValue}
       />
       <StatCard
-        icon={<Icon.percent size={17} />}
-        iconColor="var(--success)"
-        iconBg="var(--success-subtle)"
         label="Active offers"
         value={stats.active_offers}
       />
       <StatCard
-        icon={<Icon.check size={17} />}
-        iconColor={stats.success_rate != null && stats.success_rate < 60 ? "var(--danger)" : "var(--success)"}
-        iconBg={stats.success_rate != null && stats.success_rate < 60 ? "var(--danger-subtle)" : "var(--success-subtle)"}
         label="Success rate"
         value={stats.success_rate != null ? `${stats.success_rate}%` : "—"}
         valueColor={stats.success_rate != null && stats.success_rate < 60 ? "var(--danger)" : undefined}

@@ -85,10 +85,10 @@ export function CardOffersTab({ initialFilters, onScrapeJobStart }: {
   return (
     <div className="bo-stack">
       <div className="bo-stats">
-        <StatCard icon={<Icon.offer size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Offers" value={total.toLocaleString()} />
-        <StatCard icon={<Icon.power size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Active" value={(data?.active_count ?? 0).toLocaleString()} valueColor="var(--success)" />
-        <StatCard icon={<Icon.check size={17} />} iconColor="var(--info)" iconBg="var(--info-subtle)" label="Brand matched" value={(data?.matched_count ?? 0).toLocaleString()} />
-        <StatCard icon={<Icon.clock size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="With expiry" value={(data?.with_expiry_count ?? 0).toLocaleString()} />
+        <StatCard label="Offers" value={total.toLocaleString()} />
+        <StatCard label="Active" value={(data?.active_count ?? 0).toLocaleString()} valueColor="var(--success)" />
+        <StatCard label="Brand matched" value={(data?.matched_count ?? 0).toLocaleString()} />
+        <StatCard label="With expiry" value={(data?.with_expiry_count ?? 0).toLocaleString()} />
       </div>
 
       <Card>

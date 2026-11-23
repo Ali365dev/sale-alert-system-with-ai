@@ -119,3 +119,28 @@ button {
     scroll-behavior: auto !important;
   }
 }
+
+/* Anchor styled as a secondary button, for downloads and external links. */
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font: var(--fw-semibold) 0.85rem/1 var(--font-sans);
+  text-decoration: none;
+  transition: border-color 150ms ease;
+}
+.link-button:hover {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+  text-decoration: none;
+}
+.link-button:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}

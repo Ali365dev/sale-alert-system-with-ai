@@ -122,15 +122,14 @@
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-sunken);
-  font: 700 0.68rem/1 var(--font-sans);
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
+  font: var(--fw-medium) 0.75rem/1.2 var(--font-sans);
   text-align: left;
   white-space: nowrap;
   color: var(--text-muted);
 }
 .bo-table td {
-  padding: 10px 12px;
+  height: 52px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -314,8 +313,6 @@
 }
 .bo-bank-stat span {
   font: 600 0.68rem/1 var(--font-sans);
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
   color: var(--text-faint);
 }
 .bo-card-list {
@@ -386,8 +383,6 @@
   justify-content: space-between;
   gap: 8px;
   font: 700 0.68rem/1 var(--font-sans);
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
   color: var(--text-faint);
 }
 .bo-box {

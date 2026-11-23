@@ -39,7 +39,7 @@ function OfferCard({ offer, rank }: { offer: InsightOffer; rank: number }) {
         )}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-        <span style={{ font: "800 32px/1 var(--font-mono)", letterSpacing: "var(--ls-tight)", color: "var(--text-strong)" }}>
+        <span style={{ font: "600 32px/1 var(--font-mono)", letterSpacing: "var(--ls-tight)", color: "var(--text-strong)" }}>
           {offer.discount_percentage != null ? `${offer.discount_percentage}%` : "—"}
         </span>
         <span style={{ fontWeight: 600, fontSize: 15, color: "var(--text-strong)" }}>{offer.brand ?? "Unknown"}</span>
@@ -262,7 +262,7 @@ export function Insights() {
             { label: "Flagged", value: stats.flagged, color: "var(--warning)" },
           ].map((s) => (
             <div key={s.label} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface-app)", padding: "13px 15px", display: "flex", flexDirection: "column", gap: 5 }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-muted)" }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--text-muted)" }}>
                 {s.label}
               </div>
               <div style={{ font: "700 21px/1 var(--font-mono)", color: s.color }}>{s.value}</div>

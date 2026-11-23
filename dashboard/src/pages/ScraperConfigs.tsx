@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useScraperConfigs, useDeleteScraperConfig, useRunScraperConfig, useUpdateScraperConfig } from "../api/scraperConfigs";
 import { useBrands } from "../api/brands";
 import { toast } from "../store/toastStore";
+import { Icon } from "../components/icons";
 
 export function ScraperConfigs() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export function ScraperConfigs() {
     <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text-strong)", margin: 0 }}>Scraper Configs</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--text-strong)", margin: 0 }}>Scraper Configs</h1>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>Manage custom CSS selector configs for brand websites.</p>
         </div>
         <button
@@ -72,9 +73,9 @@ export function ScraperConfigs() {
       {isLoading && <p style={{ color: "var(--text-muted)" }}>Loading…</p>}
       {!isLoading && configs.length === 0 && (
         <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>
-          <p style={{ fontSize: 32, margin: 0 }}>🔧</p>
+          <Icon.settings size={28} aria-hidden="true" />
           <p style={{ fontSize: 14, fontWeight: 600, marginTop: 8 }}>No scraper configs yet</p>
-          <p style={{ fontSize: 13, marginTop: 4 }}>Use the Visual Scraper Builder to create your first config.</p>
+          <p style={{ fontSize: 13, marginTop: 4 }}>Create one in the Visual scraper.</p>
         </div>
       )}
 

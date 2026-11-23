@@ -42,10 +42,10 @@ export function CountrySelector() {
         }}
       >
         <span style={{ fontSize: 16, lineHeight: 1 }}>
-          {selected ? selected.flag : "🌍"}
+          {selected ? selected.flag : <Icon.globe size={16} aria-hidden="true" />}
         </span>
         <span style={{ color: "var(--text-body)" }}>
-          {selected ? selected.name : "All Countries"}
+          {selected ? selected.name : "All countries"}
         </span>
         <Icon.chevron
           size={11}
@@ -99,8 +99,8 @@ export function CountrySelector() {
               cursor: "pointer",
             }}
           >
-            <span style={{ fontSize: 16 }}>🌍</span>
-            <span style={{ flex: 1 }}>All Countries</span>
+            <Icon.globe size={16} aria-hidden="true" />
+            <span style={{ flex: 1 }}>All countries</span>
             {region === null && <Icon.check size={13} style={{ color: "var(--accent)" }} />}
           </button>
 

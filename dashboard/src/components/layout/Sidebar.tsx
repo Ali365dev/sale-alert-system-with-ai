@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router";
 
 import { Icon } from "../icons";
+import { Button } from "../ui/Button";
 
 interface NavItem {
   to: string;
@@ -22,114 +23,84 @@ const OVERVIEW_ITEMS: NavItem[] = [
 ];
 
 const DISCOVERY_ITEMS: NavItem[] = [
-  { to: "/discover-brand", label: "Discover Brands", icon: Icon.globe },
-  { to: "/brand-requests", label: "Brand Requests", icon: Icon.store },
+  { to: "/discover-brand", label: "Discover brands", icon: Icon.globe },
+  { to: "/brand-requests", label: "Brand requests", icon: Icon.user },
 ];
 
 const BRAND_ITEMS: NavItem[] = [
-  { to: "/brands", label: "All Brands", icon: Icon.home },
+  { to: "/brands", label: "All brands", icon: Icon.store },
   { to: "/manage-categories", label: "Categories", icon: Icon.grid },
-  { to: "/scraper-configs", label: "Scraper Configs", icon: Icon.target },
+  { to: "/scraper-configs", label: "Scraper configs", icon: Icon.list },
 ];
 
 const SCRAPER_BUILDER_ITEMS: NavItem[] = [
-  { to: "/scraper-builder", label: "Visual Scraper", icon: Icon.sparkle },
-  { to: "/website-scraper", label: "Website Scraper", icon: Icon.activity },
-  { to: "/website-scraper-test", label: "Scraper Test", icon: Icon.search },
-  { to: "/social-scraper-test", label: "Social Scraper", icon: Icon.instagram },
+  { to: "/scraper-builder", label: "Visual scraper", icon: Icon.target },
+  { to: "/website-scraper", label: "Website scraper", icon: Icon.external },
+  { to: "/website-scraper-test", label: "Scraper test", icon: Icon.play },
+  { to: "/social-scraper-test", label: "Social scraper", icon: Icon.instagram },
 ];
 
 const AUTOMATION_ITEMS: NavItem[] = [
-  { to: "/pipeline", label: "Scraping Jobs", icon: Icon.pulse },
-  { to: "/schedules", label: "Scheduled Scraping", icon: Icon.bell },
+  { to: "/pipeline", label: "Scraping jobs", icon: Icon.pulse },
+  { to: "/schedules", label: "Scheduled scraping", icon: Icon.calendar },
 ];
 
 const OFFERS_ITEMS: NavItem[] = [
-  { to: "/offers", label: "All Offers", icon: Icon.offer },
-  { to: "/bank-offers", label: "Bank Offers", icon: Icon.card },
-  { to: "/offer-discovery", label: "Offer Discovery", icon: Icon.sparkle },
+  { to: "/offers", label: "All offers", icon: Icon.offer },
+  { to: "/bank-offers", label: "Bank offers", icon: Icon.card },
+  { to: "/offer-discovery", label: "Offer discovery", icon: Icon.tag },
   { to: "/search", label: "Search", icon: Icon.search },
 ];
 
 const EMAIL_ITEMS: NavItem[] = [
-  { to: "/emails", label: "Email Manager", icon: Icon.mail },
-  { to: "/unknown-emails", label: "Unknown Emails", icon: Icon.inbox },
-  { to: "/insights", label: "AI Insights", icon: Icon.sparkle },
+  { to: "/emails", label: "Email manager", icon: Icon.mail },
+  { to: "/unknown-emails", label: "Unknown emails", icon: Icon.inbox },
+  { to: "/insights", label: "AI insights", icon: Icon.sparkle },
   { to: "/notifications", label: "Notifications", icon: Icon.bell },
 ];
 
 const SETTINGS_ITEMS: NavItem[] = [
-  { to: "/settings", label: "Settings", icon: Icon.target },
+  { to: "/settings", label: "Settings", icon: Icon.settings },
 ];
 
 const NAV_GROUPS: NavGroup[] = [
   { label: "Overview", items: OVERVIEW_ITEMS },
   { label: "Discovery", items: DISCOVERY_ITEMS },
-  { label: "Brand Management", items: BRAND_ITEMS },
-  { label: "Scraper Builder", items: SCRAPER_BUILDER_ITEMS },
+  { label: "Brands", items: BRAND_ITEMS },
+  { label: "Scraper builder", items: SCRAPER_BUILDER_ITEMS },
   { label: "Automation", items: AUTOMATION_ITEMS },
   { label: "Offers", items: OFFERS_ITEMS },
-  { label: "Email Manager", items: EMAIL_ITEMS },
-  { label: "Settings", items: SETTINGS_ITEMS },
+  { label: "Email", items: EMAIL_ITEMS },
+  { label: "System", items: SETTINGS_ITEMS },
 ];
-
-// ── Styles ───────────────────────────────────────────────────────────────────
-
-function navStyle(active: boolean): React.CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    width: "100%",
-    textAlign: "left",
-    border: 0,
-    cursor: "pointer",
-    padding: "9px 10px",
-    borderRadius: "var(--radius-sm)",
-    font: "600 13px/1 var(--font-sans)",
-    background: active ? "var(--brand-subtle)" : "transparent",
-    color: active ? "var(--brand)" : "var(--text-body)",
-    textDecoration: "none",
-  };
-}
-
-// ── Components ───────────────────────────────────────────────────────────────
 
 function NavGroup({ group, defaultOpen }: { group: NavGroup; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
+  const listId = `nav-group-${group.label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {/* Section header — clickable to collapse */}
+    <div className="nav-group">
       <button
         type="button"
+        className="nav-group-toggle"
         onClick={() => setOpen((v) => !v)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          border: 0,
-          background: "transparent",
-          cursor: "pointer",
-          padding: "10px 10px 4px",
-          color: "var(--text-faint)",
-          font: `700 10.5px/1 var(--font-sans)`,
-          letterSpacing: "var(--ls-wide)",
-          textTransform: "uppercase",
-        }}
+        aria-expanded={open}
+        aria-controls={listId}
       >
         {group.label}
-        <span style={{ fontSize: 9, opacity: 0.6, transition: "transform 0.15s", transform: open ? "rotate(0)" : "rotate(-90deg)", display: "inline-block" }}>▼</span>
+        <Icon.chevron size={14} aria-hidden="true" className={`nav-group-chevron${open ? " is-open" : ""}`} />
       </button>
 
-      {open &&
-        group.items.map(({ to, label, icon: ItemIcon }) => (
-          <NavLink key={to} to={to} style={({ isActive }) => navStyle(isActive)}>
-            <ItemIcon size={17} />
-            {label}
-          </NavLink>
-        ))}
+      {open && (
+        <div id={listId} className="nav-group-items">
+          {group.items.map(({ to, label, icon: ItemIcon }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => `nav-item${isActive ? " is-active" : ""}`}>
+              <ItemIcon size={16} aria-hidden="true" />
+              {label}
+            </NavLink>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -151,70 +122,33 @@ export function Sidebar({ onRunFetch, fetching, open, onClose }: {
 
   return (
     <aside id="app-sidebar" className={`shell-sidebar${open ? " is-open" : ""}`} aria-label="Main navigation">
-      {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 8px 16px" }}>
-        <Icon.pulse size={22} strokeWidth={2.5} style={{ color: "var(--brand)" }} />
-        <span style={{ font: "800 18px/1 var(--font-sans)", letterSpacing: "var(--ls-snug)", color: "var(--text-strong)" }}>
-          Deal<span style={{ color: "var(--brand)" }}>Pulse</span>
+      <div className="shell-brand">
+        <span className="shell-brand-mark" aria-hidden="true">
+          <Icon.tag size={16} />
         </span>
+        <span className="shell-brand-name">DealsMore</span>
+        <span className="shell-brand-sub">Admin</span>
         <button type="button" className="shell-sidebar-close" onClick={onClose} aria-label="Close navigation">
           <Icon.x size={18} aria-hidden="true" />
         </button>
       </div>
 
-      {/* Nav */}
-      <nav style={{ display: "flex", flexDirection: "column", gap: 8, flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+      <nav className="shell-nav">
         {NAV_GROUPS.map((group) => (
           <NavGroup key={group.label} group={group} defaultOpen={groupIsActive(group)} />
         ))}
       </nav>
 
-      {/* Run Fetch CTA */}
-      <button
-        type="button"
-        onClick={onRunFetch}
-        disabled={fetching}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: 10,
-          width: "100%",
-          padding: 14,
-          border: "1px solid var(--brand-subtle-2)",
-          borderRadius: "var(--radius-lg)",
-          background: "var(--brand-subtle)",
-          textAlign: "left",
-          cursor: fetching ? "not-allowed" : "pointer",
-          opacity: fetching ? 0.75 : 1,
-        }}
-      >
-        <Icon.sparkle size={18} style={{ color: "var(--brand)" }} />
-        <div>
-          <div style={{ font: "var(--fw-semibold) 13px/1.35 var(--font-sans)", color: "var(--text-strong)" }}>
-            Let AI find the best offers for you
-          </div>
-          <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
-            Fetch new emails and never miss a deal.
-          </div>
+      <div className="shell-fetch">
+        <div className="shell-fetch-status">
+          <span className={`status-dot${fetching ? " is-live" : ""}`} aria-hidden="true" />
+          {fetching ? "Fetching new emails" : "Inbox idle"}
         </div>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            height: 32,
-            padding: "0 12px",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--brand)",
-            color: "var(--on-brand)",
-            font: "700 12.5px/1 var(--font-sans)",
-          }}
-        >
-          {fetching ? "Fetching…" : "Run Fetch Now"}
-          {!fetching && <Icon.arrowRight size={13} />}
-        </span>
-      </button>
+        <Button variant="secondary" size="sm" fullWidth onClick={onRunFetch} loading={fetching}>
+          <Icon.mail size={16} aria-hidden="true" />
+          Fetch new emails
+        </Button>
+      </div>
     </aside>
   );
 }

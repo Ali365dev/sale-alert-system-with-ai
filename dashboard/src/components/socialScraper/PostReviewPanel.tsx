@@ -82,7 +82,7 @@ export function PostReviewPanel({ post }: { post: SocialPost }) {
 
         {post.ocr_text && (
           <div>
-            <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)" }}>
               OCR Text
             </span>
             <p style={{ margin: "4px 0 0", fontSize: 12.5, color: "var(--text-body)", whiteSpace: "pre-wrap" }}>{post.ocr_text}</p>

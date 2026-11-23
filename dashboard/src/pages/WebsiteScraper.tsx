@@ -31,7 +31,7 @@ const STATUS_META: Record<RowStatus, { label: string; tone: "success" | "warning
   error: { label: "Error", tone: "danger", color: "var(--danger)" },
 };
 
-const SEVERITY_ICON: Record<string, string> = { success: "✓", warning: "⚠", error: "✗", info: "○" };
+const SEVERITY_ICON: Record<string, (typeof Icon)[keyof typeof Icon]> = { success: Icon.check, warning: Icon.alert, error: Icon.x, info: Icon.clock };
 const SEVERITY_COLOR: Record<string, string> = {
   success: "var(--success)", warning: "var(--warning)", error: "var(--danger)", info: "var(--text-muted)",
 };
@@ -361,7 +361,7 @@ export function WebsiteScraper() {
             <Icon.globe size={20} />
           </div>
           <div>
-            <h1 style={{ margin: 0, font: "800 20px/1.3 var(--font-sans)", color: "var(--text-strong)" }}>Website Sale Scraper</h1>
+            <h1 style={{ margin: 0, font: "600 20px/1.3 var(--font-sans)", color: "var(--text-strong)" }}>Website Sale Scraper</h1>
             <p style={{ margin: "2px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
               Monitor brand websites, detect sales, and automatically create offers.
             </p>
@@ -397,11 +397,11 @@ export function WebsiteScraper() {
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-        <StatCard icon={<Icon.store size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total Brands" value={stats.total} caption="Brands being monitored" />
-        <StatCard icon={<Icon.play size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Active Scrapers" value={`${stats.enabled} / ${stats.total}`} caption="Currently enabled" />
-        <StatCard icon={<Icon.tag size={17} />} iconColor="var(--ai)" iconBg="var(--ai-subtle)" label="Active Website Offers" value={stats.activeOffers} caption="Offers from websites" />
-        <StatCard icon={<Icon.retry size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Scrapes Today" value={stats.scrapedToday} caption="Brands scraped today" />
-        <StatCard icon={<Icon.alert size={17} />} iconColor="var(--danger)" iconBg="var(--danger-subtle)" label="Failed Scrapes" value={stats.failed} valueColor={stats.failed ? "var(--danger)" : undefined} caption="Requires attention" />
+        <StatCard label="Total Brands" value={stats.total} caption="Brands being monitored" />
+        <StatCard label="Active Scrapers" value={`${stats.enabled} / ${stats.total}`} caption="Currently enabled" />
+        <StatCard label="Active Website Offers" value={stats.activeOffers} caption="Offers from websites" />
+        <StatCard label="Scrapes Today" value={stats.scrapedToday} caption="Brands scraped today" />
+        <StatCard label="Failed Scrapes" value={stats.failed} valueColor={stats.failed ? "var(--danger)" : undefined} caption="Requires attention" />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 16 }}>
@@ -434,7 +434,10 @@ export function WebsiteScraper() {
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {activity.slice(0, 12).map((a) => (
                 <div key={a.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-                  <span style={{ color: SEVERITY_COLOR[a.severity], fontSize: 14, flex: "0 0 auto" }}>{SEVERITY_ICON[a.severity] ?? "○"}</span>
+                  {(() => {
+                    const SeverityIcon = SEVERITY_ICON[a.severity] ?? Icon.clock;
+                    return <SeverityIcon size={14} aria-hidden="true" style={{ color: SEVERITY_COLOR[a.severity], flex: "0 0 auto" }} />;
+                  })()}
                   <span style={{ fontSize: 12.5, color: "var(--text-body)", flex: "1 1 auto" }}>{a.message}</span>
                   <span style={{ fontSize: 11, color: "var(--text-faint)", flex: "0 0 auto", whiteSpace: "nowrap" }}>{timeAgo(a.time)}</span>
                 </div>
@@ -448,8 +451,8 @@ export function WebsiteScraper() {
           <div style={{ display: "flex", alignItems: "center", gap: 26, flexWrap: "wrap" }}>
             <div style={{ position: "relative", width: 140, height: 140, flex: "0 0 140px", borderRadius: "50%", background: conicStops ? `conic-gradient(${conicStops})` : "var(--surface-sunken)" }}>
               <div style={{ position: "absolute", inset: 24, borderRadius: "50%", background: "var(--surface-card)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
-                <div style={{ font: "800 24px/1 var(--font-mono)", color: "var(--text-strong)" }}>{stats.total}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-muted)" }}>brands</div>
+                <div style={{ font: "600 24px/1 var(--font-mono)", color: "var(--text-strong)" }}>{stats.total}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)" }}>brands</div>
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: "1 1 160px", minWidth: 150 }}>
@@ -494,13 +497,14 @@ export function WebsiteScraper() {
           </div>
         </div>
 
-        <div style={{ overflowX: "auto", padding: "12px 20px 20px" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+        <div className="dt-scroll" role="region" aria-label="Monitored brands table" tabIndex={0}>
+          <table className="dt-native" style={{ minWidth: 1100 }}>
             <thead>
-              <tr style={{ textAlign: "left", color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>
-                <th style={{ padding: "8px 6px", width: 28 }}>
+              <tr>
+                <th style={{ width: 40 }}>
                   <input
                     type="checkbox"
+                    aria-label="Select all brands on this page"
                     checked={pageRows.length > 0 && pageRows.every((r) => selected.has(r.brand_id))}
                     onChange={(e) => {
                       setSelected((prev) => {
@@ -511,14 +515,14 @@ export function WebsiteScraper() {
                     }}
                   />
                 </th>
-                <th style={{ padding: "8px 6px" }}>Brand</th>
-                <th style={{ padding: "8px 6px" }}>Website</th>
-                <th style={{ padding: "8px 6px" }}>Status</th>
-                <th style={{ padding: "8px 6px" }}>Last Scraped</th>
-                <th style={{ padding: "8px 6px" }}>Content Change</th>
-                <th style={{ padding: "8px 6px" }}>Active Offers</th>
-                <th style={{ padding: "8px 6px" }}>Last Result</th>
-                <th style={{ padding: "8px 6px" }}>Actions</th>
+                <th>Brand</th>
+                <th>Website</th>
+                <th>Status</th>
+                <th>Last scraped</th>
+                <th>Content changed</th>
+                <th className="is-right">Active offers</th>
+                <th>Last result</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -527,22 +531,32 @@ export function WebsiteScraper() {
                 const changed = row.last_content_change_at !== null && row.last_content_change_at === row.last_scraped_at;
                 return (
                   <Fragment key={row.brand_id}>
-                    <tr style={{ borderBottom: configuringId === row.brand_id ? "none" : "1px solid var(--border)" }}>
-                      <td style={{ padding: "10px 6px" }}>
-                        <input type="checkbox" checked={selected.has(row.brand_id)} onChange={() => toggleSelected(row.brand_id)} />
+                    <tr className={selected.has(row.brand_id) ? "is-selected" : undefined} style={configuringId === row.brand_id ? { borderBottom: "none" } : undefined}>
+                      <td>
+                        <input type="checkbox" aria-label={`Select ${row.brand_name}`} checked={selected.has(row.brand_id)} onChange={() => toggleSelected(row.brand_id)} />
                       </td>
-                      <td style={{ padding: "10px 6px", fontWeight: 600, color: "var(--text-strong)" }}>{row.brand_name}</td>
-                      <td style={{ padding: "10px 6px", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        <a href={row.website} target="_blank" rel="noreferrer" style={{ color: "var(--brand)" }}>{row.website}</a>
+                      <td className="dt-strong">{row.brand_name}</td>
+                      <td style={{ maxWidth: 220 }}>
+                        <a href={row.website} target="_blank" rel="noreferrer" className="dt-truncate" style={{ display: "block", color: "var(--text-link)" }} title={row.website}>
+                          {row.website.replace(/^https?:\/\/(www\.)?/, "")}
+                        </a>
                       </td>
-                      <td style={{ padding: "10px 6px" }}><Badge tone={STATUS_META[status].tone}>{STATUS_META[status].label}</Badge></td>
-                      <td style={{ padding: "10px 6px", whiteSpace: "nowrap", color: "var(--text-muted)" }}>{timeAgo(row.last_scraped_at)}</td>
-                      <td style={{ padding: "10px 6px" }}>{changed ? <Icon.check size={14} style={{ color: "var(--success)" }} /> : <span style={{ color: "var(--text-faint)" }}>—</span>}</td>
-                      <td style={{ padding: "10px 6px", fontWeight: 600 }}>{row.active_offers}</td>
-                      <td style={{ padding: "10px 6px", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text-muted)" }} title={lastResultText(row)}>
-                        {lastResultText(row)}
+                      <td><Badge tone={STATUS_META[status].tone}>{STATUS_META[status].label}</Badge></td>
+                      <td className="dt-muted" style={{ whiteSpace: "nowrap" }}>{timeAgo(row.last_scraped_at)}</td>
+                      <td>
+                        {changed ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--success)" }}>
+                            <Icon.check size={14} aria-hidden="true" /> Changed
+                          </span>
+                        ) : (
+                          <span className="dt-faint">—</span>
+                        )}
                       </td>
-                      <td style={{ padding: "10px 6px" }}>
+                      <td className={`is-right dt-num${row.active_offers ? "" : " dt-faint"}`}>{row.active_offers}</td>
+                      <td className="dt-muted" style={{ maxWidth: 200 }} title={lastResultText(row)}>
+                        <span className="dt-truncate" style={{ display: "block" }}>{lastResultText(row)}</span>
+                      </td>
+                      <td>
                         <div style={{ display: "flex", gap: 4 }}>
                           <Button size="sm" variant="ghost" onClick={() => navigate(`/website-scraper/brands/${row.brand_id}`)}>View</Button>
                           <ScrapeNowButton row={row} onStarted={(jobId, brandName) => setActiveJob({ jobId, brandName })} />

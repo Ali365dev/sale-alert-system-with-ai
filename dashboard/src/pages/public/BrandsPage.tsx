@@ -56,7 +56,7 @@ function RequestBrandForm({ initialName, onDone }: { initialName: string; onDone
 }
 
 export function BrandsPage() {
-  useSeo({ title: "Browse Brands — DealPulse", description: "Every brand tracked on DealPulse, with active offers front and center." });
+  useSeo({ title: "Browse Brands — DealsMore", description: "Every brand tracked on DealsMore, with active offers front and center." });
   const { data: brandsData, isLoading: brandsLoading } = useBrands();
   const { data: offersData, isLoading: offersLoading } = useOffers({ active: "true" });
   const [query, setQuery] = useState("");
@@ -102,7 +102,7 @@ export function BrandsPage() {
     <PublicLayout>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "32px 24px 64px" }}>
         <h1 style={{ margin: "0 0 6px", font: "var(--fw-extra) 26px/1.2 var(--font-sans)", color: "var(--text-strong)" }}>Brands</h1>
-        <p style={{ margin: "0 0 22px", fontSize: 13.5, color: "var(--text-muted)" }}>{brands.length} brands tracked on DealPulse.</p>
+        <p style={{ margin: "0 0 22px", fontSize: 13.5, color: "var(--text-muted)" }}>{brands.length} brands tracked on DealsMore.</p>
 
         <div style={{ position: "relative", marginBottom: 16, maxWidth: 420 }}>
           <input

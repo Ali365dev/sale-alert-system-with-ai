@@ -107,7 +107,7 @@ export function BrandLogo({
     <div
       style={{
         ...shell,
-        font: `800 ${Math.max(12, size * 0.36)}px/1 var(--font-sans)`,
+        font: `600 ${Math.max(12, size * 0.36)}px/1 var(--font-sans)`,
       }}
       aria-hidden
       title={title ?? (logoUrl ? "Failed to load logo" : "Logo unavailable")}

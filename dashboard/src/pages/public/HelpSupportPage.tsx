@@ -14,7 +14,7 @@ const FAQS = [
   {
     question: "How do I get notified about new deals?",
     answer:
-      "Sign in and follow brands, then check back on Favorites and the homepage's \"For You\" section for picks matched to you. Email and push alerts for the website aren't available yet — the DealPulse mobile app supports push notifications if you'd like those.",
+      "Sign in and follow brands, then check back on Favorites and the homepage's \"For You\" section for picks matched to you. Email and push alerts for the website aren't available yet — the DealsMore mobile app supports push notifications if you'd like those.",
   },
   {
     question: "Are the discounts and coupon codes verified?",
@@ -22,7 +22,7 @@ const FAQS = [
       "Offers go through an automated verification pass, shown as a status on each deal. Always confirm the final price and code at checkout, since brands can end promotions at any time.",
   },
   {
-    question: "Do I need an account to use DealPulse?",
+    question: "Do I need an account to use DealsMore?",
     answer:
       "No — you can browse and save favorites as a guest; they're stored in this browser. Sign in to also follow brands and manage your account.",
   },
@@ -58,7 +58,7 @@ function FaqItem({ question, answer, expanded, onToggle }: { question: string; a
 }
 
 export function HelpSupportPage() {
-  useSeo({ title: "Help & Support — DealPulse" });
+  useSeo({ title: "Help & Support — DealsMore" });
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (

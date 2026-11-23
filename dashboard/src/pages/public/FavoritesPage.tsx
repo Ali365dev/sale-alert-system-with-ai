@@ -9,7 +9,7 @@ import { useSeo } from "../../lib/seo";
 import { useFavoritesStore } from "../../store/favoritesStore";
 
 export function FavoritesPage() {
-  useSeo({ title: "Favorites — DealPulse", description: "Offers you've saved." });
+  useSeo({ title: "Favorites — DealsMore", description: "Offers you've saved." });
   const { ids } = useFavoritesStore();
   const { data, isLoading } = useOffers({ active: "true" });
 

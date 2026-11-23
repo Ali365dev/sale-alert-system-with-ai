@@ -50,6 +50,7 @@ function addInterceptors(client: AxiosInstance) {
         data?.error ??
         detail ??
         (data?.status === "already_running" ? "Already running — please wait for it to finish." : undefined) ??
+        (error.response ? undefined : "Can't reach the server") ??
         error.message ??
         "Something went wrong. Please try again.";
       toast.error(message);

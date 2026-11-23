@@ -92,7 +92,7 @@ export function ScrapeDetailPanel({ page, onClose }: { page: WebsiteScrapedPage;
         )}
         {page.headline_text && (
           <div>
-            <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-muted)" }}>Headlines</span>
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)" }}>Headlines</span>
             <p style={{ margin: "4px 0 0", fontSize: 12.5 }}>{page.headline_text}</p>
           </div>
         )}

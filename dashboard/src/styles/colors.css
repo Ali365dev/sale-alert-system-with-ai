@@ -1,10 +1,10 @@
 /* SpendRo — Color tokens
-   Brand hue: DealPulse red (#B7131A — matches the mobile app's brand mark).
+   Brand hue: DealsMore red (#B7131A — matches the mobile app's brand mark).
    Emerald is retained as the money / income ("on track") accent.
    Base scales + semantic aliases. Reference semantic aliases in components. */
 
 :root {
-  /* ---- Brand / Primary (DealPulse red) ---- */
+  /* ---- Brand / Primary (DealsMore red) ---- */
   --primary-50:  #FDEDEE;
   --primary-100: #FAD6D8;
   --primary-200: #F3AEB2;

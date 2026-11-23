@@ -9,8 +9,9 @@ import {
 } from "../api/brandRequests";
 import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
+import { Button, IconButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
+import { DataTable, DataTableBody, DataTableEmpty, DataTableHead, DataTableRow } from "../components/ui/DataTable";
 import { StatCard } from "../components/ui/StatCard";
 
 const STATUS_TONE: Record<BrandRequestStatus, "success" | "warning" | "danger"> = {
@@ -42,66 +43,50 @@ function RequestRow({ request }: { request: BrandRequest }) {
   const pending = updateStatus.isPending;
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 140px 1fr 140px 130px 300px",
-        alignItems: "center",
-        gap: 12,
-        padding: "12px 20px",
-        borderBottom: "1px solid var(--border)",
-        fontSize: 12.5,
-      }}
-    >
+    <DataTableRow muted={request.status !== "pending"}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 600, color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {request.brand_name}
-        </div>
+        <div className="dt-strong dt-truncate">{request.brand_name}</div>
         {request.device_id && (
-          <div style={{ color: "var(--text-faint)", fontSize: 11, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div className="dt-truncate dt-faint" style={{ fontSize: "0.75rem", fontFamily: "var(--font-mono)" }} title={request.device_id}>
             {request.device_id}
           </div>
         )}
       </div>
-      <span style={{ color: request.category ? "var(--text-body)" : "var(--text-faint)" }}>{request.category ?? "—"}</span>
-      <span
-        style={{
-          color: request.note ? "var(--text-muted)" : "var(--text-faint)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-        title={request.note ?? undefined}
-      >
+      <span className={request.category ? "dt-truncate" : "dt-faint"}>{request.category ?? "—"}</span>
+      <span className={request.note ? "dt-truncate dt-muted" : "dt-faint"} title={request.note ?? undefined}>
         {request.note ?? "—"}
       </span>
-      <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(request.created_at)}</span>
+      <span className="dt-date dt-muted">{formatDateTime(request.created_at)}</span>
       <Badge tone={STATUS_TONE[request.status]}>{STATUS_LABEL[request.status]}</Badge>
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <span style={{ display: "flex", gap: 8 }}>
         {request.status === "pending" ? (
           <>
             <Link
               to={`/discover-brand?requestId=${request.id}&name=${encodeURIComponent(request.brand_name)}`}
-              title="Find this brand's official website, logo, and social links"
+              title="Find this brand's website, logo and social links"
+              className="link-button"
+              style={{ height: 32, padding: "0 12px" }}
             >
-              <Button size="sm" variant="secondary" type="button">
-                Discover
-              </Button>
+              Discover
             </Link>
             <Button size="sm" variant="secondary" loading={pending} onClick={() => updateStatus.mutate({ id: request.id, status: "added" })}>
               Mark added
             </Button>
-            <Button size="sm" variant="danger" loading={pending} onClick={() => updateStatus.mutate({ id: request.id, status: "rejected" })}>
-              Reject
-            </Button>
+            <IconButton
+              icon={<Icon.x size={14} />}
+              label="Reject request"
+              variant="danger"
+              loading={pending}
+              onClick={() => updateStatus.mutate({ id: request.id, status: "rejected" })}
+            />
           </>
         ) : (
           <Button size="sm" variant="ghost" loading={pending} onClick={() => updateStatus.mutate({ id: request.id, status: "pending" })}>
             Reopen
           </Button>
         )}
-      </div>
-    </div>
+      </span>
+    </DataTableRow>
   );
 }
 
@@ -124,14 +109,14 @@ export function BrandRequests() {
   return (
     <>
       <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
-        Brands users have asked for but DealPulse doesn't track yet — a signal for what to add next.
+        Brands users have asked for but DealsMore doesn't track yet — a signal for what to add next.
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
-        <StatCard icon={<Icon.store size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total requests" value={counts.total} />
-        <StatCard icon={<Icon.clock size={17} />} iconColor="var(--amber-600)" iconBg="var(--warning-subtle)" label="Pending" value={counts.pending} />
-        <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Added" value={counts.added} />
-        <StatCard icon={<Icon.x size={17} />} iconColor="var(--red-600)" iconBg="var(--danger-subtle)" label="Rejected" value={counts.rejected} />
+        <StatCard label="Total requests" value={counts.total} />
+        <StatCard label="Pending" value={counts.pending} />
+        <StatCard label="Added" value={counts.added} />
+        <StatCard label="Rejected" value={counts.rejected} />
       </div>
 
       <Card padded={false} style={{ overflow: "hidden" }}>
@@ -161,18 +146,23 @@ export function BrandRequests() {
           </div>
         </div>
 
-        {isLoading && <div style={{ padding: 24, color: "var(--text-muted)", fontSize: 13 }}>Loading…</div>}
-        {!isLoading && filtered.length === 0 && (
-          <div style={{ padding: 24, color: "var(--text-muted)", fontSize: 13 }}>No requests here yet.</div>
-        )}
-
-        <div style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: 980 }}>
+        <DataTable label="Brand requests" columns="minmax(200px, 1fr) 136px minmax(200px, 1fr) 136px 112px 248px" minWidth={1000} stickyActions>
+          <DataTableHead>
+            <span>Brand</span>
+            <span>Category</span>
+            <span>Note</span>
+            <span>Requested</span>
+            <span>Status</span>
+            <span>Actions</span>
+          </DataTableHead>
+          <DataTableBody>
+            {isLoading && <DataTableEmpty>Loading requests…</DataTableEmpty>}
+            {!isLoading && filtered.length === 0 && <DataTableEmpty>No requests here yet</DataTableEmpty>}
             {filtered.map((request) => (
               <RequestRow key={request.id} request={request} />
             ))}
-          </div>
-        </div>
+          </DataTableBody>
+        </DataTable>
       </Card>
     </>
   );

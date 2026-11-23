@@ -9,6 +9,18 @@ import { CountrySelector } from "./CountrySelector";
 function GlobalSearch() {
   const navigate = useNavigate();
   const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <form
@@ -21,20 +33,21 @@ function GlobalSearch() {
     >
       <Icon.search size={15} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-faint)" }} />
       <input
-        type="text"
+        ref={inputRef}
+        type="search"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Search emails, brands, or keywords…"
-        aria-label="Search emails, brands, or keywords"
+        placeholder="Search emails"
+        aria-label="Search emails"
         style={{
           width: "100%",
           height: 40,
           padding: "0 60px 0 38px",
           border: "1px solid var(--border)",
-          borderRadius: "var(--radius-pill)",
+          borderRadius: "var(--radius-sm)",
           background: "var(--surface-app)",
           color: "var(--text-strong)",
-          fontSize: 13,
+          fontSize: "0.875rem",
           boxSizing: "border-box",
         }}
       />
@@ -52,7 +65,7 @@ function GlobalSearch() {
           padding: "0 6px",
           border: "1px solid var(--border)",
           borderRadius: "var(--radius-sm)",
-          font: "600 10.5px/1 var(--font-mono)",
+          font: "var(--fw-medium) 0.7rem/1 var(--font-mono)",
           color: "var(--text-faint)",
         }}
       >

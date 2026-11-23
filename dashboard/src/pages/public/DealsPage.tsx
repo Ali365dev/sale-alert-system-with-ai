@@ -94,7 +94,7 @@ export function DealsPage() {
   }
 
   useSeo({
-    title: category ? `${category} Deals — DealPulse` : "All Deals — DealPulse",
+    title: category ? `${category} Deals — DealsMore` : "All Deals — DealsMore",
     description: `${liveOffers.length}+ active deals, discounts, and coupon codes from your favorite brands.`,
   });
 

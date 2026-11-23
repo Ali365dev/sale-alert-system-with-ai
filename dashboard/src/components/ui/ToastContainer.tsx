@@ -7,7 +7,7 @@ import { Icon } from "../icons";
 const TONE_STYLE: Record<ToastTone, { border: string; iconBg: string; iconColor: string; icon: (p: { size: number }) => ReactElement }> = {
   success: { border: "var(--success-subtle)", iconBg: "var(--success-subtle)", iconColor: "var(--success)", icon: Icon.check },
   error: { border: "var(--danger-subtle)", iconBg: "var(--danger-subtle)", iconColor: "var(--danger)", icon: Icon.x },
-  info: { border: "var(--ai-subtle)", iconBg: "var(--ai-subtle)", iconColor: "var(--ai)", icon: Icon.sparkle },
+  info: { border: "var(--border)", iconBg: "var(--surface-sunken)", iconColor: "var(--text-muted)", icon: Icon.bell },
 };
 
 export function ToastContainer() {
@@ -17,6 +17,8 @@ export function ToastContainer() {
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       style={{
         position: "fixed",
         top: 20,
@@ -64,6 +66,7 @@ export function ToastContainer() {
             <button
               type="button"
               onClick={() => dismiss(t.id)}
+              aria-label="Dismiss notification"
               style={{
                 border: "none",
                 background: "transparent",
@@ -74,7 +77,7 @@ export function ToastContainer() {
                 padding: 0,
               }}
             >
-              ✕
+              <Icon.x size={14} aria-hidden="true" />
             </button>
           </div>
         );

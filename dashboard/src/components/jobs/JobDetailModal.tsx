@@ -29,7 +29,7 @@ function formatDateTime(iso: string | null) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-muted)" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>
         {title}
       </div>
       {children}

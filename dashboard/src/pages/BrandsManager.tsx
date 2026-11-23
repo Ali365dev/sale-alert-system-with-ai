@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import type { Brand } from "../api/brands";
 import {
@@ -23,6 +23,7 @@ import { LogoEditorModal } from "../components/brands/LogoEditorModal";
 import { Badge } from "../components/ui/Badge";
 import { Button, IconButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
+import { DataTable, DataTableBody, DataTableEmpty, DataTableHead, DataTableRow } from "../components/ui/DataTable";
 import { Label, Select, TextInput } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { StatCard } from "../components/ui/StatCard";
@@ -173,6 +174,7 @@ function IconLink({ href, title, children }: { href: string; title: string; chil
       target="_blank"
       rel="noopener noreferrer"
       title={title}
+      aria-label={title}
       onClick={(e) => e.stopPropagation()}
       style={{
         display: "inline-flex",
@@ -227,10 +229,10 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
-        <StatCard icon={<Icon.house size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Total brands" value={summary.total} />
-        <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Active" value={summary.active} />
-        <StatCard icon={<Icon.search size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Ever searched" value={summary.ever_searched} />
-        <StatCard icon={<Icon.sparkle size={17} />} iconColor="var(--ai)" iconBg="var(--ai-subtle)" label="Known sender emails" value={summary.known_sender_emails} />
+        <StatCard label="Total brands" value={summary.total} />
+        <StatCard label="Active" value={summary.active} />
+        <StatCard label="Ever searched" value={summary.ever_searched} />
+        <StatCard label="Known sender emails" value={summary.known_sender_emails} />
       </div>
 
       <Tabs
@@ -330,61 +332,35 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
       </Card>
 
       <Card padded={false} style={{ overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: 1100 }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "50px 72px 140px 60px 120px 1fr 80px 160px 220px",
-                gap: 12,
-                padding: "11px 20px",
-                background: "var(--surface-sunken)",
-                borderBottom: "1px solid var(--border)",
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "var(--ls-wide)",
-                textTransform: "uppercase",
-                color: "var(--text-muted)",
-              }}
-            >
-              <span>ID</span>
-              <span>Logo preview</span>
-              <span>Name</span>
-              <span>Website</span>
-              <span>Social</span>
-              <span>Emails</span>
-              <span>Active</span>
-              <span>Last searched</span>
-              <span>Actions</span>
-            </div>
+        <DataTable
+          label="Brands"
+          columns="56px 40px minmax(160px, 1fr) 64px 112px minmax(180px, 1fr) 88px 136px 152px"
+          minWidth={1080}
+          stickyActions
+        >
+          <DataTableHead>
+            <span>ID</span>
+            <span className="sr-only">Logo</span>
+            <span>Name</span>
+            <span>Website</span>
+            <span>Social</span>
+            <span>Sender emails</span>
+            <span>Status</span>
+            <span>Last searched</span>
+            <span>Actions</span>
+          </DataTableHead>
+          <DataTableBody>
             {filtered.length === 0 ? (
-              <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 12.5, color: "var(--text-muted)" }}>
-                No brands match “{query.trim()}”.
-              </div>
+              <DataTableEmpty>{query.trim() ? `No brands match “${query.trim()}”` : "No brands yet"}</DataTableEmpty>
             ) : (
               filtered.map((b) => (
-              <div
-                key={b.id}
-                onClick={() => navigate(`/offers?brand=${encodeURIComponent(b.name)}`)}
-                title={`View offers from ${b.name}`}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "50px 72px 140px 60px 120px 1fr 80px 160px 220px",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "var(--row-pad) 20px",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 12.5,
-                  cursor: "pointer",
-                }}
-              >
-                <span style={{ font: "600 12px/1 var(--font-mono)", color: "var(--text-faint)" }}>#{b.id}</span>
-                <div onClick={(e) => e.stopPropagation()} title={b.logo_url ? "App logo preview" : "Logo unavailable"}>
+                <DataTableRow key={b.id} muted={!b.is_active}>
+                  <span className="dt-id">#{b.id}</span>
                   <BrandLogo
                     name={b.name}
                     logoUrl={b.logo_url}
                     website={b.website}
-                    size={52}
+                    size={32}
                     circle
                     transform={{
                       logo_scale: b.logo_scale ?? 1,
@@ -392,76 +368,65 @@ function AllBrands({ brands, summary }: { brands: Brand[]; summary: { total: num
                       logo_offset_y: b.logo_offset_y ?? 0,
                     }}
                   />
-                </div>
-                <span style={{ fontWeight: 600, color: "var(--text-strong)" }}>{b.name}</span>
-                <span>
+                  <Link
+                    to={`/offers?brand=${encodeURIComponent(b.name)}`}
+                    className="dt-strong dt-truncate dt-link"
+                    title={`View offers from ${b.name}`}
+                  >
+                    {b.name}
+                  </Link>
                   {b.website ? (
-                    <IconLink href={b.website} title={b.website}>
+                    <IconLink href={b.website} title={`Open ${b.website}`}>
                       <Icon.external size={14} />
                     </IconLink>
                   ) : (
-                    <span style={{ color: "var(--text-faint)" }}>—</span>
+                    <span className="dt-faint">—</span>
                   )}
-                </span>
-                <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {(() => {
-                    const platforms = (Object.keys(SOCIAL_ICONS) as (keyof typeof SOCIAL_ICONS)[]).filter(
-                      (platform) => b.social_links?.[platform],
-                    );
-                    if (platforms.length === 0) return <span style={{ color: "var(--text-faint)" }}>—</span>;
-                    return platforms.map((platform) => {
-                      const SocialIcon = SOCIAL_ICONS[platform];
-                      return (
-                        <IconLink key={platform} href={b.social_links?.[platform] ?? "#"} title={platform}>
-                          <SocialIcon size={13} />
-                        </IconLink>
+                  <span style={{ display: "flex", gap: 4 }}>
+                    {(() => {
+                      const platforms = (Object.keys(SOCIAL_ICONS) as (keyof typeof SOCIAL_ICONS)[]).filter(
+                        (platform) => b.social_links?.[platform],
                       );
-                    });
-                  })()}
-                </span>
-                <span
-                  title={b.emails.join(", ")}
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    font: "500 12px/1 var(--font-mono)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  {b.emails.length ? b.emails.join(", ") : "—"}
-                </span>
-                <span>{b.is_active ? <Badge tone="success">Active</Badge> : <Badge tone="neutral">Inactive</Badge>}</span>
-                <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(b.last_searched)}</span>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
-                  <Button size="sm" variant="secondary" onClick={() => setLogoEditing(b)}>
-                    Logo
-                  </Button>
-                  <IconButton
-                    icon={<Icon.globe size={14} />}
-                    label="Re-discover this brand"
-                    variant="secondary"
-                    disabled={!b.website}
-                    onClick={() => navigate(`/discover-brand?website=${encodeURIComponent(b.website ?? "")}`)}
-                  />
-                  <Button size="sm" variant="secondary" onClick={() => setEditing(b)}>
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => {
-                      if (window.confirm(`Delete brand "${b.name}"?`)) deleteBrand.mutate(b.id);
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
+                      if (platforms.length === 0) return <span className="dt-faint">—</span>;
+                      return platforms.map((platform) => {
+                        const SocialIcon = SOCIAL_ICONS[platform];
+                        return (
+                          <IconLink key={platform} href={b.social_links?.[platform] ?? "#"} title={`${b.name} on ${platform}`}>
+                            <SocialIcon size={14} />
+                          </IconLink>
+                        );
+                      });
+                    })()}
+                  </span>
+                  <span className="dt-truncate dt-muted" title={b.emails.join(", ")}>
+                    {b.emails.length ? b.emails.join(", ") : "—"}
+                  </span>
+                  <Badge tone={b.is_active ? "success" : "neutral"}>{b.is_active ? "Active" : "Inactive"}</Badge>
+                  <span className="dt-date dt-muted">{formatDateTime(b.last_searched)}</span>
+                  <span style={{ display: "flex", gap: 4 }}>
+                    <IconButton icon={<Icon.image size={14} />} label="Adjust logo" variant="ghost" onClick={() => setLogoEditing(b)} />
+                    <IconButton
+                      icon={<Icon.globe size={14} />}
+                      label={b.website ? "Re-discover this brand" : "Add a website to re-discover"}
+                      variant="ghost"
+                      disabled={!b.website}
+                      onClick={() => navigate(`/discover-brand?website=${encodeURIComponent(b.website ?? "")}`)}
+                    />
+                    <IconButton icon={<Icon.edit size={14} />} label="Edit brand" variant="ghost" onClick={() => setEditing(b)} />
+                    <IconButton
+                      icon={<Icon.trash size={14} />}
+                      label="Delete brand"
+                      variant="danger"
+                      onClick={() => {
+                        if (window.confirm(`Delete brand "${b.name}"?`)) deleteBrand.mutate(b.id);
+                      }}
+                    />
+                  </span>
+                </DataTableRow>
               ))
             )}
-          </div>
-        </div>
+          </DataTableBody>
+        </DataTable>
       </Card>
 
       {editing && (

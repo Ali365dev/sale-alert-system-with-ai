@@ -48,7 +48,7 @@ export function OfferDetailPage() {
   const title = offer ? `${brandName ?? "Offer"} — ${discountLabel(offer) ?? humanize(offer.offer_type) ?? "Deal"}` : "Offer";
 
   useSeo({
-    title: offer ? `${title} | DealPulse` : "Offer | DealPulse",
+    title: offer ? `${title} | DealsMore` : "Offer | DealsMore",
     description: offer ? offer.summary ?? `${discountLabel(offer) ?? "Special"} deal from ${brandName ?? "this brand"}.` : undefined,
     type: "product",
     structuredData:

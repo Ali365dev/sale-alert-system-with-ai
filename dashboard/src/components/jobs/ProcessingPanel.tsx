@@ -67,7 +67,7 @@ function StatBox({ label, value, color }: { label: string; value: number | strin
       }}
     >
       <span style={{ font: "600 18px/1.1 var(--font-mono)", color: color ?? "var(--text-strong)" }}>{value}</span>
-      <span style={{ fontSize: 10.5, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-muted)" }}>
+      <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
         {label}
       </span>
     </div>
@@ -151,7 +151,7 @@ export function ProcessingPanel({ jobId, onDismiss }: { jobId: number; onDismiss
         />
 
         {stage && (
-          <div style={{ fontSize: 11.5, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "var(--ls-wide)" }}>
+          <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
             {stage}
           </div>
         )}

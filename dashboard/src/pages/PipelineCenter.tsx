@@ -14,12 +14,13 @@ import {
 } from "../api/jobs";
 import { getJobStatusStyle } from "../config/jobStatus";
 import { getJobTypeConfig, JOB_TYPES } from "../config/jobTypes";
-import { Icon } from "../components/icons";
 import { JobDetailModal } from "../components/jobs/JobDetailModal";
 import { ActiveJobsList } from "../components/jobs/ActiveJobsList";
+import { Icon } from "../components/icons";
 import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
+import { Button, IconButton } from "../components/ui/Button";
 import { Card, CardHeader } from "../components/ui/Card";
+import { DataTable, DataTableBody, DataTableCheckbox, DataTableEmpty, DataTableHead, DataTableRow, SortHeader } from "../components/ui/DataTable";
 import { Label, Select, TextInput } from "../components/ui/Field";
 import { StatCard } from "../components/ui/StatCard";
 import { Tabs } from "../components/ui/Tabs";
@@ -226,111 +227,83 @@ function HistoryTable() {
         </div>
       </div>
 
-      <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 960 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "36px 160px 90px 140px 140px 90px 110px 200px",
-              gap: 12,
-              padding: "11px 20px",
-              background: "var(--surface-sunken)",
-              borderBottom: "1px solid var(--border)",
-              position: "sticky",
-              top: 0,
-              zIndex: 1,
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "var(--ls-wide)",
-              textTransform: "uppercase",
-              color: "var(--text-muted)",
-            }}
-          >
-            <span />
-            <button type="button" onClick={() => toggleSort("id")} style={{ all: "unset", cursor: "pointer" }}>Job</button>
-            <span>Status</span>
-            <button type="button" onClick={() => toggleSort("started_at")} style={{ all: "unset", cursor: "pointer" }}>Started</button>
-            <button type="button" onClick={() => toggleSort("finished_at")} style={{ all: "unset", cursor: "pointer" }}>Finished</button>
-            <span>Processed</span>
-            <span>Failed</span>
-            <span>Actions</span>
-          </div>
-
+      <DataTable
+        label="Scraping jobs"
+        columns="24px minmax(200px, 1fr) 112px 152px 152px 88px 72px 120px"
+        minWidth={980}
+        align={{ 5: "right", 6: "right" }}
+        stickyActions
+      >
+        <DataTableHead>
+          <DataTableCheckbox
+            label="Select all jobs on this page"
+            checked={jobs.length > 0 && jobs.every((j: Job) => selected.has(j.id))}
+            indeterminate={selected.size > 0}
+            onChange={(checked) => setSelected(checked ? new Set(jobs.map((j: Job) => j.id)) : new Set())}
+          />
+          <SortHeader label="Job" direction={sort === "id" ? sortDir : null} onSort={() => toggleSort("id")} />
+          <SortHeader label="Status" direction={sort === "status" ? sortDir : null} onSort={() => toggleSort("status")} />
+          <SortHeader label="Started" direction={sort === "started_at" ? sortDir : null} onSort={() => toggleSort("started_at")} />
+          <SortHeader label="Finished" direction={sort === "finished_at" ? sortDir : null} onSort={() => toggleSort("finished_at")} />
+          <span>Processed</span>
+          <span>Failed</span>
+          <span>Actions</span>
+        </DataTableHead>
+        <DataTableBody>
           {isLoading &&
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
-                <div style={{ height: 14, width: "60%", background: "var(--surface-sunken)", borderRadius: 4 }} />
-              </div>
+              <DataTableRow key={i}>
+                <span />
+                <div className="skeleton-shimmer" style={{ height: 12, width: "70%" }} />
+              </DataTableRow>
             ))}
-
-          {!isLoading && isError && (
-            <div style={{ padding: 24, color: "var(--danger)", fontSize: 13 }}>
-              Failed to load job history. Is the API running on port 8000?
-            </div>
-          )}
-
-          {!isLoading && !isError && jobs.length === 0 && (
-            <div style={{ padding: 24, color: "var(--text-muted)", fontSize: 13 }}>No jobs found.</div>
-          )}
-
+          {!isLoading && isError && <DataTableEmpty>Job history couldn't load. Check that the scraper server is running</DataTableEmpty>}
+          {!isLoading && !isError && jobs.length === 0 && <DataTableEmpty>No jobs yet</DataTableEmpty>}
           {jobs.map((job: Job) => {
             const config = getJobTypeConfig(job.job_type);
             const style = getJobStatusStyle(job);
+            const jobTotal = job.total_items || job.total_emails;
             return (
-              <div
-                key={job.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "36px 160px 90px 140px 140px 90px 110px 200px",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "var(--row-pad) 20px",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: 12.5,
-                }}
-              >
-                <input type="checkbox" checked={selected.has(job.id)} onChange={() => toggleSelected(job.id)} />
-                <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, color: "var(--text-strong)" }}>
-                  {config.icon}
-                  {config.title}
+              <DataTableRow key={job.id} selected={selected.has(job.id)}>
+                <DataTableCheckbox label={`Select job ${job.id}`} checked={selected.has(job.id)} onChange={() => toggleSelected(job.id)} />
+                <span className="dt-strong" style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <span className="dt-muted" style={{ display: "inline-flex" }} aria-hidden="true">{config.icon}</span>
+                  <span className="dt-truncate">{config.title}</span>
+                  <span className="dt-id">#{job.id}</span>
                 </span>
                 <Badge tone={style.tone}>{style.label}</Badge>
-                <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(job.started_at)}</span>
-                <span style={{ font: "500 12px/1 var(--font-mono)", color: "var(--text-muted)" }}>{formatDateTime(job.finished_at)}</span>
-                <span style={{ font: "600 12px/1 var(--font-mono)" }}>
-                  {job.processed_items || job.processed_emails}/{job.total_items || job.total_emails}
+                <span className="dt-date dt-muted">{formatDateTime(job.started_at)}</span>
+                <span className="dt-date dt-muted">{formatDateTime(job.finished_at)}</span>
+                <span className="dt-num">
+                  {(job.processed_items || job.processed_emails).toLocaleString()}
+                  <span className="dt-faint"> / {jobTotal.toLocaleString()}</span>
                 </span>
-                <span style={{ font: "600 12px/1 var(--font-mono)", color: job.failed > 0 ? "var(--danger)" : "var(--text-muted)" }}>
+                <span className={job.failed > 0 ? "dt-num" : "dt-num dt-faint"} style={job.failed > 0 ? { color: "var(--danger)" } : undefined}>
                   {job.failed}
                 </span>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <Button size="sm" variant="secondary" onClick={() => setDetailId(job.id)}>
-                    Details
-                  </Button>
+                <span style={{ display: "flex", gap: 4 }}>
+                  <IconButton icon={<Icon.eye size={14} />} label="Job details" variant="ghost" onClick={() => setDetailId(job.id)} />
                   {job.status === "failed" && (
-                    <Button size="sm" variant="secondary" loading={retry.isPending} onClick={() => retry.mutate(job.id)}>
-                      Retry
-                    </Button>
+                    <IconButton icon={<Icon.retry size={14} />} label="Retry job" variant="ghost" loading={retry.isPending} onClick={() => retry.mutate(job.id)} />
                   )}
-                  <Button
-                    size="sm"
+                  <IconButton
+                    icon={<Icon.trash size={14} />}
+                    label="Delete job"
                     variant="danger"
                     onClick={() => {
                       if (window.confirm(`Delete job #${job.id}?`)) del.mutate(job.id);
                     }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
+                  />
+                </span>
+              </DataTableRow>
             );
           })}
-        </div>
-      </div>
+        </DataTableBody>
+      </DataTable>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
         <span>
-          {total} job(s) total{isFetching && !isLoading ? " · updating…" : ""}
+          {total} {total === 1 ? "job" : "jobs"}{isFetching && !isLoading ? " · updating…" : ""}
         </span>
         <div style={{ display: "flex", gap: 8 }}>
           <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
@@ -360,14 +333,14 @@ export function PipelineCenter() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16 }}>
-        <StatCard icon={<Icon.spinner size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Running" value={s?.running ?? 0} />
-        <StatCard icon={<Icon.clock size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="Queued" value={s?.queued ?? 0} />
-        <StatCard icon={<Icon.check size={17} />} iconColor="var(--success)" iconBg="var(--success-subtle)" label="Completed today" value={s?.completed_today ?? 0} valueColor="var(--success)" />
-        <StatCard icon={<Icon.x size={17} />} iconColor="var(--danger)" iconBg="var(--danger-subtle)" label="Failed today" value={s?.failed_today ?? 0} valueColor="var(--danger)" />
-        <StatCard icon={<Icon.mail size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Emails processed today" value={s?.emails_processed_today ?? 0} />
-        <StatCard icon={<Icon.offer size={17} />} iconColor="var(--brand)" iconBg="var(--brand-subtle)" label="Offers generated today" value={s?.offers_generated_today ?? 0} />
-        <StatCard icon={<Icon.sparkle size={17} />} iconColor="var(--ai)" iconBg="var(--ai-subtle)" label="Brands researched today" value={s?.brands_researched_today ?? 0} />
-        <StatCard icon={<Icon.trendUp size={17} />} iconColor="var(--text-muted)" iconBg="var(--surface-sunken)" label="Success rate" value={`${s?.success_rate ?? 0}%`} />
+        <StatCard label="Running" value={s?.running ?? 0} />
+        <StatCard label="Queued" value={s?.queued ?? 0} />
+        <StatCard label="Completed today" value={s?.completed_today ?? 0} valueColor="var(--success)" />
+        <StatCard label="Failed today" value={s?.failed_today ?? 0} valueColor="var(--danger)" />
+        <StatCard label="Emails processed today" value={s?.emails_processed_today ?? 0} />
+        <StatCard label="Offers generated today" value={s?.offers_generated_today ?? 0} />
+        <StatCard label="Brands researched today" value={s?.brands_researched_today ?? 0} />
+        <StatCard label="Success rate" value={`${s?.success_rate ?? 0}%`} />
       </div>
 
       <Card>

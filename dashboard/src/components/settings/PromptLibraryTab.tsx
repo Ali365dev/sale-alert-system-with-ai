@@ -179,7 +179,7 @@ function PromptEditor({ prompt, onClose }: { prompt: Prompt; onClose: () => void
 
       {showTest && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "var(--surface-sunken)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "var(--ls-wide)", textTransform: "uppercase", color: "var(--text-muted)" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)" }}>
             {isBrandResearch ? "Test with a sample brand" : "Test with a sample email"}
           </div>
 

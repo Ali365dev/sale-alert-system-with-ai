@@ -31,10 +31,143 @@
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 18px 14px;
+  gap: 16px;
+  padding: 16px 12px;
   border-right: 1px solid var(--border);
   background: var(--surface-card);
+}
+
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 8px;
+}
+.shell-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--brand);
+  color: var(--on-brand);
+}
+.shell-brand-name {
+  font: var(--fw-semibold) 1rem/1 var(--font-sans);
+  color: var(--text-strong);
+}
+.shell-brand-sub {
+  font: var(--fw-regular) 0.8rem/1 var(--font-sans);
+  color: var(--text-muted);
+}
+
+.shell-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav-group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-muted);
+  font: var(--fw-medium) 0.75rem/1 var(--font-sans);
+  cursor: pointer;
+}
+.nav-group-toggle:hover { color: var(--text-body); }
+.nav-group-toggle:focus-visible,
+.nav-item:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+.nav-group-chevron {
+  color: var(--text-faint);
+  transition: transform 150ms ease;
+}
+.nav-group-chevron.is-open { transform: rotate(90deg); }
+
+.nav-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  font: var(--fw-medium) 0.875rem/1 var(--font-sans);
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.nav-item svg { flex: 0 0 16px; color: var(--text-muted); }
+.nav-item:hover {
+  background: var(--surface-sunken);
+  color: var(--text-strong);
+  text-decoration: none;
+}
+.nav-item.is-active {
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-strong);
+}
+.nav-item.is-active svg { color: var(--brand); }
+
+.shell-fetch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.shell-fetch-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.status-dot.is-on { background: var(--success); }
+/* Only a running job pulses — the signature dot never moves for idle states. */
+.status-dot.is-live {
+  background: var(--success);
+  animation: status-live 1.6s ease-in-out infinite;
+}
+@keyframes status-live {
+  50% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-dot.is-live { animation: none; }
+  .nav-group-chevron, .nav-item { transition: none; }
 }
 
 .shell-sidebar-close,
@@ -90,6 +223,30 @@
 
 .shell-scrim {
   display: none;
+}
+
+.shell-offline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.shell-offline h1 {
+  margin: 0;
+  font: var(--fw-semibold) 1.125rem/1.3 var(--font-sans);
+  color: var(--text-strong);
+}
+.shell-offline p {
+  max-width: 26rem;
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 1024px) {

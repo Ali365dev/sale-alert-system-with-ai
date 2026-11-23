@@ -172,7 +172,7 @@ export function ScheduledScraping() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text-strong)", margin: 0 }}>Scheduled Scraping</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--text-strong)", margin: 0 }}>Scheduled Scraping</h1>
           <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
             Automate brand website scraping on a cron schedule.
           </p>

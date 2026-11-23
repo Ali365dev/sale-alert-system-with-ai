@@ -9,7 +9,7 @@ import { useAuthStore } from "../../store/authStore";
 import { toast } from "../../store/toastStore";
 
 export function AccountPage() {
-  useSeo({ title: "Your Account — DealPulse" });
+  useSeo({ title: "Your Account — DealsMore" });
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const deleteAccount = useDeleteAccount();

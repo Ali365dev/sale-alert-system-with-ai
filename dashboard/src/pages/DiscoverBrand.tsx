@@ -40,7 +40,7 @@ function sourceLabel(source: string | null | undefined): string {
 
 function SourceBadge({ source }: { source: string | null | undefined }) {
   return (
-    <span style={{ fontSize: 10.5, color: "var(--text-faint)", fontWeight: 600, letterSpacing: "var(--ls-wide)", textTransform: "uppercase" }}>
+    <span style={{ fontSize: 10.5, color: "var(--text-faint)", fontWeight: 600 }}>
       {sourceLabel(source)}
     </span>
   );

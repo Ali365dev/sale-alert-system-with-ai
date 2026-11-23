@@ -3,6 +3,7 @@ import { useScraperConfigs, useScraperConfig, useCreateScraperConfig, useDeleteS
 import type { ScraperConfig, ScraperSelector, ScraperConfigInput } from "../api/scraperConfigs";
 import { useBrands } from "../api/brands";
 import { toast } from "../store/toastStore";
+import { Icon } from "../components/icons";
 
 const SELECTOR_TYPES = ["text", "image", "link", "price", "attribute", "html", "table", "pagination", "click", "container"] as const;
 
@@ -65,7 +66,6 @@ function SelectorNode({
             fontWeight: 700,
             background: `${color}22`,
             color,
-            textTransform: "uppercase",
             letterSpacing: 0.5,
           }}
         >
@@ -338,7 +338,7 @@ export function ScraperBuilder() {
       <div style={{ padding: "20px 24px 0", borderBottom: "1px solid var(--border)", paddingBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text-strong)", margin: 0 }}>Visual Scraper Builder</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--text-strong)", margin: 0 }}>Visual Scraper Builder</h1>
             <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
               Create and manage CSS selector trees for brand websites.
             </p>
@@ -395,8 +395,8 @@ export function ScraperBuilder() {
         <div style={{ overflowY: "auto", padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
           {!selectedId ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, color: "var(--text-muted)", gap: 8, paddingTop: 60 }}>
-              <span style={{ fontSize: 32 }}>🌳</span>
-              <p style={{ fontSize: 14, fontWeight: 600 }}>Select a config to view its selector tree</p>
+              <Icon.list size={28} aria-hidden="true" />
+              <p style={{ fontSize: 14, fontWeight: 500 }}>Select a config to see its selector tree</p>
             </div>
           ) : (
             <>
@@ -404,7 +404,7 @@ export function ScraperBuilder() {
               {activeConfig && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div>
-                    <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-strong)", margin: 0 }}>{activeConfig.name}</h2>
+                    <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-strong)", margin: 0 }}>{activeConfig.name}</h2>
                     <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
                       {activeConfig.start_urls?.join(", ") || "No start URLs"} · {selectors.length} selector{selectors.length !== 1 ? "s" : ""}
                     </p>

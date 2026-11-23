@@ -159,12 +159,13 @@ function KeyRow({ apiKey, keys, onReorder, reordering }: { apiKey: ApiKey; keys:
         </Button>
       </div>
       {test.data && (
-        <div style={{ gridColumn: "1 / -1", fontSize: 11.5, color: test.data.ok ? "var(--success)" : test.data.rate_limited ? "var(--amber-600)" : "var(--danger)" }}>
+        <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: test.data.ok ? "var(--success)" : test.data.rate_limited ? "var(--amber-600)" : "var(--danger)" }}>
+          {test.data.ok ? <Icon.check size={14} aria-hidden="true" /> : test.data.rate_limited ? <Icon.alert size={14} aria-hidden="true" /> : <Icon.x size={14} aria-hidden="true" />}
           {test.data.ok
-            ? `✓ Connected (${test.data.latency_seconds}s)`
+            ? `Connected (${test.data.latency_seconds}s)`
             : test.data.rate_limited
-              ? `⚠ Rate limit / quota exceeded — ${test.data.error}`
-              : `✗ ${test.data.error}`}
+              ? `Rate limit or quota exceeded — ${test.data.error}`
+              : test.data.error}
         </div>
       )}
     </div>
@@ -363,8 +364,6 @@ function ProviderPriorityCard() {
                       style={{
                         fontSize: 10.5,
                         fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "var(--ls-wide)",
                         color: "var(--text-faint)",
                         marginBottom: 3,
                       }}

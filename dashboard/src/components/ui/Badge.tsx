@@ -20,7 +20,7 @@ export function Badge({ tone = "neutral", children }: { tone?: Tone; children: R
         height: 22,
         padding: "0 9px",
         borderRadius: "var(--radius-pill)",
-        font: "600 11.5px/1 var(--font-mono)",
+        font: "var(--fw-medium) 0.75rem/1 var(--font-sans)",
         whiteSpace: "nowrap",
         ...toneStyles[tone],
       }}
