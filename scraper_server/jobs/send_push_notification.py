@@ -42,7 +42,7 @@ class SendPushNotificationJob(BackgroundJob):
         data = payload.get("data")
 
         tokens: list[str] = item.id
-        response = fcm_client.send_multicast(tokens, title, body, data)
+        response = fcm_client.send_multicast(tokens, title, body, data, image=payload.get("image"))
 
         dead_tokens = []
         failure_samples: list[str] = []

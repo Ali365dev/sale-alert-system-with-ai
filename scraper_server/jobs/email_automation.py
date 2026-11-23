@@ -147,8 +147,9 @@ class EmailAutomationJob(BackgroundJob):
 
     def process_item(self, job_id: int, item: WorkItem) -> str:
         from ai._llm import describe_active_provider
-        from gmail.gmail_labels import apply_label, get_or_create_label_id
+        from gmail.gmail_labels import apply_label, get_message_sender_and_labels, get_or_create_label_id
         from gmail.gmail_service import _get_session, fetch_single_message
+        from jobs.discover_brand import is_ingestible
         from services import job_service
         from services.ai_job_logging import (
             make_provider_event_logger,
@@ -172,6 +173,17 @@ class EmailAutomationJob(BackgroundJob):
             if existing_id is not None:
                 email_id = existing_id
             else:
+                # History lists every message added to the mailbox, not just
+                # promotions — gate on headers before downloading/storing it.
+                sender, label_ids = retry_with_backoff(
+                    lambda: get_message_sender_and_labels(session, message_id),
+                    label=f"Gmail metadata {message_id}",
+                )
+                if not is_ingestible(sender, label_ids):
+                    job_service.append_log(
+                        job_id, f"↷ Skipped {sender} — not promotional and not a known brand", category="gmail",
+                    )
+                    return "skipped"
                 raw = retry_with_backoff(
                     lambda: fetch_single_message(session, message_id),
                     label=f"Gmail fetch {message_id}",

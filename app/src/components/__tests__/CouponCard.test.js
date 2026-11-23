@@ -2,6 +2,12 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import CouponCard from '../CouponCard';
 
+// CouponCard reads navigation/route so its logo can open the brand page.
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: jest.fn() }),
+  useRoute: () => ({ name: 'HomeScreen', params: {} }),
+}));
+
 jest.mock('../../utils/CustomToast', () => ({
   showSuccessToast: jest.fn(),
   showErrorToast: jest.fn(),

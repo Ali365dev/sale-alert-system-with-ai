@@ -12,20 +12,48 @@
 		147DBB70F12A44C4A138819C /* MaterialCommunityIcons.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2A031345AAF74D458710E964 /* MaterialCommunityIcons.ttf */; };
 		1AB8455121B18CAC91FA14A6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		2E7AEFA2094E406CA0B3EB6D /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6662336DAE0A4477872689F5 /* BootSplash.storyboard */; };
+		31F702E8C7CE928EEC10AA29 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28621DD0ECDF1783B730F73D /* NotificationService.swift */; };
 		75D9411830586C3000D3864D /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 75D9411730586C3000D3864D /* GoogleService-Info.plist */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		7D3FDEE6E8C6EB1F248AADC7 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B84484BCC4A029503B7029B3 /* Foundation.framework */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		94F120BA24E44762A6515B90 /* FontAwesome5_Solid.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 34BFB7E4D8DB4DABB8C3156B /* FontAwesome5_Solid.ttf */; };
 		A1B2C3D42CA45674006654F1 /* DisableHTTP3.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D32CA45674006654F0 /* DisableHTTP3.m */; };
 		BFE50663F53747A687FF218F /* Ionicons.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A08B90149D10444F9B35B385 /* Ionicons.ttf */; };
 		CEBE40467D06D9F57862A97E /* Pods_dealplusApp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 745BFCD702F48C4C589EA250 /* Pods_dealplusApp.framework */; };
+		FC32A412D9FAF14CC845EAF1 /* NotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FC494F93618B444CB04D81E3 /* NotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		3BAC32AA037E1C07025E2295 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 579FB6859EED6C517A08B45C;
+			remoteInfo = NotificationService;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5A289FEF34DB06B3BBD543B0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				FC32A412D9FAF14CC845EAF1 /* NotificationService.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		13B07F961A680F5B00A75B9A /* dealplusApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = dealplusApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = dealplusApp/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = dealplusApp/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = dealplusApp/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		28621DD0ECDF1783B730F73D /* NotificationService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		2A031345AAF74D458710E964 /* MaterialCommunityIcons.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = MaterialCommunityIcons.ttf; path = ../assets/fonts/MaterialCommunityIcons.ttf; sourceTree = "<group>"; };
 		34BFB7E4D8DB4DABB8C3156B /* FontAwesome5_Solid.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = FontAwesome5_Solid.ttf; path = ../assets/fonts/FontAwesome5_Solid.ttf; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-dealplusApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-dealplusApp.debug.xcconfig"; path = "Target Support Files/Pods-dealplusApp/Pods-dealplusApp.debug.xcconfig"; sourceTree = "<group>"; };
@@ -37,10 +65,13 @@
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = dealplusApp/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A08B90149D10444F9B35B385 /* Ionicons.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = Ionicons.ttf; path = ../assets/fonts/Ionicons.ttf; sourceTree = "<group>"; };
 		A1B2C3D32CA45674006654F0 /* DisableHTTP3.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = DisableHTTP3.m; path = dealplusApp/DisableHTTP3.m; sourceTree = "<group>"; };
+		B84484BCC4A029503B7029B3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		C0DE51GNENT1TLEMEN7S0001 /* dealplusApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = dealplusApp.entitlements; path = dealplusApp/dealplusApp.entitlements; sourceTree = "<group>"; };
 		C0DE51GNENT1TLEMEN7S0002 /* dealplusApp.Debug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = dealplusApp.Debug.entitlements; path = dealplusApp/dealplusApp.Debug.entitlements; sourceTree = "<group>"; };
+		CB725EF297D63ADC6D26370F /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D3208BBA43E7476BA5E86F81 /* Colors.xcassets */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = folder.assetcatalog; name = Colors.xcassets; path = dealplusApp/Colors.xcassets; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		FC494F93618B444CB04D81E3 /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -49,6 +80,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				CEBE40467D06D9F57862A97E /* Pods_dealplusApp.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E3DDA76BA38A5587196B6824 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D3FDEE6E8C6EB1F248AADC7 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -77,8 +116,17 @@
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				745BFCD702F48C4C589EA250 /* Pods_dealplusApp.framework */,
+				2E5A86DB4ED6B2A399B9B226 /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		2E5A86DB4ED6B2A399B9B226 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				B84484BCC4A029503B7029B3 /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 		4AE993E9EBC64321B39E5FEF /* Resources */ = {
@@ -89,6 +137,16 @@
 				2A031345AAF74D458710E964 /* MaterialCommunityIcons.ttf */,
 			);
 			name = Resources;
+			sourceTree = "<group>";
+		};
+		57BC1548E20D2D4B0E75FBAC /* NotificationService */ = {
+			isa = PBXGroup;
+			children = (
+				28621DD0ECDF1783B730F73D /* NotificationService.swift */,
+				CB725EF297D63ADC6D26370F /* Info.plist */,
+			);
+			name = NotificationService;
+			path = NotificationService;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -108,6 +166,7 @@
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
 				4AE993E9EBC64321B39E5FEF /* Resources */,
+				57BC1548E20D2D4B0E75FBAC /* NotificationService */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -118,6 +177,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* dealplusApp.app */,
+				FC494F93618B444CB04D81E3 /* NotificationService.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -142,6 +202,7 @@
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
+				5A289FEF34DB06B3BBD543B0 /* Embed Foundation Extensions */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
@@ -150,11 +211,29 @@
 			buildRules = (
 			);
 			dependencies = (
+				94D69378B8E7E8B09130857B /* PBXTargetDependency */,
 			);
 			name = dealplusApp;
 			productName = dealplusApp;
 			productReference = 13B07F961A680F5B00A75B9A /* dealplusApp.app */;
 			productType = "com.apple.product-type.application";
+		};
+		579FB6859EED6C517A08B45C /* NotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D797C3640C0B9D8346267CE4 /* Build configuration list for PBXNativeTarget "NotificationService" */;
+			buildPhases = (
+				0CD262A35565CF4526C35AC8 /* Sources */,
+				E3DDA76BA38A5587196B6824 /* Frameworks */,
+				C623569FEC3EF6ECF82FDBE1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NotificationService;
+			productName = NotificationService;
+			productReference = FC494F93618B444CB04D81E3 /* NotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -183,6 +262,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* dealplusApp */,
+				579FB6859EED6C517A08B45C /* NotificationService */,
 			);
 		};
 /* End PBXProject section */
@@ -201,6 +281,13 @@
 				94F120BA24E44762A6515B90 /* FontAwesome5_Solid.ttf in Resources */,
 				BFE50663F53747A687FF218F /* Ionicons.ttf in Resources */,
 				147DBB70F12A44C4A138819C /* MaterialCommunityIcons.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C623569FEC3EF6ECF82FDBE1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -305,6 +392,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0CD262A35565CF4526C35AC8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				31F702E8C7CE928EEC10AA29 /* NotificationService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		13B07F871A680F5B00A75B9A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -315,6 +410,15 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		94D69378B8E7E8B09130857B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = NotificationService;
+			target = 579FB6859EED6C517A08B45C /* NotificationService */;
+			targetProxy = 3BAC32AA037E1C07025E2295 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
@@ -395,6 +499,37 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		4A1918B971972256EA6D040B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = HK5JYLV26Z;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.app.dealsmore.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "Deals More NotificationService";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -586,6 +721,32 @@
 			};
 			name = Release;
 		};
+		B3DB192018233DCC03A273A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HK5JYLV26Z;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.app.dealsmore.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -603,6 +764,15 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D797C3640C0B9D8346267CE4 /* Build configuration list for PBXNativeTarget "NotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A1918B971972256EA6D040B /* Release */,
+				B3DB192018233DCC03A273A1 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

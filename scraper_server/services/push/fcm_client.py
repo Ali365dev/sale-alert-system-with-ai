@@ -146,6 +146,7 @@ def send_multicast(
     body: str,
     data: dict | None = None,
     *,
+    image: str | None = None,
     max_attempts: int = 4,
 ) -> Any:
     """Sends one notification to up to 500 tokens in a single FCM call.
@@ -166,11 +167,14 @@ def send_multicast(
     apns = messaging.APNSConfig(
         headers={"apns-priority": "10", "apns-push-type": "alert"},
         payload=messaging.APNSPayload(
-            aps=messaging.Aps(sound="default", badge=1),
+            # mutable_content lets an iOS Notification Service Extension fetch
+            # the image — without one, iOS shows the text-only banner.
+            aps=messaging.Aps(sound="default", badge=1, mutable_content=bool(image)),
         ),
+        fcm_options=messaging.APNSFCMOptions(image=image) if image else None,
     )
     message = messaging.MulticastMessage(
-        notification=messaging.Notification(title=title, body=body),
+        notification=messaging.Notification(title=title, body=body, image=image),
         data={k: str(v) for k, v in (data or {}).items()},
         tokens=tokens,
         apns=apns,

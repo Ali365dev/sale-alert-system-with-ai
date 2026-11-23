@@ -28,6 +28,7 @@ def _offer(**kwargs):
         title=None,
         discount_percentage=40,
         is_active=True,
+        image_url="https://cdn.example.com/sale.jpg",
     )
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
@@ -170,6 +171,7 @@ def test_process_item_sends_personalized_copy_and_records(mocker, mock_get_sessi
     assert "40%" in body or "shoes" in body.lower()
     assert data["dealId"] == "9"
     assert data["offerId"] == "9"
+    assert send.call_args.kwargs["image"] == "https://cdn.example.com/sale.jpg"
     mock_session.add.assert_called_once()
     saved = mock_session.add.call_args.args[0]
     assert saved.device_id == "dev-1"

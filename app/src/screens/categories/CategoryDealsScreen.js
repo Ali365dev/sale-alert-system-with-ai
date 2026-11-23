@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,11 +7,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { SCREEN_WIDTH, SPACING } from '../../styles/theme';
 import useTheme from '../../hooks/useTheme';
 import useDataStore from '../../state/dataStore';
-import { channelTag } from '../../utils/dealAdapters';
 import { usePagination } from '../../hooks/usePagination';
 import AnimatedListItem from '../../components/AnimatedListItem';
-import DealCard from '../../components/DealCard';
-import DealFilterSheet from '../../components/DealFilterSheet';
+import CouponCard from '../../components/CouponCard';
 import EmptyState from '../../components/EmptyState';
 import PaginationLoader from '../../components/PaginationLoader';
 import SearchBar from '../../components/SearchBar';
@@ -23,7 +21,14 @@ const GRID_PAD = 20;
 const GRID_GAP = 12;
 const CARD_W = (SCREEN_WIDTH - GRID_PAD * 2 - GRID_GAP) / 2;
 
-const SORTS = ['Highest Discount', 'Newest', 'Expiring Soonest'];
+const SORTS = [
+  { key: 'discount', label: 'Top discount', icon: 'flame-outline' },
+  { key: 'newest', label: 'Newest', icon: 'sparkles-outline' },
+  { key: 'ending', label: 'Ending soon', icon: 'time-outline' },
+];
+
+const discountValue = (deal) => Math.abs(parseFloat(String(deal.discountLabel || '').replace(/[^0-9.-]/g, ''))) || 0;
+const isExpired = (deal) => Boolean(deal.expiresAt) && new Date(deal.expiresAt).getTime() < Date.now();
 
 const CategoryDealsScreen = () => {
   const navigation = useNavigation();
@@ -31,13 +36,10 @@ const CategoryDealsScreen = () => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const filterSheetRef = useRef(null);
   const category = route.params?.category ?? 'All';
   const deals = useDataStore((state) => state.deals);
   const brandsById = useDataStore((state) => state.brandsById);
-  const [sort, setSort] = useState('Highest Discount');
-  const [channel, setChannel] = useState('all');
-  const [sortOpen, setSortOpen] = useState(false);
+  const [sort, setSort] = useState('discount');
   const [gridView, setGridView] = useViewMode(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -46,9 +48,6 @@ const CategoryDealsScreen = () => {
     let list = deals;
     if (category && category !== 'All') {
       list = list.filter((d) => d.category === category);
-    }
-    if (channel !== 'all') {
-      list = list.filter((d) => channelTag(d) === channel);
     }
     if (query.trim()) {
       const q = query.toLowerCase();
@@ -61,18 +60,20 @@ const CategoryDealsScreen = () => {
         );
       });
     }
-    if (sort === 'Highest Discount') {
-      list = [...list].sort((a, b) => (parseInt(a.discountLabel) || 0) - (parseInt(b.discountLabel) || 0));
-    } else if (sort === 'Newest') {
-      list = [...list].sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
-    } else {
-      list = [...list].sort((a, b) => new Date(a.expiresAt || '9999').getTime() - new Date(b.expiresAt || '9999').getTime());
-    }
+    const byExpiry = (d) => new Date(d.expiresAt || '9999-12-31').getTime();
+    const compare = {
+      discount: (a, b) => discountValue(b) - discountValue(a),
+      newest: (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+      ending: (a, b) => byExpiry(a) - byExpiry(b),
+    }[sort];
+    // Expired offers stay reachable but never outrank live ones.
+    list = [...list].sort((a, b) => isExpired(a) - isExpired(b) || compare(a, b));
     return list;
-  }, [deals, category, channel, query, sort, brandsById]);
+  }, [deals, category, query, sort, brandsById]);
 
   const { visibleItems: visibleDeals, isLoadingMore, loadMore } = usePagination(filteredDeals);
-  const filterActive = channel !== 'all';
+  const liveCount = useMemo(() => filteredDeals.filter((d) => !isExpired(d)).length, [filteredDeals]);
+  const bestDiscount = useMemo(() => Math.max(0, ...filteredDeals.filter((d) => !isExpired(d)).map(discountValue)), [filteredDeals]);
 
   const toggleSearch = () => {
     setSearchOpen((open) => {
@@ -92,27 +93,14 @@ const CategoryDealsScreen = () => {
         hideProfile
         hideBorder
         rightSlot={
-          <View style={styles.headerActions}>
-            <Pressable
-              hitSlop={12}
-              onPress={() => {
-                setSortOpen(false);
-                filterSheetRef.current?.present();
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Filter deals"
-              style={styles.headerIconBtn}>
-              <Icon name="options-outline" size={22} color={filterActive ? colors.primary : colors.text} />
-              {filterActive ? <View style={styles.filterDot} /> : null}
-            </Pressable>
-            <Pressable
-              hitSlop={8}
-              onPress={toggleSearch}
-              accessibilityRole="button"
-              accessibilityLabel={searchOpen ? 'Close search' : 'Search deals'}>
-              <Icon name={searchOpen ? 'close-outline' : 'search-outline'} size={22} color={colors.text} />
-            </Pressable>
-          </View>
+          <Pressable
+            hitSlop={12}
+            onPress={toggleSearch}
+            style={styles.headerIconBtn}
+            accessibilityRole="button"
+            accessibilityLabel={searchOpen ? 'Close search' : 'Search deals'}>
+            <Icon name={searchOpen ? 'close-outline' : 'search-outline'} size={22} color={colors.text} />
+          </Pressable>
         }
       />
 
@@ -122,31 +110,36 @@ const CategoryDealsScreen = () => {
         </View>
       )}
 
-      <View style={styles.toolbar}>
-        <View style={styles.menuWrap}>
-          <Pressable style={styles.menuBtn} onPress={() => setSortOpen((open) => !open)}>
-            <Icon name="swap-vertical-outline" size={14} color={colors.text} />
-            <Text style={styles.menuLabel}>Sort</Text>
-            <Icon name={sortOpen ? 'chevron-up' : 'chevron-down'} size={12} color={colors.text} />
-          </Pressable>
-          {sortOpen && (
-            <View style={styles.dropdown}>
-              {SORTS.map((option, index) => (
-                <Pressable
-                  key={option}
-                  style={[styles.dropdownItem, index === SORTS.length - 1 && styles.dropdownItemLast]}
-                  onPress={() => {
-                    setSort(option);
-                    setSortOpen(false);
-                  }}>
-                  <Text style={styles.dropdownLabel}>{option}</Text>
-                  {sort === option && <Icon name="checkmark" size={16} color={colors.primary} />}
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
+      <View style={styles.summary}>
+        <Text style={styles.summaryText}>
+          <Text style={styles.summaryStrong}>{liveCount}</Text> live {liveCount === 1 ? 'deal' : 'deals'}
+          {bestDiscount > 0 ? (
+            <>
+              {'  ·  '}up to <Text style={styles.summaryAccent}>{Math.round(bestDiscount)}% off</Text>
+            </>
+          ) : null}
+        </Text>
         <ViewSwitcher gridView={gridView} onChange={setGridView} />
+      </View>
+
+      <View style={styles.toolbar}>
+        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Sort deals">
+          {SORTS.map((option) => {
+            const selected = sort === option.key;
+            return (
+              <Pressable
+                key={option.key}
+                onPress={() => setSort(option.key)}
+                hitSlop={6}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                style={({ pressed }) => [styles.chip, selected && styles.chipActive, pressed && styles.chipPressed]}>
+                <Icon name={option.icon} size={14} color={selected ? colors.primary : colors.mutedInk} />
+                <Text style={[styles.chipLabel, selected && styles.chipLabelActive]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <FlatList
@@ -174,12 +167,12 @@ const CategoryDealsScreen = () => {
           const tag = `category-${item.id}`;
           return (
             <AnimatedListItem index={index} style={gridView ? styles.gridItem : styles.listItem}>
-              <DealCard
-                variant={gridView ? 'offerGrid' : 'offer'}
+              <CouponCard
+                variant={gridView ? 'vertical' : 'horizontal'}
                 deal={item}
                 brand={brandsById[item.brandId]}
-                transitionTag={tag}
                 onPress={() => navigation.navigate('DealDetailScreen', { id: item.id, transitionTag: tag })}
+                style={isExpired(item) ? styles.expired : undefined}
               />
             </AnimatedListItem>
           );
@@ -189,7 +182,6 @@ const CategoryDealsScreen = () => {
         }
       />
 
-      <DealFilterSheet ref={filterSheetRef} channel={channel} onSelect={setChannel} />
     </Screen>
   );
 };
@@ -202,92 +194,69 @@ const createStyles = (colors) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-    },
     headerIconBtn: {
-      position: 'relative',
       padding: 2,
-    },
-    filterDot: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors.primary,
-      borderWidth: 1.5,
-      borderColor: colors.background,
     },
     searchWrap: {
       paddingHorizontal: GRID_PAD,
       paddingBottom: 8,
     },
-    toolbar: {
+    summary: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 12,
       paddingHorizontal: GRID_PAD,
-      paddingTop: 8,
-      paddingBottom: 12,
-      zIndex: 20,
     },
-    menuWrap: {
-      zIndex: 21,
+    summaryText: {
+      flexShrink: 1,
+      fontSize: 14,
+      color: colors.textSecondary,
     },
-    menuBtn: {
+    summaryStrong: {
+      fontWeight: '800',
+      color: colors.text,
+    },
+    summaryAccent: {
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    toolbar: {
+      paddingHorizontal: GRID_PAD,
+      paddingTop: 12,
+      paddingBottom: 14,
+    },
+    chips: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    chip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
+      gap: 5,
+      minHeight: 36,
+      paddingHorizontal: 12,
       borderRadius: 999,
-      paddingHorizontal: 13,
-      paddingVertical: 7,
-    },
-    menuLabel: {
-      fontSize: 12,
-      fontWeight: '500',
-      color: colors.text,
-    },
-    dropdown: {
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      marginTop: 6,
-      minWidth: 180,
-      backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
-      overflow: 'hidden',
-      zIndex: 30,
-      elevation: 6,
-      shadowColor: '#000',
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
+      backgroundColor: colors.surface,
     },
-    dropdownItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SPACING.three,
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+    chipActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primarySoft,
     },
-    dropdownItemLast: {
-      borderBottomWidth: 0,
+    chipPressed: {
+      opacity: 0.7,
     },
-    dropdownLabel: {
+    chipLabel: {
       fontSize: 13,
-      fontWeight: '500',
+      fontWeight: '600',
       color: colors.text,
+    },
+    chipLabelActive: {
+      color: colors.primary,
+      fontWeight: '700',
     },
     list: {
       paddingHorizontal: GRID_PAD,
@@ -298,10 +267,13 @@ const createStyles = (colors) =>
       gap: GRID_GAP,
     },
     listItem: {
-      marginBottom: 12,
+      marginBottom: 16,
     },
     gridItem: {
       width: CARD_W,
-      marginBottom: GRID_GAP,
+      marginBottom: GRID_GAP + 4,
+    },
+    expired: {
+      opacity: 0.5,
     },
   });

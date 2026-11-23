@@ -18,6 +18,8 @@
 	<dict>
 		<key>com.app.dealsmore</key>
 		<string>Deals More</string>
+		<key>com.app.dealsmore.NotificationService</key>
+		<string>Deals More NotificationService</string>
 	</dict>
 </dict>
 </plist>

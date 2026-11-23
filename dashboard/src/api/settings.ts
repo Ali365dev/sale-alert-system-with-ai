@@ -12,7 +12,8 @@ export interface SessionStatus {
 }
 
 export function useSettingsSession() {
-  return useQuery({
+  const adminToken = useAdminSessionStore((s) => s.token);
+  const query = useQuery({
     queryKey: ["settings", "session"],
     queryFn: async () => {
       const { data } = await apiClient.get<SessionStatus>("/settings/session");
@@ -23,6 +24,10 @@ export function useSettingsSession() {
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
+  // scraper_server also accepts its own cookie, but app_server admin routes
+  // only ever see the stored token — without it every admin write there 401s.
+  const data = query.data && { ...query.data, authenticated: query.data.authenticated && !!adminToken };
+  return { ...query, data };
 }
 
 export function useSettingsLogin() {

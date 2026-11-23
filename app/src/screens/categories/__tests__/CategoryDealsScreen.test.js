@@ -69,13 +69,16 @@ beforeEach(() => {
   });
 });
 
-test('shows the category title, offer card, Sort, filter icon, and view switcher — without category chips', async () => {
-  const { getByText, getByLabelText, queryByText } = await render(<CategoryDealsScreen />);
+test('shows the category title, coupon card, sort chips, search, and view switcher — no filter icon or category chips', async () => {
+  const { getByText, getByLabelText, queryByText, queryByLabelText } = await render(<CategoryDealsScreen />);
   expect(getByText('Fashion')).toBeTruthy();
-  expect(getByText('Flat 40% Off')).toBeTruthy();
+  expect(queryByLabelText('Filter deals')).toBeNull();
+  expect(getByText('40%')).toBeTruthy();
   expect(getByText('On jackets and more')).toBeTruthy();
-  expect(getByText('Sort')).toBeTruthy();
-  expect(getByLabelText('Filter deals')).toBeTruthy();
+  expect(getByLabelText('Sort deals')).toBeTruthy();
+  expect(getByText('Top discount')).toBeTruthy();
+  expect(getByText('Newest')).toBeTruthy();
+  expect(getByText('Ending soon')).toBeTruthy();
   expect(getByLabelText('Search deals')).toBeTruthy();
   expect(getByLabelText('List view')).toBeTruthy();
   expect(getByLabelText('Grid view')).toBeTruthy();
@@ -84,24 +87,29 @@ test('shows the category title, offer card, Sort, filter icon, and view switcher
   expect(queryByText('Electronics')).toBeNull();
 });
 
-test('filter icon opens the filter sheet; selecting Online keeps only online fashion deals', async () => {
-  const { getByLabelText, getByText, queryByText } = await render(<CategoryDealsScreen />);
-  await fireEvent.press(getByLabelText('Filter deals'));
-  expect(getByText('Filter')).toBeTruthy();
-  expect(getByText('Show deals by channel')).toBeTruthy();
-  await fireEvent.press(getByLabelText('Filter Online'));
-  expect(getByText('Flat 40% Off')).toBeTruthy();
-  expect(queryByText('In-store clearance')).toBeNull();
-});
-
 test('tapping an offer card opens deal detail', async () => {
-  const { getByText } = await render(<CategoryDealsScreen />);
-  await fireEvent.press(getByText('Flat 40% Off'));
+  const { getByLabelText } = await render(<CategoryDealsScreen />);
+  await fireEvent.press(getByLabelText('Acme 40% discount'));
   expect(mockNavigate).toHaveBeenCalledWith('DealDetailScreen', expect.objectContaining({ id: 'd1' }));
 });
 
 test('grid toggle switches the view without leaving the screen', async () => {
   const { getByLabelText, getByText } = await render(<CategoryDealsScreen />);
   await fireEvent.press(getByLabelText('Grid view'));
-  expect(getByText('Flat 40% Off')).toBeTruthy();
+  expect(getByText('40%')).toBeTruthy();
+});
+
+test('sort chips reorder deals and expired offers sink to the bottom', async () => {
+  useDataStore.setState({
+    deals: [
+      { ...deals[0], id: 'old', title: 'Expired mega sale', discountLabel: '-70%', expiresAt: '2020-01-01T00:00:00Z' },
+      deals[0],
+      { ...deals[2], expiresAt: '2027-01-01T00:00:00Z' },
+    ],
+  });
+  const { getAllByText, getByText } = await render(<CategoryDealsScreen />);
+  const titles = () => getAllByText(/jackets|clearance|mega sale/).map((n) => n.props.children);
+  expect(titles()).toEqual(['On jackets and more', 'In-store clearance', 'Expired mega sale']);
+  await fireEvent.press(getByText('Ending soon'));
+  expect(titles()).toEqual(['In-store clearance', 'On jackets and more', 'Expired mega sale']);
 });

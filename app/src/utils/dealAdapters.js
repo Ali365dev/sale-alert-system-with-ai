@@ -207,7 +207,8 @@ export const mapApiOfferToDeal = (offer, brandId) => {
     terms:
       'Offer valid while supplies last. The brand reserves the right to modify or cancel this promotion at any time without notice. Standard return policy applies. Discount applied at checkout.',
     discountLabel,
-    image: offer.image_url || imageForCategory(offer.category),
+    image: offer.image_url ? offer.image_url.replace(/&amp;/g, '&') : imageForCategory(offer.category),
+    hasOwnImage: Boolean(offer.image_url),
     category: offer.category ?? 'General',
     subcategory: offer.subcategory ?? null,
     expiresAt: offer.expiry_date ?? '',

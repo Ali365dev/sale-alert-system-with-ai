@@ -203,9 +203,10 @@ class NotifyMatchingOfferJob(BackgroundJob):
             if offer is None:
                 return "skipped"
             title, body, data = notification_copy(offer)
+            image = offer.image_url if (offer.image_url or "").startswith("https://") else None
 
         tokens = [r["token"] for r in recipients]
-        response = fcm_client.send_multicast(tokens, title, body, data)
+        response = fcm_client.send_multicast(tokens, title, body, data, image=image)
 
         dead_tokens = []
         sent_devices = []

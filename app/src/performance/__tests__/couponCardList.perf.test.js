@@ -6,6 +6,11 @@ import { View } from 'react-native';
 import ReactTestRenderer from 'react-test-renderer';
 import CouponCard from '../../components/CouponCard';
 
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: jest.fn() }),
+  useRoute: () => ({ name: 'HomeScreen', params: {} }),
+}));
+
 jest.mock('../../utils/CustomToast', () => ({
   showSuccessToast: jest.fn(),
   showErrorToast: jest.fn(),

@@ -61,6 +61,7 @@ def send_notification(body: dict = Body(default={})):
     title = (body.get("title") or "").strip()
     message_body = (body.get("body") or "").strip()
     data = body.get("data") or None
+    image = (body.get("image") or "").strip() or None
     if not title or not message_body:
         return JSONResponse({"error": "title and body are required"}, status_code=400)
     if not fcm_client.is_configured():
@@ -70,7 +71,9 @@ def send_notification(body: dict = Body(default={})):
     if existing:
         return JSONResponse({"status": "already_running", "job": existing}, status_code=409)
 
-    payload = {"title": title, "body": message_body, "data": data}
+    if image and not image.startswith("https://"):
+        return JSONResponse({"error": "image must be an https URL"}, status_code=400)
+    payload = {"title": title, "body": message_body, "data": data, "image": image}
     job = job_service.create_job(JOB_TYPE, payload=payload)
     config = job_runner.get_runner(JOB_TYPE)
     threading.Thread(target=config.run, args=(job["id"], payload), daemon=True).start()

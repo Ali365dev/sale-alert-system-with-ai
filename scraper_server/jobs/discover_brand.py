@@ -53,6 +53,18 @@ NON_BRAND_DOMAINS = {
 }
 
 
+# Shared mailbox providers — a Brand record listing one of these (e.g. a
+# stray "mail-noreply@google.com" or someone's personal @gmail.com address)
+# would otherwise make every sender on that provider count as that brand.
+GENERIC_MAILBOX_DOMAINS = {
+    "gmail.com", "googlemail.com", "google.com",
+    "yahoo.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
+    "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com",
+}
+
+PROMOTIONS_LABEL_ID = "CATEGORY_PROMOTIONS"
+
+
 def is_non_brand_domain(sender_domain: str) -> bool:
     norm = _normalize_domain(sender_domain)
     if not norm:
@@ -113,11 +125,22 @@ def find_known_brand_by_domain(sender_domain: str) -> Optional[Brand]:
                     pass
             if b.website:
                 known_domains.add(_domain_of(b.website))
+            known_domains -= GENERIC_MAILBOX_DOMAINS
 
             if any(_domains_match(norm, known) for known in known_domains if known):
                 # Detach the id/name we need before the session closes.
                 return Brand(id=b.id, name=b.name, website=b.website, emails=b.emails)
         return None
+
+
+def is_ingestible(sender: str, label_ids: list[str]) -> bool:
+    """Should the automatic pipeline store this message at all? Known-brand
+    mail always; an unknown sender only if Gmail filed it under Promotions
+    (a possible new brand for the Unknown Emails queue). Everything else —
+    transactional, personal, social notifications — is never stored."""
+    if PROMOTIONS_LABEL_ID in (label_ids or []):
+        return True
+    return find_known_brand_by_domain(extract_domain(sender)) is not None
 
 
 def route_to_candidate_queue(email_id: int, sender: str, sender_domain: str) -> None:

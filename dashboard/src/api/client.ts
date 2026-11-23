@@ -35,7 +35,16 @@ function addInterceptors(client: AxiosInstance) {
     (response) => response,
     (error) => {
       const data = error.response?.data;
-      if (data?.error === "not authenticated") return Promise.reject(error);
+      if (data?.error === "not authenticated") {
+        // A bearer header means a public-site user call — only an admin-only
+        // request proves the admin token is dead, so drop it to show the login gate.
+        const headers = error.config?.headers;
+        if (headers?.["X-Session-Token"] && !headers?.Authorization) {
+          useAdminSessionStore.getState().clearToken();
+          toast.error("Admin session expired — please log in again.");
+        }
+        return Promise.reject(error);
+      }
       const detail = typeof data?.detail === "string" ? data.detail : undefined;
       const message =
         data?.error ??
